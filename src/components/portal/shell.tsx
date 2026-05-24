@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/db/schema";
+import { signOutAction } from "@/app/auth/actions";
 
 type NavItem = { label: string; href: string };
 
@@ -86,9 +87,20 @@ export function PortalShell({
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted">
               {ROLE_LABEL[role]}
             </span>
-            <div className="h-9 w-9 rounded-full bg-navy-800 text-white flex items-center justify-center text-sm font-medium">
+            <div
+              className="h-9 w-9 rounded-full bg-navy-800 text-white flex items-center justify-center text-sm font-medium"
+              title={userName}
+            >
               {userName.charAt(0).toUpperCase()}
             </div>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="text-[11px] uppercase tracking-[0.16em] text-ink-soft hover:text-ink transition-colors px-2 py-1 rounded-md hover:bg-brand-100"
+              >
+                Sign out
+              </button>
+            </form>
           </div>
         </div>
       </header>
