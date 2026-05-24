@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wordmark } from "@/components/brand/wordmark";
+import { Wordmark, LogoCard } from "@/components/brand/wordmark";
 import { Button } from "@/components/ui/button";
 
 const ROLES = [
@@ -44,7 +44,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end">
             <div className="lg:col-span-7 rise">
               <div className="flex items-center gap-3 mb-8">
-                <span className="h-2 w-2 rounded-full bg-[var(--sun)]" />
+                <span className="h-2 w-2 rounded-full bg-brand-600" />
                 <span className="text-[11px] uppercase tracking-[0.2em] text-muted">
                   Taiyo Tuition · Portal v1
                 </span>
@@ -71,13 +71,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="lg:col-span-5 rise" style={{ animationDelay: "120ms" }}>
-              <div className="relative aspect-square w-full max-w-md ml-auto">
-                <div className="absolute inset-0 rounded-full bg-brand-50" />
-                <div className="absolute inset-12 rounded-full bg-brand-100" />
-                <div className="absolute inset-24 rounded-full bg-[var(--sun)] opacity-90" />
-                <div className="absolute bottom-6 right-6 text-[10px] uppercase tracking-[0.2em] text-muted">
-                  taiyo · 太陽
+            <div
+              className="lg:col-span-5 rise flex justify-end"
+              style={{ animationDelay: "120ms" }}
+            >
+              <div className="relative">
+                <div className="absolute -inset-8 brand-field rounded-[40px] opacity-60 blur-2xl" />
+                <LogoCard className="relative" size={280} />
+                <div className="mt-6 text-right text-[10px] uppercase tracking-[0.22em] text-muted">
+                  太陽 · taiyo · sun
                 </div>
               </div>
             </div>
