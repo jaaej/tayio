@@ -17,28 +17,28 @@ const admin = createClient(url, serviceKey, {
 
 const users = [
   {
-    email: "admin@tayio.com",
+    email: "admin@taiyo.com",
     password: "admin",
     role: "admin",
     first_name: "Admin",
     last_name: "Tayio",
   },
   {
-    email: "student@tayio.com",
+    email: "student@taiyo.com",
     password: "student",
     role: "student",
     first_name: "Sarah",
     last_name: "Student",
   },
   {
-    email: "parent@tayio.com",
+    email: "parent@taiyo.com",
     password: "parent",
     role: "parent",
     first_name: "Pat",
     last_name: "Parent",
   },
   {
-    email: "tutor@tayio.com",
+    email: "tutor@taiyo.com",
     password: "tutor",
     role: "tutor",
     first_name: "Tom",

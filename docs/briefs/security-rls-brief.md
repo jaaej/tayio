@@ -36,8 +36,8 @@ Do not touch any `src/app/{student,parent,tutor,admin}/**` files — role fronte
 **Verify before claiming done:**
 - All migrations apply cleanly: `npx drizzle-kit push` still works AND your raw-SQL migrations run via Supabase CLI or psql
 - Run a manual security test with the anon key: connect to Postgres as anon, try to `select * from profiles` as one user, confirm you only get your own row
-- Sign in as `student@tayio.com`, attempt to fetch another student's homework — should return zero rows
-- Sign in as `parent@tayio.com`, attempt to read `lesson_notes.internal_note` — column should be filtered out or the row hidden
+- Sign in as `student@taiyo.com`, attempt to fetch another student's homework — should return zero rows
+- Sign in as `parent@taiyo.com`, attempt to read `lesson_notes.internal_note` — column should be filtered out or the row hidden
 - Admin can still see everything
 - Document in `docs/SECURITY.md`: where policies live, how to add new ones, the access matrix as a table
 

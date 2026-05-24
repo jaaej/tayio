@@ -20,13 +20,21 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setLoading(false);
     if (error) {
       setError(error.message);
       return;
     }
-    router.push(next ?? "/");
+    const role =
+      (data.user?.app_metadata?.role as string | undefined) ??
+      (data.user?.user_metadata?.role as string | undefined);
+    const destination =
+      next ?? (role ? `/${role}` : "/");
+    router.push(destination);
     router.refresh();
   }
 
@@ -41,7 +49,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@school.edu.au"
+          placeholder="you@taiyo.com"
         />
       </div>
       <div className="space-y-2">

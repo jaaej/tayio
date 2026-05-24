@@ -15,7 +15,7 @@ Do not touch anything else. No source code, no schema changes, no role folders.
 1. **Subjects** — VCE Maths Methods, Specialist Maths, Physics, Chemistry, Biology, English, Further Maths (Taiyo's actual offering from their website)
 2. **Tutors** — 4-5 named tutors (e.g., Mr Lee, Ms Park, Dr Chen, Ms Tanaka) with realistic emails
 3. **Students** — 12-15 students across Year 9, 10, 11, 12 with realistic Australian names and Melbourne schools (Mount Waverley SC, Glen Waverley SC, MGS, MHS, etc.)
-4. **Parents** — one parent per family, some parents linked to 2-3 children via `family_links`. The existing `parent@tayio.com` should be linked to the demo student `student@tayio.com` plus 1-2 others so the parent dashboard's child-switcher has real data.
+4. **Parents** — one parent per family, some parents linked to 2-3 children via `family_links`. The existing `parent@taiyo.com` should be linked to the demo student `student@taiyo.com` plus 1-2 others so the parent dashboard's child-switcher has real data.
 5. **Classes** — ~8-10 classes across subjects and year levels, each with an assigned tutor and a weekday/time recurrence
 6. **Enrollments** — wire students into classes (mix: some students in 1 class, some in 3-4)
 7. **Lessons** — generate ~6 weeks of lessons (3 weeks past, 3 weeks future) from the class schedules. Mix of `completed`, `upcoming`, `cancelled`, `missed`, `makeup` statuses for past lessons.
@@ -28,7 +28,7 @@ Do not touch anything else. No source code, no schema changes, no role folders.
 
 **Critical constraints:**
 - **Idempotent.** Running the script twice must not duplicate data. Use upserts keyed on natural keys (e.g., email for profiles, name+tutor+time for classes).
-- **Preserve the 4 test accounts** (admin/student/parent/tutor@tayio.com) — don't recreate or break them. Link the `student@tayio.com` user as a real enrolled student so they have lessons/homework when they sign in.
+- **Preserve the 4 test accounts** (admin/student/parent/tutor@taiyo.com) — don't recreate or break them. Link the `student@taiyo.com` user as a real enrolled student so they have lessons/homework when they sign in.
 - **Realistic dates.** Use `new Date()` math relative to today so past/future lessons stay correctly distributed every time the script runs (don't hardcode a date that becomes "the past" forever).
 - **Australian context.** AUD currency, Melbourne suburbs, VCE terminology.
 

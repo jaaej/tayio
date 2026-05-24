@@ -20,7 +20,7 @@ If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't
 
 **Verify before claiming done:**
 - `npm run typecheck` passes
-- `npm run dev` and sign in as `parent@tayio.com` / `parent`, click through every page
+- `npm run dev` and sign in as `parent@taiyo.com` / `parent`, click through every page
 - Verify a parent can only see their linked children, not other students
 - Confirm `internal_note` is never rendered anywhere parent-side
 - Confirm middleware still blocks you from `/student`, `/tutor`, `/admin`

@@ -19,7 +19,7 @@ If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't
 
 **Verify before claiming done:**
 - `npm run typecheck` passes
-- `npm run dev` and sign in as `student@tayio.com` / `student`, click through every page you built
+- `npm run dev` and sign in as `student@taiyo.com` / `student`, click through every page you built
 - Hit edge cases: empty homework list, missed lesson, lesson not yet started
 - Confirm middleware still blocks you from `/parent`, `/tutor`, `/admin`
 

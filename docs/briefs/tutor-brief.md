@@ -21,7 +21,7 @@ If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't
 
 **Verify before claiming done:**
 - `npm run typecheck` passes
-- `npm run dev` and sign in as `tutor@tayio.com` / `tutor`, click through every page
+- `npm run dev` and sign in as `tutor@taiyo.com` / `tutor`, click through every page
 - A tutor must only see *their* assigned students/classes — enforce in queries, not just UI
 - The two note fields must be clearly distinguished so a tutor never accidentally writes internal content into the parent-visible field
 - Confirm middleware still blocks you from `/student`, `/parent`, `/admin`

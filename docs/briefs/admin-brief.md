@@ -21,7 +21,7 @@ If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't
 
 **Verify before claiming done:**
 - `npm run typecheck` passes
-- `npm run dev` and sign in as `admin@tayio.com` / `admin`, click through every page
+- `npm run dev` and sign in as `admin@taiyo.com` / `admin`, click through every page
 - Admin can see and edit data across all roles (this is the only role with full access)
 - Destructive operations (delete user, cancel class) must confirm before executing
 - All mutations should use the service role key on the server, never the anon key client-side
