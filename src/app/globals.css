@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/*
+ * Taiyo Tuition design tokens.
+ * Brand palette extracted from taiyotuition.com.
+ * Single saturated blue + warm sun accent ("taiyo" 太陽 = sun).
+ */
+:root {
+  --brand-50: #f3f7ff;
+  --brand-100: #e6efff;
+  --brand-200: #d4dbfc;
+  --brand-300: #91b8ff;
+  --brand-400: #7dadff;
+  --brand-500: #5f97ff;
+  --brand-600: #3482ff;
+  --brand-700: #4a7de6;
+  --brand-800: #2a5fb8;
+  --brand-900: #1b3d7a;
+
+  --sun: #ffb547;
+  --sun-soft: #ffe5b8;
+
+  --ink: #1b1b1b;
+  --ink-soft: #4a4a4a;
+  --muted: #6b7280;
+  --hairline: #ececec;
+  --surface: #ffffff;
+  --surface-2: #f7f7f5;
+  --surface-3: #f0f0ec;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-hairline: var(--hairline);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editorial serif heading helper */
+.font-display {
+  font-family: var(--font-display);
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+/* Subtle hairline divider used across surfaces */
+.hairline {
+  border-color: var(--hairline);
+}
+
+/* Sunburst — a quiet nod to the Taiyo (sun) name, used sparingly. */
+.sun-mark {
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    var(--sun) 0%,
+    var(--sun) 28%,
+    transparent 30%
+  );
+}
+
+/* Focus ring — accessible, brand-tinted */
+*:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Soft grain for hero surfaces */
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Staggered reveal on mount */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
