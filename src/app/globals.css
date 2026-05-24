@@ -29,13 +29,16 @@
 
   --ink: var(--navy-800);
   --ink-soft: #4a5680;
-  --muted: #7a85a8;
-  --hairline: #e3e8f3;
-  --surface: #ffffff;
-  --surface-2: var(--periwinkle-50);
-  --surface-3: var(--periwinkle-100);
+  --muted: #5e6a92;
+  --hairline: #b9c5e6;
 
-  --background: var(--surface);
+  /* Periwinkle is the page — cards/inputs sit on top in white */
+  --background: var(--periwinkle-200);
+  --surface: var(--periwinkle-200);
+  --surface-2: var(--periwinkle-300);
+  --surface-3: var(--periwinkle-400);
+  --card: #ffffff;
+
   --foreground: var(--ink);
 }
 
@@ -60,6 +63,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-card: var(--card);
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-instrument), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

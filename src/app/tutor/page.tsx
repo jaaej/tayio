@@ -22,7 +22,7 @@ export default function TutorDashboard() {
             ].map(([start, end, name, meta]) => (
               <div
                 key={start}
-                className="flex items-baseline gap-8 px-6 py-5 hover:bg-surface-2 transition-colors"
+                className="flex items-baseline gap-8 px-6 py-5 hover:bg-brand-50 transition-colors"
               >
                 <div className="w-24 text-sm tabular-nums text-ink">
                   {start} – {end}

@@ -36,7 +36,7 @@ export default function StudentDashboard() {
           <CardLabel>Current focus</CardLabel>
           <CardTitle>Linear equations</CardTitle>
           <div className="mt-6">
-            <div className="h-1.5 w-full bg-surface-2 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-brand-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-brand-600 rounded-full"
                 style={{ width: "72%" }}

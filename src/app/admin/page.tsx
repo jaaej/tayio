@@ -53,7 +53,7 @@ export default function AdminDashboard() {
           <CardLabel>Revenue · this month</CardLabel>
           <CardTitle>$24,860 AUD</CardTitle>
           <div className="mt-6">
-            <div className="h-1.5 w-full bg-surface-2 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-brand-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-brand-600 rounded-full"
                 style={{ width: "68%" }}

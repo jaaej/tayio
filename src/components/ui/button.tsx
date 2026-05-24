@@ -12,8 +12,8 @@ const button = cva(
         brand:
           "bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.98] shadow-[0_1px_0_rgba(0,0,0,0.05),0_8px_24px_-12px_rgba(52,130,255,0.5)]",
         outline:
-          "border border-hairline bg-surface text-ink hover:border-ink/40 hover:bg-surface-2",
-        ghost: "text-ink hover:bg-surface-2",
+          "border border-hairline/70 bg-card text-ink hover:border-ink/40",
+        ghost: "text-ink hover:bg-card/60",
         link: "text-brand-600 underline-offset-4 hover:underline",
       },
       size: {

@@ -28,7 +28,7 @@ const ROLES = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-hairline">
+      <header className="border-b border-hairline/60 bg-card/60 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 lg:px-10 h-16 flex items-center justify-between">
           <Wordmark />
           <Link href="/login">
@@ -86,15 +86,15 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t border-hairline">
+        <section className="border-t border-hairline/60">
           <div className="mx-auto max-w-7xl px-6 lg:px-10 py-16 lg:py-20">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 border border-hairline rounded-2xl overflow-hidden bg-surface">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 border border-hairline/60 rounded-2xl overflow-hidden bg-card shadow-[0_1px_2px_rgba(29,41,81,0.04),0_24px_48px_-24px_rgba(29,41,81,0.18)]">
               {ROLES.map((r, i) => (
                 <Link
                   key={r.role}
                   href={r.href}
-                  className={`group p-8 hover:bg-surface-2 transition-colors ${
-                    i > 0 ? "border-t sm:border-t-0 sm:border-l border-hairline" : ""
+                  className={`group p-8 hover:bg-brand-50 transition-colors ${
+                    i > 0 ? "border-t sm:border-t-0 sm:border-l border-hairline/60" : ""
                   } ${i >= 2 ? "lg:border-t-0" : ""}`}
                 >
                   <div className="text-[11px] uppercase tracking-[0.18em] text-muted">
@@ -102,7 +102,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 text-2xl font-light text-ink">{r.role}</div>
                   <div className="mt-2 text-sm text-ink-soft">{r.line}</div>
-                  <div className="mt-8 text-xs text-brand-600 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
+                  <div className="mt-8 text-xs text-brand-700 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
                     Enter →
                   </div>
                 </Link>
@@ -112,8 +112,8 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-hairline">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10 py-8 flex items-center justify-between text-xs text-muted">
+      <footer className="border-t border-hairline/60">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10 py-8 flex items-center justify-between text-xs text-ink-soft">
           <span>© Taiyo Tuition · Mount Waverley, VIC</span>
           <span className="font-display italic">太陽</span>
         </div>

@@ -61,7 +61,7 @@ export function PortalShell({
   const nav = NAV_BY_ROLE[role];
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-hairline bg-surface/90 backdrop-blur sticky top-0 z-40">
+      <header className="border-b border-hairline/60 bg-card/80 backdrop-blur-md sticky top-0 z-40">
         <div className="mx-auto max-w-7xl px-6 lg:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-10">
             <Link href={`/${role}`} className="flex items-center">
@@ -74,7 +74,7 @@ export function PortalShell({
                   href={item.href}
                   className={cn(
                     "px-3 py-1.5 text-sm text-ink-soft hover:text-ink rounded-lg",
-                    "hover:bg-surface-2 transition-colors",
+                    "hover:bg-brand-100 transition-colors",
                   )}
                 >
                   {item.label}
@@ -86,7 +86,7 @@ export function PortalShell({
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted">
               {ROLE_LABEL[role]}
             </span>
-            <div className="h-9 w-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-sm font-medium">
+            <div className="h-9 w-9 rounded-full bg-navy-800 text-white flex items-center justify-center text-sm font-medium">
               {userName.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -97,8 +97,8 @@ export function PortalShell({
         {children}
       </main>
 
-      <footer className="border-t border-hairline mt-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10 py-6 flex items-center justify-between text-xs text-muted">
+      <footer className="border-t border-hairline/60 mt-12">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10 py-6 flex items-center justify-between text-xs text-ink-soft">
           <span>© Taiyo Tuition</span>
           <span className="font-display italic">太陽</span>
         </div>

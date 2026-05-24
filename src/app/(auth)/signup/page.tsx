@@ -4,13 +4,15 @@ import { SignupForm } from "./form";
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen flex flex-col px-8 py-10 lg:px-16 lg:py-16">
-      <Link href="/">
-        <Wordmark />
-      </Link>
+    <div className="min-h-screen brand-field grain flex flex-col">
+      <div className="mx-auto max-w-6xl w-full px-6 lg:px-10 pt-8">
+        <Link href="/">
+          <Wordmark />
+        </Link>
+      </div>
 
-      <div className="flex-1 flex items-center">
-        <div className="w-full max-w-sm mx-auto">
+      <div className="flex-1 flex items-center justify-center px-6 lg:px-10 py-12">
+        <div className="bg-card rounded-3xl border border-hairline/40 shadow-[0_2px_4px_rgba(29,41,81,0.04),0_24px_60px_-24px_rgba(29,41,81,0.25)] px-8 py-10 lg:px-12 lg:py-14 w-full max-w-md">
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted mb-3">
             Create account
           </div>
@@ -25,16 +27,21 @@ export default function SignupPage() {
             <SignupForm />
           </div>
 
-          <p className="mt-8 text-xs text-muted">
+          <p className="mt-8 text-xs text-ink-soft">
             Already have an account?{" "}
-            <Link href="/login" className="text-brand-600 underline-offset-4 hover:underline">
+            <Link
+              href="/login"
+              className="text-brand-700 underline-offset-4 hover:underline"
+            >
               Sign in
             </Link>
           </p>
         </div>
       </div>
 
-      <p className="text-[11px] text-muted tracking-wide">© Taiyo Tuition</p>
+      <div className="mx-auto max-w-6xl w-full px-6 lg:px-10 py-8 text-[11px] text-ink-soft tracking-wide">
+        © Taiyo Tuition
+      </div>
     </div>
   );
 }

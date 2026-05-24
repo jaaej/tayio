@@ -47,7 +47,7 @@ export function SignupForm() {
 
   if (done) {
     return (
-      <div className="rounded-xl border border-hairline bg-surface-2 p-5 text-sm text-ink-soft">
+      <div className="rounded-xl border border-hairline/60 bg-brand-50 p-5 text-sm text-ink-soft">
         Check your inbox to confirm your email, then sign in.
       </div>
     );
@@ -87,7 +87,7 @@ export function SignupForm() {
               className={`h-11 rounded-xl border text-sm transition-all ${
                 role === r.value
                   ? "border-ink bg-ink text-white"
-                  : "border-hairline bg-surface text-ink hover:border-ink/40"
+                  : "border-hairline/60 bg-card text-ink hover:border-ink/40"
               }`}
             >
               {r.label}
