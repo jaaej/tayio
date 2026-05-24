@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardLabel, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
 import { StatusBadge } from "./_components/badge";
+import { WeekCalendar } from "./_components/week-calendar";
 import {
   formatDateLong,
   formatDueDate,
@@ -23,13 +24,20 @@ import {
 
 const dayMs = 24 * 60 * 60 * 1000;
 
+function startOfWeek(d: Date) {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  const day = out.getDay();
+  out.setDate(out.getDate() - ((day + 6) % 7));
+  return out;
+}
+
 export default async function StudentDashboard() {
   const user = await requireRole("student");
   const firstName = (user.user_metadata?.first_name as string) ?? "there";
 
   const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setHours(0, 0, 0, 0);
+  const weekStart = startOfWeek(now);
   const weekEnd = new Date(weekStart.getTime() + 7 * dayMs);
 
   const [nextLesson, nextHomework, dueCount, weekLessons, recentRecaps] =
@@ -196,34 +204,13 @@ export default async function StudentDashboard() {
             Full timetable →
           </Link>
         </div>
-        <Card className="p-0 overflow-hidden">
+        <Card className="p-4 lg:p-5">
           {lessonsThisWeek.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-ink-soft">
+            <div className="px-2 py-6 text-sm text-ink-soft">
               No lessons scheduled this week.
             </div>
           ) : (
-            <div className="divide-y divide-hairline">
-              {lessonsThisWeek.map((l) => (
-                <div
-                  key={l.id}
-                  className="flex items-baseline gap-6 px-6 py-4"
-                >
-                  <div className="w-12 text-[11px] uppercase tracking-[0.18em] text-muted">
-                    {formatWeekday(l.date, "short")}
-                  </div>
-                  <div className="w-20 text-sm text-ink">
-                    {formatTime(l.startTime)}
-                  </div>
-                  <div className="flex-1 text-sm text-ink-soft">
-                    {l.subjectName} with {l.tutorFirstName} {l.tutorLastName}
-                  </div>
-                  <StatusBadge
-                    label={LESSON_STATUS_LABEL[l.status] ?? l.status}
-                    className={LESSON_STATUS_STYLE[l.status]}
-                  />
-                </div>
-              ))}
-            </div>
+            <WeekCalendar lessons={lessonsThisWeek} weekStart={weekStart} />
           )}
         </Card>
       </section>
