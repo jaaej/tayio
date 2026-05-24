@@ -38,7 +38,7 @@ export default async function UsersPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Everyone with{" "}
-          <span className="font-display italic">portal access</span>.
+          <span className="font-display">portal access</span>.
         </h1>
         <p className="mt-3 text-sm text-ink-soft max-w-xl">
           Create accounts for students, parents, tutors, and fellow admins.

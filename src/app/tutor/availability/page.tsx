@@ -11,7 +11,7 @@ export default async function TutorAvailabilityPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Coming in a later{" "}
-          <span className="font-display italic">phase</span>
+          <span className="font-display">phase</span>
         </h1>
       </header>
 

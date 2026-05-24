@@ -40,7 +40,7 @@ export default async function LessonDetailPage({
         </Link>
         <h1 className="text-4xl lg:text-5xl font-light tracking-tight text-ink">
           {lesson.className}{" "}
-          <span className="font-display italic">lesson</span>
+          <span className="font-display">lesson</span>
         </h1>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-soft">
           <span>{dateFmt.format(new Date(lesson.date))}</span>

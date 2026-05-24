@@ -65,7 +65,7 @@ export default async function StudentDashboard() {
           {termLabel}
         </div>
         <h1 className="mt-2 text-5xl lg:text-6xl font-light tracking-tight text-ink">
-          Welcome back, <span className="font-display italic">{firstName}</span>.
+          Welcome back, <span className="font-display">{firstName}</span>.
         </h1>
         <p className="mt-4 text-ink-soft max-w-xl">
           {nextLesson || nextHomework

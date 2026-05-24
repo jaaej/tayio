@@ -52,7 +52,7 @@ export default function LandingPage() {
               <h1 className="text-[44px] sm:text-[56px] lg:text-[76px] leading-[1.02] tracking-[-0.02em] text-ink font-light">
                 The quiet, organised
                 <br />
-                centre of <span className="font-display italic">your tutoring</span>.
+                centre of <span className="font-display">your tutoring</span>.
               </h1>
               <p className="mt-8 max-w-xl text-base lg:text-lg text-ink-soft leading-relaxed">
                 One place for students to learn, parents to follow along, tutors to
@@ -115,7 +115,7 @@ export default function LandingPage() {
       <footer className="border-t border-hairline/60">
         <div className="mx-auto max-w-7xl px-6 lg:px-10 py-8 flex items-center justify-between text-xs text-ink-soft">
           <span>© Taiyo Tuition · Mount Waverley, VIC</span>
-          <span className="font-display italic">太陽</span>
+          <span className="font-display">太陽</span>
         </div>
       </footer>
     </div>

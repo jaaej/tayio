@@ -40,7 +40,7 @@ export default async function TutorDashboard() {
           Today · {dayMonth.format(new Date())}
         </div>
         <h1 className="mt-2 text-5xl lg:text-6xl font-light tracking-tight text-ink">
-          {heading} <span className="font-display italic">to teach</span>.
+          {heading} <span className="font-display">to teach</span>.
         </h1>
       </header>
 

@@ -8,7 +8,7 @@ export default function ReportsPage() {
           Reports
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Coming in <span className="font-display italic">Phase 3</span>.
+          Coming in <span className="font-display">Phase 3</span>.
         </h1>
       </header>
       <Card>

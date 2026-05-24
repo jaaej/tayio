@@ -28,7 +28,7 @@ export default async function TutorClassesPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           {list.length} active{" "}
-          <span className="font-display italic">classes</span>
+          <span className="font-display">classes</span>
         </h1>
       </header>
 

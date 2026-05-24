@@ -84,7 +84,6 @@ body {
 
 .font-display {
   font-family: var(--font-display);
-  font-style: italic;
   letter-spacing: -0.01em;
 }
 

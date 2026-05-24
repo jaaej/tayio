@@ -99,7 +99,7 @@ export default async function EnrolmentsPage({
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Move students{" "}
-          <span className="font-display italic">in and out</span> of classes.
+          <span className="font-display">in and out</span> of classes.
         </h1>
       </header>
 

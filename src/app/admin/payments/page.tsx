@@ -101,7 +101,7 @@ export default async function PaymentsPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Who has{" "}
-          <span className="font-display italic">paid</span>, who hasn&apos;t.
+          <span className="font-display">paid</span>, who hasn&apos;t.
         </h1>
         <p className="mt-3 text-sm text-ink-soft max-w-xl">
           Manual invoice tracking for the MVP. Stripe integration arrives in

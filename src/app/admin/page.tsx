@@ -155,7 +155,7 @@ export default async function AdminDashboard() {
           Operations · Live
         </div>
         <h1 className="mt-2 text-5xl lg:text-6xl font-light tracking-tight text-ink">
-          The <span className="font-display italic">business</span> at a glance.
+          The <span className="font-display">business</span> at a glance.
         </h1>
       </header>
 

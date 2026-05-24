@@ -112,7 +112,7 @@ export function PortalShell({
       <footer className="border-t border-hairline/60 mt-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-10 py-6 flex items-center justify-between text-xs text-ink-soft">
           <span>© Taiyo Tuition</span>
-          <span className="font-display italic">太陽</span>
+          <span className="font-display">太陽</span>
         </div>
       </footer>
     </div>

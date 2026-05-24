@@ -26,7 +26,7 @@ export default async function TutorHomeworkPage() {
         </div>
         <h1 className="text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Assign &amp;{" "}
-          <span className="font-display italic">mark work</span>.
+          <span className="font-display">mark work</span>.
         </h1>
       </header>
 
