@@ -69,17 +69,40 @@
   --font-mono: ui-monospace, monospace;
 }
 
-html,
-body {
-  background: var(--background);
+html {
   color: var(--foreground);
 }
 
+/*
+ * Background: periwinkle base with two soft darker blooms in opposite
+ * corners for depth, plus a faint dot grid. All subtle — the design
+ * sits behind the floating white cards without competing.
+ */
 body {
+  color: var(--foreground);
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--periwinkle-200);
+  background-image:
+    radial-gradient(
+      ellipse 70% 50% at top left,
+      rgba(74, 103, 180, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 45% at bottom right,
+      rgba(46, 58, 107, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 1px 1px,
+      rgba(46, 58, 107, 0.08) 1px,
+      transparent 1px
+    );
+  background-size: auto, auto, 28px 28px;
+  background-attachment: fixed;
 }
 
 .font-display {
