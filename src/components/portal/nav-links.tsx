@@ -1,0 +1,62 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: ReactNode;
+};
+
+export function NavLinks({ items }: { items: NavItem[] }) {
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (pathname === href) return true;
+    // /student is the dashboard — only exact match counts as active
+    // /student/subjects matches /student/subjects/[anything]
+    if (href !== "/" && pathname.startsWith(href + "/")) return true;
+    return false;
+  }
+
+  return (
+    <nav className="space-y-1">
+      {items.map((item) => {
+        const active = isActive(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg transition-all duration-150",
+              active
+                ? "bg-brand-100 text-ink font-medium"
+                : "text-ink-soft hover:bg-brand-50 hover:text-ink",
+            )}
+          >
+            {active && (
+              <span
+                aria-hidden
+                className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-brand-700"
+              />
+            )}
+            <span
+              className={cn(
+                "shrink-0 transition-colors",
+                active
+                  ? "text-brand-700"
+                  : "text-muted group-hover:text-brand-700",
+              )}
+            >
+              {item.icon}
+            </span>
+            <span className="text-[15px] tracking-tight">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

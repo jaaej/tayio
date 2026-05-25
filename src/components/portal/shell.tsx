@@ -1,46 +1,67 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  LayoutDashboard,
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  GraduationCap,
+  TrendingUp,
+  FolderOpen,
+  CheckCircle2,
+  MessageSquareText,
+  CreditCard,
+  CalendarPlus,
+  Sunrise,
+  Users,
+  FileText,
+  Clock,
+  UserPlus,
+  Megaphone,
+  BarChart3,
+  LogOut,
+} from "lucide-react";
 import { Wordmark } from "@/components/brand/wordmark";
-import { cn } from "@/lib/utils";
 import type { UserRole } from "@/db/schema";
 import { signOutAction } from "@/app/auth/actions";
+import { NavLinks, type NavItem } from "./nav-links";
 
-type NavItem = { label: string; href: string };
+const ICON_CLASS = "h-[18px] w-[18px]";
 
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   student: [
-    { label: "Dashboard", href: "/student" },
-    { label: "My subjects", href: "/student/subjects" },
-    { label: "Timetable", href: "/student/timetable" },
-    { label: "Homework", href: "/student/homework" },
-    { label: "Lessons", href: "/student/lessons" },
-    { label: "Progress", href: "/student/progress" },
-    { label: "Resources", href: "/student/resources" },
+    { label: "Dashboard", href: "/student", icon: <LayoutDashboard className={ICON_CLASS} /> },
+    { label: "My subjects", href: "/student/subjects", icon: <BookOpen className={ICON_CLASS} /> },
+    { label: "Timetable", href: "/student/timetable", icon: <CalendarDays className={ICON_CLASS} /> },
+    { label: "Homework", href: "/student/homework", icon: <ClipboardList className={ICON_CLASS} /> },
+    { label: "Lessons", href: "/student/lessons", icon: <GraduationCap className={ICON_CLASS} /> },
+    { label: "Progress", href: "/student/progress", icon: <TrendingUp className={ICON_CLASS} /> },
+    { label: "Resources", href: "/student/resources", icon: <FolderOpen className={ICON_CLASS} /> },
   ],
   parent: [
-    { label: "Overview", href: "/parent" },
-    { label: "Attendance", href: "/parent/attendance" },
-    { label: "Homework", href: "/parent/homework" },
-    { label: "Feedback", href: "/parent/feedback" },
-    { label: "Payments", href: "/parent/payments" },
-    { label: "Bookings", href: "/parent/bookings" },
+    { label: "Overview", href: "/parent", icon: <LayoutDashboard className={ICON_CLASS} /> },
+    { label: "Attendance", href: "/parent/attendance", icon: <CheckCircle2 className={ICON_CLASS} /> },
+    { label: "Homework", href: "/parent/homework", icon: <ClipboardList className={ICON_CLASS} /> },
+    { label: "Feedback", href: "/parent/feedback", icon: <MessageSquareText className={ICON_CLASS} /> },
+    { label: "Payments", href: "/parent/payments", icon: <CreditCard className={ICON_CLASS} /> },
+    { label: "Bookings", href: "/parent/bookings", icon: <CalendarPlus className={ICON_CLASS} /> },
   ],
   tutor: [
-    { label: "Today", href: "/tutor" },
-    { label: "Classes", href: "/tutor/classes" },
-    { label: "Students", href: "/tutor/students" },
-    { label: "Homework", href: "/tutor/homework" },
-    { label: "Notes", href: "/tutor/notes" },
-    { label: "Availability", href: "/tutor/availability" },
+    { label: "Today", href: "/tutor", icon: <Sunrise className={ICON_CLASS} /> },
+    { label: "Classes", href: "/tutor/classes", icon: <BookOpen className={ICON_CLASS} /> },
+    { label: "Students", href: "/tutor/students", icon: <Users className={ICON_CLASS} /> },
+    { label: "Homework", href: "/tutor/homework", icon: <ClipboardList className={ICON_CLASS} /> },
+    { label: "Notes", href: "/tutor/notes", icon: <FileText className={ICON_CLASS} /> },
+    { label: "Availability", href: "/tutor/availability", icon: <Clock className={ICON_CLASS} /> },
   ],
   admin: [
-    { label: "Operations", href: "/admin" },
-    { label: "Users", href: "/admin/users" },
-    { label: "Classes", href: "/admin/classes" },
-    { label: "Enrolments", href: "/admin/enrolments" },
-    { label: "Payments", href: "/admin/payments" },
-    { label: "Announcements", href: "/admin/announcements" },
-    { label: "Reports", href: "/admin/reports" },
+    { label: "Operations", href: "/admin", icon: <LayoutDashboard className={ICON_CLASS} /> },
+    { label: "Users", href: "/admin/users", icon: <Users className={ICON_CLASS} /> },
+    { label: "Classes", href: "/admin/classes", icon: <BookOpen className={ICON_CLASS} /> },
+    { label: "Enrolments", href: "/admin/enrolments", icon: <UserPlus className={ICON_CLASS} /> },
+    { label: "Payments", href: "/admin/payments", icon: <CreditCard className={ICON_CLASS} /> },
+    { label: "Announcements", href: "/admin/announcements", icon: <Megaphone className={ICON_CLASS} /> },
+    { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={ICON_CLASS} /> },
   ],
 };
 
@@ -62,42 +83,31 @@ export function PortalShell({
 }) {
   const nav = NAV_BY_ROLE[role];
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[300px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col bg-card border-r border-hairline/60 sticky top-0 h-screen px-5 py-6">
-        <div className="px-2 mb-10">
+      <aside className="hidden lg:flex flex-col bg-card border-r border-hairline/60 sticky top-0 h-screen px-4 py-6">
+        <div className="px-3 mb-8">
           <Link href={`/${role}`}>
             <Wordmark />
           </Link>
         </div>
 
-        <div className="px-2 text-[10px] uppercase tracking-[0.18em] text-muted mb-3">
+        <div className="px-3 text-[10px] uppercase tracking-[0.2em] text-muted mb-3 font-medium">
           {ROLE_LABEL[role]} portal
         </div>
 
-        <nav className="flex-1 space-y-0.5">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center px-3.5 py-2.5 text-[15px] rounded-lg text-ink-soft",
-                "hover:bg-brand-50 hover:text-ink transition-colors",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex-1 overflow-y-auto -mr-2 pr-2">
+          <NavLinks items={nav} />
+        </div>
 
         {/* User pod */}
-        <div className="mt-6 pt-6 border-t border-hairline/60">
+        <div className="mt-6 pt-5 border-t border-hairline/60">
           <div className="flex items-center gap-3 px-2 mb-3">
             <div className="h-9 w-9 rounded-full bg-navy-800 text-white flex items-center justify-center text-sm font-medium shrink-0">
               {userName.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <div className="text-sm text-ink truncate">{userName}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm text-ink truncate font-medium">{userName}</div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted">
                 {ROLE_LABEL[role]}
               </div>
@@ -106,8 +116,9 @@ export function PortalShell({
           <form action={signOutAction} className="px-2">
             <button
               type="submit"
-              className="w-full text-left text-xs text-ink-soft hover:text-ink transition-colors px-2 py-1.5 rounded-md hover:bg-brand-50"
+              className="w-full flex items-center gap-2.5 text-left text-[13px] text-ink-soft hover:text-ink transition-colors px-2 py-2 rounded-md hover:bg-brand-50"
             >
+              <LogOut className="h-4 w-4" />
               Sign out
             </button>
           </form>
@@ -134,8 +145,9 @@ export function PortalShell({
             <Link
               key={item.href}
               href={item.href}
-              className="px-3 py-1.5 text-xs whitespace-nowrap text-ink-soft hover:text-ink rounded-md hover:bg-brand-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap text-ink-soft hover:text-ink rounded-md hover:bg-brand-50"
             >
+              <span className="shrink-0">{item.icon}</span>
               {item.label}
             </Link>
           ))}
