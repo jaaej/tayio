@@ -167,11 +167,13 @@ export default async function StudentDashboard() {
           label="Homework due"
           value={dueCount.toString()}
           accent={dueCount > 0 ? "warn" : "muted"}
+          href="/student/homework"
         />
         <StatTile
           label="Lessons this week"
           value={events.filter((e) => e.kind === "lesson").length.toString()}
           accent="brand"
+          href="/student/timetable"
         />
         <StatTile
           label="Overall mastery"
@@ -179,6 +181,7 @@ export default async function StudentDashboard() {
           accent={
             overallMastery >= 75 ? "success" : overallMastery >= 50 ? "brand" : "warn"
           }
+          href="/student/progress"
         />
       </section>
 
@@ -424,11 +427,13 @@ function StatTile({
   value,
   sub,
   accent = "brand",
+  href,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent?: "brand" | "warn" | "success" | "muted";
+  href?: string;
 }) {
   const accentClass = {
     brand: "text-brand-700",
@@ -442,10 +447,11 @@ function StatTile({
     success: "border-emerald-200/60",
     muted: "border-hairline/50",
   }[accent];
-  return (
-    <div
-      className={`rounded-xl border bg-card px-6 py-6 hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)] transition-shadow ${borderClass}`}
-    >
+  const hoverClass = href
+    ? "hover:border-brand-400 hover:shadow-[0_10px_24px_-14px_rgba(29,41,81,0.22)] cursor-pointer"
+    : "hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)]";
+  const body = (
+    <>
       <div className="text-[12px] uppercase tracking-[0.18em] text-muted">
         {label}
       </div>
@@ -455,8 +461,17 @@ function StatTile({
         {value}
       </div>
       {sub && <div className="text-[14px] text-muted truncate mt-1">{sub}</div>}
-    </div>
+    </>
   );
+  const className = `rounded-xl border bg-card px-6 py-6 transition-all ${borderClass} ${hoverClass}`;
+  if (href) {
+    return (
+      <Link href={href} className={`block ${className}`}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
 function ScoreBadge({ score }: { score: string }) {
