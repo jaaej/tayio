@@ -3,11 +3,13 @@ import { cn } from "@/lib/utils";
 export type CalendarEvent = {
   /** ISO date YYYY-MM-DD */
   date: string;
-  /** "HH:MM" or null for all-day events (homework due, workshop) */
+  /** "HH:MM" — lessons. null = all-day (homework due, event) */
   time: string | null;
-  /** Short label shown in the cell */
+  /** End time for lessons, optional */
+  endTime?: string | null;
+  /** Short label shown in the block */
   label: string;
-  /** Sub-label (subject, tutor, etc.) */
+  /** Sub-label (tutor, class, etc.) */
   meta?: string;
   kind: "lesson" | "homework" | "event";
   /** Optional href to make the chip clickable */
@@ -15,19 +17,32 @@ export type CalendarEvent = {
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-// Convert JS getDay() (0=Sun..6=Sat) to Monday-first index (0=Mon..6=Sun)
 const DAY_TO_MONFIRST = [6, 0, 1, 2, 3, 4, 5];
 
-const KIND_STYLES: Record<CalendarEvent["kind"], string> = {
-  lesson: "bg-brand-100 text-brand-700 border-brand-200/60",
-  homework: "bg-amber-50 text-amber-800 border-amber-200/60",
-  event: "bg-emerald-50 text-emerald-800 border-emerald-200/60",
+const KIND_BG: Record<CalendarEvent["kind"], string> = {
+  lesson: "bg-brand-50",
+  homework: "bg-amber-50",
+  event: "bg-emerald-50",
 };
-
-const KIND_DOT: Record<CalendarEvent["kind"], string> = {
+const KIND_BAR: Record<CalendarEvent["kind"], string> = {
   lesson: "bg-brand-600",
   homework: "bg-amber-500",
   event: "bg-emerald-500",
+};
+const KIND_LABEL: Record<CalendarEvent["kind"], string> = {
+  lesson: "text-brand-700",
+  homework: "text-amber-800",
+  event: "text-emerald-800",
+};
+const KIND_META: Record<CalendarEvent["kind"], string> = {
+  lesson: "text-brand-600/80",
+  homework: "text-amber-700/80",
+  event: "text-emerald-700/80",
+};
+const KIND_TAG: Record<CalendarEvent["kind"], string> = {
+  lesson: "",
+  homework: "Due",
+  event: "Event",
 };
 
 function startOfMondayWeek(d: Date) {
@@ -41,12 +56,12 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatTimeShort(t: string) {
+function formatTime12(t: string) {
   const [h, m] = t.split(":");
   const hour = Number(h);
-  const suffix = hour >= 12 ? "p" : "a";
+  const suffix = hour >= 12 ? "pm" : "am";
   const hr = hour % 12 === 0 ? 12 : hour % 12;
-  return m === "00" ? `${hr}${suffix}` : `${hr}:${m}${suffix}`;
+  return `${hr}:${m}${suffix}`;
 }
 
 export function MiniWeekCalendar({
@@ -68,6 +83,7 @@ export function MiniWeekCalendar({
       dayNum: d.getDate(),
       label: DAY_LABELS[i],
       isToday: isoDate(d) === todayIso,
+      isWeekend: i >= 5,
     };
   });
 
@@ -76,7 +92,6 @@ export function MiniWeekCalendar({
     if (!byDate.has(e.date)) byDate.set(e.date, []);
     byDate.get(e.date)!.push(e);
   }
-  // Sort each day: timed events first (by time), then all-day
   for (const list of byDate.values()) {
     list.sort((a, b) => {
       if (a.time && b.time) return a.time.localeCompare(b.time);
@@ -88,80 +103,66 @@ export function MiniWeekCalendar({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-2">
         {days.map((d) => {
           const dayEvents = byDate.get(d.iso) ?? [];
-          const dotKinds = Array.from(
-            new Set(dayEvents.map((e) => e.kind)),
-          ) as CalendarEvent["kind"][];
           return (
             <div
               key={d.iso}
               className={cn(
-                "rounded-xl px-3 py-3 text-center transition-colors",
+                "rounded-2xl overflow-hidden flex flex-col min-h-[320px] border transition-colors",
                 d.isToday
-                  ? "bg-navy-800 text-white shadow-[0_4px_18px_-8px_rgba(29,41,81,0.4)]"
-                  : "bg-brand-50/60 text-ink-soft hover:bg-brand-100",
+                  ? "border-navy-800/30 bg-gradient-to-b from-brand-50 to-white shadow-[0_8px_28px_-16px_rgba(29,41,81,0.25)]"
+                  : d.isWeekend
+                    ? "border-hairline/40 bg-brand-50/40"
+                    : "border-hairline/40 bg-card",
               )}
             >
+              {/* Day header */}
               <div
                 className={cn(
-                  "text-[10px] uppercase tracking-[0.16em]",
-                  d.isToday ? "text-white/70" : "text-muted",
+                  "px-3 py-2.5 border-b text-center",
+                  d.isToday
+                    ? "bg-navy-800 text-white border-navy-800"
+                    : "bg-white border-hairline/40",
                 )}
               >
-                {d.label}
-              </div>
-              <div
-                className={cn(
-                  "mt-1 text-2xl font-medium tabular-nums",
-                  d.isToday ? "text-white" : "text-ink",
-                )}
-              >
-                {d.dayNum}
-              </div>
-              {dotKinds.length > 0 && (
-                <div className="mt-1.5 flex items-center justify-center gap-1">
-                  {dotKinds.map((k) => (
-                    <span
-                      key={k}
-                      className={cn("h-1.5 w-1.5 rounded-full", KIND_DOT[k])}
-                      aria-hidden
-                    />
-                  ))}
+                <div
+                  className={cn(
+                    "text-[10px] uppercase tracking-[0.18em]",
+                    d.isToday ? "text-white/70" : "text-muted",
+                  )}
+                >
+                  {d.label}
                 </div>
-              )}
+                <div
+                  className={cn(
+                    "text-2xl font-medium tabular-nums leading-none mt-0.5",
+                    d.isToday ? "text-white" : "text-ink",
+                  )}
+                >
+                  {d.dayNum}
+                </div>
+              </div>
+
+              {/* Event lane */}
+              <div className="flex-1 p-2 space-y-1.5">
+                {dayEvents.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-[10px] text-muted/60 italic">
+                    —
+                  </div>
+                ) : (
+                  dayEvents.map((e, i) => (
+                    <TimeBlock key={`${d.iso}-${i}`} event={e} />
+                  ))
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Event list grouped by day */}
-      <div className="space-y-2.5 pt-2">
-        {days.map((d) => {
-          const dayEvents = byDate.get(d.iso) ?? [];
-          if (dayEvents.length === 0) return null;
-          return (
-            <div key={d.iso} className="flex items-start gap-4">
-              <div className="w-16 shrink-0 text-[11px] uppercase tracking-[0.14em] text-muted pt-1">
-                {d.label} {d.dayNum}
-              </div>
-              <div className="flex-1 flex flex-wrap gap-2 min-w-0">
-                {dayEvents.map((e, i) => (
-                  <EventChip key={`${d.iso}-${i}`} event={e} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {Array.from(byDate.values()).every((v) => v.length === 0) && (
-          <div className="text-sm text-muted px-1 pt-2">
-            Nothing scheduled this week.
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4 pt-2 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
+      <div className="flex items-center gap-5 pt-2 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
         <LegendDot color="bg-brand-600" label="Lesson" />
         <LegendDot color="bg-amber-500" label="Homework" />
         <LegendDot color="bg-emerald-500" label="Event" />
@@ -170,35 +171,76 @@ export function MiniWeekCalendar({
   );
 }
 
-function EventChip({ event }: { event: CalendarEvent }) {
-  const content = (
-    <span
+function TimeBlock({ event }: { event: CalendarEvent }) {
+  const inner = (
+    <div
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs leading-tight",
-        KIND_STYLES[event.kind],
+        "relative rounded-lg pl-3 pr-2 py-2 overflow-hidden",
+        KIND_BG[event.kind],
+        "hover:translate-y-[-1px] transition-transform",
       )}
     >
-      {event.time && (
-        <span className="font-medium tabular-nums">
-          {formatTimeShort(event.time)}
-        </span>
+      <span
+        className={cn(
+          "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full",
+          KIND_BAR[event.kind],
+        )}
+        aria-hidden
+      />
+      <div
+        className={cn(
+          "text-[11px] font-semibold tabular-nums leading-tight",
+          KIND_LABEL[event.kind],
+        )}
+      >
+        {event.time ? (
+          <>
+            {formatTime12(event.time)}
+            {event.endTime ? (
+              <span className="text-[10px] font-normal opacity-70">
+                {" – "}
+                {formatTime12(event.endTime)}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-[9px] uppercase tracking-[0.18em] font-medium">
+            {KIND_TAG[event.kind]}
+          </span>
+        )}
+      </div>
+      <div
+        className={cn(
+          "mt-0.5 text-[11px] font-medium leading-snug line-clamp-2",
+          KIND_LABEL[event.kind],
+        )}
+      >
+        {event.label}
+      </div>
+      {event.meta && (
+        <div
+          className={cn(
+            "text-[10px] mt-0.5 truncate",
+            KIND_META[event.kind],
+          )}
+        >
+          {event.meta}
+        </div>
       )}
-      <span className="truncate max-w-[160px]">{event.label}</span>
-    </span>
+    </div>
   );
-  if (event.href) {
-    return (
-      <a href={event.href} className="hover:opacity-80 transition-opacity">
-        {content}
-      </a>
-    );
-  }
-  return content;
+  return event.href ? (
+    <a href={event.href} className="block hover:no-underline">
+      {inner}
+    </a>
+  ) : (
+    inner
+  );
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex items-center gap-1.5">
       <span className={cn("h-1.5 w-1.5 rounded-full", color)} aria-hidden />
       {label}
     </span>

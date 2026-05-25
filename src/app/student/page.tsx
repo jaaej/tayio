@@ -18,7 +18,6 @@ import {
 import {
   getDueHomeworkCount,
   getNextLesson,
-  getRecentFeedback,
   getRecentGrades,
   getRelevantAnnouncements,
   getStudentHomework,
@@ -61,6 +60,18 @@ function relativeTime(d: Date) {
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }
 
+function timeUntil(date: string, time: string) {
+  const target = new Date(`${date}T${time}`);
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return "now";
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 60) return `in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  const days = Math.round(hours / 24);
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
+
 export default async function StudentDashboard() {
   const user = await requireRole("student");
 
@@ -69,25 +80,16 @@ export default async function StudentDashboard() {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 7);
 
-  const [
-    subjects,
-    nextLesson,
-    dueCount,
-    allHomework,
-    weekLessons,
-    feedback,
-    grades,
-    notices,
-  ] = await Promise.all([
-    getStudentSubjects(user.id),
-    getNextLesson(user.id),
-    getDueHomeworkCount(user.id),
-    getStudentHomework(user.id),
-    getStudentLessons(user.id, { from: weekStart }),
-    getRecentFeedback(user.id, 3),
-    getRecentGrades(user.id, 5),
-    getRelevantAnnouncements(user.id, 4),
-  ]);
+  const [subjects, nextLesson, dueCount, allHomework, weekLessons, grades, notices] =
+    await Promise.all([
+      getStudentSubjects(user.id),
+      getNextLesson(user.id),
+      getDueHomeworkCount(user.id),
+      getStudentHomework(user.id),
+      getStudentLessons(user.id, { from: weekStart }),
+      getRecentGrades(user.id, 5),
+      getRelevantAnnouncements(user.id, 4),
+    ]);
 
   const upcomingDue = allHomework
     .filter(
@@ -112,8 +114,9 @@ export default async function StudentDashboard() {
     events.push({
       date: l.date,
       time: l.startTime.slice(0, 5),
+      endTime: l.endTime.slice(0, 5),
       label: l.subjectName,
-      meta: `${l.tutorFirstName} ${l.tutorLastName}`,
+      meta: `${l.tutorFirstName} ${l.tutorLastName.charAt(0)}.`,
       kind: "lesson",
     });
   }
@@ -143,7 +146,8 @@ export default async function StudentDashboard() {
       {/* Title strip */}
       <header className="flex items-baseline justify-between rise">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
           <h1 className="mt-1 text-3xl lg:text-4xl font-medium tracking-tight text-ink">
@@ -158,36 +162,96 @@ export default async function StudentDashboard() {
         </Link>
       </header>
 
+      {/* Next-up hero — splash of color, breaks up the page */}
+      {nextLesson ? (
+        <Link
+          href={`/student/subjects/`}
+          className="block rise"
+          style={{ animationDelay: "30ms" }}
+        >
+          <div className="relative overflow-hidden rounded-2xl border border-navy-800/15 bg-gradient-to-br from-navy-800 via-[#2e3a6b] to-brand-700 text-white px-6 py-5 lg:px-8 lg:py-6 shadow-[0_18px_44px_-20px_rgba(29,41,81,0.5)]">
+            {/* Decorative orb */}
+            <div
+              aria-hidden
+              className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-2xl"
+            />
+            <div
+              aria-hidden
+              className="absolute right-10 bottom-0 h-24 w-24 rounded-full bg-brand-300/30 blur-xl"
+            />
+
+            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/60">
+                  Next up · {timeUntil(nextLesson.date, nextLesson.startTime)}
+                </div>
+                <div className="mt-2 text-2xl lg:text-3xl font-medium tracking-tight">
+                  {nextLesson.subjectName}
+                </div>
+                <div className="mt-1 text-sm text-white/80">
+                  {formatWeekday(nextLesson.date)} ·{" "}
+                  {formatTime(nextLesson.startTime)} – {formatTime(nextLesson.endTime)} ·
+                  with {nextLesson.tutorFirstName} {nextLesson.tutorLastName}
+                </div>
+              </div>
+              {(nextLesson.onlineLink || nextLesson.location) && (
+                <div className="flex items-center gap-3">
+                  {nextLesson.onlineLink ? (
+                    <a
+                      href={nextLesson.onlineLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-navy-800 text-sm font-medium hover:bg-brand-50 transition-colors"
+                    >
+                      Join online →
+                    </a>
+                  ) : (
+                    <div className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-sm">
+                      {nextLesson.location}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </Link>
+      ) : null}
+
       {/* Stat strip */}
       <section
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
-        style={{ animationDelay: "40ms" }}
+        style={{ animationDelay: "60ms" }}
       >
-        <StatTile label="Subjects" value={subjects.length.toString()} sub="enrolled" />
+        <StatTile
+          label="Subjects"
+          value={subjects.length.toString()}
+          sub="enrolled"
+          accent="brand"
+        />
         <StatTile
           label="Due"
           value={dueCount.toString()}
           sub="open homework"
-          tone={dueCount > 0 ? "warn" : "default"}
+          accent={dueCount > 0 ? "warn" : "muted"}
         />
         <StatTile
-          label="Next class"
-          value={
-            nextLesson
-              ? `${formatWeekday(nextLesson.date, "short")} ${formatTime(nextLesson.startTime)}`
-              : "—"
-          }
-          sub={nextLesson?.subjectName ?? "Nothing scheduled"}
+          label="Lessons this week"
+          value={events.filter((e) => e.kind === "lesson").length.toString()}
+          sub="scheduled"
+          accent="brand"
         />
         <StatTile
-          label="Mastery"
+          label="Overall mastery"
           value={`${overallMastery}%`}
           sub="across topics"
+          accent={
+            overallMastery >= 75 ? "success" : overallMastery >= 50 ? "brand" : "warn"
+          }
         />
       </section>
 
-      {/* Hero: This week calendar — full width */}
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "80ms" }}>
+      {/* Hero: This Week Calendar */}
+      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "100ms" }}>
         <div className="px-6 py-4 border-b border-hairline/60 flex items-baseline justify-between">
           <div>
             <div className="text-base font-medium text-ink">This week</div>
@@ -204,15 +268,15 @@ export default async function StudentDashboard() {
             Full timetable →
           </Link>
         </div>
-        <div className="p-6">
+        <div className="p-5 lg:p-6 bg-gradient-to-b from-brand-50/30 to-transparent">
           <MiniWeekCalendar events={events} weekStart={weekStart} />
         </div>
       </Card>
 
-      {/* Row 1: My subjects (7) + Topic mastery (5) */}
+      {/* Row 1: My subjects (7) + Announcements (5) */}
       <div
         className="grid lg:grid-cols-12 gap-5 rise"
-        style={{ animationDelay: "120ms" }}
+        style={{ animationDelay: "140ms" }}
       >
         <Card className="lg:col-span-7 p-0 overflow-hidden">
           <SectionHeader title="My subjects" right={`${subjects.length} enrolled`} />
@@ -238,6 +302,71 @@ export default async function StudentDashboard() {
               </div>
             )}
           </div>
+        </Card>
+
+        <Card className="lg:col-span-5 p-0 overflow-hidden">
+          <SectionHeader title="Announcements" />
+          {notices.length === 0 ? (
+            <Empty>No announcements right now.</Empty>
+          ) : (
+            <div className="divide-y divide-hairline/60">
+              {notices.map((n) => (
+                <div key={n.id} className="px-6 py-4 hover:bg-brand-50/40 transition-colors">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
+                      <div className="text-sm text-ink font-medium truncate">
+                        {n.title}
+                      </div>
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted shrink-0">
+                      {relativeTime(new Date(n.publishedAt))}
+                    </div>
+                  </div>
+                  <p className="mt-1.5 ml-3.5 text-xs text-ink-soft leading-relaxed line-clamp-2">
+                    {n.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Row 2: Upcoming due (7) + Topic mastery (5) */}
+      <div
+        className="grid lg:grid-cols-12 gap-5 rise"
+        style={{ animationDelay: "180ms" }}
+      >
+        <Card className="lg:col-span-7 p-0 overflow-hidden">
+          <SectionHeader
+            title="Upcoming due"
+            link={{ href: "/student/homework", label: "All homework" }}
+          />
+          {upcomingDue.length === 0 ? (
+            <Empty>You're caught up — nothing to submit.</Empty>
+          ) : (
+            <div className="divide-y divide-hairline/60">
+              {upcomingDue.map((h) => (
+                <Link
+                  key={h.homeworkId}
+                  href={`/student/homework/${h.homeworkId}`}
+                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-ink truncate">{h.title}</div>
+                    <div className="text-xs text-muted mt-0.5">
+                      {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
+                    </div>
+                  </div>
+                  <StatusBadge
+                    label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
+                    className={HOMEWORK_STATUS_STYLE[h.status]}
+                  />
+                </Link>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card className="lg:col-span-5 p-0 overflow-hidden">
@@ -282,128 +411,40 @@ export default async function StudentDashboard() {
         </Card>
       </div>
 
-      {/* Row 2: Upcoming due (7) + Latest feedback (5) */}
-      <div
-        className="grid lg:grid-cols-12 gap-5 rise"
-        style={{ animationDelay: "160ms" }}
-      >
-        <Card className="lg:col-span-7 p-0 overflow-hidden">
-          <SectionHeader
-            title="Upcoming due"
-            link={{ href: "/student/homework", label: "All homework" }}
-          />
-          {upcomingDue.length === 0 ? (
-            <Empty>You're caught up — nothing to submit.</Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {upcomingDue.map((h) => (
-                <Link
-                  key={h.homeworkId}
-                  href={`/student/homework/${h.homeworkId}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-ink truncate">{h.title}</div>
-                    <div className="text-xs text-muted mt-0.5">
-                      {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
+      {/* Row 3: Recent grades — full width */}
+      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "220ms" }}>
+        <SectionHeader title="Recent grades" />
+        {grades.length === 0 ? (
+          <Empty>No marked homework yet.</Empty>
+        ) : (
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 p-5">
+            {grades.map((g) => (
+              <Link
+                key={g.homeworkId}
+                href={`/student/homework/${g.homeworkId}`}
+                className="block rounded-xl border border-hairline/50 bg-card p-4 hover:border-brand-400 hover:shadow-[0_8px_20px_-12px_rgba(29,41,81,0.18)] transition-all"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-ink font-medium truncate">
+                      {g.title}
                     </div>
-                  </div>
-                  <StatusBadge
-                    label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
-                    className={HOMEWORK_STATUS_STYLE[h.status]}
-                  />
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="lg:col-span-5 p-0 overflow-hidden">
-          <SectionHeader
-            title="Latest feedback"
-            link={{ href: "/student/lessons", label: "All lessons" }}
-          />
-          {feedback.length === 0 ? (
-            <Empty>
-              No feedback yet — your tutor's notes appear here after each lesson.
-            </Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {feedback.map((f) => (
-                <Link
-                  key={f.lessonId}
-                  href={`/student/lessons/${f.lessonId}`}
-                  className="block px-6 py-4 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted">
-                    {f.subjectName} · {f.tutorFirstName} {f.tutorLastName.charAt(0)}.
-                  </div>
-                  <p className="mt-2 text-sm text-ink leading-relaxed line-clamp-3">
-                    "{f.comment}"
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Row 3: Recent grades (7) + Announcements (5) */}
-      <div
-        className="grid lg:grid-cols-12 gap-5 rise"
-        style={{ animationDelay: "200ms" }}
-      >
-        <Card className="lg:col-span-7 p-0 overflow-hidden">
-          <SectionHeader title="Recent grades" />
-          {grades.length === 0 ? (
-            <Empty>No marked homework yet.</Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {grades.map((g) => (
-                <Link
-                  key={g.homeworkId}
-                  href={`/student/homework/${g.homeworkId}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-ink truncate">{g.title}</div>
-                    <div className="text-xs text-muted mt-0.5 truncate">
+                    <div className="text-[11px] text-muted mt-0.5 truncate">
                       {g.className ?? "—"} · {relativeTime(g.markedAt)}
-                      {g.feedback ? ` · "${g.feedback.slice(0, 40)}${g.feedback.length > 40 ? "…" : ""}"` : ""}
                     </div>
                   </div>
                   <ScoreBadge score={g.score} />
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="lg:col-span-5 p-0 overflow-hidden">
-          <SectionHeader title="Announcements" />
-          {notices.length === 0 ? (
-            <Empty>No announcements right now.</Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {notices.map((n) => (
-                <div key={n.id} className="px-6 py-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="text-sm text-ink font-medium truncate">
-                      {n.title}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted shrink-0">
-                      {relativeTime(new Date(n.publishedAt))}
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-xs text-ink-soft leading-relaxed line-clamp-2">
-                    {n.body}
-                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+                {g.feedback && (
+                  <p className="text-xs text-ink-soft leading-relaxed line-clamp-2">
+                    "{g.feedback}"
+                  </p>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -441,24 +482,33 @@ function StatTile({
   label,
   value,
   sub,
-  tone = "default",
+  accent = "brand",
 }: {
   label: string;
   value: string;
   sub: string;
-  tone?: "default" | "warn";
+  accent?: "brand" | "warn" | "success" | "muted";
 }) {
+  const accentClass = {
+    brand: "text-brand-700",
+    warn: "text-amber-700",
+    success: "text-emerald-700",
+    muted: "text-ink",
+  }[accent];
+  const borderClass = {
+    brand: "border-hairline/50",
+    warn: "border-amber-200/70",
+    success: "border-emerald-200/60",
+    muted: "border-hairline/50",
+  }[accent];
   return (
     <div
-      className={
-        "rounded-xl border bg-card px-5 py-4 " +
-        (tone === "warn" ? "border-amber-200/70" : "border-hairline/50")
-      }
+      className={`rounded-xl border bg-card px-5 py-4 hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)] transition-shadow ${borderClass}`}
     >
       <div className="text-[10px] uppercase tracking-[0.18em] text-muted">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-medium text-ink tabular-nums truncate">
+      <div className={`mt-1 text-2xl font-medium tabular-nums truncate ${accentClass}`}>
         {value}
       </div>
       <div className="text-xs text-muted truncate">{sub}</div>
@@ -476,7 +526,7 @@ function ScoreBadge({ score }: { score: string }) {
         : "bg-amber-50 text-amber-800 border-amber-200";
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium tabular-nums border ${tone}`}
+      className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium tabular-nums border ${tone}`}
     >
       {Number.isFinite(num) ? `${num}` : score}
     </span>
