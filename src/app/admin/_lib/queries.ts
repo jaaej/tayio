@@ -1,0 +1,415 @@
+import "server-only";
+import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { db } from "@/db/client";
+import {
+  announcements,
+  classes,
+  enrollments,
+  homeworkAssignments,
+  invoices,
+  lessonNotes,
+  lessons,
+  profiles,
+  subjects,
+} from "@/db/schema";
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+export type OpsStats = {
+  activeStudents: number;
+  activeTutors: number;
+  lessonsThisWeek: number;
+  lessonsCompletedThisWeek: number;
+  overdueCount: number;
+  overdueTotal: number;
+  notesPending: number;
+  revenueMonth: number;
+  revenueLastMonth: number;
+};
+
+export async function getOpsStats(opts: {
+  weekStart: Date;
+  weekEnd: Date;
+  monthStart: Date;
+  prevMonthStart: Date;
+  today: Date;
+}): Promise<OpsStats> {
+  const { weekStart, weekEnd, monthStart, prevMonthStart, today } = opts;
+  const todayIso = isoDate(today);
+
+  const [students] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(profiles)
+    .where(and(eq(profiles.role, "student"), eq(profiles.isActive, true)));
+
+  const [tutors] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(profiles)
+    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)));
+
+  const [weekLessons] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      completed: sql<number>`count(*) filter (where ${lessons.status} = 'completed')::int`,
+    })
+    .from(lessons)
+    .where(
+      and(
+        gte(lessons.date, isoDate(weekStart)),
+        lt(lessons.date, isoDate(weekEnd)),
+      ),
+    );
+
+  const [overdue] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
+        lt(invoices.dueDate, todayIso),
+      ),
+    );
+
+  const [notes] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(lessons)
+    .leftJoin(lessonNotes, eq(lessonNotes.lessonId, lessons.id))
+    .where(
+      and(
+        eq(lessons.status, "completed"),
+        lt(lessons.date, todayIso),
+        isNull(lessonNotes.id),
+      ),
+    );
+
+  const [revMonth] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
+    })
+    .from(invoices)
+    .where(and(eq(invoices.status, "paid"), gte(invoices.issuedAt, monthStart)));
+
+  const [revPrev] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.issuedAt, prevMonthStart),
+        lt(invoices.issuedAt, monthStart),
+      ),
+    );
+
+  return {
+    activeStudents: students?.count ?? 0,
+    activeTutors: tutors?.count ?? 0,
+    lessonsThisWeek: weekLessons?.total ?? 0,
+    lessonsCompletedThisWeek: weekLessons?.completed ?? 0,
+    overdueCount: overdue?.count ?? 0,
+    overdueTotal: Number(overdue?.total ?? 0),
+    notesPending: notes?.count ?? 0,
+    revenueMonth: Number(revMonth?.total ?? 0),
+    revenueLastMonth: Number(revPrev?.total ?? 0),
+  };
+}
+
+export type TutorBacklog = {
+  tutorId: string;
+  firstName: string;
+  lastName: string;
+  pendingNotes: number;
+};
+
+export async function getTutorsWithPendingNotes(
+  windowStart: Date,
+  windowEnd: Date,
+  limit = 5,
+): Promise<TutorBacklog[]> {
+  const rows = await db
+    .select({
+      tutorId: lessons.tutorId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      pendingNotes: sql<number>`count(*)::int`,
+    })
+    .from(lessons)
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .leftJoin(lessonNotes, eq(lessonNotes.lessonId, lessons.id))
+    .where(
+      and(
+        eq(lessons.status, "completed"),
+        gte(lessons.date, isoDate(windowStart)),
+        lt(lessons.date, isoDate(windowEnd)),
+        isNull(lessonNotes.id),
+      ),
+    )
+    .groupBy(lessons.tutorId, profiles.firstName, profiles.lastName)
+    .orderBy(desc(sql`count(*)`))
+    .limit(limit);
+  return rows;
+}
+
+export type OverdueInvoice = {
+  id: string;
+  amount: string;
+  currency: string;
+  dueDate: string;
+  parentFirst: string;
+  parentLast: string;
+  studentFirst: string | null;
+  studentLast: string | null;
+};
+
+export async function getOverdueInvoices(
+  today: Date,
+  limit = 6,
+): Promise<OverdueInvoice[]> {
+  const parent = alias(profiles, "parent");
+  const student = alias(profiles, "student");
+  return db
+    .select({
+      id: invoices.id,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      dueDate: invoices.dueDate,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+      studentFirst: student.firstName,
+      studentLast: student.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .leftJoin(student, eq(student.id, invoices.studentId))
+    .where(
+      and(
+        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
+        lt(invoices.dueDate, isoDate(today)),
+      ),
+    )
+    .orderBy(asc(invoices.dueDate))
+    .limit(limit);
+}
+
+export type AtRiskStudent = {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  yearLevel: string | null;
+  pendingHomework: number;
+  completionPercent: number;
+};
+
+export async function getAtRiskStudents(limit = 5): Promise<AtRiskStudent[]> {
+  // Students with the most pending / late homework, with overall completion %.
+  const rows = await db
+    .select({
+      studentId: homeworkAssignments.studentId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      yearLevel: profiles.yearLevel,
+      total: sql<number>`count(*)::int`,
+      pending: sql<number>`count(*) filter (where ${homeworkAssignments.status} in ('not_started','viewed','late','resubmission_requested'))::int`,
+      complete: sql<number>`count(*) filter (where ${homeworkAssignments.status} in ('submitted','marked','returned'))::int`,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .where(eq(profiles.isActive, true))
+    .groupBy(
+      homeworkAssignments.studentId,
+      profiles.firstName,
+      profiles.lastName,
+      profiles.yearLevel,
+    )
+    .having(
+      sql`count(*) filter (where ${homeworkAssignments.status} in ('not_started','viewed','late','resubmission_requested')) > 0`,
+    )
+    .orderBy(
+      desc(
+        sql`count(*) filter (where ${homeworkAssignments.status} in ('not_started','viewed','late','resubmission_requested'))`,
+      ),
+    )
+    .limit(limit);
+
+  return rows.map((r) => ({
+    studentId: r.studentId,
+    firstName: r.firstName,
+    lastName: r.lastName,
+    yearLevel: r.yearLevel,
+    pendingHomework: r.pending,
+    completionPercent:
+      r.total > 0 ? Math.round((r.complete / r.total) * 100) : 0,
+  }));
+}
+
+export type ActivityEvent = {
+  kind: "enrolment" | "payment" | "announcement";
+  at: Date;
+  title: string;
+  meta: string | null;
+  href: string;
+};
+
+export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
+  const student = alias(profiles, "student");
+  const enrolRows = await db
+    .select({
+      at: enrollments.enrolledAt,
+      studentFirst: student.firstName,
+      studentLast: student.lastName,
+      className: classes.name,
+    })
+    .from(enrollments)
+    .innerJoin(student, eq(student.id, enrollments.studentId))
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .orderBy(desc(enrollments.enrolledAt))
+    .limit(limit);
+
+  const parent = alias(profiles, "parent");
+  const paymentRows = await db
+    .select({
+      id: invoices.id,
+      at: invoices.paidAt,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .where(and(eq(invoices.status, "paid"), sql`${invoices.paidAt} is not null`))
+    .orderBy(desc(invoices.paidAt))
+    .limit(limit);
+
+  const annRows = await db
+    .select({
+      id: announcements.id,
+      at: announcements.publishedAt,
+      title: announcements.title,
+      audienceRole: announcements.audienceRole,
+      className: classes.name,
+    })
+    .from(announcements)
+    .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .orderBy(desc(announcements.publishedAt))
+    .limit(limit);
+
+  const events: ActivityEvent[] = [];
+  for (const r of enrolRows) {
+    events.push({
+      kind: "enrolment",
+      at: r.at,
+      title: `${r.studentFirst} ${r.studentLast} enrolled`,
+      meta: r.className,
+      href: "/admin/enrolments",
+    });
+  }
+  for (const r of paymentRows) {
+    if (!r.at) continue;
+    const amount = new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: r.currency,
+      maximumFractionDigits: 0,
+    }).format(Number(r.amount));
+    events.push({
+      kind: "payment",
+      at: r.at,
+      title: `${r.parentFirst} ${r.parentLast} paid`,
+      meta: amount,
+      href: "/admin/payments",
+    });
+  }
+  for (const r of annRows) {
+    const audience = r.className
+      ? `Class · ${r.className}`
+      : r.audienceRole
+        ? `All ${r.audienceRole}s`
+        : "Everyone";
+    events.push({
+      kind: "announcement",
+      at: r.at,
+      title: r.title,
+      meta: audience,
+      href: "/admin/announcements",
+    });
+  }
+
+  return events
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, limit);
+}
+
+export type WeekLesson = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: (typeof lessons.$inferSelect)["status"];
+  className: string;
+  subjectName: string;
+  tutorFirst: string;
+  tutorLast: string;
+};
+
+export async function getWeekLessons(
+  weekStart: Date,
+  weekEnd: Date,
+): Promise<WeekLesson[]> {
+  return db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      className: classes.name,
+      subjectName: subjects.name,
+      tutorFirst: profiles.firstName,
+      tutorLast: profiles.lastName,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .where(
+      and(
+        gte(lessons.date, isoDate(weekStart)),
+        lt(lessons.date, isoDate(weekEnd)),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+}
+
+export type RecentAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  publishedAt: Date;
+  audienceRole: "student" | "parent" | "tutor" | "admin" | null;
+  className: string | null;
+};
+
+export async function getRecentAnnouncements(
+  limit = 4,
+): Promise<RecentAnnouncement[]> {
+  return db
+    .select({
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      publishedAt: announcements.publishedAt,
+      audienceRole: announcements.audienceRole,
+      className: classes.name,
+    })
+    .from(announcements)
+    .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .orderBy(desc(announcements.publishedAt))
+    .limit(limit);
+}

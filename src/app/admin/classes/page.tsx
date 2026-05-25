@@ -60,9 +60,8 @@ export default async function ClassesPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Class management
         </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Set up the{" "}
-          <span className="">weekly cadence</span>.
+        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          Set up the weekly cadence.
         </h1>
       </header>
 

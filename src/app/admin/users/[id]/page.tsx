@@ -88,7 +88,7 @@ export default async function UserDetailPage({
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
             User profile
           </div>
-          <h1 className="mt-2 text-4xl font-light tracking-tight text-ink">
+          <h1 className="mt-2 text-4xl font-medium tracking-tight text-ink">
             {user.firstName} {user.lastName}
           </h1>
           <div className="mt-2 text-sm text-ink-soft">{user.email}</div>
