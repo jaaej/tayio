@@ -6,15 +6,22 @@ import {
   MiniWeekCalendar,
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
+import { StatusBadge } from "@/components/data/status-badge";
+import { ScoreBadge } from "@/components/data/score-badge";
+import { StatTile } from "@/components/data/stat-tile";
 import { requireRole } from "@/lib/auth";
-import { StatusBadge } from "./_components/badge";
 import {
   formatDueDate,
   formatTime,
   formatWeekday,
+  isoDate,
+  relativeTime,
+  startOfMondayWeek,
+} from "@/lib/format";
+import {
   HOMEWORK_STATUS_LABEL,
   HOMEWORK_STATUS_STYLE,
-} from "./_lib/format";
+} from "@/lib/status";
 import {
   getDueHomeworkCount,
   getNextLesson,
@@ -37,27 +44,6 @@ function colorForSubject(name: string) {
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
   return ACCENT_PALETTE[Math.abs(hash) % ACCENT_PALETTE.length];
-}
-
-function startOfMondayWeek(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  const dayToMon = [6, 0, 1, 2, 3, 4, 5];
-  x.setDate(x.getDate() - dayToMon[x.getDay()]);
-  return x;
-}
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function relativeTime(d: Date) {
-  const diffHours = Math.round((Date.now() - d.getTime()) / 36e5);
-  if (diffHours < 1) return "just now";
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const days = Math.round(diffHours / 24);
-  if (days < 14) return `${days}d ago`;
-  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }
 
 export default async function StudentDashboard() {
@@ -422,71 +408,3 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
 }
 
-function StatTile({
-  label,
-  value,
-  sub,
-  accent = "brand",
-  href,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: "brand" | "warn" | "success" | "muted";
-  href?: string;
-}) {
-  const accentClass = {
-    brand: "text-brand-700",
-    warn: "text-amber-700",
-    success: "text-emerald-700",
-    muted: "text-ink",
-  }[accent];
-  const borderClass = {
-    brand: "border-hairline/50",
-    warn: "border-amber-200/70",
-    success: "border-emerald-200/60",
-    muted: "border-hairline/50",
-  }[accent];
-  const hoverClass = href
-    ? "hover:border-brand-400 hover:shadow-[0_10px_24px_-14px_rgba(29,41,81,0.22)] cursor-pointer"
-    : "hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)]";
-  const body = (
-    <>
-      <div className="text-[12px] uppercase tracking-[0.18em] text-muted">
-        {label}
-      </div>
-      <div
-        className={`mt-2 text-4xl font-medium tabular-nums truncate ${accentClass}`}
-      >
-        {value}
-      </div>
-      {sub && <div className="text-[14px] text-muted truncate mt-1">{sub}</div>}
-    </>
-  );
-  const className = `rounded-xl border bg-card px-6 py-6 transition-all ${borderClass} ${hoverClass}`;
-  if (href) {
-    return (
-      <Link href={href} className={`block ${className}`}>
-        {body}
-      </Link>
-    );
-  }
-  return <div className={className}>{body}</div>;
-}
-
-function ScoreBadge({ score }: { score: string }) {
-  const num = Number(score);
-  const tone =
-    num >= 80
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : num >= 60
-        ? "bg-brand-50 text-brand-700 border-brand-200"
-        : "bg-amber-50 text-amber-800 border-amber-200";
-  return (
-    <span
-      className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium tabular-nums border ${tone}`}
-    >
-      {Number.isFinite(num) ? `${num}` : score}
-    </span>
-  );
-}
