@@ -74,9 +74,9 @@ html {
 }
 
 /*
- * Background: periwinkle base with two soft darker blooms in opposite
- * corners for depth, plus a faint dot grid. All subtle — the design
- * sits behind the floating white cards without competing.
+ * Background: periwinkle base with darker periwinkle radial blooms
+ * top-left and bottom-right, plus a visible dot grid. Layered to give
+ * the page real depth without competing with the white cards.
  */
 body {
   color: var(--foreground);
@@ -87,21 +87,26 @@ body {
   background-color: var(--periwinkle-200);
   background-image:
     radial-gradient(
-      ellipse 70% 50% at top left,
-      rgba(74, 103, 180, 0.22),
-      transparent 60%
+      ellipse 80% 60% at top left,
+      rgba(74, 103, 180, 0.45),
+      transparent 65%
     ),
     radial-gradient(
-      ellipse 60% 45% at bottom right,
-      rgba(46, 58, 107, 0.18),
-      transparent 60%
+      ellipse 70% 55% at bottom right,
+      rgba(46, 58, 107, 0.35),
+      transparent 65%
     ),
     radial-gradient(
-      circle at 1px 1px,
-      rgba(46, 58, 107, 0.08) 1px,
-      transparent 1px
+      ellipse 50% 40% at center,
+      rgba(168, 184, 232, 0.3),
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 1.5px 1.5px,
+      rgba(46, 58, 107, 0.18) 1.5px,
+      transparent 1.5px
     );
-  background-size: auto, auto, 28px 28px;
+  background-size: auto, auto, auto, 32px 32px;
   background-attachment: fixed;
 }
 
