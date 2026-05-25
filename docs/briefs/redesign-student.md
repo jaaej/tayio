@@ -1,5 +1,11 @@
 You own the **Student** dashboard redesign on your current branch.
 
+**Step 0 — required before writing any code:** invoke these two skills in order so every visual decision is grounded:
+1. Skill: `frontend-design:frontend-design`
+2. Skill: `ui-ux-pro-max:ui-ux-pro-max`
+
+Follow their guidance for typography, motion, contrast, touch targets, accessibility. Don't make a styling choice that contradicts either.
+
 The student dashboard on `main` is already redesigned. You're polishing it, NOT rebuilding. Read `src/app/student/page.tsx` to see the current state.
 
 **Your goal**
