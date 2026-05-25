@@ -209,6 +209,7 @@ for (const s of SUBJECTS) {
 
 const CLASSES = [
   { name: "Year 9 Maths · Saturday AM", subject: "Year 9 Maths", tutor: "tutor@taiyo.com", weekday: 6, start: "10:00", end: "11:30", location: "Room 3" },
+  { name: "Year 10 Maths · Monday PM", subject: "Year 10 Maths", tutor: "tutor@taiyo.com", weekday: 1, start: "16:00", end: "17:30", location: "Room 2" },
   { name: "Year 9 English · Tuesday PM", subject: "Year 9 English", tutor: "lee@taiyo.com", weekday: 2, start: "16:00", end: "17:30", location: "Room 1" },
   { name: "Year 10 Maths · Wednesday PM", subject: "Year 10 Maths", tutor: "park@taiyo.com", weekday: 3, start: "16:30", end: "18:00", location: "Room 2" },
   { name: "Year 11 Methods · Thursday PM", subject: "Year 11 Methods", tutor: "patel@taiyo.com", weekday: 4, start: "17:00", end: "18:30", location: "Room 4" },
@@ -263,6 +264,7 @@ for (const c of CLASSES) {
 
 const ENROLMENTS = {
   "Year 9 Maths · Saturday AM": ["student@taiyo.com", "noah.singh@taiyo.com"],
+  "Year 10 Maths · Monday PM": ["daniel.kim@taiyo.com", "mia.chen@taiyo.com", "oscar.davis@taiyo.com"],
   "Year 9 English · Tuesday PM": ["student@taiyo.com", "noah.singh@taiyo.com"],
   "Year 10 Maths · Wednesday PM": ["daniel.kim@taiyo.com", "mia.chen@taiyo.com", "oscar.davis@taiyo.com"],
   "Year 11 Methods · Thursday PM": ["ava.williams@taiyo.com", "ethan.lee@taiyo.com"],

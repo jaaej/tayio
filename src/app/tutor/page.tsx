@@ -1,133 +1,387 @@
 import Link from "next/link";
-import { Card, CardLabel, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
+  MiniWeekCalendar,
+  type CalendarEvent,
+} from "@/components/data/mini-week-calendar";
+import { StatTile } from "@/components/data/stat-tile";
+import { StatusBadge } from "@/components/data/status-badge";
+import {
+  formatTime,
+  formatWeekday,
+  relativeTime,
+  startOfMondayWeek,
+} from "@/lib/format";
+import {
+  HOMEWORK_STATUS_LABEL,
+  HOMEWORK_STATUS_STYLE,
+} from "@/lib/status";
+import {
+  getLessonsMissingNotes,
   getPendingMarkCount,
   getPendingNotesCount,
+  getRecentLessonNotes,
+  getSubmissionsToMark,
   getTodayLessons,
+  getTutorWeekLessons,
   requireTutor,
 } from "./_data";
 
-const dayMonth = new Intl.DateTimeFormat("en-AU", {
-  day: "numeric",
-  month: "short",
-});
-
-function trimTime(t: string | null) {
-  if (!t) return "";
-  return t.slice(0, 5);
-}
-
 export default async function TutorDashboard() {
   const tutor = await requireTutor();
-  const [lessonsToday, pendingMark, pendingNotes] = await Promise.all([
+
+  const now = new Date();
+  const weekStart = startOfMondayWeek(now);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+
+  const [
+    todayLessons,
+    weekLessons,
+    submissions,
+    missingNotes,
+    pendingMark,
+    pendingNotes,
+    recentNotes,
+  ] = await Promise.all([
     getTodayLessons(tutor.id),
+    getTutorWeekLessons(tutor.id, weekStart, weekEnd),
+    getSubmissionsToMark(tutor.id, 9),
+    getLessonsMissingNotes(tutor.id, 5),
     getPendingMarkCount(tutor.id),
     getPendingNotesCount(tutor.id),
+    getRecentLessonNotes(tutor.id, 4),
   ]);
 
-  const lessonsCount = lessonsToday.length;
-  const heading =
-    lessonsCount === 0
-      ? "Nothing scheduled"
-      : lessonsCount === 1
-        ? "One class"
-        : `${lessonsCount} classes`;
+  const events: CalendarEvent[] = weekLessons.map((l) => ({
+    date: l.date,
+    time: l.startTime.slice(0, 5),
+    endTime: l.endTime.slice(0, 5),
+    label: l.className,
+    meta: l.subjectName,
+    kind: "lesson",
+    href: `/tutor/lessons/${l.id}`,
+  }));
+
+  const dateLabel = now.toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  const nextToday = todayLessons.find((l) => {
+    const [h, m] = l.startTime.split(":").map(Number);
+    const start = new Date(now);
+    start.setHours(h, m, 0, 0);
+    return start >= now;
+  });
 
   return (
-    <div className="space-y-12">
-      <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Today · {dayMonth.format(new Date())}
+    <div className="space-y-6">
+      {/* Title strip */}
+      <header className="flex items-baseline justify-between rise">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
+            {dateLabel}
+          </div>
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+            Today
+          </h1>
         </div>
-        <h1 className="mt-2 text-5xl lg:text-6xl font-light tracking-tight text-ink">
-          {heading} <span className="">to teach</span>.
-        </h1>
+        {nextToday && (
+          <div className="hidden md:flex items-center gap-3 text-sm">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+              Next
+            </span>
+            <span className="text-ink font-medium">{nextToday.className}</span>
+            <span className="text-muted">·</span>
+            <span className="text-ink-soft">
+              {formatTime(nextToday.startTime)}
+            </span>
+          </div>
+        )}
       </header>
 
-      <section className="rise" style={{ animationDelay: "80ms" }}>
+      {/* Stat strip */}
+      <section
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
+        style={{ animationDelay: "40ms" }}
+      >
+        <StatTile
+          label="Classes today"
+          value={todayLessons.length.toString()}
+          accent={todayLessons.length > 0 ? "brand" : "muted"}
+        />
+        <StatTile
+          label="To mark"
+          value={pendingMark.toString()}
+          accent={pendingMark > 0 ? "warn" : "muted"}
+          href="/tutor/homework"
+        />
+        <StatTile
+          label="Notes pending"
+          value={pendingNotes.toString()}
+          accent={pendingNotes > 0 ? "warn" : "muted"}
+          href="/tutor/notes"
+        />
+        <StatTile
+          label="Lessons this week"
+          value={weekLessons.length.toString()}
+          accent="brand"
+        />
+      </section>
+
+      {/* Top: big calendar (left) + today's schedule (right) */}
+      <div
+        className="grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-5 lg:gap-6 rise"
+        style={{ animationDelay: "80ms" }}
+      >
+        {/* CALENDAR — large left block */}
         <Card className="p-0 overflow-hidden">
-          {lessonsToday.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <div className="text-sm text-ink-soft">
-                No lessons on the books for today.
-              </div>
-              <div className="mt-2 text-xs text-muted">
-                Check your{" "}
-                <Link href="/tutor/classes" className="underline-offset-4 hover:underline text-brand-700">
-                  class list
-                </Link>{" "}
-                for upcoming sessions.
-              </div>
-            </div>
+          <SectionHeader
+            title="This week"
+            right={`${weekLessons.length} lesson${weekLessons.length === 1 ? "" : "s"}`}
+            link={{ href: "/tutor/classes", label: "Classes" }}
+          />
+          <div className="p-5 bg-gradient-to-b from-brand-50/40 to-transparent">
+            <MiniWeekCalendar events={events} weekStart={weekStart} />
+          </div>
+        </Card>
+
+        {/* TODAY'S SCHEDULE — right column, matches calendar height */}
+        <Card className="p-0 overflow-hidden flex flex-col">
+          <SectionHeader
+            title="Today's schedule"
+            right={
+              todayLessons.length === 0
+                ? "Nothing"
+                : `${todayLessons.length} class${todayLessons.length === 1 ? "" : "es"}`
+            }
+          />
+          {todayLessons.length === 0 ? (
+            <Empty>
+              Nothing on your calendar today — see{" "}
+              <Link
+                href="/tutor/classes"
+                className="text-brand-700 hover:underline"
+              >
+                your class list
+              </Link>{" "}
+              for upcoming sessions.
+            </Empty>
           ) : (
-            <div className="divide-y divide-hairline">
-              {lessonsToday.map((l) => (
+            <div className="p-5 space-y-3 flex-1">
+              {todayLessons.map((l) => (
                 <Link
                   key={l.id}
                   href={`/tutor/lessons/${l.id}`}
-                  className="flex items-baseline gap-8 px-6 py-5 hover:bg-brand-50 transition-colors"
+                  className="flex items-baseline gap-4 rounded-xl border border-brand-200/70 bg-gradient-to-r from-brand-200/70 via-brand-100/60 to-brand-50/30 px-4 py-3.5 hover:from-brand-300/70 hover:via-brand-200/60 hover:border-brand-400 transition-colors"
                 >
-                  <div className="w-24 text-sm tabular-nums text-ink">
-                    {trimTime(l.startTime)} – {trimTime(l.endTime)}
+                  <div className="w-20 text-sm tabular-nums text-ink shrink-0">
+                    {formatTime(l.startTime)}
                   </div>
-                  <div className="flex-1">
-                    <div className="text-base text-ink">{l.className}</div>
-                    <div className="text-xs text-muted mt-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base text-ink truncate font-medium">
+                      {l.className}
+                    </div>
+                    <div className="text-sm text-muted mt-0.5 truncate">
                       {l.subjectName}
                       {l.location ? ` · ${l.location}` : ""}
                       {l.onlineLink ? " · Online" : ""}
                     </div>
-                  </div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-brand-700">
-                    Open →
                   </div>
                 </Link>
               ))}
             </div>
           )}
         </Card>
-      </section>
+      </div>
 
-      <section
-        className="grid lg:grid-cols-3 gap-5 rise"
+      {/* Submissions to mark — main block */}
+      <Card
+        className="p-0 overflow-hidden rise"
+        style={{ animationDelay: "120ms" }}
+      >
+        <SectionHeader
+          title="Submissions to mark"
+          right={
+            submissions.length > 0
+              ? `${pendingMark} awaiting`
+              : undefined
+          }
+          link={{ href: "/tutor/homework", label: "All homework" }}
+        />
+        {submissions.length === 0 ? (
+          <Empty>No new submissions waiting — you're up to date.</Empty>
+        ) : (
+          <div className="p-5 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {submissions.map((s) => (
+              <Link
+                key={`${s.homeworkId}-${s.studentId}`}
+                href={`/tutor/homework/${s.homeworkId}`}
+                className="group block rounded-2xl border border-amber-200/80 bg-amber-50/70 p-5 transition-all hover:bg-amber-50 hover:border-amber-300 hover:shadow-[0_10px_28px_-16px_rgba(180,83,9,0.28)] hover:-translate-y-[1px]"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-[11px] font-medium shrink-0">
+                        {s.firstName.charAt(0)}
+                        {s.lastName.charAt(0)}
+                      </div>
+                      <div className="text-base font-medium text-ink truncate">
+                        {s.firstName} {s.lastName}
+                      </div>
+                    </div>
+                  </div>
+                  <StatusBadge
+                    label={HOMEWORK_STATUS_LABEL[s.status] ?? s.status}
+                    className={HOMEWORK_STATUS_STYLE[s.status]}
+                  />
+                </div>
+                <div className="text-sm text-ink line-clamp-2 leading-relaxed">
+                  {s.title}
+                </div>
+                <div className="mt-3 pt-3 border-t border-amber-200/70 flex items-center justify-between text-xs text-amber-900/70">
+                  <span className="truncate">
+                    {s.className ?? "Individual"}
+                  </span>
+                  <span className="shrink-0">
+                    {s.submittedAt
+                      ? `submitted ${relativeTime(s.submittedAt)}`
+                      : ""}
+                  </span>
+                </div>
+                <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-amber-700 group-hover:text-amber-800">
+                  Mark →
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Bottom row: lessons missing notes + recent notes */}
+      <div
+        className="grid lg:grid-cols-2 gap-5 lg:gap-6 rise"
         style={{ animationDelay: "160ms" }}
       >
-        <Link href="/tutor/homework" className="block">
-          <Card className="h-full hover:border-brand-400 transition-colors">
-            <CardLabel>To mark</CardLabel>
-            <CardTitle>
-              {pendingMark} submission{pendingMark === 1 ? "" : "s"}
-            </CardTitle>
-            <div className="mt-4 text-xs text-muted">
-              {pendingMark === 0
-                ? "All caught up."
-                : "Awaiting your feedback."}
+        <Card className="p-0 overflow-hidden">
+          <SectionHeader
+            title="Lessons missing a note"
+            right={
+              missingNotes.length > 0
+                ? `${missingNotes.length} in last 7 days`
+                : undefined
+            }
+          />
+          {missingNotes.length === 0 ? (
+            <Empty>Every recent lesson is documented. Nice.</Empty>
+          ) : (
+            <div className="divide-y divide-hairline/60">
+              {missingNotes.map((l) => (
+                <Link
+                  key={l.id}
+                  href={`/tutor/lessons/${l.id}`}
+                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-brand-50 transition-colors"
+                >
+                  <div className="w-24 text-sm tabular-nums text-ink-soft shrink-0">
+                    {formatWeekday(l.date, "short")}{" "}
+                    {formatTime(l.startTime)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base text-ink truncate">
+                      {l.className}
+                    </div>
+                    <div className="text-sm text-muted mt-0.5 truncate">
+                      {l.subjectName}
+                    </div>
+                  </div>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-brand-700 shrink-0">
+                    Write note →
+                  </span>
+                </Link>
+              ))}
             </div>
-          </Card>
-        </Link>
-        <Link href="/tutor/notes" className="block">
-          <Card className="h-full hover:border-brand-400 transition-colors">
-            <CardLabel>Notes pending</CardLabel>
-            <CardTitle>
-              {pendingNotes} lesson{pendingNotes === 1 ? "" : "s"}
-            </CardTitle>
-            <div className="mt-4 text-xs text-muted">
-              {pendingNotes === 0
-                ? "Every past lesson is documented."
-                : "Past lessons without a note."}
+          )}
+        </Card>
+
+        <Card className="p-0 overflow-hidden">
+          <SectionHeader title="Recent notes" />
+          {recentNotes.length === 0 ? (
+            <Empty>No notes yet.</Empty>
+          ) : (
+            <div className="divide-y divide-hairline/60">
+              {recentNotes.map((n) => (
+                <Link
+                  key={n.id}
+                  href={`/tutor/students/${n.studentId}`}
+                  className="block px-5 py-3.5 hover:bg-brand-50/40 transition-colors"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
+                      <div className="text-base text-ink font-medium truncate">
+                        {n.studentFirstName} {n.studentLastName}
+                      </div>
+                    </div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-muted shrink-0">
+                      {relativeTime(new Date(n.createdAt))}
+                    </div>
+                  </div>
+                  <p className="mt-1.5 ml-3.5 text-sm text-ink-soft leading-relaxed line-clamp-2">
+                    {n.topicCovered ??
+                      n.parentVisibleComment ??
+                      n.internalNote ??
+                      n.className}
+                  </p>
+                </Link>
+              ))}
             </div>
-          </Card>
-        </Link>
-        <Link href="/tutor/students" className="block">
-          <Card className="h-full hover:border-brand-400 transition-colors">
-            <CardLabel>Students</CardLabel>
-            <CardTitle>Your roster</CardTitle>
-            <div className="mt-4 text-xs text-muted">
-              Profiles, history, progress.
-            </div>
-          </Card>
-        </Link>
-      </section>
+          )}
+        </Card>
+      </div>
     </div>
   );
+}
+
+function SectionHeader({
+  title,
+  eyebrow,
+  right,
+  link,
+}: {
+  title: string;
+  eyebrow?: string;
+  right?: string;
+  link?: { href: string; label: string };
+}) {
+  return (
+    <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-xl font-medium text-ink">{title}</div>
+        {eyebrow && (
+          <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
+            {eyebrow}
+          </div>
+        )}
+      </div>
+      {link ? (
+        <Link
+          href={link.href}
+          className="text-sm text-brand-700 hover:underline shrink-0"
+        >
+          {link.label} →
+        </Link>
+      ) : right ? (
+        <span className="text-sm uppercase tracking-[0.18em] text-muted shrink-0">
+          {right}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
 }

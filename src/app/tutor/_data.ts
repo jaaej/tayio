@@ -21,8 +21,12 @@ export async function requireTutor() {
 }
 
 function todayDateString() {
-  // YYYY-MM-DD in server local time — matches `date` column type
-  return new Date().toISOString().slice(0, 10);
+  // The rest of the codebase (seed, MiniWeekCalendar, shared isoDate) keys
+  // dates as `local-midnight → toISOString`. In AEST this is "previous day in UTC".
+  // Match that convention so date comparisons line up with stored lesson rows.
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
 }
 
 export async function getTodayLessons(tutorId: string) {
@@ -381,6 +385,110 @@ export async function getPendingNotesCount(tutorId: string) {
         sql`${lessons.date} <= ${today}`,
         sql`${lessonNotes.id} is null`,
       ),
+    );
+  return count ?? 0;
+}
+
+export async function getTutorWeekLessons(
+  tutorId: string,
+  weekStart: Date,
+  weekEnd: Date,
+) {
+  const start = weekStart.toISOString().slice(0, 10);
+  const end = weekEnd.toISOString().slice(0, 10);
+  return db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        sql`${lessons.date} >= ${start}`,
+        sql`${lessons.date} < ${end}`,
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+}
+
+export async function getSubmissionsToMark(tutorId: string, limit = 8) {
+  return db
+    .select({
+      homeworkId: homework.id,
+      title: homework.title,
+      dueDate: homework.dueDate,
+      status: homeworkAssignments.status,
+      submittedAt: homeworkAssignments.submittedAt,
+      studentId: homeworkAssignments.studentId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      className: classes.name,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .leftJoin(classes, eq(classes.id, homework.classId))
+    .where(
+      and(
+        eq(homework.tutorId, tutorId),
+        inArray(homeworkAssignments.status, ["submitted", "late"]),
+      ),
+    )
+    .orderBy(desc(homeworkAssignments.submittedAt))
+    .limit(limit);
+}
+
+export async function getLessonsMissingNotes(tutorId: string, limit = 6) {
+  // Lessons in the past 7 days, taught by this tutor, with no note row by this tutor.
+  const today = todayDateString();
+  const sevenAgo = new Date();
+  sevenAgo.setDate(sevenAgo.getDate() - 7);
+  const since = sevenAgo.toISOString().slice(0, 10);
+  return db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
+    .leftJoin(
+      lessonNotes,
+      and(
+        eq(lessonNotes.lessonId, lessons.id),
+        eq(lessonNotes.tutorId, tutorId),
+      ),
+    )
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        sql`${lessons.date} <= ${today}`,
+        sql`${lessons.date} >= ${since}`,
+        sql`${lessonNotes.id} is null`,
+      ),
+    )
+    .orderBy(desc(lessons.date), asc(lessons.startTime))
+    .limit(limit);
+}
+
+export async function getTodayLessonCount(tutorId: string) {
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(lessons)
+    .where(
+      and(eq(lessons.tutorId, tutorId), eq(lessons.date, todayDateString())),
     );
   return count ?? 0;
 }

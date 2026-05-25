@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Card, CardLabel } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { formatDateLong, formatTime } from "@/lib/format";
 import { saveAttendance, saveLessonNote } from "../../_actions";
 import { getLessonForTutor, requireTutor } from "../../_data";
 
@@ -13,10 +14,11 @@ const ATTENDANCE_OPTIONS = [
   { value: "makeup_attended", label: "Make-up" },
 ] as const;
 
-const dateFmt = new Intl.DateTimeFormat("en-AU", {
-  weekday: "long",
+const savedFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
-  month: "long",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
 });
 
 export default async function LessonDetailPage({
@@ -30,134 +32,118 @@ export default async function LessonDetailPage({
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
 
   return (
-    <div className="space-y-12">
-      <header className="rise space-y-3">
+    <div className="space-y-6">
+      <header className="rise space-y-2">
         <Link
           href="/tutor"
           className="text-[11px] uppercase tracking-[0.16em] text-muted hover:text-ink"
         >
           ← Today
         </Link>
-        <h1 className="text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          {lesson.className}{" "}
-          <span className="">lesson</span>
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          {lesson.className}
         </h1>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-soft">
-          <span>{dateFmt.format(new Date(lesson.date))}</span>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
+          <span>{formatDateLong(lesson.date)}</span>
           <span className="tabular-nums">
-            {lesson.startTime.slice(0, 5)}–{lesson.endTime.slice(0, 5)}
+            {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
           </span>
           <span>{lesson.subjectName}</span>
           {lesson.location && <span>{lesson.location}</span>}
         </div>
       </header>
 
-      <section className="rise space-y-4" style={{ animationDelay: "80ms" }}>
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            Attendance
-          </h2>
-          <span className="text-xs text-muted">
-            {roster.length} student{roster.length === 1 ? "" : "s"} enrolled
+      {/* Attendance */}
+      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "40ms" }}>
+        <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between">
+          <div className="text-xl font-medium text-ink">Attendance</div>
+          <span className="text-sm uppercase tracking-[0.18em] text-muted">
+            {roster.length} enrolled
           </span>
         </div>
 
         {roster.length === 0 ? (
-          <Card>
-            <p className="text-sm text-ink-soft">
-              No students are enrolled in this class yet.
-            </p>
-          </Card>
+          <div className="px-6 py-8 text-sm text-ink-soft">
+            No students are enrolled in this class yet.
+          </div>
         ) : (
           <form action={saveAttendance}>
             <input type="hidden" name="lessonId" value={lesson.id} />
-            <Card className="p-0 overflow-hidden">
-              <ul className="divide-y divide-hairline">
-                {roster.map((s) => {
-                  const current = s.attendanceStatus ?? "";
-                  return (
-                    <li key={s.id} className="px-6 py-4 space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <div>
-                          <Link
-                            href={`/tutor/students/${s.id}`}
-                            className="text-sm text-ink hover:underline underline-offset-4"
-                          >
-                            {s.firstName} {s.lastName}
-                          </Link>
-                          {s.yearLevel && (
-                            <span className="ml-3 text-xs text-muted">
-                              {s.yearLevel}
-                            </span>
-                          )}
-                        </div>
+            <ul className="divide-y divide-hairline/60">
+              {roster.map((s) => {
+                const current = s.attendanceStatus ?? "";
+                return (
+                  <li key={s.id} className="px-6 py-4 space-y-3">
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <Link
+                          href={`/tutor/students/${s.id}`}
+                          className="text-base text-ink hover:underline underline-offset-4"
+                        >
+                          {s.firstName} {s.lastName}
+                        </Link>
+                        {s.yearLevel && (
+                          <span className="ml-3 text-sm text-muted">
+                            {s.yearLevel}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {ATTENDANCE_OPTIONS.map((opt) => (
-                          <label
-                            key={opt.value}
-                            className="cursor-pointer"
-                          >
-                            <input
-                              type="radio"
-                              name={`status[${s.id}]`}
-                              value={opt.value}
-                              defaultChecked={current === opt.value}
-                              className="peer sr-only"
-                            />
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-full border border-hairline text-xs text-ink-soft peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink hover:border-brand-400 transition-colors">
-                              {opt.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                      <Input
-                        name={`note[${s.id}]`}
-                        placeholder="Optional note (e.g. arrived 10 min late)"
-                        defaultValue={s.attendanceNote ?? ""}
-                        className="h-9 text-sm"
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="px-6 py-4 border-t border-hairline/60 bg-brand-50/40 flex justify-end">
-                <Button type="submit" size="sm" variant="primary">
-                  Save attendance
-                </Button>
-              </div>
-            </Card>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {ATTENDANCE_OPTIONS.map((opt) => (
+                        <label key={opt.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`status[${s.id}]`}
+                            value={opt.value}
+                            defaultChecked={current === opt.value}
+                            className="peer sr-only"
+                          />
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full border border-hairline text-xs text-ink-soft peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink hover:border-brand-400 transition-colors">
+                            {opt.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <Input
+                      name={`note[${s.id}]`}
+                      placeholder="Optional note (e.g. arrived 10 min late)"
+                      defaultValue={s.attendanceNote ?? ""}
+                      className="h-9 text-sm"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="px-6 py-4 border-t border-hairline/60 bg-brand-50/40 flex justify-end">
+              <Button type="submit" size="sm" variant="primary">
+                Save attendance
+              </Button>
+            </div>
           </form>
         )}
-      </section>
+      </Card>
 
-      <section className="rise space-y-4" style={{ animationDelay: "160ms" }}>
+      {/* Lesson notes */}
+      <section className="rise space-y-4" style={{ animationDelay: "80ms" }}>
         <div className="flex items-baseline justify-between">
-          <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            Lesson notes
-          </h2>
-          <span className="text-xs text-muted">One note per student.</span>
+          <h2 className="text-xl font-medium text-ink">Lesson notes</h2>
+          <span className="text-sm text-muted">One note per student.</span>
         </div>
 
         {roster.length === 0 ? null : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {roster.map((s) => {
               const existing = notesByStudent.get(s.id);
               return (
                 <Card key={s.id} className="space-y-5">
                   <div className="flex items-baseline justify-between">
-                    <h3 className="text-lg text-ink">
+                    <h3 className="text-lg font-medium text-ink">
                       {s.firstName} {s.lastName}
                     </h3>
                     {existing && (
-                      <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
-                        Last saved{" "}
-                        {new Intl.DateTimeFormat("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }).format(existing.createdAt)}
+                      <span className="text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Last saved {savedFmt.format(existing.createdAt)}
                       </span>
                     )}
                   </div>
@@ -215,18 +201,18 @@ export default async function LessonDetailPage({
                       </div>
                     </div>
 
+                    {/* Parent vs internal — strong visual separation */}
                     <div className="grid md:grid-cols-2 gap-4">
-                      {/* Parent-visible — green tone, clearly separated */}
                       <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50/40 p-5 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                          <CardLabel className="text-emerald-900">
-                            Parent-visible comment
-                          </CardLabel>
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-emerald-900 font-medium">
+                            Parent will see this
+                          </div>
                         </div>
-                        <p className="text-xs text-emerald-900/80">
-                          The student and their parent <strong>will see this</strong>.
-                          Write what's appropriate for them to read.
+                        <p className="text-xs text-emerald-900/80 leading-relaxed">
+                          The student and their parent <strong>will read this</strong>.
+                          Write what's appropriate for them to see.
                         </p>
                         <textarea
                           name="parentVisibleComment"
@@ -237,15 +223,14 @@ export default async function LessonDetailPage({
                         />
                       </div>
 
-                      {/* Internal — amber tone, clearly different */}
                       <div className="rounded-2xl border-2 border-amber-300 bg-amber-50/40 p-5 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                          <CardLabel className="text-amber-900">
-                            Internal note · tutor &amp; admin only
-                          </CardLabel>
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-amber-900 font-medium">
+                            Only you and admin see this
+                          </div>
                         </div>
-                        <p className="text-xs text-amber-900/80">
+                        <p className="text-xs text-amber-900/80 leading-relaxed">
                           The parent and student <strong>will not see this</strong>.
                           Safe for behavioural or strategy notes.
                         </p>
