@@ -9,7 +9,7 @@ type NavItem = { label: string; href: string };
 
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   student: [
-    { label: "Overview", href: "/student" },
+    { label: "Dashboard", href: "/student" },
     { label: "My subjects", href: "/student/subjects" },
     { label: "Timetable", href: "/student/timetable" },
     { label: "Homework", href: "/student/homework" },
