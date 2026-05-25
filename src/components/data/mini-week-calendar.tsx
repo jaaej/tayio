@@ -98,15 +98,15 @@ export function MiniWeekCalendar({
             <div
               key={d.iso}
               className={cn(
-                "rounded-lg px-2 py-2 text-center transition-colors",
+                "rounded-xl px-3 py-3 text-center transition-colors",
                 d.isToday
-                  ? "bg-navy-800 text-white"
-                  : "bg-brand-50/60 text-ink-soft",
+                  ? "bg-navy-800 text-white shadow-[0_4px_18px_-8px_rgba(29,41,81,0.4)]"
+                  : "bg-brand-50/60 text-ink-soft hover:bg-brand-100",
               )}
             >
               <div
                 className={cn(
-                  "text-[9px] uppercase tracking-[0.16em]",
+                  "text-[10px] uppercase tracking-[0.16em]",
                   d.isToday ? "text-white/70" : "text-muted",
                 )}
               >
@@ -114,18 +114,18 @@ export function MiniWeekCalendar({
               </div>
               <div
                 className={cn(
-                  "mt-0.5 text-base font-medium tabular-nums",
+                  "mt-1 text-2xl font-medium tabular-nums",
                   d.isToday ? "text-white" : "text-ink",
                 )}
               >
                 {d.dayNum}
               </div>
               {dotKinds.length > 0 && (
-                <div className="mt-1 flex items-center justify-center gap-0.5">
+                <div className="mt-1.5 flex items-center justify-center gap-1">
                   {dotKinds.map((k) => (
                     <span
                       key={k}
-                      className={cn("h-1 w-1 rounded-full", KIND_DOT[k])}
+                      className={cn("h-1.5 w-1.5 rounded-full", KIND_DOT[k])}
                       aria-hidden
                     />
                   ))}
@@ -137,16 +137,16 @@ export function MiniWeekCalendar({
       </div>
 
       {/* Event list grouped by day */}
-      <div className="space-y-2">
+      <div className="space-y-2.5 pt-2">
         {days.map((d) => {
           const dayEvents = byDate.get(d.iso) ?? [];
           if (dayEvents.length === 0) return null;
           return (
-            <div key={d.iso} className="flex items-start gap-3">
-              <div className="w-10 shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted pt-1">
+            <div key={d.iso} className="flex items-start gap-4">
+              <div className="w-16 shrink-0 text-[11px] uppercase tracking-[0.14em] text-muted pt-1">
                 {d.label} {d.dayNum}
               </div>
-              <div className="flex-1 flex flex-wrap gap-1.5 min-w-0">
+              <div className="flex-1 flex flex-wrap gap-2 min-w-0">
                 {dayEvents.map((e, i) => (
                   <EventChip key={`${d.iso}-${i}`} event={e} />
                 ))}
@@ -155,7 +155,7 @@ export function MiniWeekCalendar({
           );
         })}
         {Array.from(byDate.values()).every((v) => v.length === 0) && (
-          <div className="text-xs text-muted px-1 pt-1">
+          <div className="text-sm text-muted px-1 pt-2">
             Nothing scheduled this week.
           </div>
         )}
@@ -174,7 +174,7 @@ function EventChip({ event }: { event: CalendarEvent }) {
   const content = (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] leading-tight",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs leading-tight",
         KIND_STYLES[event.kind],
       )}
     >

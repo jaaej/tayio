@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  announcements,
   classes,
   enrollments,
   homework,
@@ -12,6 +13,129 @@ import {
   progressTopics,
   subjects,
 } from "@/db/schema";
+
+export type RecentFeedback = {
+  lessonId: string;
+  date: string;
+  comment: string;
+  subjectName: string;
+  tutorFirstName: string;
+  tutorLastName: string;
+};
+
+export async function getRecentFeedback(
+  studentId: string,
+  limit = 3,
+): Promise<RecentFeedback[]> {
+  return db
+    .select({
+      lessonId: lessons.id,
+      date: lessons.date,
+      comment: lessonNotes.parentVisibleComment,
+      subjectName: subjects.name,
+      tutorFirstName: profiles.firstName,
+      tutorLastName: profiles.lastName,
+    })
+    .from(lessonNotes)
+    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessonNotes.tutorId))
+    .where(
+      and(
+        eq(lessonNotes.studentId, studentId),
+        isNotNull(lessonNotes.parentVisibleComment),
+      ),
+    )
+    .orderBy(desc(lessons.date))
+    .limit(limit)
+    .then((rows) =>
+      rows
+        .filter((r) => r.comment !== null)
+        .map((r) => ({ ...r, comment: r.comment as string })),
+    );
+}
+
+export type RecentGrade = {
+  homeworkId: string;
+  title: string;
+  score: string;
+  feedback: string | null;
+  markedAt: Date;
+  className: string | null;
+};
+
+export async function getRecentGrades(
+  studentId: string,
+  limit = 5,
+): Promise<RecentGrade[]> {
+  return db
+    .select({
+      homeworkId: homework.id,
+      title: homework.title,
+      score: homeworkAssignments.score,
+      feedback: homeworkAssignments.feedback,
+      markedAt: homeworkAssignments.markedAt,
+      className: classes.name,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .leftJoin(classes, eq(classes.id, homework.classId))
+    .where(
+      and(
+        eq(homeworkAssignments.studentId, studentId),
+        eq(homeworkAssignments.status, "marked"),
+        isNotNull(homeworkAssignments.score),
+        isNotNull(homeworkAssignments.markedAt),
+      ),
+    )
+    .orderBy(desc(homeworkAssignments.markedAt))
+    .limit(limit)
+    .then((rows) =>
+      rows
+        .filter((r) => r.markedAt !== null && r.score !== null)
+        .map((r) => ({
+          ...r,
+          score: r.score as string,
+          markedAt: r.markedAt as Date,
+        })),
+    );
+}
+
+export type StudentAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  publishedAt: Date;
+  audienceRole: "student" | "parent" | "tutor" | "admin" | null;
+};
+
+export async function getRelevantAnnouncements(
+  studentId: string,
+  limit = 4,
+): Promise<StudentAnnouncement[]> {
+  const enrolledClassIds = await getEnrolledClassIds(studentId);
+  return db
+    .select({
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      publishedAt: announcements.publishedAt,
+      audienceRole: announcements.audienceRole,
+    })
+    .from(announcements)
+    .where(
+      or(
+        isNull(announcements.audienceRole),
+        eq(announcements.audienceRole, "student"),
+        enrolledClassIds.length > 0
+          ? inArray(announcements.audienceClassId, enrolledClassIds)
+          : undefined,
+      ),
+    )
+    .orderBy(desc(announcements.publishedAt))
+    .limit(limit);
+}
 
 export type SubjectSummary = {
   classId: string;
