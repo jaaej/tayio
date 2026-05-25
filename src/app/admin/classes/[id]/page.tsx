@@ -47,7 +47,7 @@ export default async function ClassEditPage({
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Edit class
         </div>
-        <h1 className="mt-2 text-4xl font-light tracking-tight text-ink">
+        <h1 className="mt-2 text-4xl font-medium tracking-tight text-ink">
           {row.name}
         </h1>
       </header>

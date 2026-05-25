@@ -36,9 +36,8 @@ export default async function UsersPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           User management
         </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Everyone with{" "}
-          <span className="">portal access</span>.
+        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          Everyone with portal access.
         </h1>
         <p className="mt-3 text-sm text-ink-soft max-w-xl">
           Create accounts for students, parents, tutors, and fellow admins.

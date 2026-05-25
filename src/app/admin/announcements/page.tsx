@@ -40,10 +40,8 @@ export default async function AnnouncementsPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Announcements
         </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Tell the{" "}
-          <span className="">right people</span>, all at
-          once.
+        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          Tell the right people, all at once.
         </h1>
       </header>
 

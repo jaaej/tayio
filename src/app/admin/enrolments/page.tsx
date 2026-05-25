@@ -97,9 +97,8 @@ export default async function EnrolmentsPage({
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Enrolment management
         </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Move students{" "}
-          <span className="">in and out</span> of classes.
+        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          Move students in and out of classes.
         </h1>
       </header>
 
