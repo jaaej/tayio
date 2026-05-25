@@ -203,7 +203,6 @@ export default async function StudentDashboard() {
           <Card className="p-0 overflow-hidden">
             <SectionHeader
               title="My subjects"
-              eyebrow="Open one to see classes, homework and progress"
               right={`${subjects.length} enrolled`}
             />
             <div className="p-5">
@@ -234,11 +233,6 @@ export default async function StudentDashboard() {
           <Card className="p-0 overflow-hidden">
             <SectionHeader
               title="This week"
-              eyebrow={
-                events.length === 0
-                  ? "Nothing scheduled"
-                  : `${events.length} event${events.length === 1 ? "" : "s"}`
-              }
               link={{ href: "/student/timetable", label: "Full timetable" }}
             />
             <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
@@ -250,7 +244,6 @@ export default async function StudentDashboard() {
           <Card className="p-0 overflow-hidden">
             <SectionHeader
               title="Upcoming due"
-              eyebrow="Submit before the deadline"
               link={{ href: "/student/homework", label: "All homework" }}
             />
             {upcomingDue.length === 0 ? (
@@ -281,10 +274,7 @@ export default async function StudentDashboard() {
 
           {/* Recent grades */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader
-              title="Recent grades"
-              eyebrow="Your last marked work"
-            />
+            <SectionHeader title="Recent grades" />
             {grades.length === 0 ? (
               <Empty>No marked homework yet.</Empty>
             ) : (
