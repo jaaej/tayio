@@ -104,7 +104,6 @@ export default async function StudentDashboard() {
       time: l.startTime.slice(0, 5),
       endTime: l.endTime.slice(0, 5),
       label: l.subjectName,
-      meta: `${l.tutorFirstName} ${l.tutorLastName.charAt(0)}.`,
       kind: "lesson",
     });
   }
@@ -161,31 +160,22 @@ export default async function StudentDashboard() {
 
       {/* Stat strip */}
       <section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
+        className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
-          label="Subjects"
-          value={subjects.length.toString()}
-          sub="enrolled"
-          accent="brand"
-        />
-        <StatTile
           label="Due"
           value={dueCount.toString()}
-          sub="open homework"
           accent={dueCount > 0 ? "warn" : "muted"}
         />
         <StatTile
           label="Lessons this week"
           value={events.filter((e) => e.kind === "lesson").length.toString()}
-          sub="scheduled"
           accent="brand"
         />
         <StatTile
           label="Overall mastery"
           value={`${overallMastery}%`}
-          sub="across topics"
           accent={
             overallMastery >= 75 ? "success" : overallMastery >= 50 ? "brand" : "warn"
           }
@@ -215,7 +205,6 @@ export default async function StudentDashboard() {
                       key={s.classId}
                       href={`/student/subjects/${s.classId}`}
                       subject={s.subjectName}
-                      meta={`${s.tutorFirstName} ${s.tutorLastName}`}
                       accent={colorForSubject(s.subjectName)}
                       badge={
                         s.dueHomeworkCount > 0
@@ -438,7 +427,7 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  sub: string;
+  sub?: string;
   accent?: "brand" | "warn" | "success" | "muted";
 }) {
   const accentClass = {
@@ -465,7 +454,7 @@ function StatTile({
       >
         {value}
       </div>
-      <div className="text-[14px] text-muted truncate mt-1">{sub}</div>
+      {sub && <div className="text-[14px] text-muted truncate mt-1">{sub}</div>}
     </div>
   );
 }
