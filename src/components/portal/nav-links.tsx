@@ -53,7 +53,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             >
               {item.icon}
             </span>
-            <span className="text-[16px] tracking-tight">{item.label}</span>
+            <span className="text-[17px] tracking-tight">{item.label}</span>
           </Link>
         );
       })}
