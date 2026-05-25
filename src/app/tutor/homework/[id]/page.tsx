@@ -1,37 +1,16 @@
 import Link from "next/link";
-import { Card, CardLabel } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { StatusBadge } from "@/components/data/status-badge";
+import { ScoreBadge } from "@/components/data/score-badge";
+import { formatDueDate, relativeTime } from "@/lib/format";
+import {
+  HOMEWORK_STATUS_LABEL,
+  HOMEWORK_STATUS_STYLE,
+} from "@/lib/status";
 import { markSubmission } from "../../_actions";
 import { getHomeworkDetail, requireTutor } from "../../_data";
-
-const dateFmt = new Intl.DateTimeFormat("en-AU", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const STATUS_LABEL: Record<string, string> = {
-  not_started: "Not started",
-  viewed: "Viewed",
-  submitted: "Submitted",
-  late: "Late",
-  marked: "Marked",
-  returned: "Returned",
-  resubmission_requested: "Resubmit",
-};
-
-const STATUS_TONE: Record<string, string> = {
-  not_started: "bg-muted/10 text-ink-soft border-hairline",
-  viewed: "bg-sky-50 text-sky-800 border-sky-200",
-  submitted: "bg-amber-50 text-amber-800 border-amber-200",
-  late: "bg-rose-50 text-rose-800 border-rose-200",
-  marked: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  returned: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  resubmission_requested: "bg-amber-50 text-amber-800 border-amber-200",
-};
 
 export default async function HomeworkDetailPage({
   params,
@@ -43,55 +22,56 @@ export default async function HomeworkDetailPage({
   const { homework, submissions } = await getHomeworkDetail(tutor.id, id);
 
   return (
-    <div className="space-y-12">
-      <header className="rise space-y-3">
+    <div className="space-y-6">
+      <header className="rise space-y-2">
         <Link
           href="/tutor/homework"
           className="text-[11px] uppercase tracking-[0.16em] text-muted hover:text-ink"
         >
           ← All homework
         </Link>
-        <h1 className="text-4xl lg:text-5xl font-light tracking-tight text-ink">
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink">
           {homework.title}
         </h1>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-soft">
-          <span>Due {dateFmt.format(new Date(homework.dueDate))}</span>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
+          <span>Due {formatDueDate(new Date(homework.dueDate))}</span>
           {homework.allowResubmission && <span>Resubmission allowed</span>}
           {homework.attachmentUrl && (
             <a
               href={homework.attachmentUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-brand-700 underline-offset-4 hover:underline"
+              className="text-brand-700 hover:underline"
             >
               View attachment ↗
             </a>
           )}
         </div>
         {homework.description && (
-          <p className="text-sm text-ink-soft max-w-2xl whitespace-pre-wrap">
+          <p className="text-sm text-ink-soft max-w-2xl whitespace-pre-wrap pt-2">
             {homework.description}
           </p>
         )}
       </header>
 
-      <section className="rise space-y-4" style={{ animationDelay: "80ms" }}>
-        <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Submissions · {submissions.length}
-        </h2>
+      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "40ms" }}>
+        <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between">
+          <div className="text-xl font-medium text-ink">Submissions</div>
+          <span className="text-sm uppercase tracking-[0.18em] text-muted">
+            {submissions.length} student{submissions.length === 1 ? "" : "s"}
+          </span>
+        </div>
 
         {submissions.length === 0 ? (
-          <Card>
-            <p className="text-sm text-ink-soft">
-              No students assigned yet. Assign to a class to populate this list.
-            </p>
-          </Card>
+          <div className="px-6 py-8 text-sm text-ink-soft">
+            No students assigned yet. Assign to a class to populate this list.
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-hairline/60">
             {submissions.map((s) => (
-              <Card key={s.studentId} className="space-y-4">
-                <div className="flex items-baseline justify-between gap-4">
-                  <div>
+              <article key={s.studentId} className="px-6 py-5 space-y-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="min-w-0">
                     <Link
                       href={`/tutor/students/${s.studentId}`}
                       className="text-lg text-ink hover:underline underline-offset-4"
@@ -99,29 +79,33 @@ export default async function HomeworkDetailPage({
                       {s.firstName} {s.lastName}
                     </Link>
                     {s.yearLevel && (
-                      <span className="ml-3 text-xs text-muted">
+                      <span className="ml-3 text-sm text-muted">
                         {s.yearLevel}
                       </span>
                     )}
                   </div>
-                  <span
-                    className={`text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full border ${
-                      STATUS_TONE[s.status] ?? STATUS_TONE.not_started
-                    }`}
-                  >
-                    {STATUS_LABEL[s.status] ?? s.status}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {s.score !== null && (
+                      <ScoreBadge score={String(s.score)} size="sm" />
+                    )}
+                    <StatusBadge
+                      label={HOMEWORK_STATUS_LABEL[s.status] ?? s.status}
+                      className={HOMEWORK_STATUS_STYLE[s.status]}
+                    />
+                  </div>
                 </div>
 
                 {s.submittedAt && (
-                  <div className="text-xs text-muted">
-                    Submitted {dateFmt.format(s.submittedAt)}
+                  <div className="text-sm text-muted">
+                    Submitted {relativeTime(s.submittedAt)}
                   </div>
                 )}
 
                 {(s.submissionUrl || s.submissionText) && (
                   <div className="rounded-xl border border-hairline/60 bg-brand-50/40 p-4 space-y-2">
-                    <CardLabel>Submission</CardLabel>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-medium">
+                      Submission
+                    </div>
                     {s.submissionText && (
                       <p className="text-sm text-ink whitespace-pre-wrap">
                         {s.submissionText}
@@ -132,7 +116,7 @@ export default async function HomeworkDetailPage({
                         href={s.submissionUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm text-brand-700 underline-offset-4 hover:underline"
+                        className="text-sm text-brand-700 hover:underline"
                       >
                         Open file ↗
                       </a>
@@ -195,11 +179,11 @@ export default async function HomeworkDetailPage({
                     </Button>
                   </div>
                 </form>
-              </Card>
+              </article>
             ))}
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
