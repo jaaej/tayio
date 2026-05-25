@@ -164,7 +164,7 @@ export default async function StudentDashboard() {
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
-          label="Due"
+          label="Homework due"
           value={dueCount.toString()}
           accent={dueCount > 0 ? "warn" : "muted"}
         />
