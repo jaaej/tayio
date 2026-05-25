@@ -31,16 +31,16 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href}
             className={cn(
-              "group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg transition-all duration-150",
+              "group relative flex items-center gap-3 pl-4 pr-3 py-3 rounded-lg transition-all duration-150",
               active
-                ? "bg-brand-100 text-ink font-medium"
+                ? "bg-brand-100 text-ink font-semibold"
                 : "text-ink-soft hover:bg-brand-50 hover:text-ink",
             )}
           >
             {active && (
               <span
                 aria-hidden
-                className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-brand-700"
+                className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-brand-700"
               />
             )}
             <span
@@ -53,7 +53,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             >
               {item.icon}
             </span>
-            <span className="text-[15px] tracking-tight">{item.label}</span>
+            <span className="text-[16px] tracking-tight">{item.label}</span>
           </Link>
         );
       })}
