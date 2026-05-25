@@ -264,8 +264,8 @@ export default async function StudentDashboard() {
                     className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-[15px] text-ink truncate">{h.title}</div>
-                      <div className="text-[13px] text-muted mt-0.5">
+                      <div className="text-base text-ink truncate">{h.title}</div>
+                      <div className="text-sm text-muted mt-0.5">
                         {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
                       </div>
                     </div>
@@ -297,7 +297,7 @@ export default async function StudentDashboard() {
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="min-w-0">
-                        <div className="text-[15px] text-ink font-medium truncate">
+                        <div className="text-base text-ink font-medium truncate">
                           {g.title}
                         </div>
                         <div className="text-[12px] text-muted mt-0.5 truncate">
@@ -307,7 +307,7 @@ export default async function StudentDashboard() {
                       <ScoreBadge score={g.score} />
                     </div>
                     {g.feedback && (
-                      <p className="text-[13px] text-ink-soft leading-relaxed line-clamp-2">
+                      <p className="text-sm text-ink-soft leading-relaxed line-clamp-2">
                         "{g.feedback}"
                       </p>
                     )}
@@ -332,7 +332,7 @@ export default async function StudentDashboard() {
             <div className="p-5">
               <CardLabel>Overall</CardLabel>
               <div className="mt-1 flex items-baseline gap-2">
-                <div className="text-5xl font-light text-ink tabular-nums">
+                <div className="text-6xl font-light text-ink tabular-nums">
                   {overallMastery}%
                 </div>
                 {subjects.length > 0 && (
@@ -380,7 +380,7 @@ export default async function StudentDashboard() {
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
-                        <div className="text-[15px] text-ink font-medium truncate">
+                        <div className="text-base text-ink font-medium truncate">
                           {n.title}
                         </div>
                       </div>
@@ -388,7 +388,7 @@ export default async function StudentDashboard() {
                         {relativeTime(new Date(n.publishedAt))}
                       </div>
                     </div>
-                    <p className="mt-1.5 ml-3.5 text-[13px] text-ink-soft leading-relaxed line-clamp-2">
+                    <p className="mt-1.5 ml-3.5 text-sm text-ink-soft leading-relaxed line-clamp-2">
                       {n.body}
                     </p>
                   </div>
@@ -416,9 +416,9 @@ function SectionHeader({
   return (
     <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-lg font-medium text-ink">{title}</div>
+        <div className="text-xl font-medium text-ink">{title}</div>
         {eyebrow && (
-          <div className="text-[12px] uppercase tracking-[0.16em] text-muted mt-1 truncate">
+          <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
             {eyebrow}
           </div>
         )}
@@ -428,7 +428,7 @@ function SectionHeader({
           {link.label} →
         </Link>
       ) : right ? (
-        <span className="text-[12px] uppercase tracking-[0.18em] text-muted shrink-0">
+        <span className="text-sm uppercase tracking-[0.18em] text-muted shrink-0">
           {right}
         </span>
       ) : null}
@@ -465,17 +465,17 @@ function StatTile({
   }[accent];
   return (
     <div
-      className={`rounded-xl border bg-card px-6 py-5 hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)] transition-shadow ${borderClass}`}
+      className={`rounded-xl border bg-card px-6 py-6 hover:shadow-[0_8px_20px_-14px_rgba(29,41,81,0.18)] transition-shadow ${borderClass}`}
     >
-      <div className="text-[11px] uppercase tracking-[0.18em] text-muted">
+      <div className="text-[12px] uppercase tracking-[0.18em] text-muted">
         {label}
       </div>
       <div
-        className={`mt-1.5 text-3xl font-medium tabular-nums truncate ${accentClass}`}
+        className={`mt-2 text-4xl font-medium tabular-nums truncate ${accentClass}`}
       >
         {value}
       </div>
-      <div className="text-[13px] text-muted truncate mt-0.5">{sub}</div>
+      <div className="text-[14px] text-muted truncate mt-1">{sub}</div>
     </div>
   );
 }
