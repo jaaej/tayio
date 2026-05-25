@@ -110,9 +110,9 @@ export function MiniWeekCalendar({
             <div
               key={d.iso}
               className={cn(
-                "rounded-2xl overflow-hidden flex flex-col min-h-[320px] border transition-colors",
+                "rounded-xl overflow-hidden flex flex-col min-h-[210px] border transition-colors",
                 d.isToday
-                  ? "border-navy-800/30 bg-gradient-to-b from-brand-50 to-white shadow-[0_8px_28px_-16px_rgba(29,41,81,0.25)]"
+                  ? "border-navy-800/30 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_20px_-14px_rgba(29,41,81,0.28)]"
                   : d.isWeekend
                     ? "border-hairline/40 bg-brand-50/40"
                     : "border-hairline/40 bg-card",
@@ -121,7 +121,7 @@ export function MiniWeekCalendar({
               {/* Day header */}
               <div
                 className={cn(
-                  "px-3 py-2.5 border-b text-center",
+                  "px-2 py-2 border-b text-center",
                   d.isToday
                     ? "bg-navy-800 text-white border-navy-800"
                     : "bg-white border-hairline/40",
@@ -129,7 +129,7 @@ export function MiniWeekCalendar({
               >
                 <div
                   className={cn(
-                    "text-[10px] uppercase tracking-[0.18em]",
+                    "text-[9px] uppercase tracking-[0.18em]",
                     d.isToday ? "text-white/70" : "text-muted",
                   )}
                 >
@@ -137,7 +137,7 @@ export function MiniWeekCalendar({
                 </div>
                 <div
                   className={cn(
-                    "text-2xl font-medium tabular-nums leading-none mt-0.5",
+                    "text-lg font-medium tabular-nums leading-none mt-0.5",
                     d.isToday ? "text-white" : "text-ink",
                   )}
                 >
@@ -146,7 +146,7 @@ export function MiniWeekCalendar({
               </div>
 
               {/* Event lane */}
-              <div className="flex-1 p-2 space-y-1.5">
+              <div className="flex-1 p-1.5 space-y-1">
                 {dayEvents.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-[10px] text-muted/60 italic">
                     —
@@ -175,58 +175,40 @@ function TimeBlock({ event }: { event: CalendarEvent }) {
   const inner = (
     <div
       className={cn(
-        "relative rounded-lg pl-3 pr-2 py-2 overflow-hidden",
+        "relative rounded-md pl-2.5 pr-1.5 py-1.5 overflow-hidden",
         KIND_BG[event.kind],
         "hover:translate-y-[-1px] transition-transform",
       )}
     >
       <span
         className={cn(
-          "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full",
+          "absolute left-0 top-1 bottom-1 w-[2px] rounded-full",
           KIND_BAR[event.kind],
         )}
         aria-hidden
       />
       <div
         className={cn(
-          "text-[11px] font-semibold tabular-nums leading-tight",
+          "text-[10px] font-semibold tabular-nums leading-tight",
           KIND_LABEL[event.kind],
         )}
       >
         {event.time ? (
-          <>
-            {formatTime12(event.time)}
-            {event.endTime ? (
-              <span className="text-[10px] font-normal opacity-70">
-                {" – "}
-                {formatTime12(event.endTime)}
-              </span>
-            ) : null}
-          </>
+          formatTime12(event.time)
         ) : (
-          <span className="text-[9px] uppercase tracking-[0.18em] font-medium">
+          <span className="text-[9px] uppercase tracking-[0.16em] font-medium">
             {KIND_TAG[event.kind]}
           </span>
         )}
       </div>
       <div
         className={cn(
-          "mt-0.5 text-[11px] font-medium leading-snug line-clamp-2",
+          "mt-0.5 text-[10px] font-medium leading-tight line-clamp-2",
           KIND_LABEL[event.kind],
         )}
       >
         {event.label}
       </div>
-      {event.meta && (
-        <div
-          className={cn(
-            "text-[10px] mt-0.5 truncate",
-            KIND_META[event.kind],
-          )}
-        >
-          {event.meta}
-        </div>
-      )}
     </div>
   );
   return event.href ? (

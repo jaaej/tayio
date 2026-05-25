@@ -60,18 +60,6 @@ function relativeTime(d: Date) {
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }
 
-function timeUntil(date: string, time: string) {
-  const target = new Date(`${date}T${time}`);
-  const diffMs = target.getTime() - Date.now();
-  if (diffMs <= 0) return "now";
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 60) return `in ${mins} min`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
-  const days = Math.round(hours / 24);
-  return `in ${days} day${days === 1 ? "" : "s"}`;
-}
-
 export default async function StudentDashboard() {
   const user = await requireRole("student");
 
@@ -87,7 +75,7 @@ export default async function StudentDashboard() {
       getDueHomeworkCount(user.id),
       getStudentHomework(user.id),
       getStudentLessons(user.id, { from: weekStart }),
-      getRecentGrades(user.id, 5),
+      getRecentGrades(user.id, 4),
       getRelevantAnnouncements(user.id, 4),
     ]);
 
@@ -154,73 +142,27 @@ export default async function StudentDashboard() {
             Dashboard
           </h1>
         </div>
-        <Link
-          href="/student/subjects"
-          className="text-xs text-brand-700 hover:underline hidden sm:inline"
-        >
-          View all subjects →
-        </Link>
-      </header>
-
-      {/* Next-up hero — splash of color, breaks up the page */}
-      {nextLesson ? (
-        <Link
-          href={`/student/subjects/`}
-          className="block rise"
-          style={{ animationDelay: "30ms" }}
-        >
-          <div className="relative overflow-hidden rounded-2xl border border-navy-800/15 bg-gradient-to-br from-navy-800 via-[#2e3a6b] to-brand-700 text-white px-6 py-5 lg:px-8 lg:py-6 shadow-[0_18px_44px_-20px_rgba(29,41,81,0.5)]">
-            {/* Decorative orb */}
-            <div
-              aria-hidden
-              className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-2xl"
-            />
-            <div
-              aria-hidden
-              className="absolute right-10 bottom-0 h-24 w-24 rounded-full bg-brand-300/30 blur-xl"
-            />
-
-            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-white/60">
-                  Next up · {timeUntil(nextLesson.date, nextLesson.startTime)}
-                </div>
-                <div className="mt-2 text-2xl lg:text-3xl font-medium tracking-tight">
-                  {nextLesson.subjectName}
-                </div>
-                <div className="mt-1 text-sm text-white/80">
-                  {formatWeekday(nextLesson.date)} ·{" "}
-                  {formatTime(nextLesson.startTime)} – {formatTime(nextLesson.endTime)} ·
-                  with {nextLesson.tutorFirstName} {nextLesson.tutorLastName}
-                </div>
-              </div>
-              {(nextLesson.onlineLink || nextLesson.location) && (
-                <div className="flex items-center gap-3">
-                  {nextLesson.onlineLink ? (
-                    <a
-                      href={nextLesson.onlineLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-navy-800 text-sm font-medium hover:bg-brand-50 transition-colors"
-                    >
-                      Join online →
-                    </a>
-                  ) : (
-                    <div className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-sm">
-                      {nextLesson.location}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+        {nextLesson && (
+          <div className="hidden md:flex items-center gap-3 text-sm">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+              Next
+            </span>
+            <span className="text-ink font-medium">
+              {nextLesson.subjectName}
+            </span>
+            <span className="text-muted">·</span>
+            <span className="text-ink-soft">
+              {formatWeekday(nextLesson.date, "short")}{" "}
+              {formatTime(nextLesson.startTime)}
+            </span>
           </div>
-        </Link>
-      ) : null}
+        )}
+      </header>
 
       {/* Stat strip */}
       <section
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
-        style={{ animationDelay: "60ms" }}
+        style={{ animationDelay: "40ms" }}
       >
         <StatTile
           label="Subjects"
@@ -250,223 +192,243 @@ export default async function StudentDashboard() {
         />
       </section>
 
-      {/* Hero: This Week Calendar */}
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "100ms" }}>
-        <div className="px-6 py-4 border-b border-hairline/60 flex items-baseline justify-between">
-          <div>
-            <div className="text-base font-medium text-ink">This week</div>
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted mt-0.5">
-              {events.length === 0
-                ? "Nothing scheduled"
-                : `${events.length} event${events.length === 1 ? "" : "s"} · lessons & homework`}
+      {/* Main + Aside */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:gap-6">
+        {/* MAIN — primary information */}
+        <div
+          className="space-y-5 min-w-0 rise"
+          style={{ animationDelay: "80ms" }}
+        >
+          {/* My subjects — the hero entry point */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader
+              title="My subjects"
+              eyebrow="Open one to see classes, homework and progress"
+              right={`${subjects.length} enrolled`}
+            />
+            <div className="p-5">
+              {subjects.length === 0 ? (
+                <Empty>You're not enrolled in any classes yet.</Empty>
+              ) : (
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {subjects.map((s) => (
+                    <SubjectCard
+                      key={s.classId}
+                      href={`/student/subjects/${s.classId}`}
+                      subject={s.subjectName}
+                      meta={`${s.tutorFirstName} ${s.tutorLastName}`}
+                      accent={colorForSubject(s.subjectName)}
+                      badge={
+                        s.dueHomeworkCount > 0
+                          ? { label: `${s.dueHomeworkCount} due`, tone: "warn" }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-          <Link
-            href="/student/timetable"
-            className="text-xs text-brand-700 hover:underline"
-          >
-            Full timetable →
-          </Link>
-        </div>
-        <div className="p-5 lg:p-6 bg-gradient-to-b from-brand-50/30 to-transparent">
-          <MiniWeekCalendar events={events} weekStart={weekStart} />
-        </div>
-      </Card>
+          </Card>
 
-      {/* Row 1: My subjects (7) + Announcements (5) */}
-      <div
-        className="grid lg:grid-cols-12 gap-5 rise"
-        style={{ animationDelay: "140ms" }}
-      >
-        <Card className="lg:col-span-7 p-0 overflow-hidden">
-          <SectionHeader title="My subjects" right={`${subjects.length} enrolled`} />
-          <div className="p-5">
-            {subjects.length === 0 ? (
-              <Empty>You're not enrolled in any classes yet.</Empty>
+          {/* Calendar — smaller, secondary main */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader
+              title="This week"
+              eyebrow={
+                events.length === 0
+                  ? "Nothing scheduled"
+                  : `${events.length} event${events.length === 1 ? "" : "s"}`
+              }
+              link={{ href: "/student/timetable", label: "Full timetable" }}
+            />
+            <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
+              <MiniWeekCalendar events={events} weekStart={weekStart} />
+            </div>
+          </Card>
+
+          {/* Upcoming due — actionable */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader
+              title="Upcoming due"
+              eyebrow="Submit before the deadline"
+              link={{ href: "/student/homework", label: "All homework" }}
+            />
+            {upcomingDue.length === 0 ? (
+              <Empty>You're caught up — nothing to submit.</Empty>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {subjects.map((s) => (
-                  <SubjectCard
-                    key={s.classId}
-                    href={`/student/subjects/${s.classId}`}
-                    subject={s.subjectName}
-                    meta={`${s.tutorFirstName} ${s.tutorLastName}`}
-                    accent={colorForSubject(s.subjectName)}
-                    badge={
-                      s.dueHomeworkCount > 0
-                        ? { label: `${s.dueHomeworkCount} due`, tone: "warn" }
-                        : undefined
-                    }
-                  />
+              <div className="divide-y divide-hairline/60">
+                {upcomingDue.map((h) => (
+                  <Link
+                    key={h.homeworkId}
+                    href={`/student/homework/${h.homeworkId}`}
+                    className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-ink truncate">{h.title}</div>
+                      <div className="text-xs text-muted mt-0.5">
+                        {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
+                      </div>
+                    </div>
+                    <StatusBadge
+                      label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
+                      className={HOMEWORK_STATUS_STYLE[h.status]}
+                    />
+                  </Link>
                 ))}
               </div>
             )}
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="lg:col-span-5 p-0 overflow-hidden">
-          <SectionHeader title="Announcements" />
-          {notices.length === 0 ? (
-            <Empty>No announcements right now.</Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {notices.map((n) => (
-                <div key={n.id} className="px-6 py-4 hover:bg-brand-50/40 transition-colors">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
-                      <div className="text-sm text-ink font-medium truncate">
-                        {n.title}
+          {/* Recent grades */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader
+              title="Recent grades"
+              eyebrow="Your last marked work"
+            />
+            {grades.length === 0 ? (
+              <Empty>No marked homework yet.</Empty>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3 p-5">
+                {grades.map((g) => (
+                  <Link
+                    key={g.homeworkId}
+                    href={`/student/homework/${g.homeworkId}`}
+                    className="block rounded-xl border border-hairline/50 bg-card p-4 hover:border-brand-400 hover:shadow-[0_8px_20px_-12px_rgba(29,41,81,0.18)] transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0">
+                        <div className="text-sm text-ink font-medium truncate">
+                          {g.title}
+                        </div>
+                        <div className="text-[11px] text-muted mt-0.5 truncate">
+                          {g.className ?? "—"} · {relativeTime(g.markedAt)}
+                        </div>
+                      </div>
+                      <ScoreBadge score={g.score} />
+                    </div>
+                    {g.feedback && (
+                      <p className="text-xs text-ink-soft leading-relaxed line-clamp-2">
+                        "{g.feedback}"
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* ASIDE — supplementary information */}
+        <aside
+          className="space-y-5 min-w-0 rise lg:sticky lg:top-6 lg:self-start"
+          style={{ animationDelay: "120ms" }}
+        >
+          {/* Topic mastery */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader
+              title="Topic mastery"
+              link={{ href: "/student/progress", label: "Open" }}
+            />
+            <div className="p-5">
+              <CardLabel>Overall</CardLabel>
+              <div className="mt-1 flex items-baseline gap-2">
+                <div className="text-4xl font-light text-ink tabular-nums">
+                  {overallMastery}%
+                </div>
+                {subjects.length > 0 && (
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">
+                    {subjects.length} subj
+                  </span>
+                )}
+              </div>
+              <div className="mt-5 space-y-3.5">
+                {subjects.slice(0, 5).map((s) => (
+                  <ProgressBar
+                    key={s.subjectId}
+                    label={s.subjectName}
+                    percent={s.masteryPercent}
+                    color={
+                      s.masteryPercent >= 85
+                        ? "bg-emerald-500"
+                        : s.masteryPercent >= 60
+                          ? "bg-brand-600"
+                          : s.masteryPercent >= 30
+                            ? "bg-amber-500"
+                            : "bg-hairline"
+                    }
+                  />
+                ))}
+                {subjects.length === 0 && (
+                  <div className="text-xs text-muted">No data yet.</div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Announcements */}
+          <Card className="p-0 overflow-hidden">
+            <SectionHeader title="Announcements" />
+            {notices.length === 0 ? (
+              <Empty>No announcements right now.</Empty>
+            ) : (
+              <div className="divide-y divide-hairline/60">
+                {notices.map((n) => (
+                  <div
+                    key={n.id}
+                    className="px-5 py-3.5 hover:bg-brand-50/40 transition-colors"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
+                        <div className="text-sm text-ink font-medium truncate">
+                          {n.title}
+                        </div>
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted shrink-0">
+                        {relativeTime(new Date(n.publishedAt))}
                       </div>
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted shrink-0">
-                      {relativeTime(new Date(n.publishedAt))}
-                    </div>
+                    <p className="mt-1.5 ml-3.5 text-xs text-ink-soft leading-relaxed line-clamp-2">
+                      {n.body}
+                    </p>
                   </div>
-                  <p className="mt-1.5 ml-3.5 text-xs text-ink-soft leading-relaxed line-clamp-2">
-                    {n.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Row 2: Upcoming due (7) + Topic mastery (5) */}
-      <div
-        className="grid lg:grid-cols-12 gap-5 rise"
-        style={{ animationDelay: "180ms" }}
-      >
-        <Card className="lg:col-span-7 p-0 overflow-hidden">
-          <SectionHeader
-            title="Upcoming due"
-            link={{ href: "/student/homework", label: "All homework" }}
-          />
-          {upcomingDue.length === 0 ? (
-            <Empty>You're caught up — nothing to submit.</Empty>
-          ) : (
-            <div className="divide-y divide-hairline/60">
-              {upcomingDue.map((h) => (
-                <Link
-                  key={h.homeworkId}
-                  href={`/student/homework/${h.homeworkId}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-ink truncate">{h.title}</div>
-                    <div className="text-xs text-muted mt-0.5">
-                      {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
-                    </div>
-                  </div>
-                  <StatusBadge
-                    label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
-                    className={HOMEWORK_STATUS_STYLE[h.status]}
-                  />
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="lg:col-span-5 p-0 overflow-hidden">
-          <SectionHeader
-            title="Topic mastery"
-            link={{ href: "/student/progress", label: "Open" }}
-          />
-          <div className="p-6">
-            <CardLabel>Overall</CardLabel>
-            <div className="mt-1 flex items-baseline gap-3">
-              <div className="text-5xl font-light text-ink tabular-nums">
-                {overallMastery}%
+                ))}
               </div>
-              {subjects.length > 0 && (
-                <span className="text-[10px] uppercase tracking-[0.14em] text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">
-                  {subjects.length} subjects
-                </span>
-              )}
-            </div>
-            <div className="mt-6 space-y-4">
-              {subjects.slice(0, 6).map((s) => (
-                <ProgressBar
-                  key={s.subjectId}
-                  label={s.subjectName}
-                  percent={s.masteryPercent}
-                  color={
-                    s.masteryPercent >= 85
-                      ? "bg-emerald-500"
-                      : s.masteryPercent >= 60
-                        ? "bg-brand-600"
-                        : s.masteryPercent >= 30
-                          ? "bg-amber-500"
-                          : "bg-hairline"
-                  }
-                />
-              ))}
-              {subjects.length === 0 && (
-                <div className="text-xs text-muted">No data yet.</div>
-              )}
-            </div>
-          </div>
-        </Card>
+            )}
+          </Card>
+        </aside>
       </div>
-
-      {/* Row 3: Recent grades — full width */}
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "220ms" }}>
-        <SectionHeader title="Recent grades" />
-        {grades.length === 0 ? (
-          <Empty>No marked homework yet.</Empty>
-        ) : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 p-5">
-            {grades.map((g) => (
-              <Link
-                key={g.homeworkId}
-                href={`/student/homework/${g.homeworkId}`}
-                className="block rounded-xl border border-hairline/50 bg-card p-4 hover:border-brand-400 hover:shadow-[0_8px_20px_-12px_rgba(29,41,81,0.18)] transition-all"
-              >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="min-w-0">
-                    <div className="text-sm text-ink font-medium truncate">
-                      {g.title}
-                    </div>
-                    <div className="text-[11px] text-muted mt-0.5 truncate">
-                      {g.className ?? "—"} · {relativeTime(g.markedAt)}
-                    </div>
-                  </div>
-                  <ScoreBadge score={g.score} />
-                </div>
-                {g.feedback && (
-                  <p className="text-xs text-ink-soft leading-relaxed line-clamp-2">
-                    "{g.feedback}"
-                  </p>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
-      </Card>
     </div>
   );
 }
 
 function SectionHeader({
   title,
+  eyebrow,
   right,
   link,
 }: {
   title: string;
+  eyebrow?: string;
   right?: string;
   link?: { href: string; label: string };
 }) {
   return (
-    <div className="px-6 py-4 border-b border-hairline/60 flex items-baseline justify-between">
-      <div className="text-base font-medium text-ink">{title}</div>
+    <div className="px-6 py-4 border-b border-hairline/60 flex items-baseline justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-base font-medium text-ink">{title}</div>
+        {eyebrow && (
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted mt-0.5 truncate">
+            {eyebrow}
+          </div>
+        )}
+      </div>
       {link ? (
-        <Link href={link.href} className="text-xs text-brand-700 hover:underline">
-          {link.label}
+        <Link href={link.href} className="text-xs text-brand-700 hover:underline shrink-0">
+          {link.label} →
         </Link>
       ) : right ? (
-        <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-muted shrink-0">
           {right}
         </span>
       ) : null}
@@ -508,7 +470,9 @@ function StatTile({
       <div className="text-[10px] uppercase tracking-[0.18em] text-muted">
         {label}
       </div>
-      <div className={`mt-1 text-2xl font-medium tabular-nums truncate ${accentClass}`}>
+      <div
+        className={`mt-1 text-2xl font-medium tabular-nums truncate ${accentClass}`}
+      >
         {value}
       </div>
       <div className="text-xs text-muted truncate">{sub}</div>

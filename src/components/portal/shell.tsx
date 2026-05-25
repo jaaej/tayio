@@ -144,7 +144,7 @@ export function PortalShell({
 
       {/* Main */}
       <div className="min-w-0 flex flex-col">
-        <main className="flex-1 px-6 lg:px-12 py-10 lg:py-14 w-full">
+        <main className="flex-1 px-6 lg:px-10 py-10 lg:py-12 w-full max-w-[1600px]">
           {children}
         </main>
         <footer className="border-t border-hairline/60 mt-12">
