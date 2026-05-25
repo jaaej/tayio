@@ -31,20 +31,7 @@ import {
   getStudentLessons,
   getStudentSubjects,
 } from "./_lib/queries";
-
-const ACCENT_PALETTE = [
-  "var(--periwinkle-500)",
-  "#6b82c8",
-  "#7fa0d8",
-  "#a8b8e8",
-  "#5e7bc7",
-  "#8a9dd9",
-];
-function colorForSubject(name: string) {
-  let hash = 0;
-  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  return ACCENT_PALETTE[Math.abs(hash) % ACCENT_PALETTE.length];
-}
+import { SectionHeader } from "./_components/section-header";
 
 export default async function StudentDashboard() {
   const user = await requireRole("student");
@@ -194,7 +181,6 @@ export default async function StudentDashboard() {
                       key={s.classId}
                       href={`/student/subjects/${s.classId}`}
                       subject={s.subjectName}
-                      accent={colorForSubject(s.subjectName)}
                       badge={
                         s.dueHomeworkCount > 0
                           ? { label: `${s.dueHomeworkCount} due`, tone: "warn" }
@@ -366,40 +352,6 @@ export default async function StudentDashboard() {
           </Card>
         </aside>
       </div>
-    </div>
-  );
-}
-
-function SectionHeader({
-  title,
-  eyebrow,
-  right,
-  link,
-}: {
-  title: string;
-  eyebrow?: string;
-  right?: string;
-  link?: { href: string; label: string };
-}) {
-  return (
-    <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-xl font-medium text-ink">{title}</div>
-        {eyebrow && (
-          <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
-            {eyebrow}
-          </div>
-        )}
-      </div>
-      {link ? (
-        <Link href={link.href} className="text-sm text-brand-700 hover:underline shrink-0">
-          {link.label} →
-        </Link>
-      ) : right ? (
-        <span className="text-sm uppercase tracking-[0.18em] text-muted shrink-0">
-          {right}
-        </span>
-      ) : null}
     </div>
   );
 }

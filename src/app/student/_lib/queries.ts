@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   announcements,
@@ -394,6 +394,82 @@ export async function getSubjectDetail(
   };
 }
 
+export type SubjectProgress = {
+  subjectId: string;
+  subjectName: string;
+  yearLevel: string | null;
+  masteryPercent: number;
+  topics: Array<{
+    topic: string;
+    mastery: "not_started" | "needs_work" | "improving" | "strong";
+  }>;
+};
+
+export async function getStudentProgressBySubject(
+  studentId: string,
+): Promise<SubjectProgress[]> {
+  const enrolledSubjects = await db
+    .select({
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      yearLevel: subjects.yearLevel,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(
+      and(eq(enrollments.studentId, studentId), isNull(enrollments.withdrawnAt)),
+    )
+    .orderBy(asc(subjects.name));
+
+  const seen = new Set<string>();
+  const uniqueSubjects = enrolledSubjects.filter((s) => {
+    if (seen.has(s.subjectId)) return false;
+    seen.add(s.subjectId);
+    return true;
+  });
+
+  if (uniqueSubjects.length === 0) return [];
+
+  const subjectIds = uniqueSubjects.map((s) => s.subjectId);
+
+  const allTopics = await db
+    .select({
+      subjectId: progressTopics.subjectId,
+      topic: progressTopics.topic,
+      mastery: progressTopics.mastery,
+    })
+    .from(progressTopics)
+    .where(
+      and(
+        eq(progressTopics.studentId, studentId),
+        inArray(progressTopics.subjectId, subjectIds),
+      ),
+    )
+    .orderBy(asc(progressTopics.topic));
+
+  const topicsBySubject = new Map<
+    string,
+    Array<{
+      topic: string;
+      mastery: "not_started" | "needs_work" | "improving" | "strong";
+    }>
+  >();
+  for (const row of allTopics) {
+    const arr = topicsBySubject.get(row.subjectId) ?? [];
+    arr.push({ topic: row.topic, mastery: row.mastery });
+    topicsBySubject.set(row.subjectId, arr);
+  }
+
+  return uniqueSubjects.map((s) => {
+    const topics = topicsBySubject.get(s.subjectId) ?? [];
+    const sum = topics.reduce((acc, t) => acc + MASTERY_PERCENT[t.mastery], 0);
+    const masteryPercent =
+      topics.length > 0 ? Math.round(sum / topics.length) : 0;
+    return { ...s, masteryPercent, topics };
+  });
+}
+
 export async function getEnrolledClassIds(studentId: string) {
   const rows = await db
     .select({ classId: enrollments.classId })
@@ -420,7 +496,7 @@ export type LessonRow = {
 
 export async function getStudentLessons(
   studentId: string,
-  opts: { from?: Date; limit?: number } = {},
+  opts: { from?: Date; to?: Date; limit?: number } = {},
 ): Promise<LessonRow[]> {
   const enrolledClassIds = await getEnrolledClassIds(studentId);
   if (enrolledClassIds.length === 0) return [];
@@ -428,6 +504,9 @@ export async function getStudentLessons(
   const conditions = [inArray(lessons.classId, enrolledClassIds)];
   if (opts.from) {
     conditions.push(gte(lessons.date, opts.from.toISOString().slice(0, 10)));
+  }
+  if (opts.to) {
+    conditions.push(lt(lessons.date, opts.to.toISOString().slice(0, 10)));
   }
 
   const query = db

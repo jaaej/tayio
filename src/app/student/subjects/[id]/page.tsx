@@ -241,7 +241,7 @@ function Section({
 }) {
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="px-6 py-4 flex items-baseline justify-between border-b border-hairline/60">
+      <div className="px-6 py-4 flex items-baseline justify-between border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
         <div className="text-base text-ink font-medium">{title}</div>
         {link && (
           <Link href={link.href} className="text-xs text-brand-700 hover:underline">
