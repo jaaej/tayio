@@ -47,7 +47,7 @@ export default async function ParentDashboard({
             Family overview
           </div>
           <h1 className="mt-2 text-5xl lg:text-6xl font-light tracking-tight text-ink">
-            How <span className="font-display">{selected.firstName}</span>{" "}
+            How <span className="">{selected.firstName}</span>{" "}
             is going.
           </h1>
         </div>
@@ -114,7 +114,7 @@ export default async function ParentDashboard({
         <Card>
           {data.latestFeedback ? (
             <>
-              <p className="font-display text-2xl text-ink leading-snug">
+              <p className="text-2xl text-ink leading-snug">
                 {`"${data.latestFeedback.parentVisibleComment}"`}
               </p>
               <div className="mt-6 text-xs text-muted">

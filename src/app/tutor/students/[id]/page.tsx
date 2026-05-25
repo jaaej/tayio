@@ -63,7 +63,7 @@ export default async function StudentProfilePage({
         </Link>
         <h1 className="text-4xl lg:text-5xl font-light tracking-tight text-ink">
           {student.firstName}{" "}
-          <span className="font-display">{student.lastName}</span>
+          <span className="">{student.lastName}</span>
         </h1>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-soft">
           {student.yearLevel && <span>{student.yearLevel}</span>}

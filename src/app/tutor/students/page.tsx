@@ -14,7 +14,7 @@ export default async function TutorStudentsPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           {students.length}{" "}
-          <span className="font-display">
+          <span className="">
             {students.length === 1 ? "student" : "students"}
           </span>
         </h1>

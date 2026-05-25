@@ -20,7 +20,7 @@ export default function LoginPage() {
               Sign in
             </div>
             <h1 className="text-4xl font-light text-ink tracking-tight">
-              Welcome <span className="font-display">back</span>.
+              Welcome <span className="">back</span>.
             </h1>
             <p className="mt-3 text-sm text-ink-soft">
               Use the email connected to your Taiyo Tuition account.
@@ -47,7 +47,7 @@ export default function LoginPage() {
         {/* Editorial brand panel */}
         <div className="hidden lg:flex flex-col items-center text-center px-6">
           <LogoCard size={220} />
-          <p className="mt-12 font-display text-3xl text-ink leading-snug">
+          <p className="mt-12 text-3xl text-ink leading-snug">
             "A quiet centre for the work that matters."
           </p>
           <p className="mt-6 text-[11px] uppercase tracking-[0.22em] text-ink-soft">

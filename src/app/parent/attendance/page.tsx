@@ -108,7 +108,7 @@ function Header({ subtitle }: { subtitle?: string }) {
       <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
         {subtitle ? (
           <>
-            <span className="font-display">{subtitle}</span>'s lessons
+            <span className="">{subtitle}</span>'s lessons
           </>
         ) : (
           "Attendance"

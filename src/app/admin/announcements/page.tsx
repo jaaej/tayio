@@ -42,7 +42,7 @@ export default async function AnnouncementsPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Tell the{" "}
-          <span className="font-display">right people</span>, all at
+          <span className="">right people</span>, all at
           once.
         </h1>
       </header>

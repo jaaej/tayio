@@ -65,8 +65,8 @@
   --color-surface-3: var(--surface-3);
   --color-card: var(--card);
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-instrument), Georgia, serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
 }
 
 html,
@@ -84,7 +84,8 @@ body {
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  font-weight: 300;
+  letter-spacing: -0.02em;
 }
 
 .hairline {

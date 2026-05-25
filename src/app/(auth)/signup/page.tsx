@@ -17,7 +17,7 @@ export default function SignupPage() {
             Create account
           </div>
           <h1 className="text-4xl font-light text-ink tracking-tight">
-            Get <span className="font-display">started</span>.
+            Get <span className="">started</span>.
           </h1>
           <p className="mt-3 text-sm text-ink-soft">
             New accounts usually need approval from a Taiyo admin.

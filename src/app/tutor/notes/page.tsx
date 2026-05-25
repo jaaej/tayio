@@ -19,7 +19,7 @@ export default async function TutorNotesPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Your most recent{" "}
-          <span className="font-display">notes</span>
+          <span className="">notes</span>
         </h1>
         <p className="mt-3 text-sm text-ink-soft max-w-xl">
           Notes are written from the lesson page after each class.

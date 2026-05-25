@@ -78,7 +78,7 @@ function Header({ subtitle }: { subtitle?: string }) {
         {subtitle ? (
           <>
             Notes for{" "}
-            <span className="font-display">{subtitle}</span>
+            <span className="">{subtitle}</span>
           </>
         ) : (
           "Tutor feedback"

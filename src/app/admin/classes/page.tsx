@@ -62,7 +62,7 @@ export default async function ClassesPage() {
         </div>
         <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
           Set up the{" "}
-          <span className="font-display">weekly cadence</span>.
+          <span className="">weekly cadence</span>.
         </h1>
       </header>
 
