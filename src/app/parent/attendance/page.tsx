@@ -1,26 +1,17 @@
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/data/status-badge";
+import { StatTile } from "@/components/data/stat-tile";
 import { requireRole } from "@/lib/auth";
-import { getAttendance, resolveSelectedChild, type AttendanceRow } from "../_data";
+import { formatDateLong, formatTime } from "@/lib/format";
+import {
+  ATTENDANCE_STATUS_LABEL,
+  ATTENDANCE_STATUS_STYLE,
+} from "@/lib/status";
+import { getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
+import { SectionHeader } from "../_components/section-header";
 
 type SearchParams = Promise<{ child?: string }>;
-
-const STATUS_LABEL: Record<AttendanceRow["status"], string> = {
-  present: "Present",
-  absent: "Absent",
-  late: "Late",
-  left_early: "Left early",
-  makeup_attended: "Make-up attended",
-};
-
-const STATUS_TONE: Record<AttendanceRow["status"], string> = {
-  present: "bg-emerald-50 text-emerald-700",
-  absent: "bg-rose-50 text-rose-700",
-  late: "bg-amber-50 text-amber-700",
-  left_early: "bg-amber-50 text-amber-700",
-  makeup_attended: "bg-brand-100 text-navy-800",
-};
 
 export default async function ParentAttendancePage({
   searchParams,
@@ -33,7 +24,7 @@ export default async function ParentAttendancePage({
 
   if (!selected) {
     return (
-      <div className="space-y-12">
+      <div className="space-y-6">
         <Header />
         <EmptyChildrenNotice />
       </div>
@@ -42,59 +33,107 @@ export default async function ParentAttendancePage({
 
   const rows = await getAttendance(selected.id);
 
-  return (
-    <div className="space-y-10">
-      <Header subtitle={selected.firstName} />
-      <ChildSwitcher
-        children={children}
-        selectedId={selected.id}
-        basePath="/parent/attendance"
-      />
+  const total = rows.length;
+  const present = rows.filter(
+    (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
+  ).length;
+  const absent = rows.filter((r) => r.status === "absent").length;
+  const rate = total > 0 ? Math.round((present / total) * 100) : null;
 
-      {rows.length === 0 ? (
-        <Card>
-          <p className="text-ink-soft">
-            No attendance has been recorded yet for {selected.firstName}.
-          </p>
-        </Card>
-      ) : (
-        <Card className="p-0 overflow-hidden">
-          <div className="divide-y divide-hairline">
-            {rows.map((r) => (
-              <div
-                key={r.lessonId}
-                className="grid grid-cols-12 items-baseline gap-4 px-6 py-4"
-              >
-                <div className="col-span-3 text-sm text-ink">
-                  {formatDate(r.date)}
-                  <span className="ml-2 text-xs text-muted">
-                    {formatTime(r.startTime)}
-                  </span>
-                </div>
-                <div className="col-span-3 text-sm text-ink-soft">
-                  {r.subjectName ?? "—"}
-                </div>
-                <div className="col-span-2 text-sm text-ink-soft">
-                  {r.tutorName}
-                </div>
-                <div className="col-span-2">
-                  <span
-                    className={cn(
-                      "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      STATUS_TONE[r.status],
-                    )}
-                  >
-                    {STATUS_LABEL[r.status]}
-                  </span>
-                </div>
-                <div className="col-span-2 text-xs text-muted truncate">
-                  {r.note ?? ""}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+  return (
+    <div className="space-y-6">
+      <Header subtitle={selected.firstName} />
+
+      {children.length > 1 && (
+        <div className="rise" style={{ animationDelay: "20ms" }}>
+          <ChildSwitcher
+            children={children}
+            selectedId={selected.id}
+            basePath="/parent/attendance"
+          />
+        </div>
       )}
+
+      <section
+        className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
+        style={{ animationDelay: "40ms" }}
+      >
+        <StatTile
+          label="Attendance rate"
+          value={rate !== null ? `${rate}%` : "—"}
+          sub={total > 0 ? `${present} / ${total}` : "No data"}
+          accent={
+            rate === null
+              ? "muted"
+              : rate >= 90
+                ? "success"
+                : rate >= 75
+                  ? "brand"
+                  : "warn"
+          }
+        />
+        <StatTile
+          label="Absences"
+          value={absent.toString()}
+          sub={absent === 0 ? "None recorded" : "Across all lessons"}
+          accent={absent === 0 ? "success" : "warn"}
+        />
+        <StatTile
+          label="Lessons logged"
+          value={total.toString()}
+          sub="Total recorded"
+          accent="brand"
+        />
+      </section>
+
+      <div className="rise" style={{ animationDelay: "80ms" }}>
+        <Card className="p-0 overflow-hidden">
+          <SectionHeader
+            title="Lesson log"
+            link={{ href: "/parent/feedback", label: "Tutor feedback" }}
+          />
+          {rows.length === 0 ? (
+            <div className="px-6 py-8 text-sm text-ink-soft">
+              No attendance has been recorded yet for {selected.firstName}.
+            </div>
+          ) : (
+            <div className="divide-y divide-hairline/60">
+              {rows.map((r) => (
+                <div
+                  key={r.lessonId}
+                  className="grid grid-cols-12 items-center gap-4 px-6 py-4"
+                >
+                  <div className="col-span-4 min-w-0">
+                    <div className="text-base text-ink">
+                      {formatDateLong(r.date)}
+                    </div>
+                    <div className="text-xs text-muted mt-0.5">
+                      {formatTime(r.startTime)}
+                    </div>
+                  </div>
+                  <div className="col-span-3 text-sm text-ink-soft min-w-0 truncate">
+                    {r.subjectName ?? "—"}
+                  </div>
+                  <div className="col-span-2 text-sm text-ink-soft min-w-0 truncate">
+                    {r.tutorName}
+                  </div>
+                  <div className="col-span-3 flex items-center justify-end gap-3">
+                    {r.note && (
+                      <span className="text-xs text-muted truncate max-w-[10rem]">
+                        {r.note}
+                      </span>
+                    )}
+                    <StatusBadge
+                      label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
+                      className={ATTENDANCE_STATUS_STYLE[r.status]}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
@@ -102,38 +141,13 @@ export default async function ParentAttendancePage({
 function Header({ subtitle }: { subtitle?: string }) {
   return (
     <header className="rise">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
         Attendance
       </div>
-      <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-        {subtitle ? (
-          <>
-            <span className="">{subtitle}</span>'s lessons
-          </>
-        ) : (
-          "Attendance"
-        )}
+      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        {subtitle ? `${subtitle}'s lessons` : "Attendance"}
       </h1>
     </header>
   );
-}
-
-function formatDate(date: string) {
-  const d = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function formatTime(time: string) {
-  const [h, m] = time.split(":");
-  const d = new Date();
-  d.setHours(Number(h), Number(m));
-  return d
-    .toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    .toLowerCase()
-    .replace(" ", "");
 }

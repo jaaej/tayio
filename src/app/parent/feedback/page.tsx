@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
+import { formatDateLong, relativeTime } from "@/lib/format";
 import { getFeedback, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 
@@ -16,7 +17,7 @@ export default async function ParentFeedbackPage({
 
   if (!selected) {
     return (
-      <div className="space-y-12">
+      <div className="space-y-6">
         <Header />
         <EmptyChildrenNotice />
       </div>
@@ -26,44 +27,55 @@ export default async function ParentFeedbackPage({
   const rows = await getFeedback(selected.id);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <Header subtitle={selected.firstName} />
-      <ChildSwitcher
-        children={children}
-        selectedId={selected.id}
-        basePath="/parent/feedback"
-      />
 
-      {rows.length === 0 ? (
-        <Card>
-          <p className="text-ink-soft">
-            No tutor feedback yet. Notes appear here after each lesson.
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-5">
-          {rows.map((r) => (
-            <Card key={r.id}>
-              <div className="flex items-center justify-between gap-4 text-xs text-muted">
-                <div>
-                  <span className="uppercase tracking-[0.16em]">
-                    {r.subjectName ?? "Lesson"}
-                  </span>
-                  {r.topicCovered ? (
-                    <span className="ml-2 text-ink-soft">· {r.topicCovered}</span>
-                  ) : null}
-                </div>
-                <div>
-                  {formatDate(r.lessonDate)} · {r.tutorName}
-                </div>
-              </div>
-              <p className="mt-4 text-lg text-ink leading-relaxed">
-                {r.parentVisibleComment}
-              </p>
-            </Card>
-          ))}
+      {children.length > 1 && (
+        <div className="rise" style={{ animationDelay: "20ms" }}>
+          <ChildSwitcher
+            children={children}
+            selectedId={selected.id}
+            basePath="/parent/feedback"
+          />
         </div>
       )}
+
+      <div className="rise space-y-5" style={{ animationDelay: "60ms" }}>
+        {rows.length === 0 ? (
+          <Card>
+            <p className="text-ink-soft">
+              No tutor feedback yet. Notes will appear here after each of{" "}
+              {selected.firstName}'s lessons.
+            </p>
+          </Card>
+        ) : (
+          rows.map((r) => (
+            <Card key={r.id} className="p-0 overflow-hidden">
+              <div className="px-6 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
+                <div className="min-w-0 truncate">
+                  {r.subjectName ?? "Lesson"}
+                  {r.topicCovered ? (
+                    <span className="ml-2 text-ink-soft normal-case tracking-normal">
+                      · {r.topicCovered}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="shrink-0">
+                  {formatDateLong(r.lessonDate)} · {r.tutorName}
+                </div>
+              </div>
+              <div className="px-6 py-5">
+                <p className="text-lg text-ink leading-relaxed">
+                  {r.parentVisibleComment}
+                </p>
+                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] text-muted">
+                  {relativeTime(r.createdAt)}
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -71,29 +83,13 @@ export default async function ParentFeedbackPage({
 function Header({ subtitle }: { subtitle?: string }) {
   return (
     <header className="rise">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
         Tutor feedback
       </div>
-      <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-        {subtitle ? (
-          <>
-            Notes for{" "}
-            <span className="">{subtitle}</span>
-          </>
-        ) : (
-          "Tutor feedback"
-        )}
+      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        {subtitle ? `Notes for ${subtitle}` : "Tutor feedback"}
       </h1>
     </header>
   );
-}
-
-function formatDate(date: string) {
-  const d = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
 }
