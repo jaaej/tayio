@@ -1,122 +1,167 @@
-import { Card, CardLabel } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { StatTile } from "@/components/data/stat-tile";
 import { requireRole } from "@/lib/auth";
-import { StatusBadge } from "../_components/badge";
 import {
-  formatDateLong,
-  formatTime,
-  LESSON_STATUS_LABEL,
-  LESSON_STATUS_STYLE,
-  parseLessonDate,
-  weekKey,
-  weekRangeLabel,
-} from "../_lib/format";
-import { getStudentLessons, type LessonRow } from "../_lib/queries";
+  MonthCalendar,
+  monthBounds,
+  parseMonthParam,
+  type MonthHomework,
+  type MonthLesson,
+} from "../_components/month-calendar";
+import { getStudentHomework, getStudentLessons } from "../_lib/queries";
 
-export default async function TimetablePage() {
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+type SearchParams = Promise<{ month?: string }>;
+
+export default async function TimetablePage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const user = await requireRole("student");
-  const lessons = await getStudentLessons(user.id);
+  const params = await searchParams;
+  const { year, month } = parseMonthParam(params.month);
+  const { fromIso, toIso } = monthBounds(year, month);
 
-  // Group by ISO week-start (Monday).
-  const groups = new Map<string, LessonRow[]>();
-  for (const lesson of lessons) {
-    const key = weekKey(lesson.date);
-    const arr = groups.get(key) ?? [];
-    arr.push(lesson);
-    groups.set(key, arr);
-  }
-  const orderedWeeks = [...groups.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
+  const from = new Date(`${fromIso}T00:00:00`);
+  const to = new Date(`${toIso}T00:00:00`);
 
-  const todayKey = weekKey(new Date().toISOString().slice(0, 10));
+  const [lessonRows, homeworkRows] = await Promise.all([
+    getStudentLessons(user.id, { from, to }),
+    getStudentHomework(user.id),
+  ]);
+
+  const lessons: MonthLesson[] = lessonRows.map((l) => ({
+    id: l.id,
+    date: l.date,
+    startTime: l.startTime,
+    endTime: l.endTime,
+    status: l.status,
+    subjectName: l.subjectName,
+    className: l.className,
+  }));
+
+  // Filter homework to this month by due date
+  const homework: MonthHomework[] = homeworkRows
+    .filter((h) => {
+      const due = isoLocal(h.dueDate);
+      return due >= fromIso && due < toIso;
+    })
+    .map((h) => ({
+      id: h.homeworkId,
+      dueDate: isoLocal(h.dueDate),
+      title: h.title,
+      status: h.status,
+      className: h.className,
+    }));
+
+  const today = new Date();
+  const todayIso = isoLocal(today);
+  const isCurrentMonth =
+    today.getFullYear() === year && today.getMonth() === month;
+
+  // Stats for the visible month
+  const upcomingLessons = lessons.filter(
+    (l) => l.date >= todayIso && l.status === "upcoming",
+  ).length;
+  const dueHomework = homework.filter(
+    (h) =>
+      h.status === "not_started" ||
+      h.status === "viewed" ||
+      h.status === "resubmission_requested",
+  ).length;
+
+  const dateLabel = today.toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
-    <div className="space-y-10">
-      <header className="rise">
-        <CardLabel>Schedule</CardLabel>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-light tracking-tight text-ink">
-          Timetable
-        </h1>
-        <p className="mt-3 text-ink-soft max-w-xl">
-          Every lesson across your classes, grouped by week.
-        </p>
+    <div className="space-y-6">
+      {/* Title strip */}
+      <header className="flex items-baseline justify-between rise">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
+            {dateLabel}
+          </div>
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+            Timetable
+          </h1>
+        </div>
+        {!isCurrentMonth && (
+          <div className="hidden md:flex items-center gap-3 text-sm">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+              Viewing
+            </span>
+            <span className="text-ink font-medium">
+              {MONTH_NAMES[month]} {year}
+            </span>
+          </div>
+        )}
       </header>
 
-      {orderedWeeks.length === 0 ? (
-        <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            No lessons yet. Once you're enrolled and lessons are scheduled,
-            they'll show up here.
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-8">
-          {orderedWeeks.map(([weekStart, weekLessons]) => {
-            const isCurrentWeek = weekStart === todayKey;
-            return (
-              <section key={weekStart} className="rise">
-                <div className="flex items-baseline justify-between mb-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-                    Week of {weekRangeLabel(weekStart)}
-                  </div>
-                  {isCurrentWeek && (
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-brand-700">
-                      This week
-                    </span>
-                  )}
-                </div>
-                <Card className="p-0 overflow-hidden">
-                  <div className="divide-y divide-hairline">
-                    {weekLessons.map((l) => (
-                      <LessonRowItem key={l.id} lesson={l} />
-                    ))}
-                  </div>
-                </Card>
-              </section>
-            );
-          })}
+      {/* Stat strip */}
+      <section
+        className="grid grid-cols-3 gap-4 rise"
+        style={{ animationDelay: "40ms" } as React.CSSProperties}
+      >
+        <StatTile
+          label="Lessons this month"
+          value={lessons.length.toString()}
+          accent="brand"
+        />
+        <StatTile
+          label="Upcoming"
+          value={upcomingLessons.toString()}
+          accent="brand"
+        />
+        <StatTile
+          label="Homework due"
+          value={dueHomework.toString()}
+          accent={dueHomework > 0 ? "warn" : "success"}
+          href="/student/homework"
+        />
+      </section>
+
+      {/* Month calendar */}
+      <Card
+        className="p-0 overflow-hidden rise"
+        style={{ animationDelay: "80ms" } as React.CSSProperties}
+      >
+        <div className="p-5 lg:p-6 bg-gradient-to-b from-brand-50/30 to-transparent">
+          <MonthCalendar
+            year={year}
+            month={month}
+            lessons={lessons}
+            homework={homework}
+            basePath="/student/timetable"
+          />
         </div>
-      )}
+      </Card>
     </div>
   );
 }
 
-function LessonRowItem({ lesson }: { lesson: LessonRow }) {
-  const isPast = parseLessonDate(lesson.date) < new Date(new Date().setHours(0, 0, 0, 0));
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-[14rem_1fr_auto] gap-3 md:gap-6 px-6 py-4 items-baseline">
-      <div>
-        <div className="text-sm text-ink">{formatDateLong(lesson.date)}</div>
-        <div className="text-xs text-muted">
-          {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
-        </div>
-      </div>
-      <div className={isPast ? "text-ink-soft" : "text-ink"}>
-        <div className="text-sm">
-          {lesson.subjectName}
-          <span className="text-muted"> · {lesson.className}</span>
-        </div>
-        <div className="text-xs text-ink-soft">
-          with {lesson.tutorFirstName} {lesson.tutorLastName}
-          {lesson.location && ` · ${lesson.location}`}
-        </div>
-        {lesson.onlineLink && lesson.status === "upcoming" && (
-          <a
-            href={lesson.onlineLink}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-brand-700 hover:underline"
-          >
-            Join online →
-          </a>
-        )}
-      </div>
-      <div className="md:justify-self-end">
-        <StatusBadge
-          label={LESSON_STATUS_LABEL[lesson.status] ?? lesson.status}
-          className={LESSON_STATUS_STYLE[lesson.status]}
-        />
-      </div>
-    </div>
-  );
+function isoLocal(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
