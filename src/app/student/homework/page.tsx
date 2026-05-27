@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { ProgressBar } from "@/components/data/progress-bar";
 import { ScoreBadge } from "@/components/data/score-badge";
 import { StatTile } from "@/components/data/stat-tile";
 import { StatusBadge } from "@/components/data/status-badge";
@@ -14,6 +13,7 @@ import {
   HOMEWORK_STATUS_LABEL,
   HOMEWORK_STATUS_STYLE,
 } from "@/lib/status";
+import { MarkedList } from "../_components/marked-list";
 import { getStudentHomework, type HomeworkRow } from "../_lib/queries";
 
 const OPEN_STATUSES = new Set([
@@ -71,7 +71,6 @@ export default async function HomeworkListPage() {
 
   const total = rows.length;
   const done = submitted.length + marked.length;
-  const completePct = total > 0 ? Math.round((done / total) * 100) : 0;
   const openCount = overdue.length + openSoon.length + openLater.length;
 
   const today = new Date();
@@ -90,7 +89,7 @@ export default async function HomeworkListPage() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Homework
           </h1>
         </div>
@@ -129,37 +128,6 @@ export default async function HomeworkListPage() {
         />
       </section>
 
-      {/* Progress meter */}
-      {total > 0 && (
-        <Card
-          className="p-5 rise"
-          style={{ animationDelay: "60ms" } as React.CSSProperties}
-        >
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <div className="text-sm text-ink-soft">
-              You've completed{" "}
-              <span className="text-ink font-medium tabular-nums">
-                {done} of {total}
-              </span>{" "}
-              this term.
-            </div>
-            <div className="text-2xl font-light text-ink tabular-nums">
-              {completePct}%
-            </div>
-          </div>
-          <ProgressBar
-            percent={completePct}
-            color={
-              completePct >= 80
-                ? "bg-emerald-500"
-                : completePct >= 50
-                  ? "bg-brand-600"
-                  : "bg-amber-500"
-            }
-          />
-        </Card>
-      )}
-
       {total === 0 ? (
         <Card>
           <div className="py-6 text-sm text-ink-soft">
@@ -168,47 +136,67 @@ export default async function HomeworkListPage() {
         </Card>
       ) : (
         <div
-          className="space-y-8 rise"
+          className="space-y-6 rise"
           style={{ animationDelay: "100ms" } as React.CSSProperties}
         >
-          <Section
-            title="Overdue"
-            tone="warn"
-            items={overdue}
-            today={startOfToday}
-            emptyLabel="Nothing overdue — nice."
-          />
-          <Section
-            title="Due this week"
-            items={openSoon}
-            today={startOfToday}
-            emptyLabel="Nothing due this week."
-          />
-          {openLater.length > 0 && (
+          <Card>
             <Section
-              title="Coming up"
-              items={openLater}
+              title="Overdue"
+              tone="warn"
+              items={overdue}
               today={startOfToday}
-              emptyLabel="Nothing coming up."
+              emptyLabel="Nothing overdue — nice."
             />
+          </Card>
+          <Card>
+            <Section
+              title="Due This Week"
+              items={openSoon}
+              today={startOfToday}
+              emptyLabel="Nothing due this week."
+            />
+          </Card>
+          {openLater.length > 0 && (
+            <Card>
+              <Section
+                title="Coming Up"
+                items={openLater}
+                today={startOfToday}
+                emptyLabel="Nothing coming up."
+              />
+            </Card>
           )}
-          <Section
-            title="Submitted"
-            tone="muted"
-            items={submitted}
-            today={startOfToday}
-            emptyLabel="No submissions yet."
-          />
-          <Section
-            title="Marked"
-            items={marked}
-            today={startOfToday}
-            emptyLabel="Nothing marked yet."
-            showScore
-          />
+          <Card className="space-y-8">
+            <Section
+              title="Submitted"
+              tone="muted"
+              items={submitted}
+              today={startOfToday}
+              emptyLabel="No submissions yet."
+            />
+            <MarkedSection items={marked} />
+          </Card>
         </div>
       )}
     </div>
+  );
+}
+
+function MarkedSection({ items }: { items: HomeworkRow[] }) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between mb-3 px-1">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-ink-soft font-medium">
+          Marked
+        </div>
+        <div className="text-xs text-muted tabular-nums">{items.length}</div>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-sm text-ink-soft px-1">Nothing marked yet.</div>
+      ) : (
+        <MarkedList items={items} />
+      )}
+    </section>
   );
 }
 
@@ -244,9 +232,7 @@ function Section({
         <div className="text-xs text-muted tabular-nums">{items.length}</div>
       </div>
       {items.length === 0 ? (
-        <Card>
-          <div className="text-sm text-ink-soft">{emptyLabel}</div>
-        </Card>
+        <div className="text-sm text-ink-soft px-1">{emptyLabel}</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {items.map((h) => (
