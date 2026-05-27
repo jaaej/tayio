@@ -47,7 +47,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |
-| B11 | Sign-up disabled (invite-only — admins create accounts) | ⚠ | P0 | Decision: invite-only. Frontend done 2026-05-27 (signup page replaced with "contact admin"; login no longer links to /signup). **Still pending: flip Supabase dashboard → Authentication → Providers → Email → "Enable Email Signups" OFF.** Until that's done, anyone hitting the Supabase signup API directly can still create accounts |
+| B11 | Sign-up disabled (invite-only — admins create accounts) | ✓ | P0 | Decision: invite-only. Frontend done 2026-05-27 (signup page replaced with "contact admin"; login no longer links to /signup). Supabase dashboard signup toggle flipped off 2026-05-27 (Authentication → Sign In / Providers → Email) |
 
 ## C. API / Server Actions
 
