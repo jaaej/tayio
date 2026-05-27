@@ -39,8 +39,8 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 |---|---|---|---|---|
 | B1 | Role lives in `app_metadata` (server-only), not `user_metadata` | ✓ | P0 | Migration 0002 |
 | B2 | Auth code reads `app_metadata.role` first | ✓ | P0 | Commit 124bfb7 |
-| B3 | Rate limiting on `/login` (brute-force protection) | ☐ | P0 | Supabase doesn't do this — needs Vercel edge middleware or Supabase auth hook |
-| B4 | Account lockout after N failed attempts | ☐ | P1 | Pairs with B3 |
+| B3 | Rate limiting on `/login` (brute-force protection) | ⚠ | P0 | **Deferred 2026-05-27.** Supabase Auth Hooks (the clean implementation) are Pro-tier only; project is on FREE. Custom server-action wrapper around `signInWithPassword` is the free alternative (~half-day) but skipped for MVP. Residual control: Supabase's built-in IP-based limits on `/auth/v1/token` (~tens of req/min/IP, not configurable). Mitigating factor: signup is invite-only (B11) so attackers must know an existing email. **Revisit on Pro upgrade or first real user volume.** |
+| B4 | Account lockout after N failed attempts | ⚠ | P1 | Same deferral as B3. Supabase has no native account-lockout on FREE; would require the same custom wrapper |
 | B5 | Password complexity requirements | ☐ | P1 | Supabase dashboard → Auth → Policies |
 | B6 | Email verification loop enforced on signup | ☐ | P0 | Currently seed scripts pass `email_confirm: true`; real signup flow must require verification |
 | B7 | Password reset flow tested end-to-end | ☐ | P0 | Built into Supabase but never exercised |
