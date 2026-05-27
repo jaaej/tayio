@@ -26,11 +26,14 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
   const data = createUserSchema.parse(input);
 
   const admin = createAdminClient();
+  // Role goes into app_metadata (server-only). user_metadata is user-mutable
+  // via supabase.auth.updateUser() — putting role there would let a new user
+  // self-promote to admin immediately after creation.
   const { data: created, error } = await admin.auth.admin.createUser({
     email: data.email,
     password: data.password,
     email_confirm: true,
-    user_metadata: {
+    app_metadata: {
       role: data.role,
       first_name: data.firstName,
       last_name: data.lastName,
@@ -94,7 +97,7 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
 
   const admin = createAdminClient();
   await admin.auth.admin.updateUserById(data.id, {
-    user_metadata: {
+    app_metadata: {
       role: data.role,
       first_name: data.firstName,
       last_name: data.lastName,

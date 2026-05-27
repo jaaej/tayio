@@ -53,13 +53,13 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| C1 | CSRF protection (Next.js Server Actions origin check) | ☐ | P0 | Built into Next 16 — verify not disabled |
-| C2 | Zod validation on every server action input | ☐ | P0 | Zod is in deps; audit each `_actions.ts` |
-| C3 | XSS protection on user-generated content (lesson notes, feedback) | ☐ | P0 | React escapes by default — flag any raw-HTML injection patterns |
-| C4 | Rate limiting on write endpoints (homework submit, feedback post) | ☐ | P1 | DoS / spam prevention |
-| C5 | Service role key NEVER returned in any API response | ☐ | P0 | Audit every API route + server action |
-| C6 | Service role used only when RLS-bypass is genuinely required | ☐ | P0 | Drizzle `db` currently uses `postgres` role (bypasses RLS) for ALL server queries — review whether some should run as the user's JWT instead |
-| C7 | No dynamic code-evaluation primitives or string-concatenated SQL | ☐ | P0 | Drizzle parameterises; check any `sql.unsafe` usage |
+| C1 | CSRF protection (Next.js Server Actions origin check) | ✓ | P0 | Verified 2026-05-27 — no custom server-action config in `next.config.ts` disables the default origin check. Next 16 Server Actions enforce same-origin by default |
+| C2 | Zod validation on every server action input | ⚠ | P0 | Audited 2026-05-27. Most actions use Zod (all admin, discussions, parts of tutor). Gaps: `parent/_actions.ts:submitRescheduleRequest` reason field has no length cap; `tutor/_actions.ts:saveLessonNote` text fields uncapped; `tutor/_actions.ts:createHomework` title/description uncapped. Storage-abuse only; no security bypass |
+| C3 | XSS protection on user-generated content (lesson notes, feedback) | ✓ | P0 | Audited 2026-05-27 — no raw HTML rendering of user input found in any portal page. React's default escape covers everything |
+| C4 | Rate limiting on write endpoints (homework submit, feedback post) | ⚠ | P1 | Same constraint as B3 — Pro-tier Supabase Auth Hooks or custom server-action wrapper. Deferred |
+| C5 | Service role key NEVER returned in any API response | ✓ | P0 | Audited 2026-05-27 — `createAdminClient()` is only ever instantiated server-side (in `_actions/*` and `_lib/*` files), never returned to the client. Service key is in `.env.local` only, server-read only |
+| C6 | Service role used only when RLS-bypass is genuinely required | ⚠ | P0 | Audited 2026-05-27. Drizzle `db` (postgres role, bypasses RLS) is used for ALL server-side reads + writes — by design for the current architecture. `createAdminClient()` (true service-role) used only in `actions-users.ts` for auth.users mutations (creating/updating/banning users), which genuinely require it. No abuse. Open follow-up: switch some reads to the user's JWT session so RLS would defend against bugs in server code — but that's a significant refactor |
+| C7 | No dynamic code-evaluation primitives or string-concatenated SQL | ✓ | P0 | Audited 2026-05-27 — no `eval`, `new Function`, or string-concat SQL anywhere. Drizzle parameterises every query. `scripts/apply-sql.mjs` uses `sql.unsafe()` but only on trusted migration files |
 
 ## D. Secrets / Configuration
 
@@ -76,9 +76,9 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| E1 | Server-side file type validation (MIME + magic bytes, not just extension) | ☐ | P0 | Whenever homework upload ships |
-| E2 | Server-side file size limits | ☐ | P0 | Supabase has bucket-level limits; set them |
-| E3 | Filename sanitisation (path traversal, special chars) | ☐ | P0 | UUID-based filenames are safest |
+| E1 | Server-side file type validation (MIME + magic bytes, not just extension) | ☐ | P0 | **Now an active concern:** `tutor/_actions.ts:createHomework` accepts uploads to the `homework-attachments` bucket with type from the client (`file.type \|\| "application/octet-stream"`) and extension from the client-supplied filename. Audit 2026-05-27 |
+| E2 | Server-side file size limits | ☐ | P0 | **Active concern:** `createHomework` has no max file size. DoS / storage abuse risk |
+| E3 | Filename sanitisation (path traversal, special chars) | ⚠ | P0 | `createHomework` uses `${tutor.id}/${Date.now()}-${randomUUID()}.${ext}` — path is safe (no user-controlled directory), but `ext` comes from the client. Could write a `.html` or `.exe` |
 | E4 | Public vs private bucket separation | ☐ | P0 | Homework submissions: private. Resources: public is OK |
 | E5 | Signed URL expiry for private downloads | ☐ | P0 | Default Supabase signed URL is fine; don't use long-lived URLs |
 | E6 | Virus / malware scanning on uploads | ☐ | P2 | Real concern once external parents upload; defer |
