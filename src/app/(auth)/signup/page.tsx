@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
-import { SignupForm } from "./form";
+
+// Public signup is disabled at the application layer. Accounts are created
+// by admin staff via scripts/seed-users.mjs (or the admin portal once that
+// flow exists). Belt-and-braces: the Supabase project also has email signups
+// disabled in Authentication → Providers → Email.
+//
+// To re-enable: restore the import of SignupForm from "./form" and put it
+// back into the page body.
 
 export default function SignupPage() {
   return (
@@ -17,15 +24,13 @@ export default function SignupPage() {
             Create account
           </div>
           <h1 className="text-4xl font-light text-ink tracking-tight">
-            Get <span className="">started</span>.
+            Invite <span className="">only</span>.
           </h1>
           <p className="mt-3 text-sm text-ink-soft">
-            New accounts usually need approval from a Taiyo admin.
+            New Taiyo accounts are created by our admin team. If you&apos;re a
+            new student, parent, or tutor, please reach out and we&apos;ll set
+            you up.
           </p>
-
-          <div className="mt-10">
-            <SignupForm />
-          </div>
 
           <p className="mt-8 text-xs text-ink-soft">
             Already have an account?{" "}

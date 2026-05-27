@@ -33,13 +33,7 @@ export default function LoginPage() {
             </div>
 
             <p className="mt-8 text-xs text-ink-soft">
-              First time here?{" "}
-              <Link
-                href="/signup"
-                className="text-brand-700 underline-offset-4 hover:underline"
-              >
-                Create an account
-              </Link>
+              Need an account? Reach out to your Taiyo admin.
             </p>
           </div>
         </div>

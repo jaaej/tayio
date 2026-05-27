@@ -47,7 +47,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |
-| B11 | Sign-up disabled for unknown emails (admin invites only?) | ☐ | P0 | Business decision — should random visitors be able to sign up at all? |
+| B11 | Sign-up disabled (invite-only — admins create accounts) | ⚠ | P0 | Decision: invite-only. Frontend done 2026-05-27 (signup page replaced with "contact admin"; login no longer links to /signup). **Still pending: flip Supabase dashboard → Authentication → Providers → Email → "Enable Email Signups" OFF.** Until that's done, anyone hitting the Supabase signup API directly can still create accounts |
 
 ## C. API / Server Actions
 
@@ -87,14 +87,14 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| F1 | HTTPS only in production | ☐ | P0 | Vercel handles by default — verify no `http://` callbacks |
+| F1 | HTTPS only in production | ⚠ | P0 | Code clean (only `http://` in code is the SVG namespace ID); auth callback uses `url.origin`. Verify Vercel "HTTPS redirect" toggle at deploy time |
 | F2 | HSTS header | ☐ | P1 | Vercel can be configured |
 | F3 | Content-Security-Policy header in `next.config.ts` | ☐ | P1 | Restricts script sources, defends against XSS |
 | F4 | X-Frame-Options / frame-ancestors (clickjacking) | ☐ | P1 | Set in `next.config.ts` headers |
 | F5 | X-Content-Type-Options: nosniff | ☐ | P1 | Set in `next.config.ts` headers |
 | F6 | Referrer-Policy: strict-origin-when-cross-origin (or stricter) | ☐ | P1 | Privacy |
-| F7 | Supabase CORS allowed origins set to production domain only | ☐ | P0 | Supabase dashboard → API settings |
-| F8 | Auth redirect URLs whitelisted in Supabase | ☐ | P0 | Prevents open-redirect via signup callback |
+| F7 | Supabase CORS allowed origins set to production domain only | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Project Settings → API → Site URL = `https://<your-domain>` |
+| F8 | Auth redirect URLs whitelisted in Supabase | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Authentication → URL Configuration → Redirect URLs: add `http://localhost:3000/auth/callback` (dev) and `https://<your-domain>/auth/callback` (prod). Callback path verified at `src/app/auth/callback/route.ts` |
 
 ## G. Logging / Monitoring / Audit
 
