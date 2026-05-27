@@ -305,6 +305,26 @@ export const notifications = pgTable(
   (t) => [index("notifications_user_idx").on(t.userId)],
 );
 
+export const tutorAvailability = pgTable(
+  "tutor_availability",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tutorId: uuid("tutor_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    weekday: integer("weekday"),
+    date: date("date"),
+    startTime: time("start_time").notNull(),
+    endTime: time("end_time").notNull(),
+    isAvailable: boolean("is_available").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("tutor_availability_tutor_idx").on(t.tutorId),
+    index("tutor_availability_date_idx").on(t.date),
+  ],
+);
+
 export const profilesRelations = relations(profiles, ({ many }) => ({
   parentLinks: many(familyLinks, { relationName: "parent" }),
   studentLinks: many(familyLinks, { relationName: "student" }),
