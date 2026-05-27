@@ -325,6 +325,72 @@ export const tutorAvailability = pgTable(
   ],
 );
 
+export const discussionThreads = pgTable(
+  "discussion_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id").references(() => subjects.id),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("discussion_threads_subject_idx").on(t.subjectId),
+    index("discussion_threads_activity_idx").on(t.lastActivityAt),
+  ],
+);
+
+export const discussionReplies = pgTable("discussion_replies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  threadId: uuid("thread_id")
+    .notNull()
+    .references(() => discussionThreads.id, { onDelete: "cascade" }),
+  authorId: uuid("author_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Append-only audit trail for changes to admin-managed tables. Written by
+// trigger only (migration 0006); never written by application code.
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id"),
+    actorRole: text("actor_role"),
+    action: text("action").notNull(),
+    tableName: text("table_name").notNull(),
+    oldData: jsonb("old_data"),
+    newData: jsonb("new_data"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("audit_logs_created_at_idx").on(t.createdAt),
+    index("audit_logs_actor_idx").on(t.actorId),
+    index("audit_logs_table_idx").on(t.tableName),
+  ],
+);
+
+export type DiscussionThread = typeof discussionThreads.$inferSelect;
+export type DiscussionReply = typeof discussionReplies.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
 export const profilesRelations = relations(profiles, ({ many }) => ({
   parentLinks: many(familyLinks, { relationName: "parent" }),
   studentLinks: many(familyLinks, { relationName: "student" }),

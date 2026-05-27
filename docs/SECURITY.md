@@ -89,6 +89,41 @@ update auth.users set raw_app_meta_data =
 
 **Reversible by:** `alter table public.<name> disable row level security;` per table.
 
+### 0006 — Audit logs
+
+**File:** `supabase/migrations/0006_audit_logs.sql`
+**Status:** Applied to live project, verified 2026-05-27 (8/8 checks pass).
+**Risk:** Low. Adds a new table, function, and triggers; does not alter existing data.
+
+**What it does:** Creates an append-only `public.audit_logs` table + `public.handle_audit_log()` trigger function (SECURITY DEFINER) + AFTER INSERT/UPDATE/DELETE triggers on six watched tables: `profiles`, `family_links`, `classes`, `enrollments`, `invoices`, `announcements`. Each row mutation writes an audit entry containing `actor_id` (from `auth.uid()`), `actor_role` (from JWT `app_metadata.role`), action (`INSERT`/`UPDATE`/`DELETE`), table name, full old + new row state as JSONB, and timestamp.
+
+**Why this list of tables:** these are the high-stakes operational tables an admin mutates. Tutor-driven high-volume tables (`homework`, `lesson_notes`, `attendance`, `progress_topics`) are deliberately excluded — auditing every attendance mark would balloon the log without adding security value.
+
+**Tamper-resistance:**
+- RLS enabled on `audit_logs`; `SELECT` granted to admins only via `audit_logs_admin_read` policy.
+- No `INSERT`/`UPDATE`/`DELETE` policy granted to any role. The trigger function bypasses RLS because it runs `SECURITY DEFINER` (owner = postgres).
+- `authenticated` role has `SELECT` only; `anon` has no grants.
+
+**Caveat — actor identification is partial:**
+
+`auth.uid()` only returns a non-null UUID when the database session has a JWT context. Two types of operations:
+- **User-context operations** (Supabase JS SDK with a user's JWT, or `set local request.jwt.claims` in server code): `actor_id` and `actor_role` are populated.
+- **Server-context operations** (Drizzle's `db` client connecting as the `postgres` role, or `service_role`): both are NULL. The audit row still captures what changed and when, but identifies the actor as "system / server."
+
+For most admin portal mutations today (which go through server-side Drizzle), audit rows will have `actor_id = NULL`. To get reliable actor capture for admin actions, server actions need to either (a) make the mutation through a Supabase-client session that carries the admin's JWT, or (b) `SET LOCAL request.jwt.claims` before the Drizzle query. Filed as a follow-up; not a security hole, just a logging gap.
+
+**Reversible by:**
+```sql
+drop trigger if exists audit_profiles on public.profiles;
+drop trigger if exists audit_family_links on public.family_links;
+drop trigger if exists audit_classes on public.classes;
+drop trigger if exists audit_enrollments on public.enrollments;
+drop trigger if exists audit_invoices on public.invoices;
+drop trigger if exists audit_announcements on public.announcements;
+drop function if exists public.handle_audit_log;
+drop table if exists public.audit_logs;
+```
+
 ### 0005 — `tutor_availability` RLS
 
 **File:** `supabase/migrations/0005_tutor_availability_rls.sql`

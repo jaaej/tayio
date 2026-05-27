@@ -100,9 +100,9 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| G1 | Audit logs for admin actions | ☐ | P0 | **Admin PRD §14 explicit requirement.** Biggest gap right now. New table + trigger on sensitive INSERTs/UPDATEs/DELETEs |
+| G1 | Audit logs for admin actions | ⚠ | P0 | Migration 0006 applied. Triggers on `profiles`, `family_links`, `classes`, `enrollments`, `invoices`, `announcements`. Caveat: server-context mutations (Drizzle via postgres role) log with `actor_id = NULL`. To get reliable actor capture, server actions must set JWT claims before mutating |
 | G2 | Failed login attempt logging | ☐ | P1 | Supabase logs this; surface it |
-| G3 | Sensitive-action logging (data export, account changes, role changes) | ☐ | P0 | Pairs with G1 |
+| G3 | Sensitive-action logging (data export, account changes, role changes) | ⚠ | P0 | Covered by G1 — every INSERT/UPDATE/DELETE on the six watched tables is logged with old + new JSONB. Same actor-capture caveat as G1 |
 | G4 | Error monitoring (Sentry / similar) | ☐ | P1 | Catches unexpected failures including security ones |
 | G5 | Alerting on RLS-denial spikes (possible enumeration attack) | ☐ | P2 | Future; requires log aggregation |
 | G6 | Postgres query log retention policy | ☐ | P1 | Supabase default; document |
