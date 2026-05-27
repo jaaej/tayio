@@ -43,7 +43,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B4 | Account lockout after N failed attempts | ⚠ | P1 | Same deferral as B3. Supabase has no native account-lockout on FREE; would require the same custom wrapper |
 | B5 | Password complexity requirements | ☐ | P1 | Supabase dashboard → Auth → Policies |
 | B6 | Email verification loop enforced on signup | ☐ | P0 | Currently seed scripts pass `email_confirm: true`; real signup flow must require verification |
-| B7 | Password reset flow tested end-to-end | ☐ | P0 | Built into Supabase but never exercised |
+| B7 | Password reset flow tested end-to-end | ⚠ | P0 | Pages built 2026-05-27: `/forgot-password` (email entry) and `/reset-password` (new password form). Wired via existing `/auth/callback` exchange. **Pending: configure Supabase SMTP if you want non-rate-limited email delivery, then click through end-to-end with a seed account.** Until tested, marking partial |
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |

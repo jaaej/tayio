@@ -32,7 +32,15 @@ export default function LoginPage() {
               </Suspense>
             </div>
 
-            <p className="mt-8 text-xs text-ink-soft">
+            <p className="mt-6 text-xs text-ink-soft">
+              <Link
+                href="/forgot-password"
+                className="text-brand-700 underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </p>
+            <p className="mt-3 text-xs text-ink-soft">
               Need an account? Reach out to your Taiyo admin.
             </p>
           </div>
