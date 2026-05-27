@@ -89,6 +89,31 @@ update auth.users set raw_app_meta_data =
 
 **Reversible by:** `alter table public.<name> disable row level security;` per table.
 
+### 0007 — Homework grading column lock
+
+**File:** `supabase/migrations/0007_homework_grading_lock.sql`
+**Status:** Applied to live project, verified 2026-05-27 (10/10 checks pass).
+**Risk:** Low. Adds a `BEFORE UPDATE` trigger; no schema or data change.
+
+**What it does:** Adds a `BEFORE UPDATE` trigger on `public.homework_assignments` that silently reverts changes to `score`, `feedback`, `marked_at`, `marked_by` unless the caller is an admin or the homework's authoring tutor. Closes security-checklist A9 (caveat §2 from migration 0004).
+
+**Why this matters:** Migration 0004's `homework_assignments_student_update` RLS policy is row-restricted (own assignment) but not column-restricted. A student calling `supabase.from('homework_assignments').update({ score: 100 }).eq(...)` via the JS SDK would have their UPDATE accepted at the RLS layer. This trigger enforces column-level rules at the DB layer.
+
+**Carve-outs (trusted callers, no restriction):**
+- `current_user` not in `('authenticated', 'anon')` — postgres role (Drizzle via `DATABASE_URL`) or service_role.
+- `public.is_admin()` — admin via authenticated JWT.
+- `public.is_tutor_of_homework(homework_id)` — the homework's authoring tutor via authenticated JWT.
+
+**Why SECURITY INVOKER (not DEFINER):** With `SECURITY DEFINER`, `current_user` inside the function is always the function owner (postgres), so the bypass check would always succeed for any caller. `SECURITY INVOKER` makes `current_user` reflect the actual calling role. The helpers this function uses (`is_admin`, `is_tutor_of_homework`) are themselves `SECURITY DEFINER` and handle their own table access.
+
+**Behavior is silent revert, not error:** the student's UPDATE statement appears to succeed (no error returned), but the disallowed columns retain their previous values. Optimistic UI in the student portal will not throw — it just won't visibly change the grade. If a future audit shows a student attempted such an UPDATE, the audit log (migration 0006) captures the attempt as an INSERT/UPDATE row.
+
+**Reversible by:**
+```sql
+drop trigger if exists homework_assignments_grading_lock on public.homework_assignments;
+drop function if exists public.enforce_homework_assignment_grading_lock;
+```
+
 ### 0006 — Audit logs
 
 **File:** `supabase/migrations/0006_audit_logs.sql`

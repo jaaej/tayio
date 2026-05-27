@@ -29,7 +29,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | A6 | Storage policies for resource library (admin/tutor uploads) | ☐ | P1 | Bucket not created yet |
 | A7 | Storage policies for profile photos | ☐ | P2 | Feature not built |
 | A8 | Column-level UPDATE restriction on `profiles.role` | ⚠ | P1 | Caveat §1 in SECURITY.md — currently no impact but defence-in-depth |
-| A9 | Column-level UPDATE restriction on `homework_assignments.{score,feedback,marked_at,marked_by}` | ⚠ | P0 | Caveat §2 — student API code must enforce; DB layer enforcement missing |
+| A9 | Column-level UPDATE restriction on `homework_assignments.{score,feedback,marked_at,marked_by}` | ✓ | P0 | Migration 0007 — BEFORE UPDATE trigger silently reverts these columns unless caller is admin or homework's authoring tutor. Verified 2026-05-27 |
 | A10 | New-table RLS discipline (every `pgTable` addition gets a migration entry) | ☐ | P0 | Process, not code — keep `SECURITY.md` updated |
 | A11 | Periodic re-run of Supabase Advisor | ☐ | P1 | Catches RLS-disabled-in-public regressions |
 
