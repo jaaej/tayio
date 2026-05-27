@@ -83,8 +83,8 @@ async function upsertAuthUser({ email, first, last, role, password = DEFAULT_PAS
   if (existing) {
     await admin.auth.admin.updateUserById(existing.id, {
       email_confirm: true,
-      user_metadata: {
-        ...existing.user_metadata,
+      app_metadata: {
+        ...existing.app_metadata,
         role,
         first_name: first,
         last_name: last,
@@ -96,7 +96,7 @@ async function upsertAuthUser({ email, first, last, role, password = DEFAULT_PAS
     email,
     password,
     email_confirm: true,
-    user_metadata: { role, first_name: first, last_name: last },
+    app_metadata: { role, first_name: first, last_name: last },
   });
   if (error) throw error;
   return data.user.id;

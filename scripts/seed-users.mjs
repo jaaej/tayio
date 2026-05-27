@@ -56,7 +56,7 @@ async function upsertUser(u) {
     const { data, error } = await admin.auth.admin.updateUserById(found.id, {
       password: u.password,
       email_confirm: true,
-      user_metadata: {
+      app_metadata: {
         role: u.role,
         first_name: u.first_name,
         last_name: u.last_name,
@@ -70,7 +70,7 @@ async function upsertUser(u) {
       email: u.email,
       password: u.password,
       email_confirm: true,
-      user_metadata: {
+      app_metadata: {
         role: u.role,
         first_name: u.first_name,
         last_name: u.last_name,

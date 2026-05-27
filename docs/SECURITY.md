@@ -184,15 +184,8 @@ These are documented compromises, not currently-exploitable bugs. Worth fixing a
 
 **Fix:** split submissions into a `SECURITY DEFINER` function that only writes the student-mutable subset, or use column-level UPDATE grants.
 
-### 3. Auth code currently reads `user_metadata` first (regression)
+### 3. ~~Auth code reads `user_metadata` first~~ — FIXED 2026-05-27
 
-`src/lib/auth.ts:16` and `src/lib/supabase/middleware.ts:52,66` currently read `(user.user_metadata?.role ?? user.app_metadata?.role)` — user_metadata first. The original Security & RLS plan was to flip this so `app_metadata.role` is preferred, since `user_metadata` is user-mutable via `supabase.auth.updateUser()`. A salvage merge on 2026-05-25 reverted that flip.
+`src/lib/auth.ts`, `src/lib/supabase/middleware.ts`, `scripts/seed-users.mjs`, `scripts/seed-demo.mjs` now read/write `app_metadata.role` first, with `user_metadata.role` as a fallback only for users who predate migration 0002's backfill.
 
-**Practical impact today:** all 20 existing users have `role` set in **both** metadata bags (the 0002 backfill mirrored them), so the auth code works. **But:** a signed-in user could now call `supabase.auth.updateUser({ data: { role: 'admin' } })` to grant themselves admin in `user_metadata` — and the auth code would honour it.
-
-**Fix:** swap the operand order in three places:
-```ts
-// auth.ts:16, middleware.ts:52, middleware.ts:66
-const role = (user.app_metadata?.role ?? user.user_metadata?.role) as ...
-```
-And update `scripts/seed-users.mjs`, `scripts/seed-demo.mjs` to write `app_metadata` instead of `user_metadata` (lines flagged via grep `user_metadata` in those files).
+History: the original flip was made on 2026-05-25 but reverted by a salvage merge that day. Restored 2026-05-27.

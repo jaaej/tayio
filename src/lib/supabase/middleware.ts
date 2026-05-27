@@ -49,7 +49,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isRoleRoute) {
-    const role = (user.user_metadata?.role ?? user.app_metadata?.role) as
+    const role = (user.app_metadata?.role ?? user.user_metadata?.role) as
       | UserRole
       | undefined;
     if (role) {
@@ -63,7 +63,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    const role = (user.user_metadata?.role ?? user.app_metadata?.role) as
+    const role = (user.app_metadata?.role ?? user.user_metadata?.role) as
       | UserRole
       | undefined;
     const url = request.nextUrl.clone();
