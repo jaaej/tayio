@@ -138,7 +138,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
 | J1 | `npm audit` clean | ☐ | P1 | Run `npm audit` regularly; fix high/critical |
-| J2 | Dependabot or Renovate enabled | ☐ | P1 | Auto-PR for security updates |
+| J2 | Dependabot or Renovate enabled | ✓ | P1 | `.github/dependabot.yml` — weekly npm checks, PRs grouped by stack (Next, Supabase, Drizzle). Auto-activates on push to GitHub |
 | J3 | No `sql.unsafe()` / Drizzle raw SQL without parameterisation | ⚠ | P0 | `scripts/apply-sql.mjs` uses it (migrations only, trusted input) — audit any other usage |
 | J4 | `"server-only"` import on all server-side modules with secrets | ☐ | P0 | Already used in `parent/_lib/availability.ts`; audit others |
 | J5 | No `process.env.X` access in client components | ☐ | P0 | Only `NEXT_PUBLIC_*` allowed client-side |
