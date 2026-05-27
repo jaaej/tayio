@@ -34,6 +34,7 @@ import {
 } from "./_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "./_components/child-switcher";
 import { SectionHeader } from "./_components/section-header";
+import { FeedbackList, type FeedbackItem } from "./_components/feedback-list";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -61,8 +62,8 @@ export default async function ParentDashboard({
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-            Family overview
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+            Family Overview
           </h1>
         </header>
         <EmptyChildrenNotice />
@@ -126,6 +127,13 @@ export default async function ParentDashboard({
       : 0;
 
   const recentFeedback = feedback.slice(0, 4);
+  const feedbackItems: FeedbackItem[] = recentFeedback.map((f) => ({
+    id: String(f.id),
+    subjectName: f.subjectName,
+    tutorName: f.tutorName,
+    parentVisibleComment: f.parentVisibleComment,
+    timeLabel: relativeTime(f.createdAt),
+  }));
   const recentAttendance = attendanceLog.slice(0, 6);
 
   const homeworkRatio =
@@ -133,7 +141,7 @@ export default async function ParentDashboard({
       ? `${data.homeworkCompleted} / ${data.homeworkTotal}`
       : "—";
 
-  const bookingsHref = `/parent/bookings?child=${selected.id}`;
+  const classesHref = `/parent/classes?child=${selected.id}`;
 
   return (
     <div className="space-y-6">
@@ -144,8 +152,8 @@ export default async function ParentDashboard({
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-            How {selected.firstName}'s going
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+            How {selected.firstName}'s Going
           </h1>
         </div>
         {data.nextLesson && (
@@ -193,7 +201,7 @@ export default async function ParentDashboard({
                   ? "brand"
                   : "warn"
           }
-          href="/parent/attendance"
+          href="/parent/classes"
         />
         <StatTile
           label="Homework"
@@ -221,15 +229,15 @@ export default async function ParentDashboard({
           {/* This week — calendar with prominent reschedule CTA */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="This week"
-              link={{ href: bookingsHref, label: "Open bookings" }}
+              title="This Week"
+              link={{ href: classesHref, label: "Open classes" }}
             />
             <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
               <MiniWeekCalendar events={events} weekStart={weekStart} />
             </div>
             <div className="px-5 pb-5 pt-4">
               <Link
-                href={bookingsHref}
+                href={classesHref}
                 className="group flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 text-navy-800 px-6 py-4 hover:from-brand-200 hover:via-brand-300 hover:to-brand-200 transition-colors"
               >
                 <span className="text-lg font-medium">Reschedule a class</span>
@@ -246,64 +254,24 @@ export default async function ParentDashboard({
           {/* Tutor feedback feed */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="From the tutor"
+              title="From The Tutor"
               link={{ href: "/parent/feedback", label: "All feedback" }}
             />
-            {recentFeedback.length === 0 ? (
+            {feedbackItems.length === 0 ? (
               <Empty>
                 No tutor notes yet. After {selected.firstName}'s next lesson the
                 tutor's note will appear here.
               </Empty>
             ) : (
-              <div className="divide-y divide-hairline/60">
-                {recentFeedback.map((f, i) => (
-                  <div key={f.id} className="px-6 py-5">
-                    {i === 0 ? (
-                      <>
-                        <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
-                          <span>
-                            {f.subjectName ?? "Lesson"}
-                            {f.topicCovered ? (
-                              <span className="ml-2 text-ink-soft normal-case tracking-normal">
-                                · {f.topicCovered}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span>{relativeTime(f.createdAt)}</span>
-                        </div>
-                        <p className="mt-3 text-xl text-ink leading-snug">
-                          {f.parentVisibleComment}
-                        </p>
-                        <div className="mt-3 text-xs text-muted">
-                          {f.tutorName}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">
-                            {f.subjectName ?? "Lesson"} · {f.tutorName}
-                          </div>
-                          <p className="mt-1.5 text-base text-ink-soft leading-relaxed line-clamp-2">
-                            {f.parentVisibleComment}
-                          </p>
-                        </div>
-                        <span className="text-[11px] uppercase tracking-[0.14em] text-muted shrink-0">
-                          {relativeTime(f.createdAt)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <FeedbackList items={feedbackItems} />
             )}
           </Card>
 
           {/* Recent attendance */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="Recent attendance"
-              link={{ href: "/parent/attendance", label: "Full log" }}
+              title="Recent Attendance"
+              link={{ href: "/parent/classes", label: "Full log" }}
             />
             {recentAttendance.length === 0 ? (
               <Empty>No attendance recorded yet.</Empty>
@@ -341,7 +309,13 @@ export default async function ParentDashboard({
         >
           {/* Topic mastery */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Topic mastery" />
+            <SectionHeader
+              title="Topic Mastery"
+              link={{
+                href: `/parent/progress?child=${selected.id}`,
+                label: "Open",
+              }}
+            />
             <div className="p-5">
               <CardLabel>Overall</CardLabel>
               <div className="mt-1 flex items-baseline gap-2">
@@ -398,6 +372,7 @@ export default async function ParentDashboard({
                           meta={t.subjects.join(" · ")}
                           email={t.email}
                           phone={t.phone}
+                          userId={t.id}
                         />
                       ))}
                     </div>
@@ -410,6 +385,7 @@ export default async function ParentDashboard({
                         meta="Taiyo Tuition"
                         email={admin.email}
                         phone={admin.phone}
+                        userId={admin.id}
                       />
                     </div>
                   )}
@@ -460,18 +436,30 @@ function ContactRow({
   meta,
   email,
   phone,
+  userId,
 }: {
   name: string;
   meta?: string;
   email: string;
   phone: string | null;
+  userId?: string;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="min-w-0">
-        <div className="text-base text-ink truncate">{name}</div>
-        {meta && (
-          <div className="text-xs text-muted truncate">{meta}</div>
+      <div className="min-w-0 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-base text-ink truncate">{name}</div>
+          {meta && (
+            <div className="text-xs text-muted truncate">{meta}</div>
+          )}
+        </div>
+        {userId && (
+          <a
+            href={`/parent/messages/with/${userId}`}
+            className="shrink-0 rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 transition-colors"
+          >
+            Message
+          </a>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

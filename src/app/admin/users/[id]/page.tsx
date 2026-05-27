@@ -98,6 +98,12 @@ export default async function UserDetailPage({
           <Badge tone={user.isActive ? "success" : "muted"}>
             {user.isActive ? "active" : "inactive"}
           </Badge>
+          <a
+            href={`/admin/messages/with/${user.id}`}
+            className="mt-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors uppercase tracking-[0.14em]"
+          >
+            Message
+          </a>
         </div>
       </header>
 

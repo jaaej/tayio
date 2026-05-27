@@ -7,11 +7,10 @@ import {
   ClipboardList,
   GraduationCap,
   TrendingUp,
-  FolderOpen,
-  CheckCircle2,
   MessageSquareText,
+  MessagesSquare,
+  MessageCircle,
   CreditCard,
-  CalendarPlus,
   Sunrise,
   Users,
   FileText,
@@ -24,6 +23,8 @@ import {
 import { Wordmark } from "@/components/brand/wordmark";
 import type { UserRole } from "@/db/schema";
 import { signOutAction } from "@/app/auth/actions";
+import { getCurrentUser } from "@/lib/auth";
+import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { NavLinks, type NavItem } from "./nav-links";
 
 const ICON_CLASS = "h-[18px] w-[18px]";
@@ -34,17 +35,19 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "My subjects", href: "/student/subjects", icon: <BookOpen className={ICON_CLASS} /> },
     { label: "Timetable", href: "/student/timetable", icon: <CalendarDays className={ICON_CLASS} /> },
     { label: "Homework", href: "/student/homework", icon: <ClipboardList className={ICON_CLASS} /> },
-    { label: "Lessons", href: "/student/lessons", icon: <GraduationCap className={ICON_CLASS} /> },
+    { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
+    { label: "Messages", href: "/student/messages", icon: <MessageCircle className={ICON_CLASS} /> },
     { label: "Progress", href: "/student/progress", icon: <TrendingUp className={ICON_CLASS} /> },
-    { label: "Resources", href: "/student/resources", icon: <FolderOpen className={ICON_CLASS} /> },
+    { label: "Resources", href: "/student/resources", icon: <GraduationCap className={ICON_CLASS} /> },
   ],
   parent: [
     { label: "Overview", href: "/parent", icon: <LayoutDashboard className={ICON_CLASS} /> },
-    { label: "Attendance", href: "/parent/attendance", icon: <CheckCircle2 className={ICON_CLASS} /> },
+    { label: "Classes", href: "/parent/classes", icon: <CalendarDays className={ICON_CLASS} /> },
     { label: "Homework", href: "/parent/homework", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Feedback", href: "/parent/feedback", icon: <MessageSquareText className={ICON_CLASS} /> },
+    { label: "Messages", href: "/parent/messages", icon: <MessageCircle className={ICON_CLASS} /> },
+    { label: "Progress", href: "/parent/progress", icon: <TrendingUp className={ICON_CLASS} /> },
     { label: "Payments", href: "/parent/payments", icon: <CreditCard className={ICON_CLASS} /> },
-    { label: "Bookings", href: "/parent/bookings", icon: <CalendarPlus className={ICON_CLASS} /> },
   ],
   tutor: [
     { label: "Today", href: "/tutor", icon: <Sunrise className={ICON_CLASS} /> },
@@ -52,7 +55,9 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Students", href: "/tutor/students", icon: <Users className={ICON_CLASS} /> },
     { label: "Homework", href: "/tutor/homework", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Notes", href: "/tutor/notes", icon: <FileText className={ICON_CLASS} /> },
-    { label: "Availability", href: "/tutor/availability", icon: <Clock className={ICON_CLASS} /> },
+    { label: "Discussions", href: "/tutor/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
+    { label: "Messages", href: "/tutor/messages", icon: <MessageCircle className={ICON_CLASS} /> },
+    { label: "Timetable", href: "/tutor/timetable", icon: <Clock className={ICON_CLASS} /> },
   ],
   admin: [
     { label: "Operations", href: "/admin", icon: <LayoutDashboard className={ICON_CLASS} /> },
@@ -61,6 +66,8 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Enrolments", href: "/admin/enrolments", icon: <UserPlus className={ICON_CLASS} /> },
     { label: "Payments", href: "/admin/payments", icon: <CreditCard className={ICON_CLASS} /> },
     { label: "Announcements", href: "/admin/announcements", icon: <Megaphone className={ICON_CLASS} /> },
+    { label: "Discussions", href: "/admin/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
+    { label: "Messages", href: "/admin/messages", icon: <MessageCircle className={ICON_CLASS} /> },
     { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={ICON_CLASS} /> },
   ],
 };
@@ -72,7 +79,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
 };
 
-export function PortalShell({
+export async function PortalShell({
   role,
   userName,
   children,
@@ -81,7 +88,23 @@ export function PortalShell({
   userName: string;
   children: ReactNode;
 }) {
-  const nav = NAV_BY_ROLE[role];
+  const user = await getCurrentUser();
+  // Badge is best-effort: if the DM tables aren't migrated yet or the query
+  // fails for any reason, fall back to 0 rather than crash the entire shell
+  // (which would break every page in the portal).
+  let unread = 0;
+  if (user) {
+    try {
+      unread = await getUnreadThreadCount(user.id);
+    } catch (err) {
+      console.error("[shell] getUnreadThreadCount failed:", err);
+      unread = 0;
+    }
+  }
+  const messagesHref = `/${role}/messages`;
+  const nav = NAV_BY_ROLE[role].map((item) =>
+    item.href === messagesHref ? { ...item, badge: unread } : item,
+  );
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       {/* Sidebar */}
@@ -156,7 +179,7 @@ export function PortalShell({
 
       {/* Main */}
       <div className="min-w-0 flex flex-col">
-        <main className="flex-1 px-6 lg:px-20 xl:px-28 py-10 lg:py-12 w-full">
+        <main className="flex-1 px-6 lg:px-16 xl:px-24 py-10 lg:py-12 w-full">
           {children}
         </main>
         <footer className="border-t border-hairline/60 mt-12">

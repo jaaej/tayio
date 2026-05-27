@@ -9,6 +9,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: ReactNode;
+  badge?: number;
 };
 
 export function NavLinks({ items }: { items: NavItem[] }) {
@@ -54,6 +55,11 @@ export function NavLinks({ items }: { items: NavItem[] }) {
               {item.icon}
             </span>
             <span className="text-[17px] tracking-tight">{item.label}</span>
+            {item.badge && item.badge > 0 ? (
+              <span className="ml-auto inline-flex items-center justify-center rounded-full bg-brand-600 text-white text-[10px] font-semibold min-w-5 h-5 px-1.5 tabular-nums">
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
+            ) : null}
           </Link>
         );
       })}

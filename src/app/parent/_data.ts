@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
   announcements,
@@ -405,6 +406,73 @@ export async function getMonthLessons(
   }));
 }
 
+export type UpcomingLesson = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  subjectName: string;
+  tutorName: string;
+};
+
+export async function getUpcomingLessonsForChild(
+  studentId: string,
+  limit: number = 12,
+): Promise<UpcomingLesson[]> {
+  const tutorProfile = profiles;
+  const todayIso = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+
+  const rows = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      subjectName: subjects.name,
+      tutorFirst: tutorProfile.firstName,
+      tutorLast: tutorProfile.lastName,
+    })
+    .from(enrollments)
+    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
+        gte(lessons.date, todayIso),
+        eq(lessons.status, "upcoming"),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    subjectName: r.subjectName,
+    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
+  }));
+}
+
+export async function getClassIdForLesson(lessonId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ classId: lessons.classId })
+    .from(lessons)
+    .where(eq(lessons.id, lessonId))
+    .limit(1);
+  return row?.classId ?? null;
+}
+
 export type RescheduleLessonDetail = {
   id: string;
   date: string;
@@ -426,8 +494,8 @@ export async function getRescheduleLessonForParent(
   parentId: string,
   lessonId: string,
 ): Promise<RescheduleLessonDetail | null> {
-  const tutorProfile = profiles;
-  const childProfile = profiles;
+  const tutorProfile = alias(profiles, "tutor_profile");
+  const childProfile = alias(profiles, "child_profile");
   const rows = await db
     .select({
       id: lessons.id,
@@ -542,6 +610,75 @@ export async function getTopicMastery(studentId: string): Promise<SubjectMastery
   })).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 }
 
+export type MasteryLevel = "not_started" | "needs_work" | "improving" | "strong";
+
+export type ChildSubjectProgress = {
+  subjectId: string;
+  subjectName: string;
+  yearLevel: string | null;
+  masteryPercent: number;
+  topics: Array<{ topic: string; mastery: MasteryLevel }>;
+};
+
+export async function getChildProgressBySubject(
+  studentId: string,
+): Promise<ChildSubjectProgress[]> {
+  const enrolledSubjects = await db
+    .select({
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      yearLevel: subjects.yearLevel,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(
+      and(eq(enrollments.studentId, studentId), isNull(enrollments.withdrawnAt)),
+    )
+    .orderBy(asc(subjects.name));
+
+  const seen = new Set<string>();
+  const uniqueSubjects = enrolledSubjects.filter((s) => {
+    if (seen.has(s.subjectId)) return false;
+    seen.add(s.subjectId);
+    return true;
+  });
+
+  if (uniqueSubjects.length === 0) return [];
+
+  const subjectIds = uniqueSubjects.map((s) => s.subjectId);
+
+  const allTopics = await db
+    .select({
+      subjectId: progressTopics.subjectId,
+      topic: progressTopics.topic,
+      mastery: progressTopics.mastery,
+    })
+    .from(progressTopics)
+    .where(
+      and(
+        eq(progressTopics.studentId, studentId),
+        inArray(progressTopics.subjectId, subjectIds),
+      ),
+    )
+    .orderBy(asc(progressTopics.topic));
+
+  const topicsBySubject = new Map<string, Array<{ topic: string; mastery: MasteryLevel }>>();
+  for (const row of allTopics) {
+    const arr = topicsBySubject.get(row.subjectId) ?? [];
+    arr.push({ topic: row.topic, mastery: row.mastery });
+    topicsBySubject.set(row.subjectId, arr);
+  }
+
+  return uniqueSubjects.map((s) => {
+    const topics = topicsBySubject.get(s.subjectId) ?? [];
+    const sum = topics.reduce((acc, t) => acc + MASTERY_PERCENT[t.mastery], 0);
+    const masteryPercent =
+      topics.length > 0 ? Math.round(sum / topics.length) : 0;
+    return { ...s, masteryPercent, topics };
+  });
+}
+
 export type InvoiceRow = {
   id: string;
   amount: string;
@@ -623,6 +760,7 @@ export async function getChildTutors(studentId: string): Promise<ChildTutor[]> {
 }
 
 export type AdminContact = {
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -632,6 +770,7 @@ export type AdminContact = {
 export async function getAdminContact(): Promise<AdminContact | null> {
   const rows = await db
     .select({
+      id: profiles.id,
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       email: profiles.email,

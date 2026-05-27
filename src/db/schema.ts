@@ -12,6 +12,7 @@ import {
   pgEnum,
   primaryKey,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -354,6 +355,10 @@ export const discussionReplies = pgTable("discussion_replies", {
   threadId: uuid("thread_id")
     .notNull()
     .references(() => discussionThreads.id, { onDelete: "cascade" }),
+  // Nullable: top-level replies have parentReplyId = null;
+  // a "reply to a reply" stores the id of the parent reply here.
+  // Only 1 level of nesting supported — children of a reply cannot themselves have children.
+  parentReplyId: uuid("parent_reply_id"),
   authorId: uuid("author_id")
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }),
@@ -390,6 +395,67 @@ export const auditLogs = pgTable(
 export type DiscussionThread = typeof discussionThreads.$inferSelect;
 export type DiscussionReply = typeof discussionReplies.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+export const dmThreads = pgTable(
+  "dm_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userAId: uuid("user_a_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    userBId: uuid("user_b_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("dm_threads_pair_idx").on(t.userAId, t.userBId),
+    index("dm_threads_a_idx").on(t.userAId),
+    index("dm_threads_b_idx").on(t.userBId),
+  ],
+);
+
+export const dmMessages = pgTable(
+  "dm_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => dmThreads.id, { onDelete: "cascade" }),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("dm_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+export const dmReads = pgTable(
+  "dm_reads",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => dmThreads.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.threadId] })],
+);
+
+export type DmThread = typeof dmThreads.$inferSelect;
+export type DmMessage = typeof dmMessages.$inferSelect;
 
 export const profilesRelations = relations(profiles, ({ many }) => ({
   parentLinks: many(familyLinks, { relationName: "parent" }),

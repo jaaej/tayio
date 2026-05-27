@@ -41,9 +41,17 @@ export default async function StudentProfilePage({
         >
           ← All students
         </Link>
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          {student.firstName} {student.lastName}
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+            {student.firstName} {student.lastName}
+          </h1>
+          <a
+            href={`/tutor/messages/with/${id}`}
+            className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors uppercase tracking-[0.14em]"
+          >
+            Message student
+          </a>
+        </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
           {student.yearLevel && <span>{student.yearLevel}</span>}
           {student.school && <span>{student.school}</span>}
@@ -84,7 +92,7 @@ export default async function StudentProfilePage({
       </section>
 
       <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "80ms" }}>
-        <SectionHeader title="Attendance history" />
+        <SectionHeader title="Attendance History" />
         {attendance.length === 0 ? (
           <Empty>No attendance recorded yet.</Empty>
         ) : (
@@ -143,7 +151,7 @@ export default async function StudentProfilePage({
       </Card>
 
       <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "160ms" }}>
-        <SectionHeader title="Lesson notes" />
+        <SectionHeader title="Lesson Notes" />
         {notes.length === 0 ? (
           <Empty>No lesson notes yet.</Empty>
         ) : (
@@ -191,8 +199,8 @@ export default async function StudentProfilePage({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="px-6 py-5 border-b border-hairline/60">
-      <div className="text-xl font-medium text-ink">{title}</div>
+    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
+      <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
     </div>
   );
 }
