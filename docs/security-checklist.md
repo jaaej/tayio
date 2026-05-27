@@ -43,7 +43,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B4 | Account lockout after N failed attempts | ⚠ | P1 | Same deferral as B3. Supabase has no native account-lockout on FREE; would require the same custom wrapper |
 | B5 | Password complexity requirements | ☐ | P1 | Supabase dashboard → Auth → Policies |
 | B6 | Email verification loop enforced on signup | ☐ | P0 | Currently seed scripts pass `email_confirm: true`; real signup flow must require verification |
-| B7 | Password reset flow tested end-to-end | ⚠ | P0 | Pages built 2026-05-27: `/forgot-password` (email entry) and `/reset-password` (new password form). Wired via existing `/auth/callback` exchange. **Pending: configure Supabase SMTP if you want non-rate-limited email delivery, then click through end-to-end with a seed account.** Until tested, marking partial |
+| B7 | Password reset flow tested end-to-end | ⚠ | P0 | Pages built 2026-05-27: `/forgot-password` (email entry) and `/reset-password` (new password form). Wired via existing `/auth/callback` exchange. **Dev test still pending: click through end-to-end with a seed account on built-in SMTP.** For production SMTP setup see K6 |
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |
@@ -152,6 +152,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | K3 | Security review of all server actions before launch | ☐ | P0 | Pairs with C-section items |
 | K4 | Supabase project settings reviewed (URL allowlist, redirect URLs, JWT secret) | ☐ | P0 | One-time before launch |
 | K5 | All P0 items in this checklist resolved | ☐ | P0 | Gate for launch |
+| K6 | Configure production SMTP provider | ☐ | P0 | **Pre-launch must.** Supabase's built-in email service is limited to 4 emails/hour and sends from `noreply@mail.app.supabase.io` (lands in spam, not branded). Required for: password reset (B7), email change, magic links if ever used. Set in Supabase dashboard → Project Settings → Auth → SMTP Settings. Recommended providers: Resend, AWS SES, SendGrid |
 
 ---
 
