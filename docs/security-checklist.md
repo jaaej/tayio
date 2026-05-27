@@ -65,8 +65,8 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| D1 | `.env.local` in `.gitignore` | ☐ | P0 | 5-second check, do today |
-| D2 | No secrets in git history | ☐ | P0 | Scan git history for service-role / JWT / private-key patterns |
+| D1 | `.env.local` in `.gitignore` | ✓ | P0 | `.gitignore` has `.env*`; no `.env` files tracked. Verified 2026-05-27 |
+| D2 | No secrets in git history | ✓ | P0 | Verified 2026-05-27 — scanned for service role JWTs, `SUPABASE_SERVICE_ROLE_KEY=`, private key blocks. Zero hits |
 | D3 | Vercel production env vars set separately from dev | ☐ | P0 | When deploying |
 | D4 | Anon key vs service role key — usage audited | ☐ | P0 | Anon: client SDK only. Service: server-only, never imported into a client component |
 | D5 | Supabase JWT secret rotated from any default / pre-shared value | ☐ | P1 | Supabase dashboard |
