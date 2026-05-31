@@ -37,11 +37,8 @@ export default async function AnnouncementsPage() {
   return (
     <div className="space-y-10">
       <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
           Announcements
-        </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Tell the right people, all at once.
         </h1>
       </header>
 

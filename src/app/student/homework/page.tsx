@@ -148,13 +148,21 @@ export default async function HomeworkListPage() {
               emptyLabel="Nothing overdue — nice."
             />
           </Card>
-          <Card>
+          <Card className="space-y-8">
             <Section
               title="Due This Week"
               items={openSoon}
               today={startOfToday}
               emptyLabel="Nothing due this week."
             />
+            <Section
+              title="Submitted"
+              tone="muted"
+              items={submitted}
+              today={startOfToday}
+              emptyLabel="No submissions yet."
+            />
+            <MarkedSection items={marked} />
           </Card>
           {openLater.length > 0 && (
             <Card>
@@ -166,16 +174,6 @@ export default async function HomeworkListPage() {
               />
             </Card>
           )}
-          <Card className="space-y-8">
-            <Section
-              title="Submitted"
-              tone="muted"
-              items={submitted}
-              today={startOfToday}
-              emptyLabel="No submissions yet."
-            />
-            <MarkedSection items={marked} />
-          </Card>
         </div>
       )}
     </div>

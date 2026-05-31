@@ -64,34 +64,13 @@ export default async function HomeworkDetailPage({
   const isOverdue = !hw.submittedAt && hw.dueDate < new Date();
 
   return (
-    <div className="space-y-10">
-      <div className="rise">
-        <Link
-          href="/student/homework"
-          className="text-xs text-brand-700 hover:underline"
-        >
-          ← All homework
-        </Link>
-      </div>
-
-      <header className="rise" style={{ animationDelay: "60ms" }}>
-        <CardLabel>{hw.className ?? "Homework"}</CardLabel>
-        <h1 className="mt-2 text-3xl lg:text-4xl font-light tracking-tight text-ink">
-          {hw.title}
-        </h1>
-        <div className="mt-4 flex items-center gap-3 text-sm text-ink-soft">
-          <span>Due {formatDueDate(hw.dueDate)}</span>
-          {isOverdue && (
-            <span className="text-amber-800 text-xs uppercase tracking-wider">
-              Overdue
-            </span>
-          )}
-          <StatusBadge
-            label={HOMEWORK_STATUS_LABEL[effectiveStatus] ?? effectiveStatus}
-            className={HOMEWORK_STATUS_STYLE[effectiveStatus]}
-          />
-        </div>
-      </header>
+    <div className="space-y-6">
+      <Link
+        href="/student/homework"
+        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+      >
+        ← All homework
+      </Link>
 
       {submitted && (
         <Card className="border-emerald-200 bg-emerald-50">
@@ -108,38 +87,57 @@ export default async function HomeworkDetailPage({
         </Card>
       )}
 
-      {hw.description && (
-        <section className="rise" style={{ animationDelay: "120ms" }}>
-          <CardLabel>Instructions</CardLabel>
-          <Card className="mt-3">
-            <div className="text-sm text-ink whitespace-pre-wrap leading-relaxed">
+      <Card className="space-y-8">
+        <header>
+          <CardLabel>{hw.className ?? "Homework"}</CardLabel>
+          <h1 className="mt-2 text-4xl lg:text-5xl font-semibold tracking-tight text-ink">
+            {hw.title}
+          </h1>
+          <div className="mt-4 flex items-center gap-3 text-sm text-ink-soft">
+            <span>Due {formatDueDate(hw.dueDate)}</span>
+            {isOverdue && (
+              <span className="text-amber-800 text-xs uppercase tracking-wider">
+                Overdue
+              </span>
+            )}
+            <StatusBadge
+              label={HOMEWORK_STATUS_LABEL[effectiveStatus] ?? effectiveStatus}
+              className={HOMEWORK_STATUS_STYLE[effectiveStatus]}
+            />
+          </div>
+        </header>
+
+        {hw.description && (
+          <section>
+            <CardLabel>Instructions</CardLabel>
+            <div className="mt-2 text-sm text-ink whitespace-pre-wrap leading-relaxed">
               {hw.description}
             </div>
-          </Card>
-        </section>
-      )}
+          </section>
+        )}
 
-      {attachmentHref && (
-        <section className="rise" style={{ animationDelay: "160ms" }}>
-          <CardLabel>Worksheet</CardLabel>
-          <Card className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-ink-soft">Provided by your tutor.</div>
-            <a
-              href={attachmentHref}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-brand-700 hover:underline"
-            >
-              Download →
-            </a>
-          </Card>
-        </section>
-      )}
+        {attachmentHref && (
+          <section>
+            <CardLabel>Worksheet</CardLabel>
+            <div className="mt-2 flex items-center justify-between">
+              <div className="text-sm text-ink-soft">
+                Provided by your tutor.
+              </div>
+              <a
+                href={attachmentHref}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-brand-700 hover:underline"
+              >
+                Download →
+              </a>
+            </div>
+          </section>
+        )}
 
-      {(hw.feedback || hw.score) && (
-        <section className="rise" style={{ animationDelay: "200ms" }}>
-          <CardLabel>Tutor feedback</CardLabel>
-          <Card className="mt-3 space-y-3">
+        {(hw.feedback || hw.score) && (
+          <section className="space-y-3">
+            <CardLabel>Tutor feedback</CardLabel>
             {hw.score && (
               <div className="text-sm text-ink">
                 Score: <span className="font-medium">{hw.score}</span>
@@ -150,13 +148,11 @@ export default async function HomeworkDetailPage({
                 {hw.feedback}
               </div>
             )}
-          </Card>
-        </section>
-      )}
+          </section>
+        )}
 
-      <section className="rise" style={{ animationDelay: "240ms" }}>
-        <CardLabel>Your submission</CardLabel>
-        <Card className="mt-3 space-y-5">
+        <section className="space-y-5">
+          <CardLabel>Your submission</CardLabel>
           {hw.submittedAt && (
             <div className="text-sm text-ink-soft">
               Submitted {hw.submittedAt.toLocaleString("en-AU")}.{" "}
@@ -229,8 +225,8 @@ export default async function HomeworkDetailPage({
                 : "Submissions are closed for this homework."}
             </div>
           )}
-        </Card>
-      </section>
+        </section>
+      </Card>
     </div>
   );
 }

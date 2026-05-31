@@ -54,6 +54,7 @@ export async function enrollStudent(input: z.infer<typeof pair>) {
 
   revalidatePath("/admin/enrolments");
   revalidatePath("/admin/classes");
+  revalidatePath(`/admin/classes/${data.classId}`);
   return { ok: true as const };
 }
 
@@ -71,6 +72,7 @@ export async function withdrawStudent(input: z.infer<typeof pair>) {
       ),
     );
   revalidatePath("/admin/enrolments");
+  revalidatePath(`/admin/classes/${data.classId}`);
   return { ok: true as const };
 }
 

@@ -11,6 +11,7 @@ export type AccentFamily =
   | "amber"
   | "emerald"
   | "rose"
+  | "red"
   | "violet"
   | "cyan";
 
@@ -27,56 +28,82 @@ export type AccentTokens = {
   meta: string;
   /** small accent — arrows, dots, rails */
   arrow: string;
+  /** vibrant pill background — for tags / chips */
+  pillBg: string;
+  /** bold pill text colour */
+  pillText: string;
 };
 
 export const ACCENT_TOKENS: Record<AccentFamily, AccentTokens> = {
   periwinkle: {
-    bgFrom: "rgba(94, 123, 199, 0.18)",
-    bgTo: "rgba(94, 123, 199, 0.05)",
-    ring: "rgba(94, 123, 199, 0.4)",
-    title: "#2e3a6b",
-    meta: "rgba(46, 58, 107, 0.7)",
-    arrow: "#5e7bc7",
+    bgFrom: "rgb(196, 209, 244)",
+    bgTo: "rgb(220, 229, 251)",
+    ring: "rgb(120, 145, 215)",
+    title: "#1d2951",
+    meta: "rgba(29, 41, 81, 0.85)",
+    arrow: "#4f66ad",
+    pillBg: "#e0e7ff",
+    pillText: "#3730a3",
   },
   amber: {
-    bgFrom: "rgba(217, 119, 6, 0.16)",
-    bgTo: "rgba(217, 119, 6, 0.04)",
-    ring: "rgba(217, 119, 6, 0.4)",
-    title: "#92400e",
-    meta: "rgba(146, 64, 14, 0.75)",
-    arrow: "#d97706",
+    bgFrom: "rgb(253, 220, 170)",
+    bgTo: "rgb(254, 236, 200)",
+    ring: "rgb(234, 170, 90)",
+    title: "#78350f",
+    meta: "rgba(120, 53, 15, 0.9)",
+    arrow: "#b45309",
+    pillBg: "#fde68a",
+    pillText: "#92400e",
   },
   emerald: {
-    bgFrom: "rgba(5, 150, 105, 0.16)",
-    bgTo: "rgba(5, 150, 105, 0.04)",
-    ring: "rgba(5, 150, 105, 0.4)",
-    title: "#065f46",
-    meta: "rgba(6, 95, 70, 0.75)",
-    arrow: "#059669",
+    bgFrom: "rgb(170, 226, 205)",
+    bgTo: "rgb(205, 240, 225)",
+    ring: "rgb(80, 190, 150)",
+    title: "#064e3b",
+    meta: "rgba(6, 78, 59, 0.9)",
+    arrow: "#047857",
+    pillBg: "#a7f3d0",
+    pillText: "#065f46",
   },
   rose: {
-    bgFrom: "rgba(225, 29, 72, 0.14)",
-    bgTo: "rgba(225, 29, 72, 0.03)",
-    ring: "rgba(225, 29, 72, 0.4)",
-    title: "#9f1239",
-    meta: "rgba(159, 18, 57, 0.75)",
-    arrow: "#e11d48",
+    bgFrom: "rgb(248, 195, 210)",
+    bgTo: "rgb(253, 220, 228)",
+    ring: "rgb(230, 130, 155)",
+    title: "#881337",
+    meta: "rgba(136, 19, 55, 0.9)",
+    arrow: "#be123c",
+    pillBg: "#fbcfe8",
+    pillText: "#9f1239",
   },
   violet: {
-    bgFrom: "rgba(124, 58, 237, 0.16)",
-    bgTo: "rgba(124, 58, 237, 0.04)",
-    ring: "rgba(124, 58, 237, 0.4)",
-    title: "#5b21b6",
-    meta: "rgba(91, 33, 182, 0.75)",
-    arrow: "#7c3aed",
+    bgFrom: "rgb(208, 192, 248)",
+    bgTo: "rgb(228, 218, 252)",
+    ring: "rgb(160, 130, 232)",
+    title: "#4c1d95",
+    meta: "rgba(76, 29, 149, 0.9)",
+    arrow: "#6d28d9",
+    pillBg: "#ddd6fe",
+    pillText: "#5b21b6",
   },
   cyan: {
-    bgFrom: "rgba(8, 145, 178, 0.16)",
-    bgTo: "rgba(8, 145, 178, 0.04)",
-    ring: "rgba(8, 145, 178, 0.4)",
-    title: "#155e75",
-    meta: "rgba(21, 94, 117, 0.8)",
-    arrow: "#0891b2",
+    bgFrom: "rgb(170, 210, 230)",
+    bgTo: "rgb(205, 230, 242)",
+    ring: "rgb(95, 170, 200)",
+    title: "#0e4e63",
+    meta: "rgba(14, 78, 99, 0.9)",
+    arrow: "#0e7490",
+    pillBg: "#bae6fd",
+    pillText: "#155e75",
+  },
+  red: {
+    bgFrom: "rgb(252, 195, 195)",
+    bgTo: "rgb(254, 220, 220)",
+    ring: "rgb(234, 105, 105)",
+    title: "#7f1d1d",
+    meta: "rgba(127, 29, 29, 0.9)",
+    arrow: "#dc2626",
+    pillBg: "#fecaca",
+    pillText: "#991b1b",
   },
 };
 
@@ -90,12 +117,17 @@ export function getAccentTokens(family: AccentFamily): AccentTokens {
  */
 export function colorFamilyForSubject(name: string): AccentFamily {
   const n = name.toLowerCase();
+  if (
+    n.includes("math") ||
+    n.includes("methods") ||
+    n.includes("specialist")
+  )
+    return "red";
   if (n.includes("english") || n.includes("literature")) return "amber";
   if (n.includes("physics")) return "violet";
   if (n.includes("chemistry") || n.includes("chem")) return "emerald";
   if (n.includes("biology") || n.includes("bio")) return "rose";
   if (n.includes("history") || n.includes("geo") || n.includes("legal"))
     return "cyan";
-  // Math / Methods / Specialist / default → periwinkle (brand)
   return "periwinkle";
 }

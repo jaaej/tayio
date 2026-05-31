@@ -37,7 +37,7 @@ export default async function StudentProfilePage({
       <header className="rise space-y-2">
         <Link
           href="/tutor/students"
-          className="text-[11px] uppercase tracking-[0.16em] text-muted hover:text-ink"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
         >
           ← All students
         </Link>
@@ -54,7 +54,6 @@ export default async function StudentProfilePage({
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
           {student.yearLevel && <span>{student.yearLevel}</span>}
-          {student.school && <span>{student.school}</span>}
           <span>{student.email}</span>
         </div>
       </header>
@@ -66,7 +65,6 @@ export default async function StudentProfilePage({
         <StatTile
           label="Attendance rate"
           value={attendanceRate === null ? "—" : `${attendanceRate}%`}
-          sub={`${totalAttendance} marked lesson${totalAttendance === 1 ? "" : "s"}`}
           accent={
             attendanceRate === null
               ? "muted"
@@ -80,13 +78,11 @@ export default async function StudentProfilePage({
         <StatTile
           label="Homework"
           value={homework.length.toString()}
-          sub={`assignment${homework.length === 1 ? "" : "s"} from you`}
           accent="brand"
         />
         <StatTile
           label="Lesson notes"
           value={notes.length.toString()}
-          sub="written by you"
           accent="brand"
         />
       </section>

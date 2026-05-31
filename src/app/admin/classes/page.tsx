@@ -3,17 +3,67 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
 import { Card, CardLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { formatTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { CreateClassForm } from "./_components/create-class-form";
 import { CreateSubjectForm } from "./_components/create-subject-form";
-import { DeleteClassButton } from "./_components/delete-class-button";
 
 export const dynamic = "force-dynamic";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_SCHEDULE = [
+  { idx: 1, short: "Mon" },
+  { idx: 2, short: "Tue" },
+  { idx: 3, short: "Wed" },
+  { idx: 4, short: "Thu" },
+  { idx: 5, short: "Fri" },
+  { idx: 6, short: "Sat" },
+  { idx: 0, short: "Sun" },
+];
+const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+function hh(n: number): string {
+  return `${String(n).padStart(2, "0")}:00`;
+}
+function isoLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function startOfWeekMon(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const dow = x.getDay(); // 0=Sun..6=Sat
+  const offset = (dow + 6) % 7; // days since last Monday
+  x.setDate(x.getDate() - offset);
+  return x;
+}
+function shortDate(d: Date) {
+  return `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+}
 
-export default async function ClassesPage() {
+type SearchParams = Promise<{ w?: string; view?: string; m?: string }>;
+
+export default async function ClassesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { w, view, m } = await searchParams;
+  const isMonth = view === "month";
   const rows = await db
     .select({
       id: classes.id,
@@ -57,11 +107,8 @@ export default async function ClassesPage() {
   return (
     <div className="space-y-10">
       <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Class management
-        </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Set up the weekly cadence.
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+          Class Management
         </h1>
       </header>
 
@@ -79,16 +126,23 @@ export default async function ClassesPage() {
               <li className="py-2 text-sm text-muted">No subjects yet.</li>
             )}
             {subjectList.map((s) => (
-              <li
-                key={s.id}
-                className="py-2 text-sm text-ink-soft flex items-center justify-between"
-              >
-                <span>{s.name}</span>
-                {s.yearLevel && (
-                  <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
-                    Yr {s.yearLevel}
+              <li key={s.id}>
+                <Link
+                  href={`/admin/subjects/${s.id}/curriculum`}
+                  className="py-2 -mx-2 px-2 rounded text-sm text-ink-soft flex items-center justify-between hover:bg-brand-50 hover:text-ink transition-colors"
+                >
+                  <span>{s.name}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {s.yearLevel && (
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                        Yr {s.yearLevel}
+                      </span>
+                    )}
+                    <span className="text-[11px] uppercase tracking-wide text-brand-700">
+                      Curriculum →
+                    </span>
                   </span>
-                )}
+                </Link>
               </li>
             ))}
           </ul>
@@ -99,69 +153,448 @@ export default async function ClassesPage() {
       </section>
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Class</TH>
-              <TH>Subject</TH>
-              <TH>Tutor</TH>
-              <TH>Schedule</TH>
-              <TH>Capacity</TH>
-              <TH>Location</TH>
-              <TH className="text-right">Actions</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {rows.length === 0 && (
-              <TR>
-                <TD colSpan={7} className="text-center text-muted py-8">
-                  No classes yet — create your first above.
-                </TD>
-              </TR>
-            )}
-            {rows.map((c) => (
-              <TR key={c.id}>
-                <TD className="font-medium">
-                  <Link
-                    href={`/admin/classes/${c.id}`}
-                    className="hover:text-brand-700"
-                  >
-                    {c.name}
-                  </Link>
-                </TD>
-                <TD className="text-ink-soft">{c.subject}</TD>
-                <TD className="text-ink-soft">
-                  {c.tutorFirst} {c.tutorLast}
-                </TD>
-                <TD className="text-ink-soft">
-                  {c.isRecurring && c.weekday !== null
-                    ? `${WEEKDAYS[c.weekday]} · ${c.startTime ?? ""}–${c.endTime ?? ""}`
-                    : "One-off"}
-                </TD>
-                <TD>
-                  <Badge tone={c.enrolled >= c.capacity ? "warn" : "neutral"}>
-                    {c.enrolled} / {c.capacity}
-                  </Badge>
-                </TD>
-                <TD className="text-ink-soft text-xs">
-                  {c.location || (c.onlineLink ? "Online" : "—")}
-                </TD>
-                <TD className="text-right">
-                  <div className="inline-flex items-center gap-3">
-                    <Link
-                      href={`/admin/classes/${c.id}`}
-                      className="text-xs uppercase tracking-[0.14em] text-brand-700 hover:text-brand-600"
-                    >
-                      Edit
-                    </Link>
-                    <DeleteClassButton id={c.id} name={c.name} />
-                  </div>
-                </TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
+        <Card className="p-0 overflow-hidden">
+          <div className="px-5 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
+            <div className="text-xl font-medium text-ink">
+              {isMonth ? "Monthly Schedule" : "Weekly Schedule"}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={
+                  isMonth
+                    ? "/admin/classes"
+                    : `/admin/classes?view=month`
+                }
+                className="text-sm text-brand-700 hover:underline"
+              >
+                {isMonth ? "← Back to weekly" : "Open monthly →"}
+              </Link>
+              <span className="text-sm uppercase tracking-[0.18em] text-muted">
+                {rows.length} class{rows.length === 1 ? "" : "es"}
+              </span>
+            </div>
+          </div>
+          {rows.length === 0 ? (
+            <div className="px-6 py-8 text-sm text-ink-soft">
+              No classes yet — create your first above.
+            </div>
+          ) : isMonth ? (
+            <MonthView rows={rows} monthParam={m} />
+          ) : (
+            <WeekView rows={rows} weekParam={w} />
+          )}
+        </Card>
       </section>
     </div>
+  );
+}
+
+type ClassRow = {
+  id: string;
+  name: string;
+  capacity: number;
+  location: string | null;
+  onlineLink: string | null;
+  weekday: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  isRecurring: boolean;
+  subject: string;
+  tutorFirst: string;
+  tutorLast: string;
+  enrolled: number;
+};
+
+function WeekView({
+  rows,
+  weekParam,
+}: {
+  rows: ClassRow[];
+  weekParam: string | undefined;
+}) {
+  const weekStart =
+    weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)
+      ? startOfWeekMon(new Date(`${weekParam}T00:00:00`))
+      : startOfWeekMon(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const prevWeek = new Date(weekStart);
+  prevWeek.setDate(weekStart.getDate() - 7);
+  const nextWeek = new Date(weekStart);
+  nextWeek.setDate(weekStart.getDate() + 7);
+
+  return (
+    <div className="space-y-3">
+      <div className="px-5 pt-4 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/admin/classes?w=${isoLocal(prevWeek)}`}
+            aria-label="Previous week"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+          >
+            ‹
+          </Link>
+          <Link
+            href={`/admin/classes?w=${isoLocal(nextWeek)}`}
+            aria-label="Next week"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+          >
+            ›
+          </Link>
+        </div>
+        <div className="text-sm font-medium text-ink tabular-nums">
+          {shortDate(weekStart)} – {shortDate(weekEnd)}
+        </div>
+        <Link
+          href="/admin/classes"
+          className="text-[11px] uppercase tracking-[0.16em] text-brand-700 hover:underline"
+        >
+          This week
+        </Link>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[900px] p-5">
+          <ScheduleGrid rows={rows} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MonthView({
+  rows,
+  monthParam,
+}: {
+  rows: ClassRow[];
+  monthParam: string | undefined;
+}) {
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    const [y, mm] = monthParam.split("-").map(Number);
+    year = y;
+    month = mm - 1;
+  }
+  const firstOfMonth = new Date(year, month, 1);
+  const firstDow = firstOfMonth.getDay();
+  const mondayOffset = (firstDow + 6) % 7;
+  const gridStart = new Date(year, month, 1 - mondayOffset);
+  const todayIso = isoLocal(new Date());
+
+  // Index classes by weekday (0=Sun..6=Sat)
+  const classesByWeekday = new Map<number, ClassRow[]>();
+  for (const c of rows) {
+    if (!c.isRecurring || c.weekday === null) continue;
+    if (!classesByWeekday.has(c.weekday)) classesByWeekday.set(c.weekday, []);
+    classesByWeekday.get(c.weekday)!.push(c);
+  }
+  for (const list of classesByWeekday.values()) {
+    list.sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+  }
+
+  const days: Array<{
+    iso: string;
+    dayNum: number;
+    weekday: number;
+    inMonth: boolean;
+    isToday: boolean;
+    isWeekend: boolean;
+  }> = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    const iso = isoLocal(d);
+    days.push({
+      iso,
+      dayNum: d.getDate(),
+      weekday: d.getDay(),
+      inMonth: d.getMonth() === month,
+      isToday: iso === todayIso,
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+    });
+  }
+  let usedRows = 6;
+  while (
+    usedRows > 4 &&
+    days.slice((usedRows - 1) * 7, usedRows * 7).every((d) => !d.inMonth)
+  )
+    usedRows--;
+  const visibleDays = days.slice(0, usedRows * 7);
+
+  const prevMonth = new Date(year, month - 1, 1);
+  const nextMonth = new Date(year, month + 1, 1);
+  const mKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+  return (
+    <div className="space-y-3">
+      <div className="px-5 pt-4 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/admin/classes?view=month&m=${mKey(prevMonth)}`}
+            aria-label="Previous month"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+          >
+            ‹
+          </Link>
+          <Link
+            href={`/admin/classes?view=month&m=${mKey(nextMonth)}`}
+            aria-label="Next month"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+          >
+            ›
+          </Link>
+        </div>
+        <div className="text-sm font-medium text-ink tabular-nums">
+          {MONTH_NAMES[month]} {year}
+        </div>
+        <Link
+          href="/admin/classes?view=month"
+          className="text-[11px] uppercase tracking-[0.16em] text-brand-700 hover:underline"
+        >
+          This month
+        </Link>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.18em] text-muted mb-2">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d} className="text-center py-2">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {visibleDays.map((d) => {
+            const dayClasses = classesByWeekday.get(d.weekday) ?? [];
+            return (
+              <div
+                key={d.iso}
+                className={cn(
+                  "rounded-xl border min-h-[140px] p-2 flex flex-col gap-1.5",
+                  d.inMonth
+                    ? "bg-card border-hairline/50"
+                    : "bg-brand-50/20 border-hairline/30",
+                  d.isWeekend && d.inMonth && "bg-brand-50/30",
+                  d.isToday &&
+                    "border-navy-800/40 ring-2 ring-brand-300 ring-offset-0",
+                )}
+              >
+                <div
+                  className={cn(
+                    "text-xs tabular-nums font-semibold px-1",
+                    d.inMonth ? "text-ink" : "text-muted/60",
+                    d.isToday && "text-brand-700",
+                  )}
+                >
+                  {d.dayNum}
+                </div>
+                <div className="space-y-1 overflow-hidden">
+                  {dayClasses.slice(0, 3).map((c) => (
+                    <Link
+                      key={c.id}
+                      href={`/admin/classes/${c.id}`}
+                      className="block rounded-md px-1.5 py-1 text-[10px] leading-tight bg-brand-100 hover:bg-brand-200 transition-colors"
+                      title={`${c.name} · ${c.subject} · ${c.tutorFirst} ${c.tutorLast} · ${c.startTime ?? ""}-${c.endTime ?? ""}`}
+                    >
+                      <div className="font-medium text-ink truncate">
+                        {c.subject}
+                      </div>
+                      <div className="text-ink-soft truncate">
+                        {c.tutorFirst} {c.tutorLast}
+                      </div>
+                      <div className="text-ink-soft tabular-nums">
+                        {c.startTime
+                          ? formatTime(c.startTime)
+                          : ""}
+                      </div>
+                    </Link>
+                  ))}
+                  {dayClasses.length > 3 && (
+                    <div className="text-[10px] text-muted px-1">
+                      +{dayClasses.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleGrid({ rows }: { rows: ClassRow[] }) {
+  // Index classes by `${weekday}-${hour}` using their start hour.
+  type Cell = {
+    id: string;
+    name: string;
+    subject: string;
+    tutor: string;
+    startTime: string;
+    endTime: string;
+    spanHours: number;
+    enrolled: number;
+    capacity: number;
+  };
+  const cellByKey = new Map<string, Cell[]>();
+  const occupiedKeys = new Set<string>();
+  for (const c of rows) {
+    if (!c.isRecurring || c.weekday === null || !c.startTime || !c.endTime)
+      continue;
+    const startH = parseInt(c.startTime.slice(0, 2), 10);
+    const endH = parseInt(c.endTime.slice(0, 2), 10);
+    const span = Math.max(1, endH - startH);
+    const startKey = `${c.weekday}-${startH}`;
+    if (!cellByKey.has(startKey)) cellByKey.set(startKey, []);
+    cellByKey.get(startKey)!.push({
+      id: c.id,
+      name: c.name,
+      subject: c.subject,
+      tutor: `${c.tutorFirst} ${c.tutorLast}`,
+      startTime: c.startTime,
+      endTime: c.endTime,
+      spanHours: span,
+      enrolled: c.enrolled,
+      capacity: c.capacity,
+    });
+    for (let h = startH + 1; h < endH; h++) {
+      occupiedKeys.add(`${c.weekday}-${h}`);
+    }
+  }
+
+  // One-off / un-scheduled classes shown separately below the grid.
+  const unscheduled = rows.filter(
+    (c) => !c.isRecurring || c.weekday === null || !c.startTime || !c.endTime,
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] gap-1.5">
+        <div />
+        {WEEKDAYS_SCHEDULE.map((d) => (
+          <div
+            key={d.idx}
+            className="text-center py-2 text-[11px] uppercase tracking-[0.18em] text-muted"
+          >
+            {d.short}
+          </div>
+        ))}
+
+        {HOURS.map((h) => (
+          <ScheduleHourRow
+            key={h}
+            hour={h}
+            cellByKey={cellByKey}
+            occupiedKeys={occupiedKeys}
+          />
+        ))}
+      </div>
+
+      {unscheduled.length > 0 && (
+        <div className="border-t border-hairline/60 pt-4">
+          <div className="text-xs uppercase tracking-wide text-muted mb-2">
+            Without a recurring slot
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {unscheduled.map((c) => (
+              <Link
+                key={c.id}
+                href={`/admin/classes/${c.id}`}
+                className="rounded-lg border border-hairline/60 bg-card p-3 hover:border-brand-400 hover:bg-brand-50 transition-colors"
+              >
+                <div className="text-sm font-medium text-ink truncate">
+                  {c.name}
+                </div>
+                <div className="text-xs text-ink-soft truncate">
+                  {c.subject} · {c.tutorFirst} {c.tutorLast}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScheduleHourRow({
+  hour,
+  cellByKey,
+  occupiedKeys,
+}: {
+  hour: number;
+  cellByKey: Map<
+    string,
+    Array<{
+      id: string;
+      name: string;
+      subject: string;
+      tutor: string;
+      startTime: string;
+      endTime: string;
+      spanHours: number;
+      enrolled: number;
+      capacity: number;
+    }>
+  >;
+  occupiedKeys: Set<string>;
+}) {
+  return (
+    <>
+      <div className="text-[11px] tabular-nums text-muted text-right pr-2 pt-2">
+        {formatTime(hh(hour))}
+      </div>
+      {WEEKDAYS_SCHEDULE.map((d) => {
+        const key = `${d.idx}-${hour}`;
+        const cells = cellByKey.get(key) ?? [];
+        const isOccupied = occupiedKeys.has(key);
+        if (cells.length === 0 && isOccupied) {
+          // Spanned by a class starting in a previous hour — render nothing.
+          return <div key={key} className="h-16" />;
+        }
+        if (cells.length === 0) {
+          return (
+            <div
+              key={key}
+              className="h-16 rounded-md border border-hairline/40 bg-card/30"
+            />
+          );
+        }
+        return (
+          <div key={key} className="space-y-1">
+            {cells.map((c) => (
+              <Link
+                key={c.id}
+                href={`/admin/classes/${c.id}`}
+                className={cn(
+                  "block rounded-md border border-brand-300 bg-brand-100 px-2 py-1.5 hover:bg-brand-200 hover:border-brand-400 transition-colors overflow-hidden",
+                  c.spanHours > 1 && "min-h-[4rem]",
+                )}
+                style={
+                  c.spanHours > 1
+                    ? { height: `${c.spanHours * 4 + (c.spanHours - 1) * 0.375}rem` }
+                    : { height: "4rem" }
+                }
+                title={`${c.name} · ${c.subject} · ${c.tutor} · ${formatTime(c.startTime)}-${formatTime(c.endTime)}`}
+              >
+                <div className="text-[11px] font-semibold text-ink truncate">
+                  {c.subject}
+                </div>
+                <div className="text-[10px] text-ink-soft truncate">
+                  {c.tutor}
+                </div>
+                <div className="text-[10px] tabular-nums text-ink-soft mt-0.5">
+                  {formatTime(c.startTime)}–{formatTime(c.endTime)} ·{" "}
+                  {c.enrolled}/{c.capacity}
+                </div>
+              </Link>
+            ))}
+          </div>
+        );
+      })}
+    </>
   );
 }

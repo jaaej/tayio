@@ -85,10 +85,10 @@ function Header({ subtitle }: { subtitle?: string }) {
     <header className="rise">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Tutor feedback
+        Tutor Feedback
       </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-        {subtitle ? `Notes for ${subtitle}` : "Tutor feedback"}
+      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+        {subtitle ? `Notes for ${subtitle}` : "Tutor Feedback"}
       </h1>
     </header>
   );

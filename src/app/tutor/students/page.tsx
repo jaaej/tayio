@@ -12,7 +12,7 @@ export default async function TutorStudentsPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Your roster
         </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
           {students.length}{" "}
           {students.length === 1 ? "student" : "students"}
         </h1>
@@ -36,8 +36,8 @@ export default async function TutorStudentsPage() {
           className="p-0 overflow-hidden rise"
           style={{ animationDelay: "80ms" }}
         >
-          <div className="px-6 py-5 border-b border-hairline/60">
-            <div className="text-xl font-medium text-ink">All students</div>
+          <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
+            <div className="text-xl font-medium text-ink">All Students</div>
           </div>
           <ul className="divide-y divide-hairline/60">
             {students.map((s) => (
@@ -55,8 +55,7 @@ export default async function TutorStudentsPage() {
                       {s.firstName} {s.lastName}
                     </div>
                     <div className="text-sm text-muted mt-0.5 truncate">
-                      {[s.yearLevel, s.school].filter(Boolean).join(" · ") ||
-                        s.email}
+                      {s.yearLevel || s.email}
                     </div>
                   </div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-brand-700 shrink-0">

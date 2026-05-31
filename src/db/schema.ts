@@ -101,6 +101,7 @@ export const familyLinks = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     relationship: text("relationship").notNull().default("parent"),
+    isPrimaryContact: boolean("is_primary_contact").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.parentId, t.studentId] })],
@@ -125,12 +126,18 @@ export const classes = pgTable("classes", {
   capacity: integer("capacity").notNull().default(8),
   location: text("location"),
   onlineLink: text("online_link"),
+  lessonPlan: text("lesson_plan"),
   isRecurring: boolean("is_recurring").notNull().default(true),
   weekday: integer("weekday"),
   startTime: time("start_time"),
   endTime: time("end_time"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const deliveryModeEnum = pgEnum("delivery_mode", [
+  "in_person",
+  "online",
+]);
 
 export const enrollments = pgTable(
   "enrollments",
@@ -143,6 +150,8 @@ export const enrollments = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+    deliveryMode: deliveryModeEnum("delivery_mode"),
+    adminNotes: text("admin_notes"),
   },
   (t) => [primaryKey({ columns: [t.classId, t.studentId] })],
 );
@@ -220,6 +229,7 @@ export const homework = pgTable("homework", {
   attachmentUrl: text("attachment_url"),
   dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
   allowResubmission: boolean("allow_resubmission").notNull().default(false),
+  weekId: uuid("week_id").references((): any => subjectWeeks.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -456,6 +466,91 @@ export const dmReads = pgTable(
 
 export type DmThread = typeof dmThreads.$inferSelect;
 export type DmMessage = typeof dmMessages.$inferSelect;
+
+// --- Curriculum ---------------------------------------------------------
+
+export const terms = pgTable(
+  "terms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: integer("year").notNull(),
+    termNumber: integer("term_number").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("terms_year_term_idx").on(t.year, t.termNumber)],
+);
+
+export const subjectWeeks = pgTable(
+  "subject_weeks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    weekNumber: integer("week_number").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    videoUrl: text("video_url"),
+    bookletUrl: text("booklet_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subject_weeks_unique_idx").on(t.subjectId, t.termId, t.weekNumber),
+    index("subject_weeks_subject_idx").on(t.subjectId),
+    index("subject_weeks_term_idx").on(t.termId),
+  ],
+);
+
+export const classWeekOverrides = pgTable(
+  "class_week_overrides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    subjectWeekId: uuid("subject_week_id")
+      .notNull()
+      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
+    title: text("title"),
+    description: text("description"),
+    videoUrl: text("video_url"),
+    bookletUrl: text("booklet_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("class_week_overrides_unique_idx").on(t.classId, t.subjectWeekId),
+    index("class_week_overrides_class_idx").on(t.classId),
+  ],
+);
+
+export const studentWeekProgress = pgTable(
+  "student_week_progress",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    subjectWeekId: uuid("subject_week_id")
+      .notNull()
+      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
+    videoWatchedAt: timestamp("video_watched_at", { withTimezone: true }),
+    bookletOpenedAt: timestamp("booklet_opened_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.subjectWeekId] })],
+);
+
+export type Term = typeof terms.$inferSelect;
+export type SubjectWeek = typeof subjectWeeks.$inferSelect;
+export type ClassWeekOverride = typeof classWeekOverrides.$inferSelect;
+export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
+
+// ------------------------------------------------------------------------
 
 export const profilesRelations = relations(profiles, ({ many }) => ({
   parentLinks: many(familyLinks, { relationName: "parent" }),

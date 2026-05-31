@@ -33,10 +33,10 @@ export default async function LessonRecapPage({
     <div className="space-y-10">
       <div className="rise">
         <Link
-          href="/student/lessons"
-          className="text-xs text-brand-700 hover:underline"
+          href="/student/resources"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
         >
-          ← All lessons
+          ← All Resources
         </Link>
       </div>
 

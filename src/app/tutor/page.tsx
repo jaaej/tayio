@@ -85,7 +85,7 @@ export default async function TutorDashboard() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Today
           </h1>
         </div>
@@ -140,9 +140,8 @@ export default async function TutorDashboard() {
         {/* CALENDAR — large left block */}
         <Card className="p-0 overflow-hidden">
           <SectionHeader
-            title="This week"
-            right={`${weekLessons.length} lesson${weekLessons.length === 1 ? "" : "s"}`}
-            link={{ href: "/tutor/classes", label: "Classes" }}
+            title="This Week"
+            link={{ href: "/tutor/timetable", label: "Open timetable" }}
           />
           <div className="p-5 bg-gradient-to-b from-brand-50/40 to-transparent">
             <MiniWeekCalendar events={events} weekStart={weekStart} />
@@ -152,7 +151,7 @@ export default async function TutorDashboard() {
         {/* TODAY'S SCHEDULE — right column, matches calendar height */}
         <Card className="p-0 overflow-hidden flex flex-col">
           <SectionHeader
-            title="Today's schedule"
+            title="Today's Schedule"
             right={
               todayLessons.length === 0
                 ? "Nothing"
@@ -204,7 +203,7 @@ export default async function TutorDashboard() {
         style={{ animationDelay: "120ms" }}
       >
         <SectionHeader
-          title="Submissions to mark"
+          title="Submissions To Mark"
           right={
             submissions.length > 0
               ? `${pendingMark} awaiting`
@@ -216,47 +215,80 @@ export default async function TutorDashboard() {
           <Empty>No new submissions waiting — you're up to date.</Empty>
         ) : (
           <div className="p-5 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {submissions.map((s) => (
-              <Link
-                key={`${s.homeworkId}-${s.studentId}`}
-                href={`/tutor/homework/${s.homeworkId}`}
-                className="group block rounded-2xl border border-amber-200/80 bg-amber-50/70 p-5 transition-all hover:bg-amber-50 hover:border-amber-300 hover:shadow-[0_10px_28px_-16px_rgba(180,83,9,0.28)] hover:-translate-y-[1px]"
-              >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-[11px] font-medium shrink-0">
-                        {s.firstName.charAt(0)}
-                        {s.lastName.charAt(0)}
-                      </div>
-                      <div className="text-base font-medium text-ink truncate">
-                        {s.firstName} {s.lastName}
+            {submissions.map((s) => {
+              const isLate = s.status === "late";
+              // submission status only — anything else is "pending" (no submission yet)
+              const isSubmitted = s.status === "submitted";
+              const tone = isLate
+                ? {
+                    border: "border-amber-400 bg-amber-50/70 hover:bg-amber-100/70 hover:border-amber-500",
+                    avatar: "bg-amber-600",
+                    footer: "border-amber-300/70 text-amber-900/80",
+                    cta: "text-amber-800",
+                  }
+                : isSubmitted
+                  ? {
+                      border:
+                        "border-emerald-400 bg-emerald-50/60 hover:bg-emerald-100/60 hover:border-emerald-500",
+                      avatar: "bg-emerald-600",
+                      footer: "border-emerald-300/70 text-emerald-900/80",
+                      cta: "text-emerald-800",
+                    }
+                  : {
+                      border:
+                        "border-brand-300 bg-brand-50/60 hover:bg-brand-100/60 hover:border-brand-400",
+                      avatar: "bg-brand-600",
+                      footer: "border-brand-300/70 text-brand-900/80",
+                      cta: "text-brand-700",
+                    };
+              return (
+                <Link
+                  key={`${s.homeworkId}-${s.studentId}`}
+                  href={`/tutor/homework/${s.homeworkId}`}
+                  className={`group block rounded-2xl border-2 p-5 transition-all hover:shadow-[0_10px_28px_-16px_rgba(29,41,81,0.28)] hover:-translate-y-[1px] ${tone.border}`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`h-8 w-8 rounded-full text-white flex items-center justify-center text-[11px] font-semibold shrink-0 ${tone.avatar}`}
+                        >
+                          {s.firstName.charAt(0)}
+                          {s.lastName.charAt(0)}
+                        </div>
+                        <div className="text-base font-medium text-ink truncate">
+                          {s.firstName} {s.lastName}
+                        </div>
                       </div>
                     </div>
+                    <StatusBadge
+                      label={HOMEWORK_STATUS_LABEL[s.status] ?? s.status}
+                      className={HOMEWORK_STATUS_STYLE[s.status]}
+                    />
                   </div>
-                  <StatusBadge
-                    label={HOMEWORK_STATUS_LABEL[s.status] ?? s.status}
-                    className={HOMEWORK_STATUS_STYLE[s.status]}
-                  />
-                </div>
-                <div className="text-sm text-ink line-clamp-2 leading-relaxed">
-                  {s.title}
-                </div>
-                <div className="mt-3 pt-3 border-t border-amber-200/70 flex items-center justify-between text-xs text-amber-900/70">
-                  <span className="truncate">
-                    {s.className ?? "Individual"}
-                  </span>
-                  <span className="shrink-0">
-                    {s.submittedAt
-                      ? `submitted ${relativeTime(s.submittedAt)}`
-                      : ""}
-                  </span>
-                </div>
-                <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-amber-700 group-hover:text-amber-800">
-                  Mark →
-                </div>
-              </Link>
-            ))}
+                  <div className="text-sm text-ink line-clamp-2 leading-relaxed">
+                    {s.title}
+                  </div>
+                  <div
+                    className={`mt-3 pt-3 border-t flex items-center justify-between text-xs ${tone.footer}`}
+                  >
+                    <span className="truncate">
+                      {s.className ?? "Individual"}
+                    </span>
+                    <span className="shrink-0">
+                      {s.submittedAt
+                        ? `submitted ${relativeTime(s.submittedAt)}`
+                        : ""}
+                    </span>
+                  </div>
+                  <div
+                    className={`mt-3 text-xs uppercase tracking-[0.16em] font-semibold ${tone.cta}`}
+                  >
+                    Mark →
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -268,7 +300,7 @@ export default async function TutorDashboard() {
       >
         <Card className="p-0 overflow-hidden">
           <SectionHeader
-            title="Lessons missing a note"
+            title="Lessons Missing A Note"
             right={
               missingNotes.length > 0
                 ? `${missingNotes.length} in last 7 days`
@@ -307,7 +339,7 @@ export default async function TutorDashboard() {
         </Card>
 
         <Card className="p-0 overflow-hidden">
-          <SectionHeader title="Recent notes" />
+          <SectionHeader title="Recent Notes" />
           {recentNotes.length === 0 ? (
             <Empty>No notes yet.</Empty>
           ) : (
@@ -357,9 +389,9 @@ function SectionHeader({
   link?: { href: string; label: string };
 }) {
   return (
-    <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
+    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-xl font-medium text-ink">{title}</div>
+        <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
         {eyebrow && (
           <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
             {eyebrow}
@@ -369,12 +401,12 @@ function SectionHeader({
       {link ? (
         <Link
           href={link.href}
-          className="text-sm text-brand-700 hover:underline shrink-0"
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-brand-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-brand-700 transition-colors"
         >
           {link.label} →
         </Link>
       ) : right ? (
-        <span className="text-sm uppercase tracking-[0.18em] text-muted shrink-0">
+        <span className="text-sm uppercase tracking-[0.18em] text-muted font-medium shrink-0">
           {right}
         </span>
       ) : null}

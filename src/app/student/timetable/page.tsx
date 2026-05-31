@@ -33,6 +33,10 @@ export default async function TimetablePage({
   searchParams: SearchParams;
 }) {
   const user = await requireRole("student");
+  const firstName =
+    (user.user_metadata?.first_name as string | undefined) ??
+    user.email?.split("@")[0] ??
+    "Your";
   const params = await searchParams;
   const { year, month } = parseMonthParam(params.month);
   const { fromIso, toIso } = monthBounds(year, month);
@@ -100,7 +104,7 @@ export default async function TimetablePage({
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Timetable
           </h1>
         </div>
@@ -144,6 +148,14 @@ export default async function TimetablePage({
         className="p-0 overflow-hidden rise"
         style={{ animationDelay: "80ms" } as React.CSSProperties}
       >
+        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
+          <div className="text-xl font-medium text-ink">
+            {firstName}'s schedule
+          </div>
+          <span className="text-sm uppercase tracking-[0.18em] text-muted">
+            {lessons.length} lesson{lessons.length === 1 ? "" : "s"}
+          </span>
+        </div>
         <div className="p-5 lg:p-6 bg-gradient-to-b from-brand-50/30 to-transparent">
           <MonthCalendar
             year={year}

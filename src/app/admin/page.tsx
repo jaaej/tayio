@@ -87,7 +87,7 @@ export default async function AdminDashboard() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             Operations · {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Dashboard
           </h1>
         </div>
@@ -115,13 +115,11 @@ export default async function AdminDashboard() {
         <StatTile
           label="Flagged students"
           value={atRisk.length.toString()}
-          sub="With pending homework backlog"
           accent={atRisk.length > 0 ? "warn" : "muted"}
         />
         <StatTile
           label="Notes pending"
           value={stats.notesPending.toString()}
-          sub="Completed lessons missing notes"
           accent={stats.notesPending > 0 ? "warn" : "muted"}
           href="/admin/classes"
         />
@@ -137,7 +135,7 @@ export default async function AdminDashboard() {
           {/* Needs your attention */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="Needs your attention"
+              title="Needs Your Attention"
               right={
                 attentionItems > 0
                   ? `${attentionItems} item${attentionItems === 1 ? "" : "s"}`
@@ -197,7 +195,7 @@ export default async function AdminDashboard() {
           {/* This week */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="This week"
+              title="This Week"
               link={{ href: "/admin/classes", label: "All classes" }}
             />
             <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
@@ -257,7 +255,7 @@ export default async function AdminDashboard() {
 
           {/* Recent activity */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Recent activity" />
+            <SectionHeader title="Recent Activity" />
             {activity.length === 0 ? (
               <Empty>No enrolments, payments, or announcements yet.</Empty>
             ) : (
@@ -342,7 +340,7 @@ export default async function AdminDashboard() {
 
           {/* Jump to */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Jump to" />
+            <SectionHeader title="Jump To" />
             <div className="grid grid-cols-2 divide-x divide-y divide-hairline/60">
               <JumpLink href="/admin/users" label="Users" />
               <JumpLink href="/admin/classes" label="Classes" />
@@ -356,7 +354,7 @@ export default async function AdminDashboard() {
           {/* Today’s lessons preview */}
           {weekLessons.filter((l) => l.date === isoDate(now)).length > 0 && (
             <Card className="p-0 overflow-hidden">
-              <SectionHeader title="Today’s lessons" />
+              <SectionHeader title="Today's Lessons" />
               <div className="divide-y divide-hairline/60">
                 {weekLessons
                   .filter((l) => l.date === isoDate(now))
@@ -404,9 +402,9 @@ function SectionHeader({
   link?: { href: string; label: string };
 }) {
   return (
-    <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
+    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-xl font-medium text-ink">{title}</div>
+        <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
         {eyebrow && (
           <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
             {eyebrow}

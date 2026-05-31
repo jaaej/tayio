@@ -32,17 +32,16 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-10">
-      <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          User management
-        </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Everyone with portal access.
+      <header className="rise flex items-end justify-between gap-4">
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+          Users
         </h1>
-        <p className="mt-3 text-sm text-ink-soft max-w-xl">
-          Create accounts for students, parents, tutors, and fellow admins.
-          Deactivating an account revokes their login until you re-enable it.
-        </p>
+        <Link
+          href="/admin/leaving"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        >
+          Students leaving →
+        </Link>
       </header>
 
       <section className="grid sm:grid-cols-4 gap-4 rise">

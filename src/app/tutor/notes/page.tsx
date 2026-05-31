@@ -11,10 +11,10 @@ export default async function TutorNotesPage() {
     <div className="space-y-6">
       <header className="rise">
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Lesson notes
+          Lesson Notes
         </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Your most recent notes
+        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+          Your Most Recent Notes
         </h1>
         <p className="mt-3 text-sm text-ink-soft max-w-xl">
           Notes are written from the lesson page after each class.

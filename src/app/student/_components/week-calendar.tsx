@@ -7,7 +7,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const PX_PER_HOUR = 44;
 
 const STATUS_BLOCK_STYLE: Record<string, string> = {
-  upcoming: "bg-brand-400/90 text-white border-brand-600",
+  upcoming: "bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100/90 text-white border-brand-600",
   completed: "bg-brand-100 text-navy-800 border-brand-300",
   cancelled: "bg-rose-100 text-rose-900 border-rose-300 line-through",
   missed: "bg-amber-100 text-amber-900 border-amber-300",
@@ -122,7 +122,7 @@ export function WeekCalendar({
                   return (
                     <Link
                       key={l.id}
-                      href={`/student/lessons/${l.id}`}
+                      href={`/student/resources/${l.id}`}
                       className={cn(
                         "absolute left-1 right-1 rounded-md border px-2 py-1 text-[11px] leading-tight overflow-hidden hover:shadow-md transition-shadow",
                         STATUS_BLOCK_STYLE[l.status] ?? STATUS_BLOCK_STYLE.upcoming,

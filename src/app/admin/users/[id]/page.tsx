@@ -77,7 +77,7 @@ export default async function UserDetailPage({
       <div>
         <Link
           href="/admin/users"
-          className="text-xs uppercase tracking-[0.16em] text-brand-700 hover:text-brand-600"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
         >
           ← All users
         </Link>

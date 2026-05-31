@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 
 export type CalendarEvent = {
   /** ISO date YYYY-MM-DD */
@@ -172,39 +173,53 @@ export function MiniWeekCalendar({
 }
 
 function TimeBlock({ event }: { event: CalendarEvent }) {
+  // For lessons, use subject-derived colors; otherwise keep the kind-based palette.
+  const useSubjectColor = event.kind === "lesson";
+  const tokens = useSubjectColor
+    ? getAccentTokens(colorFamilyForSubject(event.label))
+    : null;
+
+  const style = tokens
+    ? {
+        backgroundColor: tokens.pillBg,
+        color: tokens.pillText,
+      }
+    : undefined;
+
   const inner = (
     <div
       className={cn(
-        "relative rounded-md pl-2.5 pr-1.5 py-1.5 overflow-hidden",
-        KIND_BG[event.kind],
-        "hover:translate-y-[-1px] transition-transform",
+        "relative rounded-md pl-2.5 pr-1.5 py-1.5 overflow-hidden hover:translate-y-[-1px] transition-transform",
+        !tokens && KIND_BG[event.kind],
       )}
+      style={style}
     >
       <span
         className={cn(
-          "absolute left-0 top-1 bottom-1 w-[2px] rounded-full",
-          KIND_BAR[event.kind],
+          "absolute left-0 top-1 bottom-1 w-[3px] rounded-full",
+          !tokens && KIND_BAR[event.kind],
         )}
+        style={tokens ? { backgroundColor: tokens.arrow } : undefined}
         aria-hidden
       />
       <div
         className={cn(
-          "text-[10px] font-semibold tabular-nums leading-tight",
-          KIND_LABEL[event.kind],
+          "text-[10px] font-bold tabular-nums leading-tight",
+          !tokens && KIND_LABEL[event.kind],
         )}
       >
         {event.time ? (
           formatTime12(event.time)
         ) : (
-          <span className="text-[9px] uppercase tracking-[0.16em] font-medium">
+          <span className="text-[9px] uppercase tracking-[0.16em] font-semibold">
             {KIND_TAG[event.kind]}
           </span>
         )}
       </div>
       <div
         className={cn(
-          "mt-0.5 text-[10px] font-medium leading-tight line-clamp-2",
-          KIND_LABEL[event.kind],
+          "mt-0.5 text-[10px] font-semibold leading-tight line-clamp-2",
+          !tokens && KIND_LABEL[event.kind],
         )}
       >
         {event.label}

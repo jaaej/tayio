@@ -49,7 +49,7 @@ export default async function StudentSubjectsIndex() {
           {subjects.map((s) => (
             <SubjectCard
               key={s.classId}
-              href={`/student/subjects/${s.classId}`}
+              href={`/student/subjects/${s.subjectId}`}
               subject={s.subjectName}
               meta={`${s.tutorFirstName} ${s.tutorLastName} · ${s.yearLevel ?? ""}`}
               accent={colorForSubject(s.subjectName)}

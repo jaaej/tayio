@@ -31,7 +31,7 @@ export default async function ParentPaymentsPage() {
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
           Payments
         </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
           Invoices
         </h1>
       </header>
@@ -43,19 +43,16 @@ export default async function ParentPaymentsPage() {
         <StatTile
           label="Outstanding"
           value={formatMoney(outstanding)}
-          sub={outstanding > 0 ? "Awaiting payment" : "All paid up"}
           accent={outstanding > 0 ? "warn" : "success"}
         />
         <StatTile
           label="Paid"
           value={paid.toString()}
-          sub="Settled invoices"
           accent="success"
         />
         <StatTile
           label="Overdue"
           value={overdue.toString()}
-          sub={overdue === 0 ? "None overdue" : "Past due date"}
           accent={overdue === 0 ? "success" : "warn"}
         />
       </section>
@@ -84,7 +81,7 @@ export default async function ParentPaymentsPage() {
           </Card>
         ) : (
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="All invoices" />
+            <SectionHeader title="All Invoices" />
             <div className="divide-y divide-hairline/60">
               {rows.map((r) => {
                 const studentName = [r.studentFirstName, r.studentLastName]

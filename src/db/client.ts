@@ -8,10 +8,21 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set");
 }
 
-// `prepare: false` is required by the Supabase transaction pooler.
-// `max: 10` caps the per-server connection pool — important for the dev
-// hot-reload loop where stale connections can stack up.
-const client = postgres(connectionString, { prepare: false, max: 10 });
+// In Next.js dev mode, hot-reload re-evaluates this module and creates a
+// fresh postgres client each time, leaking connections until the DB hits its
+// max-clients ceiling. Cache the client on globalThis so HMR reuses it.
+type GlobalWithDb = typeof globalThis & {
+  __pgClient?: ReturnType<typeof postgres>;
+};
+const globalForDb = globalThis as GlobalWithDb;
+
+const client =
+  globalForDb.__pgClient ??
+  postgres(connectionString, { prepare: false, max: 10 });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.__pgClient = client;
+}
 
 export const db = drizzle(client, { schema });
 export type DB = typeof db;

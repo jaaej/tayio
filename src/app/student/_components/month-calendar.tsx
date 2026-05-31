@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/format";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -281,25 +282,24 @@ function LessonChip({
   lesson: MonthLesson;
   dimmed: boolean;
 }) {
-  const tone = lessonTone(lesson.status, lesson.date);
+  const tone = lessonTone(lesson.status, lesson.date, lesson.subjectName);
   return (
     <div
       className={cn(
         "relative rounded-lg pl-2.5 pr-2 py-1.5 leading-tight overflow-hidden",
-        tone.bg,
         dimmed && "opacity-50",
       )}
+      style={{ backgroundColor: tone.bg, color: tone.text }}
     >
       <span
         aria-hidden
-        className={cn("absolute left-0 top-1 bottom-1 w-[3px] rounded-full", tone.bar)}
+        className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
+        style={{ backgroundColor: tone.bar }}
       />
-      <div
-        className={cn("text-[11px] font-semibold tabular-nums", tone.text)}
-      >
+      <div className="text-[11px] font-bold tabular-nums">
         {formatTime(lesson.startTime)}
       </div>
-      <div className={cn("mt-0.5 text-xs truncate font-medium", tone.text)}>
+      <div className="mt-0.5 text-xs truncate font-semibold">
         {lesson.subjectName}
       </div>
     </div>
@@ -350,41 +350,24 @@ function HomeworkChip({
   );
 }
 
-function lessonTone(status: MonthLesson["status"], dateIso: string) {
-  if (status === "completed") {
-    return {
-      bg: "bg-emerald-100",
-      text: "text-emerald-800",
-      bar: "bg-emerald-500",
-    };
-  }
+function lessonTone(
+  status: MonthLesson["status"],
+  dateIso: string,
+  subjectName: string,
+) {
   if (status === "cancelled" || status === "missed") {
-    return {
-      bg: "bg-rose-100",
-      text: "text-rose-700",
-      bar: "bg-rose-500",
-    };
+    return { bg: "#fecdd3", text: "#881337", bar: "#e11d48" };
   }
   if (status === "rescheduled" || status === "makeup") {
-    return {
-      bg: "bg-amber-100",
-      text: "text-amber-800",
-      bar: "bg-amber-500",
-    };
+    return { bg: "#fde68a", text: "#78350f", bar: "#d97706" };
   }
-  // upcoming — soft past dimming if the date has already gone
+  // upcoming / completed — colour by subject
+  const t = getAccentTokens(colorFamilyForSubject(subjectName));
   if (dateIso < isoLocal(new Date())) {
-    return {
-      bg: "bg-brand-100/60",
-      text: "text-ink-soft",
-      bar: "bg-brand-400",
-    };
+    // Past — keep subject hue but mute it a touch via 0.65 alpha overlay; simplest: use bgFrom which is a softer shade.
+    return { bg: t.bgTo, text: t.meta, bar: t.arrow };
   }
-  return {
-    bg: "bg-brand-100",
-    text: "text-brand-800",
-    bar: "bg-brand-600",
-  };
+  return { bg: t.pillBg, text: t.pillText, bar: t.arrow };
 }
 
 function navigateMonth(year: number, month: number, delta: number) {

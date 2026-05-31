@@ -26,7 +26,7 @@ export function CardLabel({
   return (
     <div
       className={cn(
-        "text-[11px] uppercase tracking-[0.16em] text-muted font-medium",
+        "text-sm uppercase tracking-[0.14em] text-ink font-semibold",
         className,
       )}
     >

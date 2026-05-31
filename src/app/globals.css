@@ -71,6 +71,9 @@
 
 html {
   color: var(--foreground);
+  /* Bump base font slightly larger than Tailwind's 16px default
+   * so every text-xs / text-sm / text-base scales up proportionally. */
+  font-size: 17px;
 }
 
 /*
@@ -82,6 +85,8 @@ html {
 body {
   color: var(--foreground);
   font-family: var(--font-sans);
+  /* Heavier baseline weight — Poppins reads cleaner at 450 than 400 here. */
+  font-weight: 450;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

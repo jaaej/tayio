@@ -40,16 +40,16 @@ export function StatTile({
 
   const body = (
     <>
-      <div className="text-[12px] uppercase tracking-[0.18em] text-muted">
+      <div className="text-sm uppercase tracking-[0.16em] text-ink font-semibold">
         {label}
       </div>
       <div
-        className={`mt-2 text-4xl font-medium tabular-nums truncate ${ACCENT_CLASS[accent]}`}
+        className={`mt-2 text-4xl font-semibold tabular-nums truncate ${ACCENT_CLASS[accent]}`}
       >
         {value}
       </div>
       {sub && (
-        <div className="text-[14px] text-muted truncate mt-1">{sub}</div>
+        <div className="text-base text-ink-soft truncate mt-1">{sub}</div>
       )}
     </>
   );

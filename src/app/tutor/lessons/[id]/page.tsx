@@ -36,11 +36,11 @@ export default async function LessonDetailPage({
       <header className="rise space-y-2">
         <Link
           href="/tutor"
-          className="text-[11px] uppercase tracking-[0.16em] text-muted hover:text-ink"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
         >
           ← Today
         </Link>
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
           {lesson.className}
         </h1>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
@@ -55,7 +55,7 @@ export default async function LessonDetailPage({
 
       {/* Attendance */}
       <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "40ms" }}>
-        <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between">
+        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between">
           <div className="text-xl font-medium text-ink">Attendance</div>
           <span className="text-sm uppercase tracking-[0.18em] text-muted">
             {roster.length} enrolled

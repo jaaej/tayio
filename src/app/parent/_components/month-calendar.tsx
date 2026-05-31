@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/format";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import type { MonthLessonRow } from "../_data";
+import type { AvailableSlot } from "../_lib/availability";
+
+export type CalendarMode = "view" | "pick-lesson" | "pick-slot";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -41,12 +45,18 @@ export function MonthCalendar({
   lessons,
   basePath,
   childId,
+  mode = "view",
+  availableSlots = [],
+  selectedLessonId = null,
 }: {
   year: number;
   month: number;
   lessons: MonthLessonRow[];
   basePath: string;
   childId: string | null;
+  mode?: CalendarMode;
+  availableSlots?: AvailableSlot[];
+  selectedLessonId?: string | null;
 }) {
   const firstOfMonth = new Date(year, month, 1);
   const firstDow = firstOfMonth.getDay(); // 0=Sun..6=Sat
@@ -61,6 +71,12 @@ export function MonthCalendar({
     byDate.get(l.date)!.push(l);
   }
 
+  const slotsByDate = new Map<string, AvailableSlot[]>();
+  for (const s of availableSlots) {
+    if (!slotsByDate.has(s.date)) slotsByDate.set(s.date, []);
+    slotsByDate.get(s.date)!.push(s);
+  }
+
   const days: {
     iso: string;
     dayNum: number;
@@ -68,6 +84,7 @@ export function MonthCalendar({
     isToday: boolean;
     isWeekend: boolean;
     lessons: MonthLessonRow[];
+    slots: AvailableSlot[];
   }[] = [];
 
   for (let i = 0; i < 42; i++) {
@@ -81,6 +98,7 @@ export function MonthCalendar({
       isToday: iso === todayIso,
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
       lessons: byDate.get(iso) ?? [],
+      slots: slotsByDate.get(iso) ?? [],
     });
   }
 
@@ -101,14 +119,18 @@ export function MonthCalendar({
     const params = new URLSearchParams();
     params.set("month", monthKey(m.year, m.month));
     if (childId) params.set("child", childId);
+    if (mode === "pick-lesson") params.set("reschedule", "pick");
+    if (mode === "pick-slot" && selectedLessonId) {
+      params.set("reschedule", selectedLessonId);
+    }
     return `${basePath}?${params.toString()}`;
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-4">
-          <h2 className="text-3xl lg:text-4xl font-medium text-ink tabular-nums">
+          <h2 className="text-2xl lg:text-3xl font-medium text-ink tabular-nums">
             {MONTH_NAMES[month]} {year}
           </h2>
           <Link
@@ -122,14 +144,14 @@ export function MonthCalendar({
           <Link
             href={navBase(prev)}
             aria-label="Previous month"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-xl border border-hairline/60 bg-card text-xl text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={navBase(next)}
             aria-label="Next month"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-xl border border-hairline/60 bg-card text-xl text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
           >
             ›
           </Link>
@@ -153,15 +175,19 @@ export function MonthCalendar({
             childId={childId}
             year={year}
             month={month}
+            mode={mode}
+            selectedLessonId={selectedLessonId}
           />
         ))}
       </div>
 
-      <div className="flex items-center gap-5 pt-3 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
+      <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
         <LegendDot color="bg-brand-600" label="Lesson" />
         <LegendDot color="bg-amber-500" label="Rescheduled" />
         <LegendDot color="bg-rose-500" label="Cancelled" />
-        <LegendDot color="bg-ink-soft/30" label="Past" />
+        {mode === "pick-slot" && (
+          <LegendDot color="bg-emerald-500" label="Available — click to move" />
+        )}
       </div>
     </div>
   );
@@ -173,6 +199,8 @@ function DayCell({
   childId,
   year,
   month,
+  mode,
+  selectedLessonId,
 }: {
   day: {
     iso: string;
@@ -181,16 +209,19 @@ function DayCell({
     isToday: boolean;
     isWeekend: boolean;
     lessons: MonthLessonRow[];
+    slots: AvailableSlot[];
   };
   basePath: string;
   childId: string | null;
   year: number;
   month: number;
+  mode: CalendarMode;
+  selectedLessonId: string | null;
 }) {
   return (
     <div
       className={cn(
-        "min-h-[150px] lg:min-h-[170px] xl:min-h-[190px] rounded-xl border flex flex-col transition-colors",
+        "min-h-[140px] lg:min-h-[156px] xl:min-h-[172px] rounded-xl border flex flex-col transition-colors",
         day.isToday
           ? "border-navy-800/40 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_18px_-12px_rgba(29,41,81,0.3)]"
           : day.inMonth
@@ -202,7 +233,7 @@ function DayCell({
     >
       <div
         className={cn(
-          "px-3 pt-2.5 pb-1.5 flex items-center justify-between",
+          "px-2.5 pt-1.5 pb-1 flex items-center justify-between",
           day.isToday
             ? "text-navy-800"
             : day.inMonth
@@ -220,7 +251,7 @@ function DayCell({
         )}
       </div>
 
-      <div className="px-2 pb-2 flex-1 space-y-1.5">
+      <div className="px-1.5 pb-1.5 flex-1 space-y-1">
         {day.lessons.map((l) => (
           <LessonChip
             key={l.id}
@@ -229,11 +260,40 @@ function DayCell({
             childId={childId}
             year={year}
             month={month}
-            dimmed={!day.inMonth}
+            dimmed={!day.inMonth || (mode === "pick-slot" && l.id !== selectedLessonId)}
+            mode={mode}
+            isSelected={l.id === selectedLessonId}
           />
         ))}
+        {mode === "pick-slot" &&
+          day.inMonth &&
+          day.slots.map((s, i) => (
+            <SlotChip key={`${s.tutorId}-${s.startTime}-${i}`} slot={s} />
+          ))}
       </div>
     </div>
+  );
+}
+
+function SlotChip({ slot }: { slot: AvailableSlot }) {
+  const value = `${slot.date}|${slot.startTime}|${slot.endTime}|${slot.tutorId}`;
+  return (
+    <button
+      type="submit"
+      name="slot"
+      value={value}
+      className="block w-full text-left rounded-md px-1.5 py-1 leading-tight overflow-hidden transition-all bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 hover:border-emerald-400 hover:-translate-y-[1px] cursor-pointer"
+    >
+      <div className="text-[11px] font-semibold tabular-nums text-emerald-800">
+        {formatTime(slot.startTime)}
+      </div>
+      <div className="mt-0.5 text-xs truncate font-medium text-emerald-900">
+        {slot.tutorName}
+        {slot.isOriginalTutor && (
+          <span className="ml-1 text-[10px] font-normal opacity-70">·same</span>
+        )}
+      </div>
+    </button>
   );
 }
 
@@ -244,6 +304,8 @@ function LessonChip({
   year,
   month,
   dimmed,
+  mode,
+  isSelected,
 }: {
   lesson: MonthLessonRow;
   basePath: string;
@@ -251,6 +313,8 @@ function LessonChip({
   year: number;
   month: number;
   dimmed: boolean;
+  mode: CalendarMode;
+  isSelected: boolean;
 }) {
   const params = new URLSearchParams();
   params.set("reschedule", lesson.id);
@@ -258,51 +322,64 @@ function LessonChip({
   if (childId) params.set("child", childId);
   const href = `${basePath}?${params.toString()}`;
 
-  const tone = toneFor(lesson.status);
+  const tone = toneFor(lesson.status, lesson.subjectName);
   const past = isPast(lesson.date);
 
+  const interactive = mode !== "pick-slot";
+  const baseClass = cn(
+    "block rounded-md px-1.5 py-1 leading-tight overflow-hidden transition-transform",
+    interactive && "hover:translate-y-[-1px]",
+    dimmed && "opacity-40",
+    isSelected && "ring-2 ring-brand-500 ring-offset-1",
+  );
+  const style = past
+    ? { backgroundColor: "rgba(214,222,244,0.4)", color: "var(--ink-soft)" }
+    : { backgroundColor: tone.bg, color: tone.text };
+
+  if (!interactive) {
+    return (
+      <div className={baseClass} style={style} aria-disabled>
+        <ChipInner lesson={lesson} />
+      </div>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      className={cn(
-        "block rounded-lg px-2 py-1.5 leading-tight overflow-hidden transition-transform hover:translate-y-[-1px]",
-        past ? "bg-brand-50/60 text-ink-soft" : tone.bg,
-        dimmed && "opacity-50",
-      )}
-    >
-      <div
-        className={cn(
-          "text-[11px] font-semibold tabular-nums",
-          past ? "text-ink-soft" : tone.text,
-        )}
-      >
-        {formatTime(lesson.startTime)}
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 text-xs truncate font-medium",
-          past ? "text-ink-soft" : tone.text,
-        )}
-      >
-        {lesson.subjectName}
-      </div>
+    <Link href={href} className={baseClass} style={style}>
+      <ChipInner lesson={lesson} />
     </Link>
   );
 }
 
-function toneFor(status: MonthLessonRow["status"]): { bg: string; text: string } {
+function ChipInner({ lesson }: { lesson: MonthLessonRow }) {
+  return (
+    <>
+      <div className="text-[11px] font-bold tabular-nums">
+        {formatTime(lesson.startTime)}
+      </div>
+      <div className="mt-0.5 text-xs truncate font-semibold">
+        {lesson.subjectName}
+      </div>
+    </>
+  );
+}
+
+function toneFor(
+  status: MonthLessonRow["status"],
+  subjectName: string,
+): { bg: string; text: string } {
+  // Special statuses keep their semantic colour (cancelled = red, rescheduled = amber, etc.)
   switch (status) {
     case "rescheduled":
     case "makeup":
-      return { bg: "bg-amber-50", text: "text-amber-800" };
+      return { bg: "#fde68a", text: "#78350f" };
     case "cancelled":
     case "missed":
-      return { bg: "bg-rose-50", text: "text-rose-700" };
-    case "completed":
-      return { bg: "bg-emerald-50", text: "text-emerald-800" };
-    case "upcoming":
-    default:
-      return { bg: "bg-brand-50", text: "text-brand-700" };
+      return { bg: "#fecdd3", text: "#881337" };
+    default: {
+      const t = getAccentTokens(colorFamilyForSubject(subjectName));
+      return { bg: t.pillBg, text: t.pillText };
+    }
   }
 }
 

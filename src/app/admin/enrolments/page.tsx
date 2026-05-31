@@ -48,6 +48,7 @@ export default async function EnrolmentsPage({
     lastName: string;
     email: string;
     yearLevel: string | null;
+    school: string | null;
     enrolledAt: Date;
     withdrawnAt: Date | null;
   }[] = [];
@@ -67,6 +68,7 @@ export default async function EnrolmentsPage({
         lastName: student.lastName,
         email: student.email,
         yearLevel: student.yearLevel,
+        school: student.school,
         enrolledAt: enrollments.enrolledAt,
         withdrawnAt: enrollments.withdrawnAt,
       })
@@ -95,10 +97,10 @@ export default async function EnrolmentsPage({
     <div className="space-y-10">
       <header className="rise">
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Enrolment management
+          Enrolment Management
         </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Move students in and out of classes.
+        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+          Move Students In and Out of Classes
         </h1>
       </header>
 
@@ -150,6 +152,7 @@ export default async function EnrolmentsPage({
                         <TH>Student</TH>
                         <TH>Email</TH>
                         <TH>Year</TH>
+                        <TH>School</TH>
                         <TH>Enrolled</TH>
                         <TH>Status</TH>
                         <TH className="text-right">Actions</TH>
@@ -158,7 +161,7 @@ export default async function EnrolmentsPage({
                     <TBody>
                       {enrolled.length === 0 && (
                         <TR>
-                          <TD colSpan={6} className="text-center text-muted py-6">
+                          <TD colSpan={7} className="text-center text-muted py-6">
                             No students enrolled yet.
                           </TD>
                         </TR>
@@ -172,6 +175,7 @@ export default async function EnrolmentsPage({
                           <TD className="text-ink-soft">
                             {e.yearLevel ? `Yr ${e.yearLevel}` : "—"}
                           </TD>
+                          <TD className="text-ink-soft">{e.school || "—"}</TD>
                           <TD className="text-ink-soft text-xs">
                             {new Date(e.enrolledAt).toLocaleDateString("en-AU")}
                           </TD>

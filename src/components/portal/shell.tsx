@@ -18,6 +18,7 @@ import {
   UserPlus,
   Megaphone,
   BarChart3,
+  Bell,
   LogOut,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/wordmark";
@@ -37,6 +38,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Homework", href: "/student/homework", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
     { label: "Messages", href: "/student/messages", icon: <MessageCircle className={ICON_CLASS} /> },
+    { label: "Notifications", href: "/student/notifications", icon: <Bell className={ICON_CLASS} /> },
     { label: "Progress", href: "/student/progress", icon: <TrendingUp className={ICON_CLASS} /> },
     { label: "Resources", href: "/student/resources", icon: <GraduationCap className={ICON_CLASS} /> },
   ],
@@ -46,6 +48,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Homework", href: "/parent/homework", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Feedback", href: "/parent/feedback", icon: <MessageSquareText className={ICON_CLASS} /> },
     { label: "Messages", href: "/parent/messages", icon: <MessageCircle className={ICON_CLASS} /> },
+    { label: "Notifications", href: "/parent/notifications", icon: <Bell className={ICON_CLASS} /> },
     { label: "Progress", href: "/parent/progress", icon: <TrendingUp className={ICON_CLASS} /> },
     { label: "Payments", href: "/parent/payments", icon: <CreditCard className={ICON_CLASS} /> },
   ],
@@ -53,21 +56,23 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Today", href: "/tutor", icon: <Sunrise className={ICON_CLASS} /> },
     { label: "Classes", href: "/tutor/classes", icon: <BookOpen className={ICON_CLASS} /> },
     { label: "Students", href: "/tutor/students", icon: <Users className={ICON_CLASS} /> },
-    { label: "Homework", href: "/tutor/homework", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Notes", href: "/tutor/notes", icon: <FileText className={ICON_CLASS} /> },
     { label: "Discussions", href: "/tutor/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
     { label: "Messages", href: "/tutor/messages", icon: <MessageCircle className={ICON_CLASS} /> },
-    { label: "Timetable", href: "/tutor/timetable", icon: <Clock className={ICON_CLASS} /> },
+    { label: "Notifications", href: "/tutor/notifications", icon: <Bell className={ICON_CLASS} /> },
+    { label: "Schedule", href: "/tutor/schedule", icon: <CalendarDays className={ICON_CLASS} /> },
   ],
   admin: [
     { label: "Operations", href: "/admin", icon: <LayoutDashboard className={ICON_CLASS} /> },
     { label: "Users", href: "/admin/users", icon: <Users className={ICON_CLASS} /> },
     { label: "Classes", href: "/admin/classes", icon: <BookOpen className={ICON_CLASS} /> },
-    { label: "Enrolments", href: "/admin/enrolments", icon: <UserPlus className={ICON_CLASS} /> },
+    { label: "Attendance", href: "/admin/attendance", icon: <ClipboardList className={ICON_CLASS} /> },
     { label: "Payments", href: "/admin/payments", icon: <CreditCard className={ICON_CLASS} /> },
     { label: "Announcements", href: "/admin/announcements", icon: <Megaphone className={ICON_CLASS} /> },
+    { label: "Terms", href: "/admin/terms", icon: <CalendarDays className={ICON_CLASS} /> },
     { label: "Discussions", href: "/admin/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
     { label: "Messages", href: "/admin/messages", icon: <MessageCircle className={ICON_CLASS} /> },
+    { label: "Notifications", href: "/admin/notifications", icon: <Bell className={ICON_CLASS} /> },
     { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={ICON_CLASS} /> },
   ],
 };
@@ -179,7 +184,7 @@ export async function PortalShell({
 
       {/* Main */}
       <div className="min-w-0 flex flex-col">
-        <main className="flex-1 px-6 lg:px-16 xl:px-24 py-10 lg:py-12 w-full">
+        <main className="flex-1 px-6 lg:px-10 xl:px-14 py-10 lg:py-12 w-full">
           {children}
         </main>
         <footer className="border-t border-hairline/60 mt-12">

@@ -61,6 +61,7 @@ export async function getTutorClasses(tutorId: string) {
       weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
+      subjectId: classes.subjectId,
       subjectName: subjects.name,
       subjectYear: subjects.yearLevel,
       enrolledCount: sql<number>`count(distinct ${enrollments.studentId})::int`,
@@ -106,7 +107,6 @@ export async function getTutorStudents(tutorId: string) {
       lastName: profiles.lastName,
       email: profiles.email,
       yearLevel: profiles.yearLevel,
-      school: profiles.school,
     })
     .from(profiles)
     .innerJoin(enrollments, eq(enrollments.studentId, profiles.id))

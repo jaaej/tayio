@@ -54,7 +54,7 @@ export default async function ProgressPage() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Progress
           </h1>
         </div>
@@ -194,7 +194,7 @@ export default async function ProgressPage() {
 
             <Card className="p-0 overflow-hidden">
               <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-                <div className="text-xl font-medium text-ink">Focus next</div>
+                <div className="text-xl font-medium text-ink">Focus Next</div>
               </div>
               {needsWorkCount === 0 ? (
                 <div className="px-6 py-8 text-sm text-ink-soft">
@@ -242,7 +242,7 @@ export default async function ProgressPage() {
 
             <Card className="p-0 overflow-hidden">
               <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-                <div className="text-xl font-medium text-ink">How this works</div>
+                <div className="text-xl font-medium text-ink">How This Works</div>
               </div>
               <div className="px-6 py-5 text-sm text-ink-soft space-y-2 leading-relaxed">
                 <p>

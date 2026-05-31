@@ -61,7 +61,6 @@ export default async function ParentAttendancePage({
         <StatTile
           label="Attendance rate"
           value={rate !== null ? `${rate}%` : "—"}
-          sub={total > 0 ? `${present} / ${total}` : "No data"}
           accent={
             rate === null
               ? "muted"
@@ -75,13 +74,11 @@ export default async function ParentAttendancePage({
         <StatTile
           label="Absences"
           value={absent.toString()}
-          sub={absent === 0 ? "None recorded" : "Across all lessons"}
           accent={absent === 0 ? "success" : "warn"}
         />
         <StatTile
           label="Lessons logged"
           value={total.toString()}
-          sub="Total recorded"
           accent="brand"
         />
       </section>

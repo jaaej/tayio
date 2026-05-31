@@ -9,14 +9,18 @@ import {
   attendance,
   attendanceStatusEnum,
   classes,
+  classWeekOverrides,
   enrollments,
   homework,
   homeworkAssignments,
   homeworkStatusEnum,
   lessonNotes,
   lessons,
+  tutorAvailability,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/auth";
+import { uploadCurriculumFile } from "@/lib/curriculum-storage";
 import { requireTutor } from "./_data";
 
 const HOMEWORK_BUCKET = "homework-attachments";
@@ -169,6 +173,7 @@ export async function createHomework(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const classId = String(formData.get("classId") ?? "") || null;
+  const weekId = String(formData.get("weekId") ?? "") || null;
   const allowResubmission = formData.get("allowResubmission") === "on";
 
   if (!title) throw new Error("Title required");
@@ -231,6 +236,7 @@ export async function createHomework(formData: FormData) {
       dueDate,
       attachmentUrl,
       allowResubmission,
+      weekId,
     })
     .returning({ id: homework.id });
 
@@ -291,4 +297,229 @@ export async function markSubmission(formData: FormData) {
 
   revalidatePath(`/tutor/homework/${homeworkId}`);
   revalidatePath("/tutor");
+}
+
+const weekdaySchema = z.coerce.number().int().min(0).max(6);
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export async function toggleAvailabilityRule(formData: FormData) {
+  const tutor = await requireTutor();
+  const weekday = weekdaySchema.parse(formData.get("weekday"));
+  const startTime = timeSchema.parse(formData.get("startTime"));
+  const endTime = timeSchema.parse(formData.get("endTime"));
+
+  const existing = await db
+    .select({ id: tutorAvailability.id })
+    .from(tutorAvailability)
+    .where(
+      and(
+        eq(tutorAvailability.tutorId, tutor.id),
+        eq(tutorAvailability.weekday, weekday),
+        eq(tutorAvailability.startTime, startTime),
+        eq(tutorAvailability.endTime, endTime),
+        isNull(tutorAvailability.date),
+      ),
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .delete(tutorAvailability)
+      .where(eq(tutorAvailability.id, existing[0].id));
+  } else {
+    await db.insert(tutorAvailability).values({
+      tutorId: tutor.id,
+      weekday,
+      startTime,
+      endTime,
+      isAvailable: true,
+    });
+  }
+
+  revalidatePath("/tutor/timetable");
+}
+
+export async function toggleDateOverride(formData: FormData) {
+  const tutor = await requireTutor();
+  const date = isoDateSchema.parse(formData.get("date"));
+  const startTime = timeSchema.parse(formData.get("startTime"));
+  const endTime = timeSchema.parse(formData.get("endTime"));
+  const setUnavailable = formData.get("setUnavailable") === "1";
+
+  const existing = await db
+    .select({ id: tutorAvailability.id, isAvailable: tutorAvailability.isAvailable })
+    .from(tutorAvailability)
+    .where(
+      and(
+        eq(tutorAvailability.tutorId, tutor.id),
+        eq(tutorAvailability.date, date),
+        eq(tutorAvailability.startTime, startTime),
+        eq(tutorAvailability.endTime, endTime),
+      ),
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .delete(tutorAvailability)
+      .where(eq(tutorAvailability.id, existing[0].id));
+  } else {
+    await db.insert(tutorAvailability).values({
+      tutorId: tutor.id,
+      date,
+      startTime,
+      endTime,
+      isAvailable: !setUnavailable,
+    });
+  }
+
+  revalidatePath("/tutor/timetable");
+}
+
+// --- Curriculum overrides -----------------------------------------------
+
+const overrideSchema = z.object({
+  classId: z.string().uuid(),
+  subjectWeekId: z.string().uuid(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  videoUrl: z.string().optional(),
+  bookletUrl: z.string().optional(),
+});
+
+async function assertTutorOwnsClass(tutorId: string, classId: string) {
+  const [row] = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+function isEmptyOverride(o: {
+  title: string | null;
+  description: string | null;
+  videoUrl: string | null;
+  bookletUrl: string | null;
+}) {
+  return !o.title && !o.description && !o.videoUrl && !o.bookletUrl;
+}
+
+export async function upsertClassWeekOverride(formData: FormData) {
+  const user = await requireRole("tutor");
+  const parsed = overrideSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  if (!(await assertTutorOwnsClass(user.id, parsed.data.classId))) {
+    return { ok: false as const, error: "Not your class" };
+  }
+
+  const { classId, subjectWeekId, ...fields } = parsed.data;
+  const normalized = Object.fromEntries(
+    Object.entries(fields).map(([k, v]) => [k, v === "" || v === undefined ? null : v]),
+  ) as {
+    title: string | null;
+    description: string | null;
+    videoUrl: string | null;
+    bookletUrl: string | null;
+  };
+
+  if (isEmptyOverride(normalized)) {
+    await db
+      .delete(classWeekOverrides)
+      .where(
+        and(
+          eq(classWeekOverrides.classId, classId),
+          eq(classWeekOverrides.subjectWeekId, subjectWeekId),
+        ),
+      );
+  } else {
+    await db
+      .insert(classWeekOverrides)
+      .values({ classId, subjectWeekId, ...normalized })
+      .onConflictDoUpdate({
+        target: [
+          classWeekOverrides.classId,
+          classWeekOverrides.subjectWeekId,
+        ],
+        set: { ...normalized, updatedAt: new Date() },
+      });
+  }
+
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const };
+}
+
+export async function resetClassWeekOverride(
+  classId: string,
+  subjectWeekId: string,
+) {
+  const user = await requireRole("tutor");
+  if (!(await assertTutorOwnsClass(user.id, classId))) {
+    return { ok: false as const, error: "Not your class" };
+  }
+  await db
+    .delete(classWeekOverrides)
+    .where(
+      and(
+        eq(classWeekOverrides.classId, classId),
+        eq(classWeekOverrides.subjectWeekId, subjectWeekId),
+      ),
+    );
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const };
+}
+
+export async function uploadTutorOverrideVideo(
+  classId: string,
+  subjectWeekId: string,
+  formData: FormData,
+) {
+  const user = await requireRole("tutor");
+  if (!(await assertTutorOwnsClass(user.id, classId))) {
+    return { ok: false as const, error: "Not your class" };
+  }
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false as const, error: "No file" };
+
+  const ownerId = `${classId}-${subjectWeekId}`;
+  const res = await uploadCurriculumFile("videos", ownerId, file);
+  if (!res.ok) return res;
+
+  await db
+    .insert(classWeekOverrides)
+    .values({ classId, subjectWeekId, videoUrl: res.path })
+    .onConflictDoUpdate({
+      target: [classWeekOverrides.classId, classWeekOverrides.subjectWeekId],
+      set: { videoUrl: res.path, updatedAt: new Date() },
+    });
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const, path: res.path };
+}
+
+export async function uploadTutorOverrideBooklet(
+  classId: string,
+  subjectWeekId: string,
+  formData: FormData,
+) {
+  const user = await requireRole("tutor");
+  if (!(await assertTutorOwnsClass(user.id, classId))) {
+    return { ok: false as const, error: "Not your class" };
+  }
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false as const, error: "No file" };
+
+  const ownerId = `${classId}-${subjectWeekId}`;
+  const res = await uploadCurriculumFile("booklets", ownerId, file);
+  if (!res.ok) return res;
+
+  await db
+    .insert(classWeekOverrides)
+    .values({ classId, subjectWeekId, bookletUrl: res.path })
+    .onConflictDoUpdate({
+      target: [classWeekOverrides.classId, classWeekOverrides.subjectWeekId],
+      set: { bookletUrl: res.path, updatedAt: new Date() },
+    });
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const, path: res.path };
 }

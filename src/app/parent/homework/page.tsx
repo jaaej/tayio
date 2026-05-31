@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/data/status-badge";
 import { ScoreBadge } from "@/components/data/score-badge";
 import { StatTile } from "@/components/data/stat-tile";
+import { SubjectCard } from "@/components/data/subject-card";
 import { requireRole } from "@/lib/auth";
 import { formatDueDate } from "@/lib/format";
 import {
@@ -11,8 +12,9 @@ import {
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { SectionHeader } from "../_components/section-header";
+import Link from "next/link";
 
-type SearchParams = Promise<{ child?: string }>;
+type SearchParams = Promise<{ child?: string; subject?: string }>;
 
 export default async function ParentHomeworkPage({
   searchParams,
@@ -20,7 +22,7 @@ export default async function ParentHomeworkPage({
   searchParams: SearchParams;
 }) {
   const user = await requireRole("parent");
-  const { child: requested } = await searchParams;
+  const { child: requested, subject: subjectFilter } = await searchParams;
   const { children, selected } = await resolveSelectedChild(user.id, requested);
 
   if (!selected) {
@@ -32,7 +34,22 @@ export default async function ParentHomeworkPage({
     );
   }
 
-  const rows = await getHomework(selected.id);
+  const allRows = await getHomework(selected.id);
+
+  const subjectCounts = new Map<string, number>();
+  for (const r of allRows) {
+    const name = r.subjectName ?? r.className ?? "Other";
+    subjectCounts.set(name, (subjectCounts.get(name) ?? 0) + 1);
+  }
+  const subjectList = Array.from(subjectCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const rows = subjectFilter
+    ? allRows.filter(
+        (r) => (r.subjectName ?? r.className ?? "Other") === subjectFilter,
+      )
+    : allRows;
 
   const total = rows.length;
   const completed = rows.filter(
@@ -45,6 +62,10 @@ export default async function ParentHomeworkPage({
       r.status === "resubmission_requested",
   ).length;
   const late = rows.filter((r) => r.status === "late").length;
+
+  const baseQs = new URLSearchParams();
+  if (selected.id) baseQs.set("child", selected.id);
+  const clearHref = `/parent/homework?${baseQs.toString()}`;
 
   return (
     <div className="space-y-6">
@@ -62,16 +83,11 @@ export default async function ParentHomeworkPage({
 
       <section
         className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
-        style={{ animationDelay: "40ms" }}
+        style={{ animationDelay: "30ms" }}
       >
         <StatTile
           label="Completion"
           value={total > 0 ? `${completed} / ${total}` : "—"}
-          sub={
-            total > 0
-              ? `${Math.round((completed / total) * 100)}% complete`
-              : "No homework assigned"
-          }
           accent={
             total === 0
               ? "muted"
@@ -85,27 +101,68 @@ export default async function ParentHomeworkPage({
         <StatTile
           label="Outstanding"
           value={outstanding.toString()}
-          sub={outstanding === 0 ? "All caught up" : "Awaiting submission"}
           accent={outstanding === 0 ? "success" : "warn"}
         />
         <StatTile
           label="Late"
           value={late.toString()}
-          sub={late === 0 ? "Never late" : "Submitted after due"}
           accent={late === 0 ? "success" : "warn"}
         />
       </section>
+
+      {subjectList.length > 0 && (
+        <section
+          className="rise"
+          style={{ animationDelay: "60ms" }}
+          aria-label="Filter by subject"
+        >
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted mb-3">
+            Filter by Subject
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            {subjectList.map((s) => {
+              const qs = new URLSearchParams(baseQs);
+              qs.set("subject", s.name);
+              const active = subjectFilter === s.name;
+              return (
+                <SubjectCard
+                  key={s.name}
+                  href={`/parent/homework?${qs.toString()}`}
+                  subject={s.name}
+                  meta={`${s.count} item${s.count === 1 ? "" : "s"}`}
+                  badge={active ? { label: "Showing", tone: "success" } : undefined}
+                />
+              );
+            })}
+          </div>
+          {subjectFilter && (
+            <div className="mt-3">
+              <Link
+                href={clearHref}
+                className="text-xs text-brand-700 hover:underline"
+              >
+                ← Show all subjects
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
         {rows.length === 0 ? (
           <Card>
             <p className="text-ink-soft">
-              No homework has been assigned to {selected.firstName} yet.
+              {subjectFilter
+                ? `No ${subjectFilter} homework for ${selected.firstName}.`
+                : `No homework has been assigned to ${selected.firstName} yet.`}
             </p>
           </Card>
         ) : (
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="All homework" />
+            <SectionHeader
+              title={subjectFilter ? `${subjectFilter} Homework` : "All Homework"}
+              right={`${rows.length} item${rows.length === 1 ? "" : "s"}`}
+            />
             <div className="divide-y divide-hairline/60">
               {rows.map((r) => (
                 <div key={r.homeworkId} className="px-6 py-4">
@@ -155,8 +212,8 @@ function Header({ subtitle }: { subtitle?: string }) {
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
         Homework
       </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-        {subtitle ? `${subtitle}'s homework` : "Homework"}
+      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+        {subtitle ? `${subtitle}'s Homework` : "Homework"}
       </h1>
     </header>
   );

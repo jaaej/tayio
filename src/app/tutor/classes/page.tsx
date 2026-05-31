@@ -69,7 +69,7 @@ export default async function TutorClassesPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Your classes
         </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
           {list.length === 0
             ? "No active classes"
             : `${list.length} active class${list.length === 1 ? "" : "es"}`}
@@ -110,8 +110,8 @@ export default async function TutorClassesPage() {
           className="p-0 overflow-hidden rise"
           style={{ animationDelay: "80ms" }}
         >
-          <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between">
-            <div className="text-xl font-medium text-ink">Weekly schedule</div>
+          <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between">
+            <div className="text-xl font-medium text-ink">Weekly Schedule</div>
             <span className="text-sm uppercase tracking-[0.18em] text-muted">
               {events.length} lesson{events.length === 1 ? "" : "s"} this week
             </span>
@@ -170,18 +170,24 @@ export default async function TutorClassesPage() {
                     {c.enrolledCount} / {c.capacity}
                   </dd>
                 </dl>
-                <div className="flex gap-4 pt-3 border-t border-hairline/60 text-[11px] uppercase tracking-[0.16em]">
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-hairline/60">
                   <Link
-                    href="/tutor/students"
-                    className="text-brand-700 hover:underline"
+                    href={`/tutor/classes/${c.id}/students`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-100 hover:border-brand-400 transition-colors"
                   >
                     Students →
                   </Link>
                   <Link
-                    href="/tutor/homework"
-                    className="text-brand-700 hover:underline"
+                    href={`/tutor/classes/${c.id}/homework`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-100 hover:border-brand-400 transition-colors"
                   >
                     Homework →
+                  </Link>
+                  <Link
+                    href={`/tutor/classes/${c.id}/curriculum`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-brand-700 transition-colors"
+                  >
+                    Curriculum →
                   </Link>
                 </div>
               </Card>

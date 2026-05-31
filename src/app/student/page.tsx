@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardLabel } from "@/components/ui/card";
 import { ProgressBar } from "@/components/data/progress-bar";
 import { SubjectCard } from "@/components/data/subject-card";
+import { SubjectPill } from "@/components/data/subject-pill";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
@@ -110,7 +111,7 @@ export default async function StudentDashboard() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
             {dateLabel}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
+          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
             Dashboard
           </h1>
         </div>
@@ -133,7 +134,7 @@ export default async function StudentDashboard() {
 
       {/* Stat strip */}
       <section
-        className="grid grid-cols-3 gap-4 rise"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
@@ -148,38 +149,27 @@ export default async function StudentDashboard() {
           accent="brand"
           href="/student/timetable"
         />
-        <StatTile
-          label="Overall mastery"
-          value={`${overallMastery}%`}
-          accent={
-            overallMastery >= 75 ? "success" : overallMastery >= 50 ? "brand" : "warn"
-          }
-          href="/student/progress"
-        />
       </section>
 
       {/* Main + Aside */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:gap-6">
-        {/* MAIN — primary information */}
+        {/* MAIN */}
         <div
           className="space-y-5 min-w-0 rise"
           style={{ animationDelay: "80ms" }}
         >
-          {/* My subjects — the hero entry point */}
+          {/* My subjects — full subject blocks */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader
-              title="My subjects"
-              right={`${subjects.length} enrolled`}
-            />
+            <SectionHeader title="My Subjects" />
             <div className="p-5">
               {subjects.length === 0 ? (
                 <Empty>You're not enrolled in any classes yet.</Empty>
               ) : (
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid sm:grid-cols-2 gap-4">
                   {subjects.map((s) => (
                     <SubjectCard
                       key={s.classId}
-                      href={`/student/subjects/${s.classId}`}
+                      href={`/student/subjects/${s.subjectId}`}
                       subject={s.subjectName}
                       badge={
                         s.dueHomeworkCount > 0
@@ -196,7 +186,7 @@ export default async function StudentDashboard() {
           {/* Calendar — smaller, secondary main */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="This week"
+              title="This Week"
               link={{ href: "/student/timetable", label: "Full timetable" }}
             />
             <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
@@ -207,7 +197,7 @@ export default async function StudentDashboard() {
           {/* Upcoming due — actionable */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="Upcoming due"
+              title="Upcoming Due"
               link={{ href: "/student/homework", label: "All homework" }}
             />
             {upcomingDue.length === 0 ? (
@@ -220,10 +210,15 @@ export default async function StudentDashboard() {
                     href={`/student/homework/${h.homeworkId}`}
                     className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
                   >
+                    {h.className && (
+                      <SubjectPill name={h.className} size="sm" />
+                    )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-base text-ink truncate">{h.title}</div>
+                      <div className="text-base text-ink font-medium truncate">
+                        {h.title}
+                      </div>
                       <div className="text-sm text-muted mt-0.5">
-                        {h.className ?? "—"} · due {formatDueDate(h.dueDate)}
+                        Due {formatDueDate(h.dueDate)}
                       </div>
                     </div>
                     <StatusBadge
@@ -238,7 +233,7 @@ export default async function StudentDashboard() {
 
           {/* Recent grades */}
           <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Recent grades" />
+            <SectionHeader title="Recent Grades" />
             {grades.length === 0 ? (
               <Empty>No marked homework yet.</Empty>
             ) : (
@@ -272,7 +267,7 @@ export default async function StudentDashboard() {
           </Card>
         </div>
 
-        {/* ASIDE — supplementary information */}
+        {/* ASIDE */}
         <aside
           className="space-y-5 min-w-0 rise lg:sticky lg:top-6 lg:self-start"
           style={{ animationDelay: "120ms" }}
@@ -280,7 +275,7 @@ export default async function StudentDashboard() {
           {/* Topic mastery */}
           <Card className="p-0 overflow-hidden">
             <SectionHeader
-              title="Topic mastery"
+              title="Topic Mastery"
               link={{ href: "/student/progress", label: "Open" }}
             />
             <div className="p-5">

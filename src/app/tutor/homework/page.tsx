@@ -1,17 +1,50 @@
 import Link from "next/link";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { formatDueDate } from "@/lib/format";
+import { db } from "@/db/client";
+import { classes, subjectWeeks, subjects } from "@/db/schema";
+import { resolveCurrentTerm } from "@/lib/curriculum";
 import { createHomework } from "../_actions";
 import { getTutorClasses, getTutorHomework, requireTutor } from "../_data";
 
 export default async function TutorHomeworkPage() {
   const tutor = await requireTutor();
-  const [items, tutorClasses] = await Promise.all([
+  const [items, tutorClasses, currentTerm] = await Promise.all([
     getTutorHomework(tutor.id),
     getTutorClasses(tutor.id),
+    resolveCurrentTerm(),
   ]);
+
+  // Build list of available curriculum weeks across all subjects this tutor teaches in the current term.
+  const tutorSubjectIds = Array.from(
+    new Set(tutorClasses.map((c) => c.subjectId)),
+  );
+  let availableWeeks: Array<{ id: string; label: string }> = [];
+  if (currentTerm && tutorSubjectIds.length > 0) {
+    const rows = await db
+      .select({
+        id: subjectWeeks.id,
+        weekNumber: subjectWeeks.weekNumber,
+        title: subjectWeeks.title,
+        subjectName: subjects.name,
+      })
+      .from(subjectWeeks)
+      .innerJoin(subjects, eq(subjects.id, subjectWeeks.subjectId))
+      .where(
+        and(
+          eq(subjectWeeks.termId, currentTerm.id),
+          inArray(subjectWeeks.subjectId, tutorSubjectIds),
+        ),
+      )
+      .orderBy(asc(subjects.name), asc(subjectWeeks.weekNumber));
+    availableWeeks = rows.map((r) => ({
+      id: r.id,
+      label: `${r.subjectName} · Week ${r.weekNumber} — ${r.title}`,
+    }));
+  }
 
   return (
     <div className="space-y-6">
@@ -19,13 +52,13 @@ export default async function TutorHomeworkPage() {
         <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
           Homework
         </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-          Assign &amp; mark work
+        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
+          Assign &amp; Mark Work
         </h1>
       </header>
 
       <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "40ms" }}>
-        <SectionHeader title="New homework" />
+        <SectionHeader title="New Homework" />
         <form
           action={createHomework}
           className="p-6 space-y-5"
@@ -62,6 +95,22 @@ export default async function TutorHomeworkPage() {
                 {tutorClasses.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.enrolledCount} students)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="weekId">Curriculum week (optional)</Label>
+              <select
+                id="weekId"
+                name="weekId"
+                className="h-11 w-full rounded-xl border border-hairline/60 bg-card px-3 text-sm text-ink"
+                defaultValue=""
+              >
+                <option value="">— Not tagged to a week —</option>
+                {availableWeeks.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.label}
                   </option>
                 ))}
               </select>
@@ -108,7 +157,7 @@ export default async function TutorHomeworkPage() {
       </Card>
 
       <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "80ms" }}>
-        <SectionHeader title="Existing homework" />
+        <SectionHeader title="Existing Homework" />
         {items.length === 0 ? (
           <Empty>You haven't assigned any homework yet.</Empty>
         ) : (
@@ -151,8 +200,8 @@ export default async function TutorHomeworkPage() {
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="px-6 py-5 border-b border-hairline/60">
-      <div className="text-xl font-medium text-ink">{title}</div>
+    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
+      <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
     </div>
   );
 }
