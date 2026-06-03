@@ -43,7 +43,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Class timetable | Show enrolled class times | ✅ | ✅ | `/tutor` dashboard + `/tutor/classes` (weekly snapshot) + `/tutor/timetable` (monthly grid: classes as amber pills, availability as green pills, "Manage availability" toggle for edit mode). Consolidated 2026-06-03 — previously split across `/tutor/schedule` + `/tutor/availability`. |
 | Student discussion page | Answer post-class questions | ✅ | ✅ | `/tutor/discussions` — per-subject Q&A boards (shipped 2026-05-27) |
 | Lesson plan | Update what's *going* to be covered | ⬜ | ⬜ | `lesson_notes.nextLessonFocus` exists (per-lesson, *retroactive* — "what to focus on next time"). No forward-looking class-level plan field. |
-| Class test / booklet mark | Update marks for parents/students to see | 🔶 | 🔶 | Homework marking (with `score`, `feedback`) covers most of this. No distinct "test" entity separate from homework. |
+| Class test / booklet mark | Update marks for parents/students to see | 🔶 | ✅ | Homework marking (with `score`, `feedback`) covers most of this. A homework can now be flagged `is_test` (migration 0008) to drive student ranking. **Gap:** no tutor-facing UI to set that flag yet — tests are flagged via SQL. Tutor needs an "is test" checkbox in homework create/edit. |
 | Resource page | Upload booklets for students/parents | ⬜ | ⬜ | No resource library schema. |
 | Homework marking | Mark submissions, leave feedback, request resubmission | ✅ | ✅ | `/tutor/homework`, `/tutor/homework/[id]` |
 | Upload videos | Class recordings auto-uploaded | ⬜ | ⬜ | No upload pipeline, no Storage bucket for videos. |
@@ -63,7 +63,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 |---|---|---|---|---|
 | Upcoming classes | Timetable view | ✅ | ✅ | `/student/timetable` + dashboard "This week" calendar |
 | Homework upload | Submit due homework | ✅ | ✅ | `/student/homework`, `/student/homework/[id]` with file submission to Supabase Storage |
-| Grade page | Track score, compare between students | 🔶 | 🔶 | `/student/progress` shows mastery + per-subject + per-topic. **No peer comparison / leaderboard** — that piece of the goal is not built. |
+| Grade page | Track score, compare between students | ✅ | ✅ | `/student/progress` shows mastery + per-subject + per-topic. Clickable subject → `/student/progress/[id]` detail page lists **every submitted task's grade + tutor feedback** + submitted/pending/average-score stats. **Ranking (shipped 2026-06-03):** anonymous per-test rank on `/student/homework/[id]` (when flagged `is_test` + marked) and overall per-subject rank on the progress detail hero — rank only, no peer scores/names exposed. Backed by `RANK()` window queries (`getStudentTestRank`, `getStudentOverallSubjectRank`) + `homework.is_test` column (migration 0008, applied to live DB). Tutors have no UI yet to flag a homework as a test — currently set via SQL. |
 | Resources page | Booklets, recorded videos, past papers | 🔶 | ⬜ | `/student/resources` exists with **hardcoded** category cards. No `resources` table; nothing to populate the page with real material. |
 | Discussion page | Ask homework questions | ✅ | ✅ | `/student/discussions` — per-subject + general help board (shipped 2026-05-27) |
 | `student_restricted` (parent-dependent) | Younger students — parent owns payments, reschedules, admin contact | ⬜ | ⬜ | One `student` role. No tiering. See [Role Tiering](#role-tiering-student--admin) for full permission matrix. |
