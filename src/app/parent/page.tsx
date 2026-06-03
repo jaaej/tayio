@@ -34,6 +34,7 @@ import {
 } from "./_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "./_components/child-switcher";
 import { SectionHeader } from "./_components/section-header";
+import { PageHeader } from "./_components/page-header";
 import { FeedbackList, type FeedbackItem } from "./_components/feedback-list";
 
 type SearchParams = Promise<{ child?: string }>;
@@ -57,15 +58,7 @@ export default async function ParentDashboard({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <header className="rise">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
-          </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Family Overview
-          </h1>
-        </header>
+        <PageHeader eyebrow={dateLabel} title="Family overview" pulse />
         <EmptyChildrenNotice />
       </div>
     );
@@ -145,33 +138,68 @@ export default async function ParentDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Title strip */}
-      <header className="flex items-baseline justify-between gap-6 rise">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
+      {/* Hero — indigo gradient greeting with child meta + next lesson pod */}
+      <section
+        className="relative overflow-hidden rounded-[28px] px-7 py-7 text-white shadow-[0_20px_44px_-22px_rgba(31,40,90,0.6)] rise"
+        style={{
+          background:
+            "radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)",
+        }}
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          className="absolute -right-8 -top-10 w-[240px] h-[240px] opacity-25 pointer-events-none"
+          fill="none"
+        >
+          <circle cx="70" cy="30" r="30" fill="rgba(255,255,255,0.4)" />
+          <circle cx="70" cy="30" r="20" fill="rgba(255,255,255,0.4)" />
+          <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.5)" />
+        </svg>
+
+        <div className="relative z-10 flex flex-wrap items-center gap-6">
+          <div className="h-[68px] w-[68px] rounded-[22px] grid place-items-center text-2xl font-extrabold bg-white/[0.16] border-2 border-white/40 backdrop-blur-sm shrink-0">
+            {selected.firstName.charAt(0).toUpperCase()}
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            How {selected.firstName}'s Going
-          </h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-bold opacity-80">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+              {dateLabel}
+            </div>
+            <h1 className="mt-1.5 text-3xl lg:text-4xl font-extrabold tracking-[-0.02em]">
+              How {selected.firstName}'s going
+            </h1>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selected.yearLevel && (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-bold bg-white/[0.18] border border-white/25">
+                  {selected.yearLevel}
+                </span>
+              )}
+              {mastery.length > 0 && (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-bold bg-white/[0.18] border border-white/25">
+                  {mastery.length} subject{mastery.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+          </div>
+          {data.nextLesson && (
+            <div className="rounded-[20px] bg-white/[0.14] border border-white/25 px-5 py-4 backdrop-blur-sm text-center shrink-0">
+              <div className="text-[10px] uppercase tracking-[0.14em] font-bold opacity-80">
+                Up next
+              </div>
+              <div className="mt-1 text-2xl font-extrabold tracking-[-0.02em] tabular-nums">
+                {formatTime(data.nextLesson.startTime)}
+              </div>
+              <div className="mt-0.5 text-xs font-semibold opacity-90">
+                {data.nextLesson.subjectName}
+              </div>
+              <div className="text-[11px] opacity-75">
+                {formatWeekday(data.nextLesson.date, "short")}
+              </div>
+            </div>
+          )}
         </div>
-        {data.nextLesson && (
-          <div className="hidden md:flex items-center gap-3 text-sm shrink-0">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-              Next
-            </span>
-            <span className="text-ink font-medium">
-              {data.nextLesson.subjectName}
-            </span>
-            <span className="text-muted">·</span>
-            <span className="text-ink-soft">
-              {formatWeekday(data.nextLesson.date, "short")}{" "}
-              {formatTime(data.nextLesson.startTime)}
-            </span>
-          </div>
-        )}
-      </header>
+      </section>
 
       {/* Child switcher */}
       {children.length > 1 && (
@@ -319,7 +347,7 @@ export default async function ParentDashboard({
             <div className="p-5">
               <CardLabel>Overall</CardLabel>
               <div className="mt-1 flex items-baseline gap-2">
-                <div className="text-6xl font-light text-ink tabular-nums">
+                <div className="text-6xl font-extrabold tracking-[-0.03em] text-ink tabular-nums">
                   {overallMastery}%
                 </div>
                 {mastery.length > 0 && (

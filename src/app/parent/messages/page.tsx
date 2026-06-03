@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
 import { listMyThreads } from "@/lib/dm-queries";
 import { ThreadRow } from "@/components/dm/thread-row";
+import { PageHeader } from "../_components/page-header";
 
 export default async function ParentMessagesPage() {
   const user = await requireRole("parent");
@@ -9,14 +10,11 @@ export default async function ParentMessagesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Messages
-        </h1>
-        <p className="mt-1 text-sm text-ink-soft">
-          Conversations with your child's tutors and the admin office.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Direct messages"
+        title="Messages"
+        sub="Conversations with your child's tutors and the admin office."
+      />
       {threads.length === 0 ? (
         <Card>
           <div className="py-6 text-sm text-ink-soft">

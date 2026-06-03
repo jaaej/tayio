@@ -21,10 +21,12 @@ export async function WeekContentParent({
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted">
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
           Week {week.weekNumber}
         </div>
-        <h2 className="text-2xl font-medium text-ink">{week.title}</h2>
+        <h2 className="text-2xl font-extrabold tracking-[-0.01em] text-ink">
+          {week.title}
+        </h2>
         {week.description && (
           <p className="text-sm text-ink-soft leading-relaxed">
             {week.description}
@@ -33,7 +35,7 @@ export async function WeekContentParent({
       </header>
 
       <section className="space-y-2">
-        <div className="text-sm font-medium text-ink uppercase tracking-wide">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           Recorded lesson
         </div>
         {videoSignedUrl ? (
@@ -56,7 +58,7 @@ export async function WeekContentParent({
       </section>
 
       <section className="space-y-2">
-        <div className="text-sm font-medium text-ink uppercase tracking-wide">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           Week booklet
         </div>
         {bookletSignedUrl ? (
@@ -79,7 +81,7 @@ export async function WeekContentParent({
       </section>
 
       <section className="space-y-2">
-        <div className="text-sm font-medium text-ink uppercase tracking-wide">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           Homework due this week
         </div>
         {week.homework.length === 0 ? (

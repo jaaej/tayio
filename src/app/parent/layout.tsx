@@ -1,3 +1,4 @@
+import "./theme.css";
 import { PortalShell } from "@/components/portal/shell";
 import { requireRole } from "@/lib/auth";
 
@@ -12,8 +13,10 @@ export default async function ParentLayout({
     user.email?.split("@")[0] ??
     "Parent";
   return (
-    <PortalShell role="parent" userName={name}>
-      {children}
-    </PortalShell>
+    <div className="theme-parent">
+      <PortalShell role="parent" userName={name}>
+        {children}
+      </PortalShell>
+    </div>
   );
 }

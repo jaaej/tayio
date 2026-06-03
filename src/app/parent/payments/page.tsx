@@ -13,6 +13,7 @@ import {
   getOutstandingBalanceForParent,
 } from "../_data";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
 
 export default async function ParentPaymentsPage() {
   const user = await requireRole("parent");
@@ -26,15 +27,7 @@ export default async function ParentPaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rise">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-          Payments
-        </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Invoices
-        </h1>
-      </header>
+      <PageHeader eyebrow="Payments" title="Invoices" />
 
       <section
         className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
@@ -61,7 +54,7 @@ export default async function ParentPaymentsPage() {
         <Card className="rise flex items-center justify-between gap-6">
           <div>
             <CardLabel>Total due</CardLabel>
-            <div className="mt-1 text-3xl font-light text-ink tabular-nums">
+            <div className="mt-1 text-3xl font-extrabold tracking-[-0.02em] text-ink tabular-nums">
               {formatMoney(outstanding)}
             </div>
             <div className="mt-1 text-xs text-muted">

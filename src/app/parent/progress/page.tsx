@@ -12,6 +12,7 @@ import {
 } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
 
 const MASTERY_LABEL = {
   not_started: "Not started",
@@ -48,7 +49,7 @@ export default async function ParentProgressPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header dateLabel={dateLabel} />
+        <PageHeader eyebrow={dateLabel} title="Progress" pulse />
         <EmptyChildrenNotice />
       </div>
     );
@@ -85,7 +86,11 @@ export default async function ParentProgressPage({
 
   return (
     <div className="space-y-6">
-      <Header dateLabel={dateLabel} subtitle={selected.firstName} />
+      <PageHeader
+        eyebrow={dateLabel}
+        title={`${selected.firstName}'s progress`}
+        pulse
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -165,22 +170,22 @@ export default async function ParentProgressPage({
           <div className="space-y-5 min-w-0">
             {subjects.map((s) => (
               <Card key={s.subjectId} className="p-0 overflow-hidden">
-                <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
+                <div className="px-6 py-5 border-b border-hairline/60 flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-xl font-medium text-ink truncate">
+                    <div className="text-lg font-extrabold tracking-[-0.01em] text-ink truncate">
                       {s.subjectName}
                     </div>
                     {s.yearLevel && (
-                      <div className="text-xs uppercase tracking-[0.16em] text-muted mt-1">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted font-bold mt-1">
                         {s.yearLevel}
                       </div>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-3xl font-light text-ink tabular-nums leading-none">
+                    <div className="text-3xl font-extrabold tracking-[-0.02em] text-ink tabular-nums leading-none">
                       {s.masteryPercent}%
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted mt-1">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-bold mt-1">
                       {s.topics.length} topic{s.topics.length === 1 ? "" : "s"}
                     </div>
                   </div>
@@ -227,7 +232,7 @@ export default async function ParentProgressPage({
               <div className="p-5">
                 <CardLabel>Across all subjects</CardLabel>
                 <div className="mt-1 flex items-baseline gap-2">
-                  <div className="text-6xl font-light text-ink tabular-nums">
+                  <div className="text-6xl font-extrabold tracking-[-0.03em] text-ink tabular-nums">
                     {overall}%
                   </div>
                 </div>
@@ -326,19 +331,5 @@ export default async function ParentProgressPage({
         </div>
       )}
     </div>
-  );
-}
-
-function Header({ dateLabel, subtitle }: { dateLabel: string; subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-        {dateLabel}
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Progress` : "Progress"}
-      </h1>
-    </header>
   );
 }

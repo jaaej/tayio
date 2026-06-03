@@ -10,6 +10,7 @@ import {
 import { getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -25,7 +26,7 @@ export default async function ParentAttendancePage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader eyebrow="Attendance" title="Attendance" />
         <EmptyChildrenNotice />
       </div>
     );
@@ -42,7 +43,10 @@ export default async function ParentAttendancePage({
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        eyebrow="Attendance"
+        title={`${selected.firstName}'s lessons`}
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -132,19 +136,5 @@ export default async function ParentAttendancePage({
         </Card>
       </div>
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Attendance
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink">
-        {subtitle ? `${subtitle}'s lessons` : "Attendance"}
-      </h1>
-    </header>
   );
 }

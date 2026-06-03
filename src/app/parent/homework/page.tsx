@@ -12,6 +12,7 @@ import {
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
 import Link from "next/link";
 
 type SearchParams = Promise<{ child?: string; subject?: string }>;
@@ -28,7 +29,7 @@ export default async function ParentHomeworkPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader eyebrow="Homework" title="Homework" />
         <EmptyChildrenNotice />
       </div>
     );
@@ -69,7 +70,10 @@ export default async function ParentHomeworkPage({
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        eyebrow="Homework"
+        title={`${selected.firstName}'s homework`}
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -202,19 +206,5 @@ export default async function ParentHomeworkPage({
         )}
       </div>
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Homework
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Homework` : "Homework"}
-      </h1>
-    </header>
   );
 }

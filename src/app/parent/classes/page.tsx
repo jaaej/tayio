@@ -24,6 +24,7 @@ import {
   parseMonthParam,
 } from "../_components/month-calendar";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
 import { submitRescheduleRequest } from "../_actions";
 
 type SearchParams = Promise<{
@@ -46,7 +47,7 @@ export default async function ParentClassesPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader eyebrow="Classes" title="Classes" />
         <EmptyChildrenNotice />
       </div>
     );
@@ -96,7 +97,10 @@ export default async function ParentClassesPage({
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        eyebrow="Classes"
+        title={`${selected.firstName}'s classes`}
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -342,19 +346,5 @@ export default async function ParentClassesPage({
       </div>
 
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Classes
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Classes` : "Classes"}
-      </h1>
-    </header>
   );
 }
