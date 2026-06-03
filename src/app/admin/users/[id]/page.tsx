@@ -6,6 +6,8 @@ import { familyLinks, profiles } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDateLong, formatTime } from "@/lib/format";
+import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 
@@ -13,13 +15,21 @@ export const dynamic = "force-dynamic";
 
 export default async function UserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ reschedule?: string }>;
 }) {
   const { id } = await params;
+  const { reschedule } = await searchParams;
 
   const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
   if (!user) notFound();
+
+  const upcomingLessons =
+    user.role === "student"
+      ? await getStudentUpcomingLessons(id, 21)
+      : [];
 
   const allStudents = await db
     .select({
@@ -123,6 +133,75 @@ export default async function UserDetailPage({
           </div>
         </Card>
       </section>
+
+      {reschedule === "ok" && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <div className="text-sm text-emerald-900">
+            Reschedule saved. The original tutor, new tutor, and linked parents
+            have been notified.
+          </div>
+        </Card>
+      )}
+      {reschedule === "error" && (
+        <Card className="border-rose-200 bg-rose-50">
+          <div className="text-sm text-rose-900">
+            Couldn't save that reschedule. Try again.
+          </div>
+        </Card>
+      )}
+
+      {user.role === "student" && (
+        <section className="rise" style={{ animationDelay: "100ms" }}>
+          <Card>
+            <CardLabel>Upcoming lessons</CardLabel>
+            <p className="mt-1 mb-4 text-xs text-muted">
+              Next 3 weeks. Click reschedule to move this student to a different
+              slot (other enrolled students keep the original lesson).
+            </p>
+            {upcomingLessons.length === 0 ? (
+              <div className="text-sm text-ink-soft">
+                No upcoming lessons in the next 3 weeks.
+              </div>
+            ) : (
+              <ul className="divide-y divide-hairline/60 -mx-2">
+                {upcomingLessons.map((l) => (
+                  <li
+                    key={l.id}
+                    className="px-2 py-3 flex items-center gap-3 flex-wrap"
+                  >
+                    <div className="min-w-[180px]">
+                      <div className="text-sm font-medium text-ink">
+                        {l.subjectName}
+                      </div>
+                      <div className="text-xs text-muted truncate">
+                        {l.className}
+                      </div>
+                    </div>
+                    <div className="min-w-[140px] text-sm text-ink-soft tabular-nums">
+                      {formatDateLong(l.date)}
+                    </div>
+                    <div className="min-w-[110px] text-sm text-ink-soft tabular-nums">
+                      {formatTime(l.startTime)} – {formatTime(l.endTime)}
+                    </div>
+                    <div className="min-w-[140px] text-sm text-ink-soft">
+                      {l.tutorFirstName} {l.tutorLastName}
+                    </div>
+                    {l.status !== "upcoming" && (
+                      <Badge tone="muted">{l.status}</Badge>
+                    )}
+                    <Link
+                      href={`/admin/users/${id}/reschedule/${l.id}`}
+                      className="ml-auto rounded-lg border border-hairline/60 bg-card px-3 py-1.5 text-xs font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors uppercase tracking-[0.12em]"
+                    >
+                      Reschedule
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </section>
+      )}
 
       {(user.role === "parent" || user.role === "student") && (
         <section className="rise" style={{ animationDelay: "120ms" }}>

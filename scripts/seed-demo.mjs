@@ -73,6 +73,24 @@ const PARENTS = [
     last: "Tran",
     children: ["lucas.tran@taiyo.com"],
   },
+  {
+    email: "williams@taiyo.com",
+    first: "Marcus",
+    last: "Williams",
+    children: ["ava.williams@taiyo.com"],
+  },
+  {
+    email: "brown@taiyo.com",
+    first: "Helen",
+    last: "Brown",
+    children: ["isla.brown@taiyo.com"],
+  },
+  {
+    email: "davis@taiyo.com",
+    first: "Tom",
+    last: "Davis",
+    children: ["oscar.davis@taiyo.com"],
+  },
 ];
 
 const DEFAULT_PASSWORD = "demo1234";
@@ -201,6 +219,100 @@ for (const s of SUBJECTS) {
     returning id
   `;
   subjectIds[s.name] = row.id;
+}
+
+// ----------------------------------------------------------------------------
+// 2.5. Curriculum scaffold — one term covering the lesson window, plus
+//      10 weekly placeholder subject_weeks per subject so the subject
+//      weekly page renders real content instead of "Curriculum coming soon".
+// ----------------------------------------------------------------------------
+
+console.log("→ Upserting curriculum (term + subject weeks)");
+
+const TERM_WEEKS = 10; // 10 weeks of curriculum per subject
+const _termToday = new Date();
+_termToday.setHours(0, 0, 0, 0);
+const _termStart = new Date(_termToday);
+_termStart.setDate(_termStart.getDate() - 21); // covers windowStart (today - 21d)
+const _termEnd = new Date(_termStart);
+_termEnd.setDate(_termEnd.getDate() + TERM_WEEKS * 7 - 1); // 10 weeks long
+
+function isoDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const termYear = _termStart.getFullYear();
+const termNumber = Math.ceil((_termStart.getMonth() + 1) / 3); // rough Q1-Q4 mapping
+
+const [termRow] = await sql`
+  insert into terms (id, year, term_number, start_date, end_date)
+  values (${randomUUID()}, ${termYear}, ${termNumber},
+    ${isoDateLocal(_termStart)}, ${isoDateLocal(_termEnd)})
+  on conflict (year, term_number) do update set
+    start_date = excluded.start_date,
+    end_date = excluded.end_date
+  returning id
+`;
+const termId = termRow.id;
+
+// Each subject gets 10 weeks; weekN's title comes from TOPICS_BY_SUBJECT cycled.
+const FALLBACK_TOPICS = ["the chapter", "review", "practice", "extension"];
+const subjectWeekIds = {}; // { subjectName -> [weekNumber-1]: subjectWeekId }
+for (const s of SUBJECTS) {
+  const sid = subjectIds[s.name];
+  subjectWeekIds[s.name] = [];
+  // Topics per subject — reuse TOPICS_BY_SUBJECT if defined later, otherwise fallback.
+  // (TOPICS_BY_SUBJECT is declared further down; we inline a small subset here.)
+  const subjectTopics =
+    {
+      "Year 9 Maths": ["linear equations", "negative numbers", "fractions", "Pythagoras", "perimeter & area", "indices", "probability", "statistics", "review", "exam prep"],
+      "Year 9 English": ["thesis structure", "Romeo and Juliet themes", "persuasive devices", "essay planning", "language analysis", "creative writing", "comparative texts", "vocabulary", "revision", "mock exam"],
+      "Year 10 Maths": ["quadratics", "trigonometry", "indices", "statistics", "probability", "linear graphs", "simultaneous equations", "surds", "review", "exam prep"],
+      "Year 11 Methods": ["functions", "calculus intro", "polynomials", "probability", "transformations", "exponentials", "logarithms", "derivatives", "review", "exam prep"],
+      "VCE Maths Methods": ["differentiation", "integration", "binomial theorem", "logarithms", "trig functions", "probability", "applications", "exam Q1-3", "exam Q4-6", "full exam"],
+      "VCE Specialist Maths": ["complex numbers", "vectors", "dynamics", "differential equations", "kinematics", "proofs", "polar coords", "exam Q1-3", "exam Q4-6", "full exam"],
+      "VCE Physics": ["kinematics", "Newton's laws", "wave optics", "electromagnetism", "thermodynamics", "circuits", "fields", "exam Q1-3", "exam Q4-6", "full exam"],
+      "VCE Chemistry": ["organic chemistry", "equilibria", "redox reactions", "stoichiometry", "acid-base", "thermochem", "kinetics", "exam Q1-3", "exam Q4-6", "full exam"],
+      "VCE Biology": ["cell signalling", "DNA replication", "evolution", "homeostasis", "genetics", "ecology", "immunity", "exam Q1-3", "exam Q4-6", "full exam"],
+      "VCE English": ["text analysis", "comparative essay", "language analysis", "creative writing", "argument analysis", "context", "revision", "mock 1", "mock 2", "exam prep"],
+    }[s.name] ?? FALLBACK_TOPICS;
+
+  for (let wk = 1; wk <= TERM_WEEKS; wk++) {
+    const title = subjectTopics[(wk - 1) % subjectTopics.length];
+    const description = `Week ${wk} · ${title}`;
+    // Dedupe by (subject, term, weekNumber)
+    const [existing] = await sql`
+      select id from subject_weeks
+      where subject_id = ${sid} and term_id = ${termId} and week_number = ${wk}
+      limit 1
+    `;
+    let id;
+    if (existing) {
+      await sql`update subject_weeks set title = ${title}, description = ${description}, updated_at = now() where id = ${existing.id}`;
+      id = existing.id;
+    } else {
+      const [row] = await sql`
+        insert into subject_weeks (id, subject_id, term_id, week_number, title, description)
+        values (${randomUUID()}, ${sid}, ${termId}, ${wk}, ${title}, ${description})
+        returning id
+      `;
+      id = row.id;
+    }
+    subjectWeekIds[s.name].push(id);
+  }
+}
+
+/** Map a date to its subject_week id for a given subject, based on weeks from term start. */
+function weekIdForDate(subjectName, date) {
+  const diffDays = Math.floor(
+    (date.getTime() - _termStart.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const weekNum = Math.floor(diffDays / 7) + 1;
+  if (weekNum < 1 || weekNum > TERM_WEEKS) return null;
+  return subjectWeekIds[subjectName]?.[weekNum - 1] ?? null;
 }
 
 // ----------------------------------------------------------------------------
@@ -393,6 +505,69 @@ for (const l of allLessons) {
 }
 
 // ----------------------------------------------------------------------------
+// 6.5. Make-up lessons — pick up to 2 completed lessons, mark one student
+//      absent on the original, then create a make-up lesson on a later date
+//      with `makeup_attended` attendance. Demos the admin reschedule flow.
+// ----------------------------------------------------------------------------
+
+console.log("→ Seeding make-up lessons");
+{
+  const candidates = allLessons.filter(
+    (l) => l.status === "completed" && l.students.length > 0,
+  );
+  // Shuffle and take 2
+  candidates.sort(() => Math.random() - 0.5);
+  const picks = candidates.slice(0, 2);
+
+  for (const orig of picks) {
+    const studentId = orig.students[0];
+    // Flip the student's attendance on the original lesson to "absent"
+    await sql`
+      insert into attendance (lesson_id, student_id, status, note, marked_by)
+      values (${orig.id}, ${studentId}, 'absent', 'Rescheduled to make-up', ${orig.tutorId})
+      on conflict (lesson_id, student_id) do update set
+        status = 'absent',
+        note = excluded.note,
+        marked_at = now()
+    `;
+
+    // Create a make-up lesson 3 days after the original at the same time.
+    const makeupDate = new Date(`${orig.date}T00:00:00`);
+    makeupDate.setDate(makeupDate.getDate() + 3);
+    const makeupDateStr = isoDate(makeupDate);
+
+    // Dedupe: skip if a makeup row already exists pointing back to this lesson
+    const [existingMakeup] = await sql`
+      select id from lessons where rescheduled_from = ${orig.id} limit 1
+    `;
+    let makeupId;
+    if (existingMakeup) {
+      makeupId = existingMakeup.id;
+    } else {
+      const [row] = await sql`
+        insert into lessons (
+          id, class_id, tutor_id, date, start_time, end_time,
+          status, location, rescheduled_from
+        )
+        values (
+          ${randomUUID()}, ${orig.classId}, ${orig.tutorId},
+          ${makeupDateStr}, ${orig.startTime}, ${orig.endTime},
+          'makeup', null, ${orig.id}
+        )
+        returning id
+      `;
+      makeupId = row.id;
+    }
+
+    await sql`
+      insert into attendance (lesson_id, student_id, status, note, marked_by)
+      values (${makeupId}, ${studentId}, 'makeup_attended', 'Make-up session', ${orig.tutorId})
+      on conflict (lesson_id, student_id) do nothing
+    `;
+  }
+}
+
+// ----------------------------------------------------------------------------
 // 7. Lesson notes — ~70% of completed lessons, per student
 // ----------------------------------------------------------------------------
 
@@ -456,43 +631,138 @@ for (const l of allLessons) {
 }
 
 // ----------------------------------------------------------------------------
-// 8. Homework — 2 per class, with assignments for each enrolled student
+// 8. Homework — one per subject_week so every week on the curriculum page
+//    has a homework attached. Titles match the week topic. Due date is the
+//    end of the week (week start + 6 days), so past weeks land overdue/marked
+//    and future weeks land as viewed/not_started.
 // ----------------------------------------------------------------------------
 
 console.log("→ Creating homework");
 
+// One entry per subject_week (10 weeks per subject). Index = week number - 1.
+// The week titles here MUST match the titles in subjectTopics above so that
+// the curriculum page (student) and the homework list (tutor/parent/admin)
+// reference the same concept by name. weekNumber drives the due_date.
 const HOMEWORK_BY_SUBJECT = {
   "Year 9 Maths": [
-    { title: "Algebra Worksheet 3", desc: "Linear equations practice." },
-    { title: "Pythagoras Problem Set", desc: "Real-world Pythagoras questions." },
+    { title: "Linear equations worksheet",   desc: "10 mixed linear-equation problems." },
+    { title: "Negative numbers practice",    desc: "Operations with negatives, 15 questions." },
+    { title: "Fractions mixed practice",     desc: "Add/sub/mul/div fractions worksheet." },
+    { title: "Pythagoras problem set",       desc: "Real-world Pythagoras questions." },
+    { title: "Perimeter & area worksheet",   desc: "Composite shapes calculations." },
+    { title: "Indices practice",             desc: "Index laws — 12 questions." },
+    { title: "Probability basics",           desc: "Sample space + simple probability." },
+    { title: "Statistics summary set",       desc: "Mean / median / mode / range." },
+    { title: "End-of-term review sheet",     desc: "Mixed review covering term content." },
+    { title: "Mock exam paper",              desc: "Full 60-min practice paper." },
   ],
   "Year 9 English": [
-    { title: "Thesis paragraph", desc: "Write one paragraph on the prescribed prompt." },
-    { title: "Romeo and Juliet reading", desc: "Read Act 2, write 3 discussion questions." },
+    { title: "Thesis structure paragraph",   desc: "Write one paragraph using TEEL." },
+    { title: "Romeo & Juliet themes notes",  desc: "Read Act 2, write 3 discussion qs." },
+    { title: "Persuasive devices worksheet", desc: "Identify rhetorical techniques in given article." },
+    { title: "Essay planning task",          desc: "Plan a 3-body essay on the prompt." },
+    { title: "Text analysis quotes table",   desc: "Collect 10 quotes + analyse each." },
+    { title: "Creative writing draft",       desc: "600-word short story draft." },
+    { title: "Comparative texts notes",      desc: "Compare two prescribed extracts." },
+    { title: "Vocabulary set",               desc: "20-word list — definitions + sentences." },
+    { title: "Revision summary sheet",       desc: "One-page summary of term." },
+    { title: "Mock exam essay",              desc: "Full timed essay under exam conditions." },
   ],
   "Year 10 Maths": [
-    { title: "Quadratics quiz", desc: "Online quiz, 30 minutes." },
-    { title: "Trig worksheet", desc: "Mixed angle problems." },
+    { title: "Quadratics quiz",              desc: "Online quiz, 30 minutes." },
+    { title: "Trigonometry worksheet",       desc: "Mixed angle problems." },
+    { title: "Indices practice set",         desc: "Index laws application questions." },
+    { title: "Statistics worksheet",         desc: "Box plots + stem-leaf." },
+    { title: "Probability problems",         desc: "Tree diagrams + Venn diagrams." },
+    { title: "Linear graphs practice",       desc: "Sketch + interpret 8 graphs." },
+    { title: "Simultaneous equations set",   desc: "Elimination + substitution methods." },
+    { title: "Surds worksheet",              desc: "Simplify + rationalise denominators." },
+    { title: "Review consolidation sheet",   desc: "Mixed problems from the term." },
+    { title: "Mock exam paper",              desc: "Full practice paper, 60 minutes." },
   ],
   "Year 11 Methods": [
-    { title: "Functions revision", desc: "Worksheet covering linear, quadratic, cubic functions." },
-    { title: "Calculus intro", desc: "Differentiation basics, 12 questions." },
+    { title: "Functions revision worksheet", desc: "Linear, quadratic, cubic functions." },
+    { title: "Calculus intro problems",      desc: "Differentiation basics, 12 questions." },
+    { title: "Polynomials worksheet",        desc: "Factoring + roots of polynomials." },
+    { title: "Probability set",              desc: "Conditional + tree diagrams." },
+    { title: "Transformations worksheet",    desc: "Translate/dilate/reflect graphs." },
+    { title: "Exponentials problems",        desc: "Solving exponential equations." },
+    { title: "Logarithms worksheet",         desc: "Log laws + log equations." },
+    { title: "Derivatives practice",         desc: "Power, product, quotient rules." },
+    { title: "Review consolidation",         desc: "Mixed problems from the term." },
+    { title: "Mock exam Q1-3",               desc: "Sit exam questions under time." },
   ],
   "VCE Maths Methods": [
-    { title: "Differentiation set 1", desc: "Application questions." },
-    { title: "Past paper Q1-4", desc: "From 2022 exam 1." },
+    { title: "Differentiation set 1",        desc: "Application questions." },
+    { title: "Integration set 1",            desc: "Definite + indefinite integrals." },
+    { title: "Binomial theorem practice",    desc: "Expansion + specific term qs." },
+    { title: "Logarithms worksheet",         desc: "Log laws + log equations." },
+    { title: "Trig functions problems",      desc: "Solve trig equations in a range." },
+    { title: "Probability problems",         desc: "Binomial + normal distribution." },
+    { title: "Applications problem set",     desc: "Real-world modelling problems." },
+    { title: "Past paper Q1-3",              desc: "From 2022 exam 1, sections A." },
+    { title: "Past paper Q4-6",              desc: "From 2022 exam 1, sections B." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
   ],
   "VCE Specialist Maths": [
-    { title: "Complex numbers practice", desc: "Polar form conversions." },
-    { title: "Vectors worksheet", desc: "3D vector problems." },
+    { title: "Complex numbers practice",     desc: "Polar form conversions." },
+    { title: "Vectors worksheet",            desc: "3D vector problems." },
+    { title: "Dynamics problem set",         desc: "Forces + circular motion." },
+    { title: "Differential equations set",   desc: "First-order ODEs." },
+    { title: "Kinematics problems",          desc: "Projectile + relative motion." },
+    { title: "Proofs worksheet",             desc: "Induction + contradiction." },
+    { title: "Polar coordinates set",        desc: "Convert + sketch polar graphs." },
+    { title: "Past paper Q1-3",              desc: "Exam 1 short-answer." },
+    { title: "Past paper Q4-6",              desc: "Exam 2 multi-step." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
   ],
   "VCE Physics": [
-    { title: "Kinematics problems", desc: "10 questions including projectile motion." },
-    { title: "Lab report", desc: "Write up the inclined plane experiment." },
+    { title: "Kinematics problems",          desc: "10 questions including projectile motion." },
+    { title: "Newton's laws worksheet",      desc: "Free-body diagrams + net force." },
+    { title: "Wave optics problems",         desc: "Diffraction + interference." },
+    { title: "Electromagnetism set",         desc: "Magnetic flux + Faraday's law." },
+    { title: "Thermodynamics worksheet",     desc: "First law + heat engines." },
+    { title: "Circuits problems",            desc: "Series/parallel + Kirchhoff's laws." },
+    { title: "Fields worksheet",             desc: "Gravitational + electric fields." },
+    { title: "Past paper Q1-3",              desc: "Exam 1 short-answer." },
+    { title: "Past paper Q4-6",              desc: "Exam 2 application questions." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
   ],
   "VCE Chemistry": [
-    { title: "Organic reactions chart", desc: "Complete the reaction map." },
-    { title: "Equilibria problems", desc: "Le Chatelier questions." },
+    { title: "Organic reactions chart",      desc: "Complete the reaction map." },
+    { title: "Equilibria problems",          desc: "Le Chatelier questions." },
+    { title: "Redox reactions worksheet",    desc: "Half-equations + oxidation states." },
+    { title: "Stoichiometry set",            desc: "Mole calculations + limiting reagent." },
+    { title: "Acid-base titration problems", desc: "pH + titration curves." },
+    { title: "Thermochemistry worksheet",    desc: "Enthalpy + Hess's law." },
+    { title: "Kinetics problems",            desc: "Rate laws + Arrhenius equation." },
+    { title: "Past paper Q1-3",              desc: "Exam 1 short-answer." },
+    { title: "Past paper Q4-6",              desc: "Exam 2 application questions." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
+  ],
+  "VCE Biology": [
+    { title: "Cell signalling worksheet",    desc: "Signal transduction pathways." },
+    { title: "DNA replication notes",        desc: "Step-by-step diagram + 5 qs." },
+    { title: "Evolution problem set",        desc: "Natural selection scenarios." },
+    { title: "Homeostasis worksheet",        desc: "Negative feedback loops." },
+    { title: "Genetics problems",            desc: "Punnett squares + pedigrees." },
+    { title: "Ecology field exercise",       desc: "Food web + energy flow analysis." },
+    { title: "Immunity worksheet",           desc: "Innate vs adaptive responses." },
+    { title: "Past paper Q1-3",              desc: "Exam 1 short-answer." },
+    { title: "Past paper Q4-6",              desc: "Exam 2 application questions." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
+  ],
+  "VCE English": [
+    { title: "Text analysis quotes table",   desc: "Collect 10 quotes + analyse each." },
+    { title: "Comparative essay draft",      desc: "800-word comparative draft." },
+    { title: "Language analysis exercise",   desc: "Annotate a persuasive article." },
+    { title: "Creative writing piece",       desc: "Reflective short piece, 600 words." },
+    { title: "Argument analysis task",       desc: "Identify + evaluate three arguments." },
+    { title: "Context essay plan",           desc: "Plan a context-based essay." },
+    { title: "Revision summary",             desc: "One-page summary of texts studied." },
+    { title: "Mock essay 1",                 desc: "Timed essay, exam conditions." },
+    { title: "Mock essay 2",                 desc: "Timed comparative essay." },
+    { title: "Full mock exam",               desc: "Sit full exam under time." },
   ],
 };
 
@@ -504,11 +774,20 @@ for (const c of CLASSES) {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    // Stagger due dates: first item due 3 days ago (some late), second due in 4 days
-    const offsetDays = i === 0 ? -3 : 4;
-    const due = new Date(today);
-    due.setDate(due.getDate() + offsetDays);
-    const titleKey = `${c.name}::${item.title}`;
+    // Index i is 0-based; weekNumber is i+1. Due date = end of that week
+    // (term start + (weekNumber-1) * 7 + 6 days). This guarantees each
+    // subject_week has exactly one homework tied to it via week_id.
+    const weekNumber = i + 1;
+    const due = new Date(_termStart);
+    due.setDate(due.getDate() + (weekNumber - 1) * 7 + 6);
+    // offsetDays vs today drives assignment status branching below
+    const offsetDays = Math.floor(
+      (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    // Map due date to a subject_week so the homework shows up on the
+    // weekly subject page in the right week.
+    const weekId = weekIdForDate(c.subject, due);
 
     // Idempotent: dedupe by (class_id, title) — schema has no unique index so check first.
     const [existing] = await sql`
@@ -516,11 +795,15 @@ for (const c of CLASSES) {
     `;
     let homeworkId;
     if (existing) {
+      // Backfill week_id if it was previously null
+      if (weekId) {
+        await sql`update homework set week_id = ${weekId} where id = ${existing.id} and week_id is null`;
+      }
       homeworkId = existing.id;
     } else {
       const [row] = await sql`
-        insert into homework (id, class_id, tutor_id, title, description, due_date)
-        values (${randomUUID()}, ${classId}, ${tutorId}, ${item.title}, ${item.desc}, ${due.toISOString()})
+        insert into homework (id, class_id, tutor_id, week_id, title, description, due_date)
+        values (${randomUUID()}, ${classId}, ${tutorId}, ${weekId}, ${item.title}, ${item.desc}, ${due.toISOString()})
         returning id
       `;
       homeworkId = row.id;
@@ -719,6 +1002,8 @@ for (const t of [
   "profiles",
   "family_links",
   "subjects",
+  "terms",
+  "subject_weeks",
   "classes",
   "enrollments",
   "lessons",

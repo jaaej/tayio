@@ -413,3 +413,105 @@ export async function getRecentAnnouncements(
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
 }
+
+export type StudentLesson = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: (typeof lessons.$inferSelect)["status"];
+  classId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  tutorId: string;
+  tutorFirstName: string;
+  tutorLastName: string;
+  /** rescheduledFrom uuid (null on normal lessons). Surfaced for context. */
+  rescheduledFrom: string | null;
+};
+
+/**
+ * Upcoming lessons for a student (from today, within `days` ahead), only
+ * for classes they're still actively enrolled in. Used by admin reschedule UI.
+ */
+export async function getStudentUpcomingLessons(
+  studentId: string,
+  days = 21,
+): Promise<StudentLesson[]> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const horizon = new Date(today);
+  horizon.setDate(today.getDate() + days);
+
+  return db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      classId: classes.id,
+      className: classes.name,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      tutorId: profiles.id,
+      tutorFirstName: profiles.firstName,
+      tutorLastName: profiles.lastName,
+      rescheduledFrom: lessons.rescheduledFrom,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
+        gte(lessons.date, isoDate(today)),
+        lt(lessons.date, isoDate(horizon)),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+}
+
+/**
+ * Single lesson with subject/class/tutor context. Used by the reschedule
+ * picker to confirm the lesson belongs to the student before showing slots.
+ */
+export async function getLessonContextForStudent(
+  studentId: string,
+  lessonId: string,
+): Promise<StudentLesson | null> {
+  const rows = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      classId: classes.id,
+      className: classes.name,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      tutorId: profiles.id,
+      tutorFirstName: profiles.firstName,
+      tutorLastName: profiles.lastName,
+      rescheduledFrom: lessons.rescheduledFrom,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
+    .where(
+      and(
+        eq(lessons.id, lessonId),
+        eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
