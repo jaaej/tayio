@@ -111,9 +111,24 @@ export function getAccentTokens(family: AccentFamily): AccentTokens {
   return ACCENT_TOKENS[family];
 }
 
+const FAMILY_CYCLE: AccentFamily[] = [
+  "red",
+  "amber",
+  "emerald",
+  "violet",
+  "cyan",
+  "rose",
+  "periwinkle",
+];
+
 /**
- * Map a subject name to a colour family. Heuristic by name so new
- * subjects pick a reasonable family without needing a registry.
+ * Map a subject name to a colour family.
+ *
+ * 1. Subject-keyword heuristics first so well-known subjects (Maths, English,
+ *    etc.) pick semantically meaningful colours.
+ * 2. Any unmatched name is hashed across FAMILY_CYCLE so two arbitrary
+ *    subjects don't collide. Hashing on the name keeps the assignment
+ *    stable across pages and reloads.
  */
 export function colorFamilyForSubject(name: string): AccentFamily {
   const n = name.toLowerCase();
@@ -129,5 +144,10 @@ export function colorFamilyForSubject(name: string): AccentFamily {
   if (n.includes("biology") || n.includes("bio")) return "rose";
   if (n.includes("history") || n.includes("geo") || n.includes("legal"))
     return "cyan";
-  return "periwinkle";
+
+  let hash = 0;
+  for (let i = 0; i < n.length; i++) {
+    hash = (hash * 31 + n.charCodeAt(i)) | 0;
+  }
+  return FAMILY_CYCLE[Math.abs(hash) % FAMILY_CYCLE.length];
 }

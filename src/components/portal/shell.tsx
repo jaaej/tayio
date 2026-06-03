@@ -60,7 +60,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Discussions", href: "/tutor/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
     { label: "Messages", href: "/tutor/messages", icon: <MessageCircle className={ICON_CLASS} /> },
     { label: "Notifications", href: "/tutor/notifications", icon: <Bell className={ICON_CLASS} /> },
-    { label: "Schedule", href: "/tutor/schedule", icon: <CalendarDays className={ICON_CLASS} /> },
+    { label: "Timetable", href: "/tutor/timetable", icon: <CalendarDays className={ICON_CLASS} /> },
   ],
   admin: [
     { label: "Operations", href: "/admin", icon: <LayoutDashboard className={ICON_CLASS} /> },
