@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { StatTile } from "@/components/data/stat-tile";
+import { Card, CardHead } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
 import { requireRole } from "@/lib/auth";
 import {
   MonthCalendar,
@@ -74,89 +74,31 @@ export default async function TimetablePage({
     }));
 
   const today = new Date();
-  const todayIso = isoLocal(today);
   const isCurrentMonth =
     today.getFullYear() === year && today.getMonth() === month;
 
-  // Stats for the visible month
-  const upcomingLessons = lessons.filter(
-    (l) => l.date >= todayIso && l.status === "upcoming",
-  ).length;
-  const dueHomework = homework.filter(
-    (h) =>
-      h.status === "not_started" ||
-      h.status === "viewed" ||
-      h.status === "resubmission_requested",
-  ).length;
-
-  const dateLabel = today.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   return (
-    <div className="space-y-6">
-      {/* Title strip */}
-      <header className="flex items-baseline justify-between rise">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
-          </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Timetable
-          </h1>
-        </div>
-        {!isCurrentMonth && (
-          <div className="hidden md:flex items-center gap-3 text-sm">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-              Viewing
-            </span>
-            <span className="text-ink font-medium">
-              {MONTH_NAMES[month]} {year}
-            </span>
-          </div>
-        )}
-      </header>
+    <div className="space-y-5">
+      <PageHead
+        eyebrow="Timetable"
+        title={
+          isCurrentMonth
+            ? "Your schedule"
+            : `${MONTH_NAMES[month]} ${year}`
+        }
+        sub={
+          isCurrentMonth
+            ? "Browse upcoming lessons and homework due dates."
+            : undefined
+        }
+      />
 
-      {/* Stat strip */}
-      <section
-        className="grid grid-cols-3 gap-4 rise"
-        style={{ animationDelay: "40ms" } as React.CSSProperties}
-      >
-        <StatTile
-          label="Lessons this month"
-          value={lessons.length.toString()}
-          accent="brand"
+      <Card className="overflow-hidden">
+        <CardHead
+          title={`${firstName}'s schedule`}
+          action={`${lessons.length} lesson${lessons.length === 1 ? "" : "s"}`}
         />
-        <StatTile
-          label="Upcoming"
-          value={upcomingLessons.toString()}
-          accent="brand"
-        />
-        <StatTile
-          label="Homework due"
-          value={dueHomework.toString()}
-          accent={dueHomework > 0 ? "warn" : "success"}
-          href="/student/homework"
-        />
-      </section>
-
-      {/* Month calendar */}
-      <Card
-        className="p-0 overflow-hidden rise"
-        style={{ animationDelay: "80ms" } as React.CSSProperties}
-      >
-        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
-          <div className="text-xl font-medium text-ink">
-            {firstName}'s schedule
-          </div>
-          <span className="text-sm uppercase tracking-[0.18em] text-muted">
-            {lessons.length} lesson{lessons.length === 1 ? "" : "s"}
-          </span>
-        </div>
-        <div className="p-5 lg:p-6 bg-gradient-to-b from-brand-50/30 to-transparent">
+        <div className="p-4 lg:p-5">
           <MonthCalendar
             year={year}
             month={month}

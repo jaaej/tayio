@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -6,6 +6,9 @@ import {
   enrollments,
   homework,
   homeworkAssignments,
+  lessonNotes,
+  lessons,
+  profiles,
   studentWeekProgress,
   subjectWeeks,
   subjects,
@@ -18,6 +21,13 @@ import {
   type MergedWeek,
 } from "@/lib/curriculum";
 
+function isoLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export type StudentCurriculumWeek = MergedWeek & {
   videoWatchedAt: Date | null;
   bookletOpenedAt: Date | null;
@@ -27,6 +37,18 @@ export type StudentCurriculumWeek = MergedWeek & {
     dueDate: Date;
     status: string;
     score: string | null;
+  }>;
+  /** Lesson recaps (parent-visible portion of lesson notes) for lessons
+   * whose date falls within this week's calendar range. */
+  recaps: Array<{
+    lessonId: string;
+    date: string;
+    startTime: string;
+    tutorName: string;
+    topicCovered: string | null;
+    keyConcepts: string | null;
+    parentVisibleComment: string | null;
+    nextLessonFocus: string | null;
   }>;
 };
 
@@ -153,6 +175,67 @@ export async function getStudentCurriculum(
     hwByWeek.get(r.weekId)!.push(r);
   }
 
+  // Recaps: pull all lessons for this student's class in this term, then
+  // bucket them by week-number based on the term start.
+  const termStart = new Date(`${term.startDate}T00:00:00`);
+  const termEndExclusive = new Date(`${term.endDate}T00:00:00`);
+  termEndExclusive.setDate(termEndExclusive.getDate() + 1);
+  const lessonRows = await db
+    .select({
+      lessonId: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      tutorFirst: profiles.firstName,
+      tutorLast: profiles.lastName,
+      topicCovered: lessonNotes.topicCovered,
+      keyConcepts: lessonNotes.keyConcepts,
+      parentVisibleComment: lessonNotes.parentVisibleComment,
+      nextLessonFocus: lessonNotes.nextLessonFocus,
+      noteStudentId: lessonNotes.studentId,
+    })
+    .from(lessons)
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .leftJoin(
+      lessonNotes,
+      and(
+        eq(lessonNotes.lessonId, lessons.id),
+        eq(lessonNotes.studentId, userId),
+      ),
+    )
+    .where(
+      and(
+        eq(lessons.classId, enrollment.classId),
+        gte(lessons.date, term.startDate),
+        lt(lessons.date, isoLocal(termEndExclusive)),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+
+  const recapsByWeekNum = new Map<
+    number,
+    StudentCurriculumWeek["recaps"]
+  >();
+  for (const r of lessonRows) {
+    const dt = new Date(`${r.date}T00:00:00`);
+    const diffDays = Math.floor(
+      (dt.getTime() - termStart.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const weekNum = Math.floor(diffDays / 7) + 1;
+    if (weekNum < 1) continue;
+    const list = recapsByWeekNum.get(weekNum) ?? [];
+    list.push({
+      lessonId: r.lessonId,
+      date: r.date,
+      startTime: r.startTime,
+      tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
+      topicCovered: r.topicCovered,
+      keyConcepts: r.keyConcepts,
+      parentVisibleComment: r.parentVisibleComment,
+      nextLessonFocus: r.nextLessonFocus,
+    });
+    recapsByWeekNum.set(weekNum, list);
+  }
+
   const weeks: StudentCurriculumWeek[] = templateWeeks.map((tpl) => {
     const merged = mergeOverride(tpl, overrideByWeek.get(tpl.id) ?? null);
     const p = progressByWeek.get(tpl.id);
@@ -167,6 +250,7 @@ export async function getStudentCurriculum(
         status: h.status,
         score: h.score,
       })),
+      recaps: recapsByWeekNum.get(tpl.weekNumber) ?? [],
     };
   });
 

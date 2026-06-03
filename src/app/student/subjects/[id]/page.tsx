@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/student/card";
 import { db } from "@/db/client";
 import { classes, enrollments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { currentWeekNumber } from "@/lib/curriculum";
+import {
+  colorFamilyForSubject,
+  getAccentTokens,
+} from "@/lib/subject-colors";
 import { getStudentCurriculum } from "./_queries";
 import { WeekStrip } from "./_components/week-strip";
 import { WeekContent } from "./_components/week-content";
@@ -77,46 +81,58 @@ export default async function StudentSubjectPage({
     ).length,
   }));
 
+  const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
+  const initial = data.subjectName.charAt(0).toUpperCase();
+
+  // Bleed the entire page past the global shell's px-5/lg:px-7 padding and
+  // re-add a smaller inner padding so the subject view takes the whole main
+  // area (next to the nav sidebar) instead of being inset like other pages.
   return (
-    <div className="space-y-6">
-      <Link
-        href="/student/subjects"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-      >
-        ← All subjects
-      </Link>
-
-      <Card className="p-0 overflow-hidden">
-        {/* Header strip — colored tab */}
-        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-3xl lg:text-4xl font-medium tracking-tight text-ink truncate">
-                {data.subjectName}
-              </h1>
-              <p className="text-sm text-ink-soft mt-1 truncate">
-                {data.className} · {data.currentTerm.year} · Term{" "}
-                {data.currentTerm.termNumber}
-              </p>
-            </div>
-          </div>
+    <div className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col">
+      {/* Header bar — neutral chrome. Subject identity carried by the
+          tinted initial tile + h1, not by tinting the whole bar
+          (avoids breaking visual hierarchy with the rail + hero). */}
+      <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line bg-background">
+        <Link
+          href="/student/subjects"
+          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted hover:text-ink"
+        >
+          ← All subjects
+        </Link>
+        <div className="mt-1.5 flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="h-9 w-9 rounded-[10px] grid place-items-center text-[17px] font-extrabold shrink-0"
+            style={{ background: tokens.bgFrom, color: tokens.arrow }}
+          >
+            {initial}
+          </span>
+          <h1
+            className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none"
+            style={{ color: tokens.title }}
+          >
+            {data.subjectName}
+          </h1>
         </div>
+      </div>
 
-        {/* Week sidebar + content side-by-side, all in one card */}
-        <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
-          <WeekStrip
-            subjectId={subjectId}
-            currentTermId={data.currentTerm.id}
-            termsAvailable={data.termsAvailable}
-            weeks={weekStripItems}
-            selectedWeekId={data.selectedWeekId}
-            currentWeekIdHint={currentWeekHint}
-          />
-          <div className="lg:border-l lg:border-hairline/60 lg:pl-6">
-            <WeekContent week={selectedWeek} classId={data.classId} />
-          </div>
-        </div>
-      </Card>
+      {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
+      <div className="flex-1 grid lg:grid-cols-[220px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
+        <WeekStrip
+          subjectId={subjectId}
+          currentTermId={data.currentTerm.id}
+          termsAvailable={data.termsAvailable}
+          weeks={weekStripItems}
+          selectedWeekId={data.selectedWeekId}
+          currentWeekIdHint={currentWeekHint}
+          accent={tokens}
+        />
+        <WeekContent
+          week={selectedWeek}
+          classId={data.classId}
+          subjectName={data.subjectName}
+        />
+      </div>
     </div>
   );
 }
@@ -126,13 +142,17 @@ function EmptyCurriculum() {
     <div className="space-y-4">
       <Link
         href="/student/subjects"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink"
       >
         ← All subjects
       </Link>
-      <div className="rounded-xl border border-hairline/60 bg-card p-6 text-sm text-ink-soft">
-        Curriculum coming soon — your tutor is preparing this term's content.
-      </div>
+      <Card>
+        <CardBody>
+          <div className="text-sm text-muted">
+            Curriculum coming soon — your tutor is preparing this term's content.
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

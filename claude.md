@@ -32,6 +32,34 @@
 - **CLAUDE.md self-checks**: what would change my mind, cold-recommendation test, why isn't there a better option.
 - **Destructive-action rule**: state what data is lost before recommending Delete App / simctl erase / etc.
 
+## UI/UX review mode (ui-ux-pro-max)
+
+For **every** UI / frontend design change the user requests, run the change through the `ui-ux-pro-max:ui-ux-pro-max` skill's ruleset before implementing. If the requested change violates a rule, **push back** — do not silently comply.
+
+How to push back:
+1. Cite the rule by name (e.g. `visual-hierarchy`, `color-contrast`, `primary-action`, `consistency`).
+2. Explain *why* the change harms the page in 1–2 sentences.
+3. Offer a concrete alternative.
+4. Then ask the user to choose: revert / keep as-is / compromise.
+
+When NOT to push back: changes that don't violate any rule, or where the violation is trivial (e.g. a 0.5px border). Push back only when the rule actually matters at human-perception scale.
+
+This rule covers: colors, layout, typography, spacing, hierarchy, accessibility, contrast, interactive states, emoji-as-icons, animation timing. Backend / data / API changes are exempt.
+
+## What "design" / "style" means in this project
+
+When the user asks for a design or style change ("make this more engaging", "follow the tayio style", "redesign X"), interpret it as **all** of the dimensions below — not just colour. A change that only touches hue is a colour change, not a design change.
+
+- **Shape & form** — corner radii (project scale: 9 / 14 / 22 / 28px), top accent stripes, tinted tiles, decorative blobs, pill chips (999px).
+- **Layout** — grid columns, gutter widths, hero strip vs grid, card spans, featured-vs-default rows, what gets surfaced vs nested.
+- **Specific use of colour** — gradient direction + stops, accent stripes, tinted backgrounds, foreground/background pairs — not just "what hue". Pull exact stops from the reference (e.g. `#4F5BD5 → #3F4AB5 → #2B3287` for the indigo hero) rather than approximating with Tailwind defaults.
+- **Size & density** — padding scale, type scale, icon tile size (e.g. 46×46 with 14px radius), hero height, chunky vs compact.
+- **Typography** — weight (800/extrabold for numbers + titles), tracking (-0.01 to -0.03em on headlines), uppercase eyebrows with wide tracking (0.16–0.20em).
+- **Motion** — hover lift (`-translate-y-[3px]`), shadow depth change, 120–200ms transitions.
+- **Hierarchy moves** — distinguishing a "featured" card from peers via size, span, accent intensity, or unique decoration.
+
+When the user gives a reference (zip, screenshot, URL), extract the exact tokens from it (radii, gradient stops, shadow values, font weight, tile sizes) and use them. Don't substitute with `rounded-lg` / `shadow-md` defaults.
+
 ## Karpathy Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.

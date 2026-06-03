@@ -25,7 +25,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Reporting to parents/tutors | Attendance + payment reports | 🔶 | 🔶 | `/admin/reports` is a stub ("Coming in Phase 3"). Underlying data (attendance, invoices) is queryable; nothing aggregates it yet. |
 | Resource control | Manage uploaded resources, approval workflow | ⬜ | ⬜ | No `resources` table, no upload pipeline, no approval queue. |
 | Create accounts | Role-specific account creation | ✅ | ✅ | `/admin/users` + `/admin/users/[id]` |
-| Tutor management — availability | View / coordinate tutor availability | 🔶 | ✅ | Tutors set their own availability at `/tutor/timetable`. Admin can't view/edit other tutors' availability — only the seeded buffer query reads it. |
+| Tutor management — availability | View / coordinate tutor availability | 🔶 | ✅ | Tutors set their own availability at `/tutor/timetable` ("Manage availability" toggle on the monthly grid). Backend: `tutor_weekly_availability` table + `getAvailableSlots` query, already consumed by the parent reschedule flow + admin one-off reschedule UI. **Gap:** admin has no UI to view/edit *other* tutors' availability across the roster — needs a `/admin/tutors/availability` board so reception can spot gaps + coordinate cover. |
 | Tutor management — auto-find replacements | Auto-message + replacement on tutor leave | ⬜ | ⬜ | Not built. Would need messaging layer + matching logic. |
 | `admin_restricted` (reception) | Lower-tier admin with no access to sensitive financials | ⬜ | ⬜ | `userRoleEnum` has only one `admin` value. See [Role Tiering](#role-tiering-student--admin) for full permission matrix. |
 | `admin_unrestricted` (owner) | Full admin with all access | ⬜ | ⬜ | Same — current single `admin` role is effectively "full" by default. See [Role Tiering](#role-tiering-student--admin). |
@@ -40,7 +40,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 
 | Feature | Function | FE | BE | Notes |
 |---|---|---|---|---|
-| Class timetable | Show enrolled class times | ✅ | ✅ | `/tutor` dashboard + `/tutor/classes` + `/tutor/timetable` (availability grid added 2026-05-26) |
+| Class timetable | Show enrolled class times | ✅ | ✅ | `/tutor` dashboard + `/tutor/classes` (weekly snapshot) + `/tutor/timetable` (monthly grid: classes as amber pills, availability as green pills, "Manage availability" toggle for edit mode). Consolidated 2026-06-03 — previously split across `/tutor/schedule` + `/tutor/availability`. |
 | Student discussion page | Answer post-class questions | ✅ | ✅ | `/tutor/discussions` — per-subject Q&A boards (shipped 2026-05-27) |
 | Lesson plan | Update what's *going* to be covered | ⬜ | ⬜ | `lesson_notes.nextLessonFocus` exists (per-lesson, *retroactive* — "what to focus on next time"). No forward-looking class-level plan field. |
 | Class test / booklet mark | Update marks for parents/students to see | 🔶 | 🔶 | Homework marking (with `score`, `feedback`) covers most of this. No distinct "test" entity separate from homework. |
@@ -52,7 +52,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | **(extra) Attendance marking** | Mark per-lesson attendance + notes | ✅ | ✅ | `/tutor/lessons/[id]` |
 | **(extra) Lesson notes** | Parent-visible + internal split | ✅ | ✅ | `/tutor/notes`, `/tutor/lessons/[id]`. Strict separation enforced in queries. |
 | **(extra) Student profile** | Attendance / homework / lesson-note history per student | ✅ | ✅ | `/tutor/students/[id]` |
-| **(extra) Tutor availability** | Weekly recurring slot picker, used by parent reschedule flow | ✅ | ✅ | `/tutor/timetable` (added 2026-05-26). Date-specific overrides supported in schema, no UI yet. |
+| **(extra) Tutor availability** | Weekly recurring slot picker, used by parent reschedule flow | ✅ | ✅ | `/tutor/timetable` "Manage availability" toggle. Sync verified: same rows feed parent reschedule + admin one-off reschedule (`src/lib/availability.ts` → `getAvailableSlots`). Per-day "isolate" button on each cell detaches that specific date from the recurring weekly rules — once isolated, the day's pills edit a date-specific availability set that doesn't ripple back to other weeks, and weekly rule changes won't reach the isolated date until it's re-linked. Both states (recurring + per-date) surface identically to admins/parents via the same query. |
 | **(extra) Direct messaging** | 1:1 DMs with admin + students + parents of taught students | ✅ | ✅ | `/tutor/messages` (shipped 2026-05-27). Entry: "Message student" on `/tutor/students/[id]`. |
 
 ---

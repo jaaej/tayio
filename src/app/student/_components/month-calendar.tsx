@@ -107,7 +107,6 @@ export function MonthCalendar({
     if (!lessonsByDate.has(l.date)) lessonsByDate.set(l.date, []);
     lessonsByDate.get(l.date)!.push(l);
   }
-  // Sort each day's lessons by start time
   for (const list of lessonsByDate.values()) {
     list.sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
@@ -144,7 +143,6 @@ export function MonthCalendar({
     });
   }
 
-  // Trim trailing all-out-of-month row
   const rowCount = Math.ceil(days.length / 7);
   let usedRows = rowCount;
   if (rowCount === 6) {
@@ -161,15 +159,15 @@ export function MonthCalendar({
     `${basePath}?month=${monthKey(m.year, m.month)}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-4">
-          <h2 className="text-3xl lg:text-4xl font-medium text-ink tabular-nums">
+          <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
             {MONTH_NAMES[month]} {year}
           </h2>
           <Link
             href={navBase(today)}
-            className="text-[11px] uppercase tracking-[0.16em] text-brand-700 hover:underline"
+            className="text-[11px] uppercase tracking-[0.16em] text-brand-600 hover:text-brand-700 font-bold"
           >
             Today
           </Link>
@@ -178,39 +176,48 @@ export function MonthCalendar({
           <Link
             href={navBase(prev)}
             aria-label="Previous month"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-xl border border-hairline/60 bg-card text-xl text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={navBase(next)}
             aria-label="Next month"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-xl border border-hairline/60 bg-card text-xl text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
           >
             ›
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.18em] text-muted">
-        {DAY_LABELS.map((d) => (
-          <div key={d} className="text-center py-2">
-            {d}
-          </div>
-        ))}
+      {/* Calendar grid wrapped in a tinted frame so the cells read as
+          a single object on the cornflower page background. */}
+      <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
+        <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
+          {DAY_LABELS.map((d, i) => (
+            <div
+              key={d}
+              className={cn(
+                "text-center py-2",
+                (i === 5 || i === 6) && "text-muted",
+              )}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {visibleDays.map((d) => (
+            <DayCell key={d.iso} day={d} />
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
-        {visibleDays.map((d) => (
-          <DayCell key={d.iso} day={d} />
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
-        <LegendDot color="bg-brand-600" label="Lesson" />
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
+        <LegendDot color="bg-brand-500" label="Lesson" />
         <LegendDot color="bg-amber-500" label="Homework due" />
-        <LegendDot color="bg-emerald-500" label="Completed" />
-        <LegendDot color="bg-rose-500" label="Cancelled" />
+        <LegendDot color="bg-good" label="Done" />
+        <LegendDot color="bg-bad" label="Cancelled" />
       </div>
     </div>
   );
@@ -229,41 +236,46 @@ function DayCell({
     homework: MonthHomework[];
   };
 }) {
-  const eventCount = day.lessons.length + day.homework.length;
   return (
     <div
       className={cn(
-        "min-h-[150px] lg:min-h-[170px] xl:min-h-[190px] rounded-xl border flex flex-col transition-colors",
-        day.isToday
-          ? "border-navy-800/40 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_18px_-12px_rgba(29,41,81,0.3)]"
-          : day.inMonth
-            ? day.isWeekend
-              ? "border-hairline/40 bg-brand-50/30"
-              : "border-hairline/40 bg-card"
-            : "border-hairline/30 bg-card/40",
+        "min-h-[140px] lg:min-h-[160px] xl:min-h-[180px] rounded-xl border flex flex-col transition-colors",
+        !day.inMonth
+          ? "border-line/40 bg-surface-2/40"
+          : day.isToday
+            ? "border-brand-400 bg-surface ring-1 ring-brand-300/40"
+            : day.isWeekend
+              ? "border-line bg-surface-2/40"
+              : "border-line bg-surface",
       )}
     >
-      <div
-        className={cn(
-          "px-3 pt-2.5 pb-1.5 flex items-center justify-between",
-          day.isToday
-            ? "text-navy-800"
-            : day.inMonth
-              ? "text-ink"
-              : "text-muted/60",
+      <div className="px-2.5 pt-2 pb-1.5 flex items-center justify-between">
+        {day.isToday ? (
+          <span className="inline-flex items-center justify-center h-7 min-w-7 px-2 rounded-full bg-brand-500 text-white text-[14px] font-extrabold tabular-nums leading-none">
+            {day.dayNum}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "text-[15px] font-bold tabular-nums leading-none",
+              !day.inMonth
+                ? "text-muted-2/60"
+                : day.isWeekend
+                  ? "text-muted"
+                  : "text-ink",
+            )}
+          >
+            {day.dayNum}
+          </span>
         )}
-      >
-        <span className="text-lg font-medium tabular-nums leading-none">
-          {day.dayNum}
-        </span>
-        {eventCount > 0 && day.inMonth && (
-          <span className="text-[11px] uppercase tracking-[0.12em] text-muted tabular-nums">
-            {eventCount}
+        {(day.lessons.length + day.homework.length) > 0 && day.inMonth && (
+          <span className="text-[10px] uppercase tracking-[0.1em] text-muted-2 tabular-nums font-bold">
+            {day.lessons.length + day.homework.length}
           </span>
         )}
       </div>
 
-      <div className="px-2 pb-2 flex-1 space-y-1.5">
+      <div className="px-1.5 pb-1.5 flex-1 space-y-1 overflow-hidden">
         {day.lessons.map((l) => (
           <LessonChip key={l.id} lesson={l} dimmed={!day.inMonth} />
         ))}
@@ -286,7 +298,7 @@ function LessonChip({
   return (
     <div
       className={cn(
-        "relative rounded-lg pl-2.5 pr-2 py-1.5 leading-tight overflow-hidden",
+        "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
         dimmed && "opacity-50",
       )}
       style={{ backgroundColor: tone.bg, color: tone.text }}
@@ -296,10 +308,10 @@ function LessonChip({
         className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
         style={{ backgroundColor: tone.bar }}
       />
-      <div className="text-[11px] font-bold tabular-nums">
+      <div className="text-[10px] font-extrabold tabular-nums">
         {formatTime(lesson.startTime)}
       </div>
-      <div className="mt-0.5 text-xs truncate font-semibold">
+      <div className="mt-0.5 text-[11px] truncate font-bold">
         {lesson.subjectName}
       </div>
     </div>
@@ -318,8 +330,8 @@ function HomeworkChip({
     <Link
       href={`/student/homework/${h.id}`}
       className={cn(
-        "relative block rounded-lg pl-2.5 pr-2 py-1.5 leading-tight overflow-hidden transition-transform hover:translate-y-[-1px]",
-        done ? "bg-emerald-100" : "bg-amber-100",
+        "relative block rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]",
+        done ? "bg-good-bg" : "bg-warn-bg",
         dimmed && "opacity-50",
       )}
     >
@@ -327,21 +339,13 @@ function HomeworkChip({
         aria-hidden
         className={cn(
           "absolute left-0 top-1 bottom-1 w-[3px] rounded-full",
-          done ? "bg-emerald-500" : "bg-amber-500",
+          done ? "bg-good" : "bg-warn",
         )}
       />
       <div
         className={cn(
-          "text-[9px] uppercase tracking-[0.14em] font-semibold",
-          done ? "text-emerald-700" : "text-amber-800",
-        )}
-      >
-        {done ? "Done" : "Due"}
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 text-xs truncate font-medium",
-          done ? "text-emerald-800" : "text-amber-900",
+          "text-[11px] truncate font-bold",
+          done ? "text-good" : "text-warn",
         )}
       >
         {h.title}
@@ -356,15 +360,13 @@ function lessonTone(
   subjectName: string,
 ) {
   if (status === "cancelled" || status === "missed") {
-    return { bg: "#fecdd3", text: "#881337", bar: "#e11d48" };
+    return { bg: "var(--bad-bg)", text: "var(--bad)", bar: "var(--bad)" };
   }
   if (status === "rescheduled" || status === "makeup") {
-    return { bg: "#fde68a", text: "#78350f", bar: "#d97706" };
+    return { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" };
   }
-  // upcoming / completed — colour by subject
   const t = getAccentTokens(colorFamilyForSubject(subjectName));
   if (dateIso < isoLocal(new Date())) {
-    // Past — keep subject hue but mute it a touch via 0.65 alpha overlay; simplest: use bgFrom which is a softer shade.
     return { bg: t.bgTo, text: t.meta, bar: t.arrow };
   }
   return { bg: t.pillBg, text: t.pillText, bar: t.arrow };

@@ -1,29 +1,52 @@
 import Link from "next/link";
-import { Card, CardLabel } from "@/components/ui/card";
-import { MasteryBar, ProgressBar } from "@/components/data/progress-bar";
-import { StatTile } from "@/components/data/stat-tile";
+import { Sparkles, Target, TrendingUp, Trophy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { getStudentProgressBySubject } from "../_lib/queries";
+import {
+  colorFamilyForSubject,
+  getAccentTokens,
+} from "@/lib/subject-colors";
 
-const MASTERY_LABEL = {
+type Mastery = "not_started" | "needs_work" | "improving" | "strong";
+
+const MASTERY_LABEL: Record<Mastery, string> = {
   not_started: "Not started",
   needs_work: "Needs work",
   improving: "Improving",
   strong: "Strong",
-} as const;
+};
 
-const MASTERY_TONE = {
-  strong: "text-emerald-700 bg-emerald-50",
-  improving: "text-brand-700 bg-brand-50",
-  needs_work: "text-amber-800 bg-amber-50",
-  not_started: "text-ink-soft bg-brand-50/40",
-} as const;
+const MASTERY_TONE: Record<Mastery, { bg: string; text: string; dot: string }> =
+  {
+    strong: {
+      bg: "var(--mint-bg)",
+      text: "var(--mint)",
+      dot: "var(--mint)",
+    },
+    improving: {
+      bg: "var(--sky-bg)",
+      text: "var(--sky)",
+      dot: "var(--sky)",
+    },
+    needs_work: {
+      bg: "var(--sun-100)",
+      text: "var(--sun-600)",
+      dot: "var(--sun-500)",
+    },
+    not_started: {
+      bg: "var(--surface-2)",
+      text: "var(--muted)",
+      dot: "var(--muted-2)",
+    },
+  };
 
 export default async function ProgressPage() {
   const user = await requireRole("student");
   const subjects = await getStudentProgressBySubject(user.id);
 
-  const allTopics = subjects.flatMap((s) => s.topics);
+  const allTopics = subjects.flatMap((s) =>
+    s.topics.map((t) => ({ ...t, subjectName: s.subjectName, subjectId: s.subjectId })),
+  );
   const trackedSubjects = subjects.filter((s) => s.topics.length > 0);
 
   const overall =
@@ -35,216 +58,277 @@ export default async function ProgressPage() {
       : 0;
 
   const strongCount = allTopics.filter((t) => t.mastery === "strong").length;
+  const improvingCount = allTopics.filter((t) => t.mastery === "improving").length;
   const needsWorkCount = allTopics.filter(
     (t) => t.mastery === "needs_work" || t.mastery === "not_started",
   ).length;
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const focusList = allTopics
+    .filter((t) => t.mastery === "needs_work" || t.mastery === "not_started")
+    .slice(0, 8);
 
   return (
     <div className="space-y-6">
-      <header className="flex items-baseline justify-between rise">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
-          </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Progress
-          </h1>
-        </div>
-        <div className="hidden md:flex items-center gap-3 text-sm">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-            Topics tracked
-          </span>
-          <span className="text-ink font-medium tabular-nums">
-            {allTopics.length}
-          </span>
-        </div>
-      </header>
-
+      {/* Indigo gradient hero with overall mastery */}
       <section
-        className="grid grid-cols-3 gap-4 rise"
-        style={{ animationDelay: "40ms" } as React.CSSProperties}
+        className="relative overflow-hidden rounded-[28px] px-7 py-7 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
+        style={{
+          background:
+            "radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)",
+        }}
       >
-        <StatTile
-          label="Overall mastery"
-          value={`${overall}%`}
-          accent={overall >= 75 ? "success" : overall >= 50 ? "brand" : "warn"}
-        />
-        <StatTile
-          label="Topics mastered"
-          value={strongCount.toString()}
-          accent="success"
-        />
-        <StatTile
-          label="Need attention"
-          value={needsWorkCount.toString()}
-          accent={needsWorkCount > 0 ? "warn" : "muted"}
-        />
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          className="absolute -right-8 -top-10 w-[240px] h-[240px] opacity-50 pointer-events-none"
+          fill="none"
+        >
+          <circle cx="70" cy="30" r="30" fill="rgba(255,255,255,0.10)" />
+          <circle cx="70" cy="30" r="20" fill="rgba(255,255,255,0.10)" />
+          <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.12)" />
+        </svg>
+
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.2em] font-bold opacity-80">
+              Progress
+            </div>
+            <h1 className="mt-1.5 text-[28px] lg:text-[32px] font-extrabold tracking-[-0.02em] leading-tight">
+              Your mastery
+            </h1>
+            <p className="mt-2 text-[13px] opacity-85">
+              {allTopics.length} topic{allTopics.length === 1 ? "" : "s"} tracked
+              across {trackedSubjects.length} subject
+              {trackedSubjects.length === 1 ? "" : "s"}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <MasteryChip
+                label={`${strongCount} mastered`}
+                icon={<Trophy className="h-3 w-3" />}
+              />
+              <MasteryChip
+                label={`${improvingCount} improving`}
+                icon={<TrendingUp className="h-3 w-3" />}
+              />
+              <MasteryChip
+                label={`${needsWorkCount} to focus`}
+                icon={<Target className="h-3 w-3" />}
+              />
+            </div>
+          </div>
+
+          {/* Big mastery number tile */}
+          <div className="rounded-[24px] border border-white/25 bg-white/[0.14] backdrop-blur-sm px-7 py-5 text-center shrink-0">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold opacity-85">
+              Overall
+            </div>
+            <div className="mt-1 text-[56px] font-extrabold tracking-[-0.03em] tabular-nums leading-none">
+              {overall}
+              <span className="text-[28px] align-top opacity-80">%</span>
+            </div>
+            <div className="mt-1 text-[10px] uppercase tracking-[0.14em] font-bold opacity-75">
+              Across all subjects
+            </div>
+          </div>
+        </div>
       </section>
 
       {subjects.length === 0 ? (
-        <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            You're not enrolled in any subjects yet. Once you have classes, your
-            tutor will start tracking topics here.
+        <div className="rounded-[22px] border border-line bg-surface p-10 text-center space-y-2">
+          <div className="inline-flex items-center justify-center h-[56px] w-[56px] rounded-[18px] bg-brand-50 text-brand-600">
+            <Sparkles className="h-6 w-6" />
           </div>
-        </Card>
+          <div className="text-[15px] font-extrabold text-ink">
+            No subjects yet
+          </div>
+          <div className="text-[13px] text-ink-soft max-w-[320px] mx-auto">
+            Once you have classes, your tutor will start tracking topics here.
+          </div>
+        </div>
       ) : (
-        <div
-          className="grid lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:gap-6 rise"
-          style={{ animationDelay: "80ms" } as React.CSSProperties}
-        >
-          <div className="space-y-5 min-w-0">
-            {subjects.map((s) => (
-              <Card key={s.subjectId} className="p-0 overflow-hidden">
-                <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-xl font-medium text-ink truncate">
-                      {s.subjectName}
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
+          {/* MAIN: subject mastery cards */}
+          <div className="space-y-4 min-w-0">
+            {subjects.map((s) => {
+              const tokens = getAccentTokens(colorFamilyForSubject(s.subjectName));
+              const initial = s.subjectName.charAt(0).toUpperCase();
+              return (
+                <Link
+                  key={s.subjectId}
+                  href={`/student/progress/${s.subjectId}`}
+                  className="group relative block bg-surface border border-line rounded-[22px] overflow-hidden transition-all duration-150 hover:-translate-y-[2px] hover:border-line-strong hover:shadow-[0_18px_38px_-22px_rgba(31,40,90,0.25)]"
+                >
+                  <div
+                    aria-hidden
+                    className="absolute inset-x-0 top-0 h-1.5"
+                    style={{ background: tokens.arrow }}
+                  />
+                  <div className="p-5 pt-6">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="h-[52px] w-[52px] rounded-[15px] grid place-items-center text-[22px] font-extrabold shrink-0"
+                        style={{
+                          background: tokens.bgFrom,
+                          color: tokens.arrow,
+                        }}
+                      >
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] uppercase tracking-[0.16em] font-bold text-muted">
+                          Subject
+                        </div>
+                        <div
+                          className="mt-0.5 text-[18px] font-extrabold leading-tight tracking-[-0.01em]"
+                          style={{ color: tokens.title }}
+                        >
+                          {s.subjectName}
+                        </div>
+                        <div className="text-[11px] text-muted mt-0.5 font-semibold">
+                          {s.topics.length} topic
+                          {s.topics.length === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                      <div
+                        className="text-[32px] font-extrabold tabular-nums tracking-[-0.02em] leading-none shrink-0"
+                        style={{ color: tokens.arrow }}
+                      >
+                        {s.masteryPercent}
+                        <span className="text-[18px] opacity-70">%</span>
+                      </div>
                     </div>
-                    {s.yearLevel && (
-                      <div className="text-xs uppercase tracking-[0.16em] text-muted mt-1">
-                        {s.yearLevel}
+
+                    {/* Mastery bar */}
+                    <div className="mt-4">
+                      <div
+                        className="h-2 w-full rounded-full overflow-hidden"
+                        style={{ background: tokens.bgFrom }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${s.masteryPercent}%`,
+                            background: tokens.arrow,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Topic chips */}
+                    {s.topics.length === 0 ? (
+                      <div className="mt-4 text-[13px] text-ink-soft">
+                        No topics tagged yet. Your tutor will add them as you
+                        cover material in class.
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {s.topics.map((t) => {
+                          const tone = MASTERY_TONE[t.mastery];
+                          return (
+                            <span
+                              key={t.topic}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-extrabold"
+                              style={{ background: tone.bg, color: tone.text }}
+                            >
+                              <span
+                                aria-hidden
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ background: tone.dot }}
+                              />
+                              {t.topic}
+                              <span className="opacity-70 text-[10px] uppercase tracking-[0.12em]">
+                                · {MASTERY_LABEL[t.mastery]}
+                              </span>
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-3xl font-light text-ink tabular-nums leading-none">
-                      {s.masteryPercent}%
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted mt-1">
-                      {s.topics.length} topic{s.topics.length === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  {s.topics.length === 0 ? (
-                    <div className="text-sm text-ink-soft">
-                      No topics tagged yet. Your tutor will add them as you cover material in class.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {s.topics.map((t) => (
-                        <div
-                          key={t.topic}
-                          className="grid grid-cols-[1fr_auto] gap-3 items-center"
-                        >
-                          <MasteryBar
-                            label={t.topic}
-                            mastery={t.mastery}
-                            className="min-w-0"
-                          />
-                          <span
-                            className={
-                              "shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] " +
-                              MASTERY_TONE[t.mastery]
-                            }
-                          >
-                            {MASTERY_LABEL[t.mastery]}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
+                </Link>
+              );
+            })}
           </div>
 
-          <aside className="space-y-5 min-w-0 lg:sticky lg:top-6 lg:self-start">
-            <Card className="p-0 overflow-hidden">
-              <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-                <div className="text-xl font-medium text-ink">Overall</div>
-              </div>
-              <div className="p-5">
-                <CardLabel>Across all subjects</CardLabel>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <div className="text-6xl font-light text-ink tabular-nums">
-                    {overall}%
+          {/* SIDEBAR */}
+          <aside className="space-y-4 min-w-0 lg:sticky lg:top-6 lg:self-start">
+            {/* Focus next — sun-themed card */}
+            <section
+              className="relative overflow-hidden rounded-[22px] border border-sun-200 p-5"
+              style={{ background: "var(--sun-50)" }}
+            >
+              <div
+                aria-hidden
+                className="absolute -right-8 -top-10 w-[140px] h-[140px] rounded-full opacity-50 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(circle, var(--sun-200), transparent 70%)",
+                }}
+              />
+              <div className="relative flex items-center gap-3 mb-3">
+                <div
+                  className="h-[40px] w-[40px] rounded-[13px] grid place-items-center"
+                  style={{
+                    background: "var(--sun-100)",
+                    color: "var(--sun-600)",
+                  }}
+                >
+                  <Target className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-sun-600">
+                    Focus next
+                  </div>
+                  <div className="text-[15px] font-extrabold text-ink leading-tight">
+                    Weak topics
                   </div>
                 </div>
-                <div className="mt-5 space-y-3.5">
-                  {subjects.map((s) => (
-                    <ProgressBar
-                      key={s.subjectId}
-                      label={s.subjectName}
-                      percent={s.masteryPercent}
-                      color={
-                        s.masteryPercent >= 85
-                          ? "bg-emerald-500"
-                          : s.masteryPercent >= 60
-                            ? "bg-brand-600"
-                            : s.masteryPercent >= 30
-                              ? "bg-amber-500"
-                              : "bg-hairline"
-                      }
-                    />
-                  ))}
-                </div>
               </div>
-            </Card>
-
-            <Card className="p-0 overflow-hidden">
-              <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-                <div className="text-xl font-medium text-ink">Focus Next</div>
-              </div>
-              {needsWorkCount === 0 ? (
-                <div className="px-6 py-8 text-sm text-ink-soft">
+              {focusList.length === 0 ? (
+                <div className="relative text-[13px] text-ink-soft py-2">
                   No weak topics right now — keep it up.
                 </div>
               ) : (
-                <ul className="divide-y divide-hairline/60">
-                  {subjects.flatMap((s) =>
-                    s.topics
-                      .filter(
-                        (t) =>
-                          t.mastery === "needs_work" ||
-                          t.mastery === "not_started",
-                      )
-                      .slice(0, 6)
-                      .map((t) => (
-                        <li
-                          key={`${s.subjectId}-${t.topic}`}
-                          className="px-5 py-3"
+                <ul className="relative space-y-2">
+                  {focusList.map((t) => {
+                    const tone = MASTERY_TONE[t.mastery];
+                    return (
+                      <li
+                        key={`${t.subjectId}-${t.topic}`}
+                        className="flex items-start gap-3 p-3 rounded-[14px] bg-white/70 backdrop-blur-sm"
+                      >
+                        <span
+                          aria-hidden
+                          className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+                          style={{ background: tone.dot }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-extrabold text-ink leading-tight">
+                            {t.topic}
+                          </div>
+                          <div className="text-[11px] text-muted mt-0.5 font-semibold truncate">
+                            {t.subjectName}
+                          </div>
+                        </div>
+                        <span
+                          className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] uppercase tracking-[0.12em] font-extrabold"
+                          style={{ background: tone.bg, color: tone.text }}
                         >
-                          <div className="flex items-baseline justify-between gap-3">
-                            <div className="text-sm text-ink truncate">
-                              {t.topic}
-                            </div>
-                            <span
-                              className={
-                                "shrink-0 text-[10px] uppercase tracking-[0.14em] " +
-                                (t.mastery === "needs_work"
-                                  ? "text-amber-800"
-                                  : "text-ink-soft")
-                              }
-                            >
-                              {MASTERY_LABEL[t.mastery]}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted mt-0.5 truncate">
-                            {s.subjectName}
-                          </div>
-                        </li>
-                      )),
-                  )}
+                          {MASTERY_LABEL[t.mastery]}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
-            </Card>
+            </section>
 
-            <Card className="p-0 overflow-hidden">
-              <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-                <div className="text-xl font-medium text-ink">How This Works</div>
+            {/* How this works */}
+            <section className="rounded-[22px] border border-line bg-surface p-5">
+              <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-muted">
+                How this works
               </div>
-              <div className="px-6 py-5 text-sm text-ink-soft space-y-2 leading-relaxed">
+              <div className="mt-2 text-[13px] text-ink-soft space-y-2 leading-relaxed">
                 <p>
                   Each topic is rated by your tutor after lessons and homework.
                   Ratings get averaged into a subject mastery score.
@@ -252,17 +336,31 @@ export default async function ProgressPage() {
                 <p>
                   <Link
                     href="/student/subjects"
-                    className="text-brand-700 hover:underline"
+                    className="text-brand-600 hover:text-brand-700 font-extrabold"
                   >
                     Open a subject →
-                  </Link>{" "}
-                  to see lessons and homework that touched each topic.
+                  </Link>
                 </p>
               </div>
-            </Card>
+            </section>
           </aside>
         </div>
       )}
     </div>
+  );
+}
+
+function MasteryChip({
+  label,
+  icon,
+}: {
+  label: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-white/[0.18] border border-white/25 px-2.5 py-1 rounded-full text-[11px] font-extrabold tabular-nums">
+      {icon}
+      {label}
+    </span>
   );
 }

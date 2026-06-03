@@ -229,6 +229,7 @@ export const homework = pgTable("homework", {
   attachmentUrl: text("attachment_url"),
   dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
   allowResubmission: boolean("allow_resubmission").notNull().default(false),
+  isTest: boolean("is_test").notNull().default(false),
   weekId: uuid("week_id").references((): any => subjectWeeks.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

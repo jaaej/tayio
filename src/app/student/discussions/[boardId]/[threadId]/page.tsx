@@ -1,22 +1,34 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { ChevronLeft, MessageSquareText } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import {
   canSeeBoard,
   getThreadWithReplies,
-  listThreadsForBoard,
 } from "@/lib/discussions-queries";
 import { resolveBoardId } from "@/lib/discussions";
+import { StudentReplyList } from "@/components/student/discussions/reply-list";
+import { StudentReplyComposer } from "@/components/student/discussions/reply-composer";
 import {
-  QuestionBlock,
-  RepliesList,
-} from "@/components/discussions/thread-view";
-import { ReplyComposer } from "@/components/discussions/reply-composer";
-import { OtherQuestions } from "@/components/discussions/other-questions";
+  initialOf,
+  roleColor,
+} from "@/components/student/discussions/role-tone";
+import {
+  colorFamilyForSubject,
+  getAccentTokens,
+  type AccentTokens,
+} from "@/lib/subject-colors";
 
-const OTHER_LIMIT = 5;
+const GENERIC_TOKENS: AccentTokens = {
+  bgFrom: "rgb(208, 219, 252)",
+  bgTo: "rgb(229, 235, 254)",
+  ring: "rgb(126, 145, 220)",
+  title: "#1a1f4d",
+  meta: "rgba(26, 31, 77, 0.85)",
+  arrow: "#4f5bd5",
+  pillBg: "#e0e7ff",
+  pillText: "#3730a3",
+};
 
 export default async function StudentThreadPage({
   params,
@@ -36,48 +48,127 @@ export default async function StudentThreadPage({
     thread.subjectId === null ? "admin" : thread.subjectId;
   if (threadBoardSegment !== boardId) notFound();
 
-  const boardLabel = thread.subjectName ?? "Admin / Tech";
+  const boardLabel = thread.subjectName ?? "General help";
+  const tokens = thread.subjectName
+    ? getAccentTokens(colorFamilyForSubject(thread.subjectName))
+    : GENERIC_TOKENS;
 
-  const others = (await listThreadsForBoard(board))
-    .filter((t) => t.id !== thread.id && !t.deletedAt)
-    .slice(0, OTHER_LIMIT);
+  const userFirstName =
+    (user.user_metadata?.first_name as string | undefined) ??
+    user.email?.split("@")[0] ??
+    "you";
+
+  const title = thread.deletedAt ? "[removed by admin]" : thread.title;
+  const body = thread.deletedAt ? "" : thread.body;
+  const stamp = thread.createdAt.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const liveReplies = thread.replies.filter((r) => !r.deletedAt);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl space-y-6">
       <Link
         href={`/student/discussions/${boardId}`}
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.14em] text-muted hover:text-ink font-medium"
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-muted hover:text-ink transition-colors"
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Back to {boardLabel}
       </Link>
 
-      <div className="grid lg:grid-cols-2 gap-6 lg:items-start">
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
         {/* LEFT: question + composer (sticky on desktop) */}
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start min-w-0 lg:-ml-1.5">
-          <QuestionBlock thread={thread} />
-          <ReplyComposer threadId={thread.id} rolePrefix="student" />
+        <div className="space-y-5 min-w-0 lg:sticky lg:top-6 lg:self-start">
+          <article
+            className="relative bg-surface border border-line rounded-[24px] overflow-hidden"
+            style={{
+              borderTopColor: tokens.arrow,
+              borderTopWidth: "4px",
+              borderTopStyle: "solid",
+            }}
+          >
+            <div className="px-8 py-8">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em]"
+                  style={{ background: tokens.pillBg, color: tokens.pillText }}
+                >
+                  Question
+                </span>
+                <span
+                  className="text-[10px] uppercase tracking-[0.16em] font-bold"
+                  style={{ color: tokens.arrow, opacity: 0.85 }}
+                >
+                  {boardLabel}
+                </span>
+                <span className="text-[10px] font-bold text-muted uppercase tracking-[0.14em] tabular-nums ml-auto">
+                  {stamp}
+                </span>
+              </div>
+
+              <h1
+                className="mt-5 text-[28px] lg:text-[32px] font-bold leading-[1.1] tracking-[-0.02em]"
+                style={{ color: tokens.title }}
+              >
+                {title}
+              </h1>
+
+              {body && (
+                <p className="mt-5 text-[15px] whitespace-pre-wrap leading-[1.7] text-ink">
+                  {body}
+                </p>
+              )}
+
+              <div className="mt-7 pt-5 border-t border-line flex items-center gap-3">
+                <div
+                  className="h-[42px] w-[42px] rounded-full grid place-items-center text-[15px] font-bold text-white shrink-0"
+                  style={{ background: roleColor(thread.authorRole) }}
+                >
+                  {initialOf(thread.authorName)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[14px] font-bold text-ink truncate">
+                    {thread.authorName}
+                  </div>
+                  <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
+                    {thread.authorRole} · asked the question
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <StudentReplyComposer
+            threadId={thread.id}
+            tokens={tokens}
+            userFirstName={userFirstName}
+          />
         </div>
 
-        {/* RIGHT: replies (scrolls with page) */}
-        <Card className="min-w-0 lg:-mr-1.5">
-          <RepliesList
-            replies={thread.replies}
-            threadId={thread.id}
-            rolePrefix="student"
-          />
-        </Card>
-      </div>
+        {/* RIGHT: replies */}
+        <div className="space-y-4 min-w-0">
+          <div className="flex items-center gap-3 px-1">
+            <MessageSquareText
+              className="h-5 w-5"
+              style={{ color: tokens.arrow }}
+              aria-hidden
+            />
+            <h2 className="text-[18px] font-bold text-ink tracking-[-0.01em]">
+              {liveReplies.length}{" "}
+              {liveReplies.length === 1 ? "reply" : "replies"}
+            </h2>
+          </div>
 
-      {others.length > 0 && (
-        <Card>
-          <OtherQuestions
-            threads={others}
-            hrefPrefix={`/student/discussions/${boardId}`}
-            boardLabel={boardLabel}
-          />
-        </Card>
-      )}
+          <section className="bg-surface border border-line rounded-[24px] px-7 py-6">
+            <StudentReplyList
+              replies={thread.replies}
+              threadId={thread.id}
+              tokens={tokens}
+            />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

@@ -470,6 +470,190 @@ export async function getStudentProgressBySubject(
   });
 }
 
+export type SubjectProgressDetail = {
+  subjectId: string;
+  subjectName: string;
+  yearLevel: string | null;
+  masteryPercent: number;
+  topics: Array<{
+    topic: string;
+    mastery: "not_started" | "needs_work" | "improving" | "strong";
+  }>;
+  homework: Array<{
+    homeworkId: string;
+    title: string;
+    dueDate: Date;
+    status:
+      | "not_started"
+      | "viewed"
+      | "submitted"
+      | "late"
+      | "marked"
+      | "returned"
+      | "resubmission_requested";
+    score: string | null;
+    feedback: string | null;
+    submittedAt: Date | null;
+    className: string | null;
+  }>;
+};
+
+export async function getStudentProgressSubjectDetail(
+  studentId: string,
+  subjectId: string,
+): Promise<SubjectProgressDetail | null> {
+  // Verify the student is enrolled in at least one class for this subject.
+  const enrolment = await db
+    .select({ subjectId: classes.subjectId })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(classes.subjectId, subjectId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
+    .limit(1);
+  if (enrolment.length === 0) return null;
+
+  const [subjectRow] = await db
+    .select({
+      id: subjects.id,
+      name: subjects.name,
+      yearLevel: subjects.yearLevel,
+    })
+    .from(subjects)
+    .where(eq(subjects.id, subjectId))
+    .limit(1);
+  if (!subjectRow) return null;
+
+  const topics = await db
+    .select({
+      topic: progressTopics.topic,
+      mastery: progressTopics.mastery,
+    })
+    .from(progressTopics)
+    .where(
+      and(
+        eq(progressTopics.studentId, studentId),
+        eq(progressTopics.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(progressTopics.topic));
+
+  const sum = topics.reduce(
+    (acc, t) => acc + MASTERY_PERCENT[t.mastery],
+    0,
+  );
+  const masteryPercent =
+    topics.length > 0 ? Math.round(sum / topics.length) : 0;
+
+  const homeworkRows = await db
+    .select({
+      homeworkId: homework.id,
+      title: homework.title,
+      dueDate: homework.dueDate,
+      status: homeworkAssignments.status,
+      score: homeworkAssignments.score,
+      feedback: homeworkAssignments.feedback,
+      submittedAt: homeworkAssignments.submittedAt,
+      className: classes.name,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .innerJoin(classes, eq(classes.id, homework.classId))
+    .where(
+      and(
+        eq(homeworkAssignments.studentId, studentId),
+        eq(classes.subjectId, subjectId),
+      ),
+    )
+    .orderBy(desc(homework.dueDate));
+
+  return {
+    subjectId: subjectRow.id,
+    subjectName: subjectRow.name,
+    yearLevel: subjectRow.yearLevel,
+    masteryPercent,
+    topics,
+    homework: homeworkRows,
+  };
+}
+
+/**
+ * Rank for a specific test (homework with is_test = true), within the cohort
+ * of students who have a score on that same test. Anonymous — returns only
+ * { rank, total }, never names or scores. RANK() handles ties (1,2,2,4).
+ * Returns null if the homework isn't a test, the student isn't marked yet,
+ * or there are no marked students at all.
+ */
+export async function getStudentTestRank(
+  studentId: string,
+  homeworkId: string,
+): Promise<{ rank: number; total: number } | null> {
+  const rows = await db.execute<{ rnk: number; total: number }>(sql`
+    with ranked as (
+      select
+        ${homeworkAssignments.studentId} as student_id,
+        rank() over (order by ${homeworkAssignments.score} desc nulls last) as rnk,
+        count(*) over () as total
+      from ${homeworkAssignments}
+      inner join ${homework} on ${homework.id} = ${homeworkAssignments.homeworkId}
+      where ${homeworkAssignments.homeworkId} = ${homeworkId}
+        and ${homework.isTest} = true
+        and ${homeworkAssignments.score} is not null
+    )
+    select rnk, total
+    from ranked
+    where student_id = ${studentId}
+    limit 1
+  `);
+  const row = rows[0];
+  if (!row) return null;
+  return { rank: Number(row.rnk), total: Number(row.total) };
+}
+
+/**
+ * Overall rank within a subject — averages each student's marked test scores
+ * (only is_test = true homework rows) and ranks by average descending.
+ * Cohort = students with at least one marked test in this subject across any
+ * class. Returns null if the student has no marked tests in the subject yet.
+ */
+export async function getStudentOverallSubjectRank(
+  studentId: string,
+  subjectId: string,
+): Promise<{ rank: number; total: number } | null> {
+  const rows = await db.execute<{ rnk: number; total: number }>(sql`
+    with test_scores as (
+      select
+        ${homeworkAssignments.studentId} as student_id,
+        avg(${homeworkAssignments.score}) as avg_score
+      from ${homeworkAssignments}
+      inner join ${homework} on ${homework.id} = ${homeworkAssignments.homeworkId}
+      inner join ${classes} on ${classes.id} = ${homework.classId}
+      where ${classes.subjectId} = ${subjectId}
+        and ${homework.isTest} = true
+        and ${homeworkAssignments.score} is not null
+      group by ${homeworkAssignments.studentId}
+    ),
+    ranked as (
+      select
+        student_id,
+        rank() over (order by avg_score desc) as rnk,
+        count(*) over () as total
+      from test_scores
+    )
+    select rnk, total
+    from ranked
+    where student_id = ${studentId}
+    limit 1
+  `);
+  const row = rows[0];
+  if (!row) return null;
+  return { rank: Number(row.rnk), total: Number(row.total) };
+}
+
 export async function getEnrolledClassIds(studentId: string) {
   const rows = await db
     .select({ classId: enrollments.classId })
@@ -590,6 +774,7 @@ export async function getHomeworkDetail(studentId: string, homeworkId: string) {
       attachmentUrl: homework.attachmentUrl,
       dueDate: homework.dueDate,
       allowResubmission: homework.allowResubmission,
+      isTest: homework.isTest,
       status: homeworkAssignments.status,
       submittedAt: homeworkAssignments.submittedAt,
       submissionUrl: homeworkAssignments.submissionUrl,

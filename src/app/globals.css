@@ -40,6 +40,78 @@
   --card: #ffffff;
 
   --foreground: var(--ink);
+
+  /* ===========================================================
+   * v2 design tokens — additive. Used only by the student portal
+   * (scoped via .theme-student which overrides the brand-* / surface
+   * vars above). New tokens (sun, mint, grape, sky, coral, semantic
+   * pairs, brand-ink, muted-2, line, line-strong, radius scale) live
+   * at root so Tailwind generates utility classes globally; they're
+   * inert outside .theme-student because parent/tutor/admin pages
+   * don't reference them.
+   * =========================================================== */
+  --sun-50:  #fff7ec;
+  --sun-100: #ffeacb;
+  --sun-200: #ffd592;
+  --sun-300: #ffbe5c;
+  --sun-400: #fca22b;
+  --sun-500: #f58a07;
+  --sun-600: #db7400;
+  --sun-ink: #5a3a00;
+
+  --coral:    #f2616b;  --coral-bg: #fde7e9;
+  --mint:     #1fa974;  --mint-bg:  #e2f5ee;
+  --grape:    #7b5bd6;  --grape-bg: #efeafb;
+  --sky:      #2e8fd6;  --sky-bg:   #e3f1fb;
+
+  --good: #16a34a;  --good-bg: #e8f6ee;
+  --warn: #c2761a;  --warn-bg: #fdf1dc;
+  --bad:  #c2362a;  --bad-bg:  #fbe6e4;
+  --info: #1f6ec0;  --info-bg: #e3effb;
+
+  --brand-ink: #1a1f4d;
+  --muted-2:   #9094a1;
+  --line:        #e1e7f5;
+  --line-strong: #cdd6ec;
+
+  --radius-sm: 9px;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+}
+
+/* ===========================================================
+ * .theme-student / .theme-tutor — v2 portal scope. Overrides
+ * the brand-* and surface/ink vars so Tailwind utility classes
+ * like `bg-brand-500` resolve to the v2 cornflower-blue palette
+ * inside this wrapper, without affecting parent/admin. Same
+ * tokens for both portals so the cross-portal look matches.
+ * Font is inherited from the body (Plus Jakarta Sans) — same as parent/admin.
+ * =========================================================== */
+.theme-student,
+.theme-tutor {
+  --brand-50:  #eef3fe;
+  --brand-100: #d7e2fd;
+  --brand-200: #a0bffc;
+  --brand-300: #7a9bf5;
+  --brand-400: #5e76ea;
+  --brand-500: #4f5bd5;
+  --brand-600: #3f4ab5;
+  --brand-700: #323a91;
+
+  --ink:      #0e1116;
+  --ink-soft: #2a2e39;
+  --muted:    #6b7080;
+  --hairline: #e1e7f5;
+
+  --background: #eef3fd;
+  --surface:    #ffffff;
+  --surface-2:  #f2f5fc;
+  --surface-3:  #f2f5fc;
+  --card:       #ffffff;
+
+  background: var(--background);
+  color: var(--ink);
 }
 
 @theme inline {
@@ -53,19 +125,47 @@
   --color-brand-500: var(--brand-500);
   --color-brand-600: var(--brand-600);
   --color-brand-700: var(--brand-700);
+  --color-brand-ink: var(--brand-ink);
   --color-navy-700: var(--navy-700);
   --color-navy-800: var(--navy-800);
   --color-navy-900: var(--navy-900);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
   --color-hairline: var(--hairline);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-card: var(--card);
-  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  --color-sun-50:  var(--sun-50);
+  --color-sun-100: var(--sun-100);
+  --color-sun-200: var(--sun-200);
+  --color-sun-300: var(--sun-300);
+  --color-sun-400: var(--sun-400);
+  --color-sun-500: var(--sun-500);
+  --color-sun-600: var(--sun-600);
+  --color-sun-ink: var(--sun-ink);
+
+  --color-coral:    var(--coral);
+  --color-coral-bg: var(--coral-bg);
+  --color-mint:     var(--mint);
+  --color-mint-bg:  var(--mint-bg);
+  --color-grape:    var(--grape);
+  --color-grape-bg: var(--grape-bg);
+  --color-sky:      var(--sky);
+  --color-sky-bg:   var(--sky-bg);
+
+  --color-good: var(--good); --color-good-bg: var(--good-bg);
+  --color-warn: var(--warn); --color-warn-bg: var(--warn-bg);
+  --color-bad:  var(--bad);  --color-bad-bg:  var(--bad-bg);
+  --color-info: var(--info); --color-info-bg: var(--info-bg);
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
 
@@ -85,9 +185,7 @@ html {
 body {
   color: var(--foreground);
   font-family: var(--font-sans);
-  /* Heavier baseline weight — Poppins reads cleaner at 450 than 400 here. */
-  font-weight: 450;
-  font-feature-settings: "ss01", "cv11";
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--periwinkle-200);
