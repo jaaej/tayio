@@ -1,16 +1,32 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { ScoreBadge } from "@/components/data/score-badge";
-import { StatTile } from "@/components/data/stat-tile";
-import { StatusBadge } from "@/components/data/status-badge";
+import { Card, CardHead, CardBody } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
+import { StatChip } from "@/components/student/stat-chip";
 import { formatDateShort, relativeTime } from "@/lib/format";
 import {
   ATTENDANCE_STATUS_LABEL,
-  ATTENDANCE_STATUS_STYLE,
   HOMEWORK_STATUS_LABEL,
-  HOMEWORK_STATUS_STYLE,
 } from "@/lib/status";
 import { getStudentProfile, requireTutor } from "../../_data";
+
+const ATTENDANCE_TONE: Record<string, "good" | "warn" | "bad" | "info" | "neutral"> = {
+  present: "good",
+  late: "warn",
+  absent: "bad",
+  left_early: "warn",
+  makeup_attended: "info",
+};
+
+const HW_TONE: Record<string, "good" | "warn" | "bad" | "info" | "neutral"> = {
+  marked: "good",
+  submitted: "good",
+  returned: "good",
+  late: "bad",
+  resubmission_requested: "warn",
+  viewed: "info",
+  not_started: "neutral",
+};
 
 export default async function StudentProfilePage({
   params,
@@ -33,176 +49,181 @@ export default async function StudentProfilePage({
     : null;
 
   return (
-    <div className="space-y-6">
-      <header className="rise space-y-2">
-        <Link
-          href="/tutor/students"
-          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-        >
-          ← All students
-        </Link>
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            {student.firstName} {student.lastName}
-          </h1>
+    <div className="space-y-5">
+      <Link
+        href="/tutor/students"
+        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-600 hover:text-brand-700"
+      >
+        ← All students
+      </Link>
+
+      <PageHead
+        eyebrow={
+          [student.yearLevel, student.email].filter(Boolean).join(" · ") ||
+          undefined
+        }
+        title={`${student.firstName} ${student.lastName}`}
+        actions={
           <a
             href={`/tutor/messages/with/${id}`}
-            className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors uppercase tracking-[0.14em]"
+            className="rounded-full bg-brand-600 px-3.5 py-1.5 text-[12px] font-bold text-white hover:bg-brand-700"
           >
             Message student
           </a>
-        </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
-          {student.yearLevel && <span>{student.yearLevel}</span>}
-          <span>{student.email}</span>
-        </div>
-      </header>
+        }
+      />
 
-      <section
-        className="grid grid-cols-3 gap-4 rise"
-        style={{ animationDelay: "40ms" }}
-      >
-        <StatTile
-          label="Attendance rate"
-          value={attendanceRate === null ? "—" : `${attendanceRate}%`}
-          accent={
+      <div className="grid grid-cols-3 gap-3.5">
+        <StatChip
+          icon="✓"
+          hue={
             attendanceRate === null
-              ? "muted"
+              ? "brand"
               : attendanceRate >= 90
-                ? "success"
+                ? "mint"
                 : attendanceRate >= 70
-                  ? "brand"
-                  : "warn"
+                  ? "sun"
+                  : "coral"
           }
+          value={attendanceRate === null ? "—" : `${attendanceRate}%`}
+          label="Attendance rate"
         />
-        <StatTile
+        <StatChip
+          icon="📝"
+          hue="brand"
+          value={homework.length}
           label="Homework"
-          value={homework.length.toString()}
-          accent="brand"
         />
-        <StatTile
+        <StatChip
+          icon="📓"
+          hue="grape"
+          value={notes.length}
           label="Lesson notes"
-          value={notes.length.toString()}
-          accent="brand"
         />
-      </section>
+      </div>
 
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "80ms" }}>
-        <SectionHeader title="Attendance History" />
-        {attendance.length === 0 ? (
-          <Empty>No attendance recorded yet.</Empty>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {attendance.slice(0, 10).map((a) => (
-              <li
-                key={a.lessonId}
-                className="flex items-center gap-4 px-6 py-3.5"
-              >
-                <div className="w-28 text-sm text-ink-soft tabular-nums shrink-0">
-                  {formatDateShort(a.lessonDate)}
-                </div>
-                <div className="flex-1 text-base text-ink truncate">
-                  {a.className}
-                </div>
-                <StatusBadge
-                  label={ATTENDANCE_STATUS_LABEL[a.status] ?? a.status}
-                  className={ATTENDANCE_STATUS_STYLE[a.status]}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "120ms" }}>
-        <SectionHeader title="Homework" />
-        {homework.length === 0 ? (
-          <Empty>No homework assigned yet.</Empty>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {homework.map((h) => (
-              <li key={h.homeworkId}>
-                <Link
-                  href={`/tutor/homework/${h.homeworkId}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
+      <Card className="overflow-hidden">
+        <CardHead title="Attendance history" action={`${attendance.length} record${attendance.length === 1 ? "" : "s"}`} />
+        <CardBody tight>
+          {attendance.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              No attendance recorded yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {attendance.slice(0, 10).map((a) => (
+                <li
+                  key={a.lessonId}
+                  className="flex items-center gap-3 px-4 py-3"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-base text-ink truncate">
-                      {h.title}
-                    </div>
-                    <div className="text-sm text-muted mt-0.5">
-                      Due {formatDateShort(new Date(h.dueDate).toISOString().slice(0, 10))}
-                    </div>
+                  <div className="w-24 text-[12px] text-muted tabular-nums shrink-0">
+                    {formatDateShort(a.lessonDate)}
                   </div>
-                  {h.score !== null && <ScoreBadge score={String(h.score)} />}
-                  <StatusBadge
-                    label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
-                    className={HOMEWORK_STATUS_STYLE[h.status]}
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div className="flex-1 text-[13px] text-ink truncate font-bold">
+                    {a.className}
+                  </div>
+                  <Pill tone={ATTENDANCE_TONE[a.status] ?? "neutral"}>
+                    {ATTENDANCE_STATUS_LABEL[a.status] ?? a.status}
+                  </Pill>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
       </Card>
 
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "160ms" }}>
-        <SectionHeader title="Lesson Notes" />
-        {notes.length === 0 ? (
-          <Empty>No lesson notes yet.</Empty>
-        ) : (
-          <div className="divide-y divide-hairline/60">
-            {notes.map((n) => (
-              <article key={n.id} className="px-6 py-5 space-y-4">
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-base text-ink truncate">
-                      {n.className}
-                      {n.topicCovered ? (
-                        <span className="text-muted"> · {n.topicCovered}</span>
-                      ) : null}
+      <Card className="overflow-hidden">
+        <CardHead title="Homework" action={`${homework.length} item${homework.length === 1 ? "" : "s"}`} />
+        <CardBody tight>
+          {homework.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              No homework assigned yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {homework.map((h) => (
+                <li key={h.homeworkId}>
+                  <Link
+                    href={`/tutor/homework/${h.homeworkId}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold text-ink truncate">
+                        {h.title}
+                      </div>
+                      <div className="text-[11px] text-muted mt-0.5">
+                        Due{" "}
+                        {formatDateShort(
+                          new Date(h.dueDate).toISOString().slice(0, 10),
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted mt-0.5">
-                      {relativeTime(new Date(n.createdAt))}
+                    {h.score !== null && (
+                      <Pill tone="info">{h.score}</Pill>
+                    )}
+                    <Pill tone={HW_TONE[h.status] ?? "neutral"}>
+                      {HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
+                    </Pill>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHead title="Lesson notes" action={`${notes.length} entr${notes.length === 1 ? "y" : "ies"}`} />
+        <CardBody tight>
+          {notes.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              No lesson notes yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-line">
+              {notes.map((n) => (
+                <article key={n.id} className="px-4 py-4 space-y-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-ink truncate">
+                        {n.className}
+                        {n.topicCovered ? (
+                          <span className="text-muted">
+                            {" "}
+                            · {n.topicCovered}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-[11px] text-muted mt-0.5">
+                        {relativeTime(new Date(n.createdAt))}
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-muted tabular-nums shrink-0">
+                      {formatDateShort(n.lessonDate)}
                     </div>
                   </div>
-                  <div className="text-xs text-muted tabular-nums shrink-0">
-                    {formatDateShort(n.lessonDate)}
-                  </div>
-                </div>
-                {n.parentVisibleComment && (
-                  <NoteBlock
-                    tone="parent"
-                    label="Parent will see this"
-                    body={n.parentVisibleComment}
-                  />
-                )}
-                {n.internalNote && (
-                  <NoteBlock
-                    tone="internal"
-                    label="Only you and admin see this"
-                    body={n.internalNote}
-                  />
-                )}
-              </article>
-            ))}
-          </div>
-        )}
+                  {n.parentVisibleComment && (
+                    <NoteBlock
+                      tone="parent"
+                      label="Parent will see this"
+                      body={n.parentVisibleComment}
+                    />
+                  )}
+                  {n.internalNote && (
+                    <NoteBlock
+                      tone="internal"
+                      label="Only you and admin see this"
+                      body={n.internalNote}
+                    />
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </CardBody>
       </Card>
     </div>
   );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-      <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
 }
 
 function NoteBlock({
@@ -214,20 +235,19 @@ function NoteBlock({
   label: string;
   body: string;
 }) {
-  const styles =
+  const cls =
     tone === "parent"
-      ? "border-emerald-200 bg-emerald-50/40"
-      : "border-amber-200 bg-amber-50/40";
-  const labelStyle =
-    tone === "parent" ? "text-emerald-800" : "text-amber-800";
+      ? "border-good/30 bg-good-bg"
+      : "border-warn/30 bg-warn-bg";
+  const labelCls = tone === "parent" ? "text-good" : "text-warn";
   return (
-    <div className={`rounded-xl border ${styles} p-4`}>
+    <div className={`rounded-[12px] border ${cls} p-3`}>
       <div
-        className={`text-[10px] uppercase tracking-[0.18em] font-medium ${labelStyle}`}
+        className={`text-[10px] uppercase tracking-[0.12em] font-bold ${labelCls}`}
       >
         {label}
       </div>
-      <p className="mt-2 text-sm text-ink whitespace-pre-wrap leading-relaxed">
+      <p className="mt-1.5 text-[13px] text-ink whitespace-pre-wrap leading-snug">
         {body}
       </p>
     </div>

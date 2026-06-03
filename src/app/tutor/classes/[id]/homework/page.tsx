@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { Card, CardHead, CardBody } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
 import { db } from "@/db/client";
 import { classes, homework, homeworkAssignments, subjects } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
@@ -15,7 +17,6 @@ export default async function TutorClassHomeworkPage({
   const user = await requireRole("tutor");
   const { id: classId } = await params;
 
-  // Verify tutor owns the class.
   const [cls] = await db
     .select({
       id: classes.id,
@@ -28,7 +29,6 @@ export default async function TutorClassHomeworkPage({
     .limit(1);
   if (!cls) notFound();
 
-  // All homework for this class.
   const items = await db
     .select({
       id: homework.id,
@@ -80,7 +80,14 @@ export default async function TutorClassHomeworkPage({
         const marked = rows
           .filter((r) => r.status === "marked" || r.status === "returned")
           .reduce((a, r) => a + r.total, 0);
-        return { id: i.id, title: i.title, dueDate: i.dueDate, toMark, total, marked };
+        return {
+          id: i.id,
+          title: i.title,
+          dueDate: i.dueDate,
+          toMark,
+          total,
+          marked,
+        };
       })
       .filter((r) => r.toMark > 0)
       .sort((a, b) => b.toMark - a.toMark);
@@ -111,111 +118,106 @@ export default async function TutorClassHomeworkPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/tutor/classes"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-600 hover:text-brand-700"
       >
         ← Back to classes
       </Link>
 
-      <header className="space-y-1">
-        <h1 className="text-3xl font-medium text-ink">
-          {cls.name} — Homework
-        </h1>
-        <p className="text-sm text-ink-soft">
-          {cls.subjectName} · Assign new homework via the{" "}
-          <Link
-            href={`/tutor/classes/${classId}/curriculum`}
-            className="text-brand-700 hover:underline"
-          >
-            curriculum page
-          </Link>
-          .
-        </p>
-      </header>
+      <PageHead
+        eyebrow={cls.subjectName}
+        title={`${cls.name} — Homework`}
+        sub={
+          <>
+            Assign new homework via the{" "}
+            <Link
+              href={`/tutor/classes/${classId}/curriculum`}
+              className="text-brand-600 font-bold hover:text-brand-700"
+            >
+              curriculum page
+            </Link>
+            .
+          </>
+        }
+      />
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 flex items-baseline justify-between">
-          <div className="text-base font-medium text-ink">To mark</div>
-          <span className="text-xs text-muted tabular-nums">
-            {toMarkRows.length}
-          </span>
-        </div>
-        {toMarkRows.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-ink-soft">
-            Nothing waiting to mark.
-          </div>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {toMarkRows.map((h) => (
-              <li key={h.id}>
-                <Link
-                  href={`/tutor/homework/${h.id}`}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-base text-ink truncate">{h.title}</div>
-                    <div className="text-xs text-muted mt-0.5">
-                      Due {formatDueDate(h.dueDate)}
+      <Card className="overflow-hidden">
+        <CardHead title="To mark" action={`${toMarkRows.length} item${toMarkRows.length === 1 ? "" : "s"}`} />
+        <CardBody tight>
+          {toMarkRows.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              Nothing waiting to mark.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {toMarkRows.map((h) => (
+                <li key={h.id}>
+                  <Link
+                    href={`/tutor/homework/${h.id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold text-ink truncate">
+                        {h.title}
+                      </div>
+                      <div className="text-[11px] text-muted mt-0.5">
+                        Due {formatDueDate(h.dueDate)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm text-ink tabular-nums">
-                      {h.marked}/{h.total} marked
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <Pill tone="warn">{h.toMark} to review</Pill>
+                      <span className="text-[11px] text-muted tabular-nums">
+                        {h.marked}/{h.total} marked
+                      </span>
                     </div>
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-amber-700 mt-0.5">
-                      {h.toMark} to review
-                    </div>
-                  </div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-brand-700 shrink-0">
-                    Open →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                    <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
+                      Open →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
       </Card>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 flex items-baseline justify-between">
-          <div className="text-base font-medium text-ink">Due upcoming</div>
-          <span className="text-xs text-muted tabular-nums">
-            {dueRows.length}
-          </span>
-        </div>
-        {dueRows.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-ink-soft">
-            Nothing due in the near future.
-          </div>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {dueRows.map((h) => (
-              <li key={h.id}>
-                <Link
-                  href={`/tutor/homework/${h.id}`}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-base text-ink truncate">{h.title}</div>
-                    <div className="text-xs text-muted mt-0.5">
-                      Due {formatDueDate(h.dueDate)}
+      <Card className="overflow-hidden">
+        <CardHead title="Due upcoming" action={`${dueRows.length} item${dueRows.length === 1 ? "" : "s"}`} />
+        <CardBody tight>
+          {dueRows.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              Nothing due in the near future.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {dueRows.map((h) => (
+                <li key={h.id}>
+                  <Link
+                    href={`/tutor/homework/${h.id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold text-ink truncate">
+                        {h.title}
+                      </div>
+                      <div className="text-[11px] text-muted mt-0.5">
+                        Due {formatDueDate(h.dueDate)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm text-ink tabular-nums">
+                    <span className="text-[11px] text-muted tabular-nums shrink-0">
                       {h.submittedCount}/{h.total} submitted
-                    </div>
-                  </div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-brand-700 shrink-0">
-                    Open →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                    </span>
+                    <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
+                      Open →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
       </Card>
     </div>
   );

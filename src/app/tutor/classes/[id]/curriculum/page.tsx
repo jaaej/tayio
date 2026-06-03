@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { Card, CardHead } from "@/components/student/card";
 import { requireRole } from "@/lib/auth";
 import { getTutorCurriculum } from "./_queries";
 import { WeekStripTutor } from "./_components/week-strip-tutor";
@@ -26,32 +26,35 @@ export default async function TutorClassCurriculumPage({
     data.weeks.find((w) => w.subjectWeekId === weekParam) ?? data.weeks[0];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href={`/tutor/classes`}
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-600 hover:text-brand-700"
       >
         ← Back to classes
       </Link>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-          <h1 className="text-3xl lg:text-4xl font-medium tracking-tight text-ink truncate">
-            {data.className} — Curriculum
-          </h1>
-          <p className="text-sm text-ink-soft mt-1 truncate">
-            {data.subjectName} · {data.currentTerm.year} · Term{" "}
-            {data.currentTerm.termNumber}
-          </p>
-        </div>
+      <Card className="overflow-hidden">
+        <CardHead
+          title={
+            <span className="flex flex-col">
+              <span className="text-[11px] uppercase tracking-[0.12em] text-muted font-bold">
+                {data.subjectName} · {data.currentTerm.year} · Term{" "}
+                {data.currentTerm.termNumber}
+              </span>
+              <span className="text-[16px] font-extrabold text-ink mt-0.5 truncate">
+                {data.className} — Curriculum
+              </span>
+            </span>
+          }
+        />
 
         {data.weeks.length === 0 ? (
-          <div className="p-6 text-sm text-ink-soft">
+          <div className="p-4 text-sm text-muted text-center">
             No curriculum has been set up for {data.subjectName} this term yet.
-            An admin needs to seed weeks before you can override.
           </div>
         ) : (
-          <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
+          <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-5 p-4">
             <WeekStripTutor
               classId={classId}
               currentTermId={data.currentTerm.id}
@@ -65,7 +68,7 @@ export default async function TutorClassCurriculumPage({
               }))}
               selectedWeekId={selected?.subjectWeekId ?? null}
             />
-            <div className="lg:border-l lg:border-hairline/60 lg:pl-6">
+            <div className="lg:border-l lg:border-line lg:pl-5">
               {selected && (
                 <OverrideEditor classId={classId} week={selected} />
               )}

@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Card, CardHead, CardBody } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
+import { Label } from "@/components/ui/input";
 import { formatDueDate } from "@/lib/format";
 import { db } from "@/db/client";
-import { classes, subjectWeeks, subjects } from "@/db/schema";
+import { subjectWeeks, subjects } from "@/db/schema";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import { createHomework } from "../_actions";
 import { getTutorClasses, getTutorHomework, requireTutor } from "../_data";
+
+const INPUT_CLS =
+  "h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
 
 export default async function TutorHomeworkPage() {
   const tutor = await requireTutor();
@@ -18,7 +22,6 @@ export default async function TutorHomeworkPage() {
     resolveCurrentTerm(),
   ]);
 
-  // Build list of available curriculum weeks across all subjects this tutor teaches in the current term.
   const tutorSubjectIds = Array.from(
     new Set(tutorClasses.map((c) => c.subjectId)),
   );
@@ -47,49 +50,48 @@ export default async function TutorHomeworkPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Homework
-        </div>
-        <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Assign &amp; Mark Work
-        </h1>
-      </header>
+    <div className="space-y-5">
+      <PageHead
+        eyebrow="Homework"
+        title="Assign &amp; mark work"
+        sub={`${items.length} item${items.length === 1 ? "" : "s"} across your classes`}
+      />
 
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "40ms" }}>
-        <SectionHeader title="New Homework" />
+      <Card className="overflow-hidden">
+        <CardHead title="New homework" />
         <form
           action={createHomework}
-          className="p-6 space-y-5"
+          className="p-4 space-y-4"
           encType="multipart/form-data"
         >
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
+          <div className="grid md:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="title">Title</Label>
-              <Input
+              <input
                 id="title"
                 name="title"
                 required
                 placeholder="e.g. Worksheet 3 — quadratics"
+                className={INPUT_CLS}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="dueDate">Due</Label>
-              <Input
+              <input
                 id="dueDate"
                 name="dueDate"
                 type="datetime-local"
                 required
+                className={INPUT_CLS}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="classId">Assign to class</Label>
               <select
                 id="classId"
                 name="classId"
-                className="h-11 w-full rounded-xl border border-hairline/60 bg-card px-3 text-sm text-ink"
                 defaultValue=""
+                className={INPUT_CLS}
               >
                 <option value="">Select a class…</option>
                 {tutorClasses.map((c) => (
@@ -99,13 +101,13 @@ export default async function TutorHomeworkPage() {
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="weekId">Curriculum week (optional)</Label>
               <select
                 id="weekId"
                 name="weekId"
-                className="h-11 w-full rounded-xl border border-hairline/60 bg-card px-3 text-sm text-ink"
                 defaultValue=""
+                className={INPUT_CLS}
               >
                 <option value="">— Not tagged to a week —</option>
                 {availableWeeks.map((w) => (
@@ -115,97 +117,96 @@ export default async function TutorHomeworkPage() {
                 ))}
               </select>
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="description">Description</Label>
               <textarea
                 id="description"
                 name="description"
                 rows={3}
                 placeholder="Briefly describe what to do…"
-                className="w-full rounded-xl border border-hairline/60 bg-card p-3 text-sm text-ink placeholder:text-muted/70 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20"
+                className={`${INPUT_CLS} h-auto py-2`}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="attachment">Attachment (PDF / image)</Label>
               <input
                 id="attachment"
                 name="attachment"
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                className="block w-full text-sm text-ink-soft file:mr-4 file:rounded-lg file:border-0 file:bg-ink file:px-4 file:py-2 file:text-sm file:text-white hover:file:bg-brand-700 cursor-pointer"
+                className="block w-full text-[13px] text-ink-soft file:mr-4 file:rounded-full file:border-0 file:bg-brand-600 file:px-3.5 file:py-1.5 file:text-[12px] file:font-bold file:text-white hover:file:bg-brand-700 cursor-pointer"
               />
-              <p className="text-xs text-muted">
+              <p className="text-[11px] text-muted">
                 Uploads land in the{" "}
                 <code className="text-ink">homework-attachments</code> storage
-                bucket. If the bucket isn't provisioned, the homework is saved
-                without an attachment.
+                bucket. If not provisioned, homework saves without attachment.
               </p>
             </div>
-            <label className="flex items-center gap-2 md:col-span-2 text-sm text-ink-soft">
+            <label className="flex items-center gap-2 md:col-span-2 text-[13px] text-ink-soft">
               <input
                 type="checkbox"
                 name="allowResubmission"
-                className="accent-ink"
+                className="accent-brand-600"
               />
               Allow resubmission
             </label>
           </div>
-          <div className="flex justify-end pt-3 border-t border-hairline/60">
-            <Button type="submit">Create homework</Button>
+          <div className="flex justify-end pt-3 border-t border-line">
+            <button
+              type="submit"
+              className="rounded-full bg-brand-600 text-white px-4 py-2 text-[13px] font-bold hover:bg-brand-700 transition-colors"
+            >
+              Create homework
+            </button>
           </div>
         </form>
       </Card>
 
-      <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "80ms" }}>
-        <SectionHeader title="Existing Homework" />
-        {items.length === 0 ? (
-          <Empty>You haven't assigned any homework yet.</Empty>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {items.map((h) => (
-              <li key={h.id}>
-                <Link
-                  href={`/tutor/homework/${h.id}`}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-base text-ink truncate">{h.title}</div>
-                    <div className="text-sm text-muted mt-0.5 truncate">
-                      {h.className ?? "Individual"} · due{" "}
-                      {formatDueDate(new Date(h.dueDate))}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm text-ink tabular-nums">
-                      {h.marked}/{h.total} marked
-                    </div>
-                    {h.toMark > 0 && (
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-amber-700 mt-0.5">
-                        {h.toMark} to review
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Existing homework"
+          action={`${items.length} item${items.length === 1 ? "" : "s"}`}
+        />
+        <CardBody tight>
+          {items.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              You haven't assigned any homework yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {items.map((h) => (
+                <li key={h.id}>
+                  <Link
+                    href={`/tutor/homework/${h.id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold text-ink truncate">
+                        {h.title}
                       </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-brand-700 shrink-0">
-                    Open →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                      <div className="text-[11px] text-muted mt-0.5 truncate">
+                        {h.className ?? "Individual"} · due{" "}
+                        {formatDueDate(new Date(h.dueDate))}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      {h.toMark > 0 && (
+                        <Pill tone="warn">{h.toMark} to review</Pill>
+                      )}
+                      <span className="text-[11px] text-muted tabular-nums">
+                        {h.marked}/{h.total} marked
+                      </span>
+                    </div>
+                    <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
+                      Open →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
       </Card>
     </div>
   );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-      <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
 }

@@ -340,6 +340,64 @@ export async function toggleAvailabilityRule(formData: FormData) {
   revalidatePath("/tutor/timetable");
 }
 
+/**
+ * Day isolation sentinel: a `tutor_availability` row with
+ * start_time='00:00:00', end_time='23:59:59', is_available=false flags the
+ * date as detached from the recurring weekly rules. `expandAvailability`
+ * suppresses weekly rules for that (tutor, date) pair; the day's actual
+ * availability is then driven solely by per-date override rows
+ * (toggleDateOverride). Toggling off re-attaches the weekly rules.
+ */
+const DAY_ISO_START = "00:00:00";
+const DAY_ISO_END = "23:59:59";
+
+export async function toggleDayIsolation(formData: FormData) {
+  const tutor = await requireTutor();
+  const date = isoDateSchema.parse(formData.get("date"));
+
+  const existing = await db
+    .select({ id: tutorAvailability.id })
+    .from(tutorAvailability)
+    .where(
+      and(
+        eq(tutorAvailability.tutorId, tutor.id),
+        eq(tutorAvailability.date, date),
+        eq(tutorAvailability.startTime, DAY_ISO_START),
+        eq(tutorAvailability.endTime, DAY_ISO_END),
+        eq(tutorAvailability.isAvailable, false),
+      ),
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Un-isolate: drop the sentinel AND any positive date overrides for this
+    // date (they were specific to the isolated picker — leaving them around
+    // would silently expand availability once the weekly rules reapply).
+    await db
+      .delete(tutorAvailability)
+      .where(eq(tutorAvailability.id, existing[0].id));
+    await db
+      .delete(tutorAvailability)
+      .where(
+        and(
+          eq(tutorAvailability.tutorId, tutor.id),
+          eq(tutorAvailability.date, date),
+          eq(tutorAvailability.isAvailable, true),
+        ),
+      );
+  } else {
+    await db.insert(tutorAvailability).values({
+      tutorId: tutor.id,
+      date,
+      startTime: DAY_ISO_START,
+      endTime: DAY_ISO_END,
+      isAvailable: false,
+    });
+  }
+
+  revalidatePath("/tutor/timetable");
+}
+
 export async function toggleDateOverride(formData: FormData) {
   const tutor = await requireTutor();
   const date = isoDateSchema.parse(formData.get("date"));

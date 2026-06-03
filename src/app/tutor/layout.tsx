@@ -1,4 +1,4 @@
-import { PortalShell } from "@/components/portal/shell";
+import { TutorShell } from "@/components/tutor/shell";
 import { requireRole } from "@/lib/auth";
 
 export default async function TutorLayout({
@@ -11,9 +11,5 @@ export default async function TutorLayout({
     (user.user_metadata?.first_name as string) ??
     user.email?.split("@")[0] ??
     "Tutor";
-  return (
-    <PortalShell role="tutor" userName={name}>
-      {children}
-    </PortalShell>
-  );
+  return <TutorShell userName={name}>{children}</TutorShell>;
 }

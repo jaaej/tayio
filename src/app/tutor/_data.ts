@@ -446,6 +446,139 @@ export async function getSubmissionsToMark(tutorId: string, limit = 8) {
     .limit(limit);
 }
 
+/**
+ * Recent lessons taught by this tutor (past `days` back through today + 7d
+ * ahead by default) with per-lesson attendance counts + roster size. Used
+ * by the dashboard's attendance index so the tutor can see at a glance
+ * which lessons still need marking and quick-jump into any of them.
+ */
+export async function getTutorAttendanceOverview(
+  tutorId: string,
+  daysBack = 28,
+  daysAhead = 7,
+) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const since = new Date(today);
+  since.setDate(since.getDate() - daysBack);
+  const until = new Date(today);
+  until.setDate(until.getDate() + daysAhead);
+  const sinceIso = since.toISOString().slice(0, 10);
+  const untilIso = until.toISOString().slice(0, 10);
+
+  const lessonRows = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        sql`${lessons.date} >= ${sinceIso}`,
+        sql`${lessons.date} <= ${untilIso}`,
+      ),
+    )
+    .orderBy(desc(lessons.date), asc(lessons.startTime));
+
+  if (lessonRows.length === 0) return [];
+
+  const lessonIds = lessonRows.map((l) => l.id);
+  const classIds = Array.from(new Set(lessonRows.map((l) => l.classId)));
+
+  const [attendanceCounts, rosterCounts] = await Promise.all([
+    db
+      .select({
+        lessonId: attendance.lessonId,
+        status: attendance.status,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(attendance)
+      .where(inArray(attendance.lessonId, lessonIds))
+      .groupBy(attendance.lessonId, attendance.status),
+    db
+      .select({
+        classId: enrollments.classId,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(enrollments)
+      .where(
+        and(
+          inArray(enrollments.classId, classIds),
+          isNull(enrollments.withdrawnAt),
+        ),
+      )
+      .groupBy(enrollments.classId),
+  ]);
+
+  const rosterByClass = new Map(rosterCounts.map((r) => [r.classId, r.total]));
+
+  return lessonRows.map((l) => {
+    const rows = attendanceCounts.filter((r) => r.lessonId === l.id);
+    const marked = rows.reduce((a, r) => a + r.total, 0);
+    const present = rows
+      .filter(
+        (r) => r.status === "present" || r.status === "makeup_attended",
+      )
+      .reduce((a, r) => a + r.total, 0);
+    const late = rows
+      .filter((r) => r.status === "late" || r.status === "left_early")
+      .reduce((a, r) => a + r.total, 0);
+    const absent = rows
+      .filter((r) => r.status === "absent")
+      .reduce((a, r) => a + r.total, 0);
+    const roster = rosterByClass.get(l.classId) ?? 0;
+    return { ...l, marked, present, late, absent, roster };
+  });
+}
+
+/**
+ * Students with at least one overdue, unsubmitted homework assigned by this
+ * tutor. Used by the dashboard "Students to bump" card so the tutor can
+ * nudge them. Counts how many items each student is behind on; row =
+ * one per (student, homework) pair so the tutor can drill into the worst
+ * one first.
+ */
+export async function getStudentsToBump(tutorId: string, limit = 8) {
+  const today = todayDateString();
+  return db
+    .select({
+      homeworkId: homework.id,
+      title: homework.title,
+      dueDate: homework.dueDate,
+      status: homeworkAssignments.status,
+      studentId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      className: classes.name,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .leftJoin(classes, eq(classes.id, homework.classId))
+    .where(
+      and(
+        eq(homework.tutorId, tutorId),
+        inArray(homeworkAssignments.status, [
+          "not_started",
+          "viewed",
+          "resubmission_requested",
+        ]),
+        sql`${homework.dueDate} < ${today}::timestamp`,
+      ),
+    )
+    .orderBy(asc(homework.dueDate))
+    .limit(limit);
+}
+
 export async function getLessonsMissingNotes(tutorId: string, limit = 6) {
   // Lessons in the past 7 days, taught by this tutor, with no note row by this tutor.
   const today = todayDateString();

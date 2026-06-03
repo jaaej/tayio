@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { Card, CardHead, CardBody } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
 import { db } from "@/db/client";
 import {
   attendance,
@@ -13,22 +15,6 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
-
-const ATTENDANCE_LABEL: Record<string, string> = {
-  present: "Present",
-  late: "Late",
-  absent: "Absent",
-  left_early: "Left early",
-  makeup_attended: "Make-up",
-};
-
-const ATTENDANCE_TONE: Record<string, string> = {
-  present: "text-emerald-700 bg-emerald-50",
-  late: "text-amber-700 bg-amber-50",
-  absent: "text-rose-700 bg-rose-50",
-  left_early: "text-amber-700 bg-amber-50",
-  makeup_attended: "text-brand-700 bg-brand-50",
-};
 
 export default async function TutorClassStudentsPage({
   params,
@@ -50,7 +36,6 @@ export default async function TutorClassStudentsPage({
     .limit(1);
   if (!cls) notFound();
 
-  // Enrolled students.
   const students = await db
     .select({
       id: profiles.id,
@@ -66,7 +51,6 @@ export default async function TutorClassStudentsPage({
     )
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
-  // Lessons for this class to compute attendance summaries + locate today's lesson.
   const allLessons = await db
     .select({
       id: lessons.id,
@@ -82,13 +66,10 @@ export default async function TutorClassStudentsPage({
   const today = isoDate(new Date());
   const todaysLesson = allLessons.find((l) => l.date === today) ?? null;
   const nextLesson =
-    todaysLesson ??
-    allLessons.find((l) => l.date >= today) ??
-    null;
+    todaysLesson ?? allLessons.find((l) => l.date >= today) ?? null;
 
-  // Attendance summary per student.
   const studentIds = students.map((s) => s.id);
-  let summaries: Map<
+  const summaries: Map<
     string,
     { present: number; late: number; absent: number; total: number }
   > = new Map();
@@ -130,122 +111,136 @@ export default async function TutorClassStudentsPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/tutor/classes"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-600 hover:text-brand-700"
       >
         ← Back to classes
       </Link>
 
-      <header className="space-y-1">
-        <h1 className="text-3xl font-medium text-ink">
-          {cls.name} — Students
-        </h1>
-        <p className="text-sm text-ink-soft">
-          {cls.subjectName} · {students.length} enrolled
-        </p>
-      </header>
+      <PageHead
+        eyebrow={cls.subjectName}
+        title={`${cls.name} — Students`}
+        sub={`${students.length} enrolled`}
+      />
 
-      {/* Attendance CTA */}
       {todaysLesson ? (
-        <Card className="border-brand-300 bg-brand-50/40">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-medium text-ink">
-                Today's lesson · {formatTime(todaysLesson.startTime)} –{" "}
-                {formatTime(todaysLesson.endTime)}
+        <Card className="border-brand-300 bg-brand-50">
+          <CardBody>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-[13px] font-bold text-ink">
+                  Today's lesson · {formatTime(todaysLesson.startTime)} –{" "}
+                  {formatTime(todaysLesson.endTime)}
+                </div>
+                <div className="text-[12px] text-muted mt-0.5">
+                  Mark attendance now (syncs to admin records).
+                </div>
               </div>
-              <div className="text-xs text-ink-soft mt-0.5">
-                Mark attendance now (syncs to admin records).
-              </div>
+              <Link
+                href={`/tutor/lessons/${todaysLesson.id}`}
+                className="rounded-full bg-brand-600 text-white px-3.5 py-1.5 text-[12px] font-bold hover:bg-brand-700"
+              >
+                Mark attendance →
+              </Link>
             </div>
-            <Link
-              href={`/tutor/lessons/${todaysLesson.id}`}
-              className="rounded-lg bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700"
-            >
-              Mark attendance →
-            </Link>
-          </div>
+          </CardBody>
         </Card>
       ) : nextLesson ? (
         <Card>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-medium text-ink">
-                Next lesson · {formatDateLong(nextLesson.date)}{" "}
-                {formatTime(nextLesson.startTime)}
+          <CardBody>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-[13px] font-bold text-ink">
+                  Next lesson · {formatDateLong(nextLesson.date)}{" "}
+                  {formatTime(nextLesson.startTime)}
+                </div>
+                <div className="text-[12px] text-muted mt-0.5">
+                  Attendance can be marked when the lesson page is open.
+                </div>
               </div>
-              <div className="text-xs text-ink-soft mt-0.5">
-                Attendance can be marked when the lesson page is open.
-              </div>
+              <Link
+                href={`/tutor/lessons/${nextLesson.id}`}
+                className="rounded-full border border-line bg-surface-2 px-3.5 py-1.5 text-[12px] font-bold text-ink hover:bg-brand-50 hover:border-brand-200"
+              >
+                Open lesson →
+              </Link>
             </div>
-            <Link
-              href={`/tutor/lessons/${nextLesson.id}`}
-              className="rounded-lg border border-hairline/60 px-4 py-2 text-sm font-medium hover:bg-brand-50"
-            >
-              Open lesson →
-            </Link>
-          </div>
+          </CardBody>
         </Card>
       ) : null}
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 text-base font-medium text-ink">
-          Enrolled students
-        </div>
-        {students.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-ink-soft">
-            No students enrolled yet. Admin manages enrolment.
-          </div>
-        ) : (
-          <ul className="divide-y divide-hairline/60">
-            {students.map((s) => {
-              const sum = summaries.get(s.id);
-              const rate =
-                sum && sum.total > 0
-                  ? Math.round(((sum.present + sum.late) / sum.total) * 100)
-                  : null;
-              return (
-                <li key={s.id}>
-                  <Link
-                    href={`/tutor/students/${s.id}`}
-                    className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-brand-50 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-base text-ink truncate">
-                        {s.firstName} {s.lastName}
-                      </div>
-                      <div className="text-xs text-muted truncate">
-                        {s.email}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                      {sum && sum.total > 0 ? (
-                        <div className="text-right">
-                          <div className="text-sm text-ink tabular-nums">
-                            {rate}% attendance
+      <Card className="overflow-hidden">
+        <CardHead title="Enrolled students" action={`${students.length} total`} />
+        <CardBody tight>
+          {students.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted text-center">
+              No students enrolled yet. Admin manages enrolment.
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {students.map((s) => {
+                const sum = summaries.get(s.id);
+                const rate =
+                  sum && sum.total > 0
+                    ? Math.round(
+                        ((sum.present + sum.late) / sum.total) * 100,
+                      )
+                    : null;
+                const tone =
+                  rate === null
+                    ? "neutral"
+                    : rate >= 90
+                      ? "good"
+                      : rate >= 70
+                        ? "warn"
+                        : "bad";
+                return (
+                  <li key={s.id}>
+                    <Link
+                      href={`/tutor/students/${s.id}`}
+                      className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-surface-2 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-9 w-9 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold shrink-0">
+                          {s.firstName.charAt(0)}
+                          {s.lastName.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-bold text-ink truncate">
+                            {s.firstName} {s.lastName}
                           </div>
-                          <div className="text-[11px] text-ink-soft">
-                            {sum.present} present · {sum.late} late ·{" "}
-                            {sum.absent} absent
+                          <div className="text-[11px] text-muted truncate">
+                            {s.email}
                           </div>
                         </div>
-                      ) : (
-                        <span className="text-xs text-muted">
-                          No attendance records yet
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {sum && sum.total > 0 ? (
+                          <div className="text-right">
+                            <Pill tone={tone as never}>{rate}% attendance</Pill>
+                            <div className="text-[10px] text-muted mt-1">
+                              {sum.present} present · {sum.late} late ·{" "}
+                              {sum.absent} absent
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-muted">
+                            No attendance yet
+                          </span>
+                        )}
+                        <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600">
+                          Open →
                         </span>
-                      )}
-                      <span className="text-[11px] uppercase tracking-wide text-brand-700">
-                        Open →
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardBody>
       </Card>
     </div>
   );
