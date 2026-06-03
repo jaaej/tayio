@@ -1,9 +1,17 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { CalendarCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardHead,
+  Pill,
+  BackLink,
+  Hero,
+  HeroChip,
+  Button,
+  Empty,
+} from "@/components/admin/ui";
 import { db } from "@/db/client";
 import {
   attendance,
@@ -80,50 +88,45 @@ export default async function AdminLessonAttendancePage({
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
   return (
-    <div className="space-y-6">
-      <Link
-        href="/admin/attendance"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-      >
-        ← Back to attendance
-      </Link>
+    <div className="space-y-6 max-w-[1100px]">
+      <BackLink href="/admin/attendance">Back to attendance</BackLink>
 
-      <header className="rise space-y-2">
-        <h1 className="text-3xl lg:text-4xl font-medium tracking-tight text-ink">
-          {lesson.className} · {formatDateLong(lesson.date)}
-        </h1>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-soft">
-          <span className="tabular-nums">
-            {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
-          </span>
-          <span>{lesson.subjectName}</span>
-          <span>
-            Tutor: {lesson.tutorFirst} {lesson.tutorLast}
-          </span>
-        </div>
-      </header>
+      <Hero
+        className="rise"
+        eyebrow="Attendance"
+        icon={<CalendarCheck className="h-7 w-7" />}
+        title={lesson.className}
+        chips={
+          <>
+            <HeroChip>{formatDateLong(lesson.date)}</HeroChip>
+            <HeroChip>
+              {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
+            </HeroChip>
+            <HeroChip>{lesson.subjectName}</HeroChip>
+            <HeroChip>
+              Tutor: {lesson.tutorFirst} {lesson.tutorLast}
+            </HeroChip>
+          </>
+        }
+      />
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between">
-          <div className="text-xl font-medium text-ink">Attendance</div>
-          <span className="text-sm uppercase tracking-[0.18em] text-muted">
-            {roster.length} enrolled
-          </span>
-        </div>
+      <Card className="rise">
+        <CardHead
+          title="Attendance"
+          action={<Pill tone="brand">{roster.length} enrolled</Pill>}
+        />
         {roster.length === 0 ? (
-          <div className="px-6 py-8 text-sm text-ink-soft">
-            No students enrolled in this class.
-          </div>
+          <Empty>No students enrolled in this class.</Empty>
         ) : (
           <form action={adminSaveAttendance}>
             <input type="hidden" name="lessonId" value={lesson.id} />
-            <ul className="divide-y divide-hairline/60">
+            <ul className="divide-y divide-line">
               {roster.map((s) => {
                 const current = s.attendanceStatus ?? "";
                 return (
                   <li key={s.id} className="px-5 py-4 space-y-3">
                     <div className="flex items-baseline justify-between gap-3">
-                      <div className="text-base text-ink">
+                      <div className="text-[14px] font-bold text-ink">
                         {s.firstName} {s.lastName}
                       </div>
                     </div>
@@ -137,7 +140,7 @@ export default async function AdminLessonAttendancePage({
                             defaultChecked={current === opt.value}
                             className="peer sr-only"
                           />
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-full border border-hairline text-xs text-ink-soft peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink hover:border-brand-400 transition-colors">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full border border-line text-[12px] font-semibold text-ink-soft peer-checked:bg-brand-500 peer-checked:text-white peer-checked:border-brand-500 hover:border-brand-400 transition-colors">
                             {opt.label}
                           </span>
                         </label>
@@ -153,7 +156,7 @@ export default async function AdminLessonAttendancePage({
                 );
               })}
             </ul>
-            <div className="px-5 py-4 border-t border-hairline/60 bg-brand-50/40 flex justify-end">
+            <div className="px-5 py-4 border-t border-line bg-surface-2 flex justify-end">
               <Button type="submit" size="sm" variant="primary">
                 Save attendance
               </Button>

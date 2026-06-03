@@ -20,7 +20,7 @@ export function WeekSidebarAdmin({
 
   return (
     <aside className="space-y-3">
-      <label className="block text-xs uppercase tracking-wide text-muted">
+      <label className="block text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
         Term
       </label>
       <select
@@ -28,7 +28,7 @@ export function WeekSidebarAdmin({
         onChange={(e) => {
           window.location.href = `/admin/subjects/${subjectId}/curriculum?term=${e.target.value}`;
         }}
-        className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink"
       >
         {terms.map((t) => (
           <option key={t.id} value={t.id}>
@@ -43,10 +43,10 @@ export function WeekSidebarAdmin({
             key={w.id}
             href={`/admin/subjects/${subjectId}/curriculum?term=${currentTermId}&week=${w.id}`}
             className={
-              "block rounded-md px-3 py-2 text-sm " +
+              "block rounded-lg px-3 py-2 text-[13px] " +
               (selectedWeek === w.id
-                ? "bg-brand-100 text-ink font-medium"
-                : "text-ink-soft hover:bg-brand-50")
+                ? "bg-brand-50 text-ink font-bold"
+                : "text-ink-soft hover:bg-surface-2")
             }
           >
             Week {w.weekNumber} · {w.title}
@@ -54,7 +54,7 @@ export function WeekSidebarAdmin({
         ))}
         <Link
           href={`/admin/subjects/${subjectId}/curriculum?term=${currentTermId}&new=1`}
-          className="block rounded-md px-3 py-2 text-sm text-brand-700 border border-dashed border-brand-300 hover:bg-brand-50"
+          className="block rounded-lg px-3 py-2 text-[13px] font-bold text-brand-700 border border-dashed border-brand-300 hover:bg-brand-50"
         >
           + Add week
         </Link>

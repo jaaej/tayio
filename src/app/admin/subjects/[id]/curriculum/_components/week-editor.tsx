@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/admin/ui";
 import {
   createSubjectWeek,
   updateSubjectWeek,
@@ -55,50 +56,45 @@ export function WeekEditor({
     <div className="space-y-5">
       <form action={submit} className="space-y-3">
         <label className="block text-sm">
-          <div className="text-xs uppercase tracking-wide text-muted mb-1">
+          <div className="text-[12px] font-bold text-ink-soft mb-1">
             Week number
           </div>
           <input
             name="weekNumber"
             type="number"
             defaultValue={existing?.weekNumber ?? 1}
-            className="w-32 rounded-md border border-hairline/60 bg-card px-3 py-2"
+            className="w-32 rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
             required
           />
         </label>
         <label className="block text-sm">
-          <div className="text-xs uppercase tracking-wide text-muted mb-1">
-            Title
-          </div>
+          <div className="text-[12px] font-bold text-ink-soft mb-1">Title</div>
           <input
             name="title"
             defaultValue={existing?.title ?? ""}
-            className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
             required
           />
         </label>
         <label className="block text-sm">
-          <div className="text-xs uppercase tracking-wide text-muted mb-1">
+          <div className="text-[12px] font-bold text-ink-soft mb-1">
             Description
           </div>
           <textarea
             name="description"
             defaultValue={existing?.description ?? ""}
             rows={3}
-            className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
           />
         </label>
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-          >
+          <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : existing ? "Save" : "Create week"}
-          </button>
+          </Button>
           {existing && (
-            <button
+            <Button
               type="button"
+              variant="danger"
               onClick={() => {
                 if (
                   confirm(
@@ -113,17 +109,16 @@ export function WeekEditor({
                   });
                 }
               }}
-              className="rounded-md border border-red-300 text-red-700 px-3 py-2 text-sm"
             >
               Delete
-            </button>
+            </Button>
           )}
         </div>
       </form>
 
       {existing && (
-        <div className="space-y-4 border-t border-hairline/60 pt-5">
-          <div className="text-base font-medium text-ink">Files</div>
+        <div className="space-y-4 border-t border-line pt-5">
+          <div className="text-[14px] font-bold text-ink">Files</div>
           <FileSlot
             label="Recorded lesson video"
             currentPath={existing.videoUrl}
@@ -139,7 +134,7 @@ export function WeekEditor({
         </div>
       )}
 
-      {error && <div className="text-sm text-red-700">{error}</div>}
+      {error && <div className="text-[13px] font-semibold text-bad">{error}</div>}
     </div>
   );
 }
@@ -157,17 +152,17 @@ function FileSlot({
 }) {
   const inputId = `file-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
-    <div className="rounded-xl border border-hairline/60 bg-card p-4">
+    <div className="rounded-[14px] border border-line bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-ink">{label}</div>
+          <div className="text-[14px] font-bold text-ink">{label}</div>
           <div className="text-xs text-ink-soft mt-0.5 truncate">
             {currentPath ? `Stored: ${currentPath}` : "No file uploaded yet"}
           </div>
         </div>
         <label
           htmlFor={inputId}
-          className="shrink-0 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+          className="shrink-0 cursor-pointer rounded-lg bg-brand-500 px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
         >
           {currentPath ? "Replace" : "Upload"}
         </label>

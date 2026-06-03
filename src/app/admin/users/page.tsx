@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { desc } from "drizzle-orm";
+import { Users, GraduationCap, UserCog, Baby } from "lucide-react";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
-import { Card, CardLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import {
+  Card,
+  CardHead,
+  CardBody,
+  Pill,
+  StatTile,
+  PageHeader,
+  Empty,
+  Button,
+  type PillTone,
+  type StatTone,
+} from "@/components/admin/ui";
 import { CreateUserForm } from "./_components/create-user-form";
 import { UserRowActions } from "./_components/user-row-actions";
 
@@ -12,10 +22,17 @@ export const dynamic = "force-dynamic";
 
 const ROLE_TONE = {
   student: "brand",
-  parent: "neutral",
-  tutor: "success",
+  parent: "info",
+  tutor: "good",
   admin: "warn",
-} as const;
+} as const satisfies Record<string, PillTone>;
+
+const STAT_META = {
+  student: { tone: "brand", icon: <Users className="h-5 w-5" /> },
+  parent: { tone: "sky", icon: <Baby className="h-5 w-5" /> },
+  tutor: { tone: "mint", icon: <GraduationCap className="h-5 w-5" /> },
+  admin: { tone: "coral", icon: <UserCog className="h-5 w-5" /> },
+} as const satisfies Record<string, { tone: StatTone; icon: React.ReactNode }>;
 
 export default async function UsersPage() {
   const rows = await db
@@ -31,95 +48,140 @@ export default async function UsersPage() {
   };
 
   return (
-    <div className="space-y-10">
-      <header className="rise flex items-end justify-between gap-4">
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Users
-        </h1>
-        <Link
-          href="/admin/leaving"
-          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-        >
-          Students leaving →
-        </Link>
-      </header>
+    <div className="space-y-6 max-w-[1400px]">
+      <PageHeader
+        className="rise"
+        eyebrow="People"
+        title="Users"
+        sub="Accounts across all four portals."
+        actions={
+          <Link href="/admin/leaving">
+            <Button variant="outline" size="md">
+              Students leaving →
+            </Button>
+          </Link>
+        }
+      />
 
-      <section className="grid sm:grid-cols-4 gap-4 rise">
+      <section
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
+        style={{ animationDelay: "40ms" }}
+      >
         {(["student", "parent", "tutor", "admin"] as const).map((role) => (
-          <Card key={role}>
-            <CardLabel>{role}s</CardLabel>
-            <div className="mt-2 text-3xl font-light text-ink">
-              {grouped[role]}
-            </div>
-          </Card>
+          <StatTile
+            key={role}
+            label={`${role}s`}
+            value={grouped[role]}
+            icon={STAT_META[role].icon}
+            tone={STAT_META[role].tone}
+            accent
+          />
         ))}
       </section>
 
       <section className="rise" style={{ animationDelay: "80ms" }}>
-        <Card>
-          <CardLabel>Create user</CardLabel>
-          <div className="mt-4">
+        <Card accent="brand">
+          <CardHead title="Create user" />
+          <CardBody>
             <CreateUserForm />
-          </div>
+          </CardBody>
         </Card>
       </section>
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Name</TH>
-              <TH>Email</TH>
-              <TH>Role</TH>
-              <TH>Year / school</TH>
-              <TH>Status</TH>
-              <TH className="text-right">Actions</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {rows.length === 0 && (
-              <TR>
-                <TD colSpan={6} className="text-center text-muted py-8">
-                  No accounts yet.
-                </TD>
-              </TR>
-            )}
-            {rows.map((u) => (
-              <TR key={u.id}>
-                <TD className="font-medium">
-                  <Link
-                    href={`/admin/users/${u.id}`}
-                    className="hover:text-brand-700"
-                  >
-                    {u.firstName} {u.lastName}
-                  </Link>
-                </TD>
-                <TD className="text-ink-soft">{u.email}</TD>
-                <TD>
-                  <Badge tone={ROLE_TONE[u.role]}>{u.role}</Badge>
-                </TD>
-                <TD className="text-ink-soft">
-                  {u.yearLevel ? `Yr ${u.yearLevel}` : "—"}
-                  {u.school ? ` · ${u.school}` : ""}
-                </TD>
-                <TD>
-                  <Badge tone={u.isActive ? "success" : "muted"}>
-                    {u.isActive ? "active" : "inactive"}
-                  </Badge>
-                </TD>
-                <TD className="text-right">
-                  <UserRowActions
-                    id={u.id}
-                    email={u.email}
-                    isActive={u.isActive}
-                    name={`${u.firstName} ${u.lastName}`}
-                  />
-                </TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
+        <Card>
+          <CardHead
+            title="All accounts"
+            action={<Pill tone="brand">{rows.length} total</Pill>}
+          />
+          {rows.length === 0 ? (
+            <Empty>No accounts yet.</Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-surface-2">
+                    <Th>Name</Th>
+                    <Th>Email</Th>
+                    <Th>Role</Th>
+                    <Th>Year / school</Th>
+                    <Th>Status</Th>
+                    <Th className="text-right">Actions</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((u) => (
+                    <tr
+                      key={u.id}
+                      className="border-b border-line hover:bg-surface-2 transition-colors"
+                    >
+                      <Td className="font-bold text-ink">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="hover:text-brand-700 transition-colors"
+                        >
+                          {u.firstName} {u.lastName}
+                        </Link>
+                      </Td>
+                      <Td className="text-muted">{u.email}</Td>
+                      <Td>
+                        <Pill tone={ROLE_TONE[u.role]}>{u.role}</Pill>
+                      </Td>
+                      <Td className="text-muted">
+                        {u.yearLevel ? `Yr ${u.yearLevel}` : "—"}
+                        {u.school ? ` · ${u.school}` : ""}
+                      </Td>
+                      <Td>
+                        <Pill tone={u.isActive ? "good" : "default"} dot>
+                          {u.isActive ? "active" : "inactive"}
+                        </Pill>
+                      </Td>
+                      <Td className="text-right">
+                        <UserRowActions
+                          id={u.id}
+                          email={u.email}
+                          isActive={u.isActive}
+                          name={`${u.firstName} ${u.lastName}`}
+                        />
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </section>
     </div>
+  );
+}
+
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th
+      className={`text-left px-5 py-3 text-[11px] uppercase tracking-[0.08em] text-muted font-bold ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <td className={`px-5 py-3 text-[13px] text-ink align-middle ${className}`}>
+      {children}
+    </td>
   );
 }

@@ -1,11 +1,21 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
-import { Card, CardLabel } from "@/components/ui/card";
+import {
+  Card,
+  CardHead,
+  CardBody,
+  Hero,
+  HeroChip,
+  BackLink,
+  Button,
+} from "@/components/admin/ui";
+import { formatTime } from "@/lib/format";
 import { EditClassForm } from "./_components/edit-class-form";
 import { EnrollmentsManager } from "./_components/enrollments-manager";
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export const dynamic = "force-dynamic";
 
@@ -65,38 +75,44 @@ export default async function ClassEditPage({
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
   const availableStudents = await availableStudentsQuery;
 
-  return (
-    <div className="space-y-10">
-      <div>
-        <Link
-          href="/admin/classes"
-          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-        >
-          ← All classes
-        </Link>
-      </div>
+  const subjectName =
+    subjectList.find((s) => s.id === row.subjectId)?.name ?? null;
 
-      <header className="rise flex items-end justify-between gap-4">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            Edit class
-          </div>
-          <h1 className="mt-2 text-4xl font-medium tracking-tight text-ink">
-            {row.name}
-          </h1>
-        </div>
-        <Link
-          href={`/admin/subjects/${row.subjectId}/curriculum`}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white px-4 py-2 text-sm font-semibold hover:bg-brand-700 shrink-0 transition-colors"
-        >
-          Open curriculum →
-        </Link>
-      </header>
+  const scheduleChip =
+    row.isRecurring && row.weekday !== null && row.startTime && row.endTime
+      ? `${WEEKDAY_SHORT[row.weekday]} · ${formatTime(row.startTime)}–${formatTime(row.endTime)}`
+      : "No recurring slot";
+
+  return (
+    <div className="space-y-6 max-w-[1100px]">
+      <BackLink href="/admin/classes">All classes</BackLink>
+
+      <Hero
+        className="rise"
+        eyebrow="Edit class"
+        title={row.name}
+        icon={row.name.charAt(0).toUpperCase()}
+        chips={
+          <>
+            {subjectName && <HeroChip>{subjectName}</HeroChip>}
+            <HeroChip>{scheduleChip}</HeroChip>
+            <HeroChip>
+              {enrolled.length}/{row.capacity} enrolled
+            </HeroChip>
+            {row.location && <HeroChip>{row.location}</HeroChip>}
+          </>
+        }
+        right={
+          <a href={`/admin/subjects/${row.subjectId}/curriculum`}>
+            <Button variant="outline">Open curriculum →</Button>
+          </a>
+        }
+      />
 
       <section className="rise" style={{ animationDelay: "80ms" }}>
         <Card>
-          <CardLabel>Details</CardLabel>
-          <div className="mt-4">
+          <CardHead title="Details" />
+          <CardBody>
             <EditClassForm
               id={row.id}
               initial={{
@@ -114,21 +130,21 @@ export default async function ClassEditPage({
               tutors={tutors}
               subjects={subjectList}
             />
-          </div>
+          </CardBody>
         </Card>
       </section>
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
         <Card>
-          <CardLabel>Enrolled students</CardLabel>
-          <div className="mt-4">
+          <CardHead title="Enrolled students" />
+          <CardBody>
             <EnrollmentsManager
               classId={id}
               enrolled={enrolled}
               availableStudents={availableStudents}
               capacity={row.capacity}
             />
-          </div>
+          </CardBody>
         </Card>
       </section>
     </div>

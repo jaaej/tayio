@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AvailableSlot } from "@/lib/availability";
+import { Button } from "@/components/admin/ui";
 import { rescheduleStudentLesson } from "@/app/admin/_lib/actions-reschedule";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -143,16 +145,16 @@ export function SlotPicker({
       {/* Toggle */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted font-semibold mb-1">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted font-bold mb-1">
             Available slots
           </div>
-          <div className="text-sm text-ink-soft">
+          <div className="text-[13px] text-ink-soft">
             {showAll
               ? `Showing all active tutors · ${slots.length} slot${slots.length === 1 ? "" : "s"} total`
               : `Same-subject tutors only · ${slots.length} slot${slots.length === 1 ? "" : "s"} total`}
           </div>
         </div>
-        <label className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer select-none">
+        <label className="inline-flex items-center gap-2 text-[13px] font-medium text-ink cursor-pointer select-none">
           <input
             type="checkbox"
             checked={showAll}
@@ -160,7 +162,7 @@ export function SlotPicker({
               setShowAll(e.target.checked);
               setPicked(null);
             }}
-            className="h-4 w-4 rounded border-hairline/60 text-brand-600 focus:ring-brand-500"
+            className="h-4 w-4 rounded border-line-strong text-brand-500 focus:ring-brand-500"
           />
           Show all tutors
         </label>
@@ -168,7 +170,7 @@ export function SlotPicker({
 
       {/* Calendar header */}
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-xl font-medium text-ink tabular-nums">
+        <h3 className="text-[18px] font-extrabold tracking-[-0.01em] text-ink tabular-nums">
           {MONTH_NAMES[view.month]} {view.year}
         </h3>
         <div className="flex items-center gap-1.5">
@@ -176,9 +178,9 @@ export function SlotPicker({
             type="button"
             onClick={() => navMonth(-1)}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-ink-soft hover:bg-surface-2 hover:text-ink transition-colors"
           >
-            ‹
+            <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
           <button
             type="button"
@@ -188,7 +190,7 @@ export function SlotPicker({
                 month: originalDate.getMonth(),
               })
             }
-            className="px-2.5 h-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-xs uppercase tracking-[0.14em] text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="px-2.5 h-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-[11px] font-bold uppercase tracking-[0.14em] text-ink-soft hover:bg-surface-2 hover:text-ink transition-colors"
           >
             Original
           </button>
@@ -196,15 +198,15 @@ export function SlotPicker({
             type="button"
             onClick={() => navMonth(1)}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-ink-soft hover:bg-surface-2 hover:text-ink transition-colors"
           >
-            ›
+            <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
         </div>
       </div>
 
       {/* Weekday header */}
-      <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.18em] text-muted">
+      <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
         {DAY_LABELS.map((d) => (
           <div key={d} className="text-center py-2">
             {d}
@@ -218,40 +220,40 @@ export function SlotPicker({
           <div
             key={d.iso}
             className={
-              "min-h-[140px] lg:min-h-[156px] rounded-xl border flex flex-col transition-colors " +
+              "min-h-[140px] lg:min-h-[156px] rounded-[14px] border flex flex-col transition-colors " +
               (d.isOriginal
-                ? "border-rose-300 bg-rose-50/40"
+                ? "border-bad/40 bg-bad-bg/50"
                 : d.isToday
-                  ? "border-navy-800/30 bg-gradient-to-b from-brand-50 to-white"
+                  ? "border-brand-500/30 bg-gradient-to-b from-brand-50 to-surface"
                   : !d.inMonth
-                    ? "border-hairline/30 bg-card/40"
+                    ? "border-line/60 bg-surface-2/40"
                     : d.isWeekend
-                      ? "border-hairline/40 bg-brand-50/30"
-                      : "border-hairline/40 bg-card")
+                      ? "border-line bg-brand-50/30"
+                      : "border-line bg-surface")
             }
           >
             <div className="px-2.5 pt-1.5 pb-1 flex items-center justify-between">
               <span
                 className={
-                  "text-lg font-medium tabular-nums leading-none " +
+                  "text-[17px] font-extrabold tabular-nums leading-none " +
                   (d.isOriginal
-                    ? "text-rose-700"
+                    ? "text-bad"
                     : d.isToday
-                      ? "text-navy-800"
+                      ? "text-brand-700"
                       : d.inMonth
                         ? "text-ink"
-                        : "text-muted/60")
+                        : "text-muted-2")
                 }
               >
                 {d.dayNum}
               </span>
               {d.isOriginal && (
-                <span className="text-[9px] uppercase tracking-[0.14em] text-rose-700 font-semibold">
+                <span className="text-[9px] uppercase tracking-[0.14em] text-bad font-bold">
                   Original
                 </span>
               )}
               {!d.isOriginal && d.slots.length > 0 && d.inMonth && (
-                <span className="text-[10px] tabular-nums text-muted">
+                <span className="text-[10px] tabular-nums font-bold text-muted">
                   {d.slots.length}
                 </span>
               )}
@@ -259,7 +261,7 @@ export function SlotPicker({
 
             <div className="px-1.5 pb-1.5 flex-1 space-y-1 overflow-hidden">
               {d.isPast || !d.inMonth ? null : d.slots.length === 0 ? (
-                <div className="text-[10px] text-muted/40 px-1 py-2 text-center italic">
+                <div className="text-[10px] text-muted-2 px-1 py-2 text-center italic">
                   —
                 </div>
               ) : (
@@ -272,10 +274,10 @@ export function SlotPicker({
                       type="button"
                       onClick={() => setPicked(code)}
                       className={
-                        "block w-full text-left rounded-md px-1.5 py-1 leading-tight overflow-hidden transition-all border " +
+                        "block w-full text-left rounded-lg px-1.5 py-1 leading-tight overflow-hidden transition-all border " +
                         (active
-                          ? "bg-brand-600 border-brand-600 text-white"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100 hover:border-emerald-300 hover:-translate-y-[1px]")
+                          ? "bg-brand-500 border-brand-500 text-white"
+                          : "bg-good-bg border-transparent text-good hover:brightness-95 hover:-translate-y-[1px]")
                       }
                     >
                       <div className="text-[11px] font-bold tabular-nums">
@@ -283,8 +285,8 @@ export function SlotPicker({
                       </div>
                       <div
                         className={
-                          "mt-0.5 text-[11px] truncate font-medium " +
-                          (active ? "text-white/85" : "text-emerald-800")
+                          "mt-0.5 text-[11px] truncate font-semibold " +
+                          (active ? "text-white/85" : "text-good")
                         }
                       >
                         {s.tutorName.split(" ")[0]}
@@ -309,33 +311,33 @@ export function SlotPicker({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-5 pt-1 text-[10px] uppercase tracking-[0.14em] text-muted">
+      <div className="flex flex-wrap items-center gap-5 pt-1 text-[10px] uppercase tracking-[0.14em] font-bold text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="h-2 w-2 rounded-full bg-good" />
           Available slot
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-brand-600" />
+          <span className="h-2 w-2 rounded-full bg-brand-500" />
           Selected
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-rose-400" />
+          <span className="h-2 w-2 rounded-full bg-bad" />
           Original lesson date
         </span>
       </div>
 
       {/* Selected slot summary */}
       {pickedSlot && (
-        <div className="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 flex items-baseline justify-between gap-3 flex-wrap">
+        <div className="rounded-[14px] border border-brand-200 bg-brand-50 px-4 py-3 flex items-baseline justify-between gap-3 flex-wrap">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-brand-700 font-semibold">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-brand-700 font-bold">
               Selected
             </div>
-            <div className="mt-1 text-sm text-ink">
+            <div className="mt-1 text-[14px] font-semibold text-ink">
               {fmtDateLong(pickedSlot.date)} · {fmtTime(pickedSlot.startTime)}–
               {fmtTime(pickedSlot.endTime)} · {pickedSlot.tutorName}
               {pickedSlot.isOriginalTutor && (
-                <span className="ml-2 text-[10px] uppercase tracking-[0.12em] text-brand-700">
+                <span className="ml-2 text-[10px] uppercase tracking-[0.12em] font-bold text-brand-700">
                   · original tutor
                 </span>
               )}
@@ -344,7 +346,7 @@ export function SlotPicker({
           <button
             type="button"
             onClick={() => setPicked(null)}
-            className="text-xs text-brand-700 hover:text-brand-800 underline-offset-4 hover:underline"
+            className="text-[12px] font-bold text-brand-700 hover:text-brand-800 underline-offset-4 hover:underline"
           >
             Clear
           </button>
@@ -355,7 +357,7 @@ export function SlotPicker({
       <div>
         <label
           htmlFor="reason"
-          className="block text-[11px] uppercase tracking-[0.16em] text-muted font-semibold mb-1.5"
+          className="block text-[11px] uppercase tracking-[0.16em] text-muted font-bold mb-1.5"
         >
           Reason (optional)
         </label>
@@ -366,19 +368,15 @@ export function SlotPicker({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="e.g. parent called, family event"
-          className="w-full rounded-xl border border-hairline/70 bg-card px-4 py-2.5 text-sm text-ink focus:border-brand-600 focus:outline-none"
+          className="w-full rounded-[14px] border border-line-strong bg-surface px-4 py-2.5 text-[14px] text-ink focus:border-brand-500 focus:outline-none"
         />
       </div>
 
       {/* Submit */}
       <div className="flex items-center justify-end gap-3">
-        <button
-          type="submit"
-          disabled={!picked}
-          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
+        <Button type="submit" variant="brand" size="lg" disabled={!picked}>
           Confirm reschedule
-        </button>
+        </Button>
       </div>
     </form>
   );

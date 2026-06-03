@@ -20,7 +20,7 @@ export function DeleteClassButton({ id, name }: { id: string; name: string }) {
           await deleteClass(id);
         });
       }}
-      className="text-xs uppercase tracking-[0.14em] text-rose-700 hover:text-rose-900 disabled:opacity-50"
+      className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
     >
       Delete
     </button>

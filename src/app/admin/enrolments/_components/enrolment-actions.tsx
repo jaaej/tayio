@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import {
   enrollStudent,
@@ -57,7 +57,7 @@ export function EnrolmentActions(props: AddProps | RowProps) {
             ))}
           </Select>
         </div>
-        <Button type="submit" disabled={pending || !picked}>
+        <Button type="submit" variant="brand" disabled={pending || !picked}>
           Enrol
         </Button>
       </form>
@@ -78,7 +78,7 @@ export function EnrolmentActions(props: AddProps | RowProps) {
               });
             });
           }}
-          className="text-xs uppercase tracking-[0.14em] text-brand-700 hover:text-brand-600 disabled:opacity-50"
+          className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700 hover:text-brand-600 disabled:opacity-50"
         >
           Re-enrol
         </button>
@@ -95,7 +95,7 @@ export function EnrolmentActions(props: AddProps | RowProps) {
               });
             });
           }}
-          className="text-xs uppercase tracking-[0.14em] text-amber-700 hover:text-amber-900 disabled:opacity-50"
+          className="text-[11px] font-bold uppercase tracking-[0.14em] text-warn hover:brightness-90 disabled:opacity-50"
         >
           Withdraw
         </button>
@@ -117,7 +117,7 @@ export function EnrolmentActions(props: AddProps | RowProps) {
             });
           });
         }}
-        className="text-xs uppercase tracking-[0.14em] text-rose-700 hover:text-rose-900 disabled:opacity-50"
+        className="text-[11px] font-bold uppercase tracking-[0.14em] text-bad hover:brightness-90 disabled:opacity-50"
       >
         Remove
       </button>

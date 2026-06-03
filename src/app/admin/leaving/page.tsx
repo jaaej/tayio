@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { desc, eq, isNotNull } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { Card, CardHead, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import {
   classes,
@@ -92,46 +92,43 @@ export default async function StudentsLeavingPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <header className="rise">
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Students Leaving
-        </h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Students with withdrawn enrolments. Use this list for follow-up
-          calls or re-enrolment.
-        </p>
-      </header>
+    <div className="space-y-6 max-w-[1100px]">
+      <PageHeader
+        className="rise"
+        eyebrow="Retention"
+        title="Students leaving"
+        sub="Students with withdrawn enrolments. Use this list for follow-up calls or re-enrolment."
+      />
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between">
-          <div className="text-xl font-medium text-ink">Recent withdrawals</div>
-          <span className="text-sm uppercase tracking-[0.18em] text-muted">
-            {grouped.length} student{grouped.length === 1 ? "" : "s"}
-          </span>
-        </div>
+      <Card className="rise">
+        <CardHead
+          title="Recent withdrawals"
+          action={
+            <Pill tone="default">
+              {grouped.length} student{grouped.length === 1 ? "" : "s"}
+            </Pill>
+          }
+        />
         {grouped.length === 0 ? (
-          <div className="px-6 py-8 text-sm text-ink-soft">
-            No withdrawn enrolments on record.
-          </div>
+          <Empty>No withdrawn enrolments on record.</Empty>
         ) : (
-          <ul className="divide-y divide-hairline/60">
+          <ul className="divide-y divide-line">
             {grouped.map((s) => (
-              <li key={s.studentId} className="px-5 py-4">
+              <li key={s.studentId} className="px-5 py-4 hover:bg-surface-2 transition-colors">
                 <div className="flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
                     <Link
                       href={`/admin/users/${s.studentId}`}
-                      className="text-base text-ink hover:text-brand-700 truncate"
+                      className="text-[14px] font-bold text-ink hover:text-brand-700 truncate"
                     >
                       {s.firstName} {s.lastName}
                     </Link>
-                    <div className="text-xs text-muted truncate">
+                    <div className="text-[12px] text-muted truncate">
                       {s.email}
                       {s.phone ? ` · ${s.phone}` : ""}
                     </div>
                   </div>
-                  <div className="text-xs text-ink-soft tabular-nums shrink-0">
+                  <div className="text-[12px] text-ink-soft tabular-nums shrink-0">
                     Last withdrew {formatDateLong(s.mostRecentWithdraw)}
                   </div>
                 </div>
@@ -139,7 +136,7 @@ export default async function StudentsLeavingPage() {
                   {s.classes.map((c) => (
                     <li
                       key={c.classId}
-                      className="flex items-center justify-between gap-3 text-sm text-ink-soft"
+                      className="flex items-center justify-between gap-3 text-[13px] text-ink-soft"
                     >
                       <Link
                         href={`/admin/classes/${c.classId}`}
@@ -147,7 +144,7 @@ export default async function StudentsLeavingPage() {
                       >
                         {c.subjectName} · {c.className}
                       </Link>
-                      <span className="text-xs text-muted tabular-nums shrink-0">
+                      <span className="text-[12px] text-muted tabular-nums shrink-0">
                         {formatDateLong(c.withdrawnAt)}
                       </span>
                     </li>

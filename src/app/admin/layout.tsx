@@ -1,4 +1,4 @@
-import { PortalShell } from "@/components/portal/shell";
+import { AdminShell } from "@/components/admin/shell";
 import { requireRole } from "@/lib/auth";
 
 export default async function AdminLayout({
@@ -11,9 +11,5 @@ export default async function AdminLayout({
     (user.user_metadata?.first_name as string) ??
     user.email?.split("@")[0] ??
     "Admin";
-  return (
-    <PortalShell role="admin" userName={name}>
-      {children}
-    </PortalShell>
-  );
+  return <AdminShell userName={name}>{children}</AdminShell>;
 }

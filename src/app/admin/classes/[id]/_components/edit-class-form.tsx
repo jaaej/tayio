@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { updateClass } from "@/app/admin/_lib/actions-classes";
@@ -173,8 +173,8 @@ export function EditClassForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save changes"}
         </Button>
-        {ok && <span className="text-xs text-emerald-700">Saved.</span>}
-        {error && <span className="text-xs text-rose-700">{error}</span>}
+        {ok && <span className="text-xs font-semibold text-good">Saved.</span>}
+        {error && <span className="text-xs font-semibold text-bad">{error}</span>}
       </div>
     </form>
   );

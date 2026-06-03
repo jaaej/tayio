@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Trash2 } from "lucide-react";
+import { Card, CardHead, CardBody, BackLink, Button } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import {
   canSeeBoard,
@@ -47,73 +46,69 @@ export default async function AdminThreadPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/discussions/${boardId}`}
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.14em] text-muted hover:text-ink font-medium"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+      <BackLink href={`/admin/discussions/${boardId}`}>
         Back to {boardLabel}
-      </Link>
+      </BackLink>
 
       <div className="grid lg:grid-cols-2 gap-6 lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-6 lg:self-start min-w-0 lg:-ml-1.5">
           <QuestionBlock thread={thread} />
           <ReplyComposer threadId={thread.id} rolePrefix="admin" />
 
-          <Card>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-medium mb-3">
-              Admin controls
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!thread.deletedAt && (
-                <form action={softDelete}>
-                  <input type="hidden" name="kind" value="thread" />
-                  <input type="hidden" name="id" value={thread.id} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                  >
-                    Remove thread
-                  </button>
-                </form>
-              )}
-              {liveReplies.map((r) => (
-                <form action={softDelete} key={r.id}>
-                  <input type="hidden" name="kind" value="reply" />
-                  <input type="hidden" name="id" value={r.id} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                  >
-                    Remove reply by {r.authorName}
-                  </button>
-                </form>
-              ))}
-              {!thread.deletedAt && liveReplies.length === 0 && (
-                <span className="text-xs text-ink-soft italic">
-                  No replies to manage.
-                </span>
-              )}
-            </div>
+          <Card accent="coral">
+            <CardHead title="Admin controls" eyebrow="Moderation" />
+            <CardBody>
+              <div className="flex flex-wrap gap-2">
+                {!thread.deletedAt && (
+                  <form action={softDelete}>
+                    <input type="hidden" name="kind" value="thread" />
+                    <input type="hidden" name="id" value={thread.id} />
+                    <Button type="submit" variant="danger" size="sm">
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remove thread
+                    </Button>
+                  </form>
+                )}
+                {liveReplies.map((r) => (
+                  <form action={softDelete} key={r.id}>
+                    <input type="hidden" name="kind" value="reply" />
+                    <input type="hidden" name="id" value={r.id} />
+                    <Button type="submit" variant="danger" size="sm">
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remove reply by {r.authorName}
+                    </Button>
+                  </form>
+                ))}
+                {!thread.deletedAt && liveReplies.length === 0 && (
+                  <span className="text-[12px] text-muted italic">
+                    No replies to manage.
+                  </span>
+                )}
+              </div>
+            </CardBody>
           </Card>
         </div>
 
         <Card className="min-w-0 lg:-mr-3">
-          <RepliesList
-            replies={thread.replies}
-            threadId={thread.id}
-            rolePrefix="admin"
-          />
+          <CardBody>
+            <RepliesList
+              replies={thread.replies}
+              threadId={thread.id}
+              rolePrefix="admin"
+            />
+          </CardBody>
         </Card>
       </div>
 
       {others.length > 0 && (
         <Card>
-          <OtherQuestions
-            threads={others}
-            hrefPrefix={`/admin/discussions/${boardId}`}
-            boardLabel={boardLabel}
-          />
+          <CardBody>
+            <OtherQuestions
+              threads={others}
+              hrefPrefix={`/admin/discussions/${boardId}`}
+              boardLabel={boardLabel}
+            />
+          </CardBody>
         </Card>
       )}
     </div>

@@ -8,9 +8,14 @@ import {
   subjects,
 } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
-import { Card, CardLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import {
+  Card,
+  CardHead,
+  CardBody,
+  Pill,
+  PageHeader,
+  Empty,
+} from "@/components/admin/ui";
 import { EnrolmentActions } from "./_components/enrolment-actions";
 import { ClassSelect } from "./_components/class-select";
 
@@ -94,32 +99,31 @@ export default async function EnrolmentsPage({
   }
 
   return (
-    <div className="space-y-10">
-      <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Enrolment Management
-        </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Move Students In and Out of Classes
-        </h1>
-      </header>
+    <div className="space-y-6 max-w-[1400px]">
+      <PageHeader
+        className="rise"
+        eyebrow="Enrolment Management"
+        title="Move students in and out of classes"
+      />
 
       {classList.length === 0 ? (
         <Card>
-          <CardLabel>No classes</CardLabel>
-          <div className="mt-2 text-sm text-ink-soft">
-            Create a class first under{" "}
-            <Link className="text-brand-600 hover:underline" href="/admin/classes">
-              Class management
-            </Link>
-            .
-          </div>
+          <CardHead title="No classes" />
+          <CardBody>
+            <div className="text-[13px] text-ink-soft">
+              Create a class first under{" "}
+              <Link className="text-brand-600 hover:underline" href="/admin/classes">
+                Class management
+              </Link>
+              .
+            </div>
+          </CardBody>
         </Card>
       ) : (
         <section className="grid lg:grid-cols-[280px_1fr] gap-6 rise">
           <Card>
-            <CardLabel>Pick a class</CardLabel>
-            <div className="mt-4">
+            <CardHead title="Pick a class" />
+            <CardBody>
               <ClassSelect
                 value={selectedId ?? ""}
                 options={classList.map((c) => ({
@@ -128,79 +132,83 @@ export default async function EnrolmentsPage({
                   meta: `${c.enrolled}/${c.capacity}`,
                 }))}
               />
-            </div>
+            </CardBody>
           </Card>
 
           <Card>
             {selected ? (
               <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardLabel>{selected.subject}</CardLabel>
-                    <h2 className="mt-2 text-2xl text-ink">{selected.name}</h2>
-                  </div>
-                  <Badge tone="brand">
-                    {enrolled.filter((e) => !e.withdrawnAt).length} /{" "}
-                    {selected.capacity}
-                  </Badge>
-                </div>
+                <CardHead
+                  eyebrow={selected.subject}
+                  title={selected.name}
+                  action={
+                    <Pill tone="brand">
+                      {enrolled.filter((e) => !e.withdrawnAt).length} /{" "}
+                      {selected.capacity}
+                    </Pill>
+                  }
+                />
 
-                <div className="mt-6">
-                  <Table>
-                    <THead>
-                      <TR>
-                        <TH>Student</TH>
-                        <TH>Email</TH>
-                        <TH>Year</TH>
-                        <TH>School</TH>
-                        <TH>Enrolled</TH>
-                        <TH>Status</TH>
-                        <TH className="text-right">Actions</TH>
-                      </TR>
-                    </THead>
-                    <TBody>
-                      {enrolled.length === 0 && (
-                        <TR>
-                          <TD colSpan={7} className="text-center text-muted py-6">
-                            No students enrolled yet.
-                          </TD>
-                        </TR>
-                      )}
-                      {enrolled.map((e) => (
-                        <TR key={e.studentId}>
-                          <TD className="font-medium">
-                            {e.firstName} {e.lastName}
-                          </TD>
-                          <TD className="text-ink-soft">{e.email}</TD>
-                          <TD className="text-ink-soft">
-                            {e.yearLevel ? `Yr ${e.yearLevel}` : "—"}
-                          </TD>
-                          <TD className="text-ink-soft">{e.school || "—"}</TD>
-                          <TD className="text-ink-soft text-xs">
-                            {new Date(e.enrolledAt).toLocaleDateString("en-AU")}
-                          </TD>
-                          <TD>
-                            <Badge tone={e.withdrawnAt ? "muted" : "success"}>
-                              {e.withdrawnAt ? "withdrawn" : "active"}
-                            </Badge>
-                          </TD>
-                          <TD className="text-right">
-                            <EnrolmentActions
-                              classId={selected.id}
-                              studentId={e.studentId}
-                              studentName={`${e.firstName} ${e.lastName}`}
-                              withdrawn={!!e.withdrawnAt}
-                            />
-                          </TD>
-                        </TR>
-                      ))}
-                    </TBody>
-                  </Table>
-                </div>
+                {enrolled.length === 0 ? (
+                  <Empty>No students enrolled yet.</Empty>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
+                          <th className="text-left px-5 py-2.5">Student</th>
+                          <th className="text-left px-5 py-2.5">Email</th>
+                          <th className="text-left px-5 py-2.5">Year</th>
+                          <th className="text-left px-5 py-2.5">School</th>
+                          <th className="text-left px-5 py-2.5">Enrolled</th>
+                          <th className="text-left px-5 py-2.5">Status</th>
+                          <th className="text-right px-5 py-2.5">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {enrolled.map((e) => (
+                          <tr
+                            key={e.studentId}
+                            className="border-b border-line hover:bg-surface-2 transition-colors"
+                          >
+                            <td className="px-5 py-3 text-[13px] font-bold text-ink">
+                              {e.firstName} {e.lastName}
+                            </td>
+                            <td className="px-5 py-3 text-[13px] text-ink-soft">
+                              {e.email}
+                            </td>
+                            <td className="px-5 py-3 text-[13px] text-ink-soft">
+                              {e.yearLevel ? `Yr ${e.yearLevel}` : "—"}
+                            </td>
+                            <td className="px-5 py-3 text-[13px] text-ink-soft">
+                              {e.school || "—"}
+                            </td>
+                            <td className="px-5 py-3 text-[12px] text-ink-soft tabular-nums">
+                              {new Date(e.enrolledAt).toLocaleDateString("en-AU")}
+                            </td>
+                            <td className="px-5 py-3">
+                              <Pill tone={e.withdrawnAt ? "default" : "good"}>
+                                {e.withdrawnAt ? "withdrawn" : "active"}
+                              </Pill>
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <EnrolmentActions
+                                classId={selected.id}
+                                studentId={e.studentId}
+                                studentName={`${e.firstName} ${e.lastName}`}
+                                withdrawn={!!e.withdrawnAt}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {enrolled.filter((e) => !e.withdrawnAt).length >=
                   selected.capacity && (
-                  <div className="mt-4 text-xs text-amber-700">
+                  <div className="px-5 pt-4 text-[12px] text-warn">
                     Class is at capacity — increase capacity in{" "}
                     <Link
                       className="underline"
@@ -212,8 +220,10 @@ export default async function EnrolmentsPage({
                   </div>
                 )}
 
-                <div className="mt-8">
-                  <CardLabel>Add student</CardLabel>
+                <CardBody className="border-t border-line">
+                  <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
+                    Add student
+                  </div>
                   <div className="mt-3">
                     <EnrolmentActions
                       classId={selected.id}
@@ -224,10 +234,12 @@ export default async function EnrolmentsPage({
                       }))}
                     />
                   </div>
-                </div>
+                </CardBody>
               </>
             ) : (
-              <div className="text-sm text-muted">Select a class.</div>
+              <CardBody>
+                <div className="text-[13px] text-muted">Select a class.</div>
+              </CardBody>
             )}
           </Card>
         </section>

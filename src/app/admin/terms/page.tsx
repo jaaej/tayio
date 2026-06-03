@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { terms } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { Card, CardHead, CardBody, PageHeader, Empty } from "@/components/admin/ui";
 import { TermForm } from "./_components/term-form";
 
 export default async function AdminTermsPage() {
@@ -12,29 +13,26 @@ export default async function AdminTermsPage() {
     .orderBy(desc(terms.year), desc(terms.termNumber));
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-4xl font-medium tracking-tight text-ink uppercase">
-          Terms
-        </h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Define academic terms. Curriculum is organised per subject per term.
-        </p>
-      </header>
+    <div className="space-y-6 max-w-[1100px]">
+      <PageHeader
+        eyebrow="Academic Calendar"
+        title="Terms"
+        sub="Define academic terms. Curriculum is organised per subject per term."
+      />
 
-      <section className="rounded-2xl border border-hairline/60 bg-card p-5">
-        <div className="text-base font-medium text-ink mb-3">Add term</div>
-        <TermForm />
-      </section>
+      <Card>
+        <CardHead title="Add term" />
+        <CardBody>
+          <TermForm />
+        </CardBody>
+      </Card>
 
-      <section className="rounded-2xl border border-hairline/60 bg-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 text-base font-medium text-ink">
-          All terms
-        </div>
+      <Card>
+        <CardHead title="All terms" />
         {allTerms.length === 0 ? (
-          <div className="p-6 text-sm text-ink-soft">No terms yet.</div>
+          <Empty>No terms yet.</Empty>
         ) : (
-          <div className="divide-y divide-hairline/60">
+          <div className="divide-y divide-line">
             {allTerms.map((t) => (
               <div key={t.id} className="px-5 py-4">
                 <TermForm existing={t} />
@@ -42,7 +40,7 @@ export default async function AdminTermsPage() {
             ))}
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

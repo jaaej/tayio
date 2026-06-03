@@ -39,7 +39,7 @@ export function InvoiceActions({ id, status }: { id: string; status: Status }) {
               await markInvoicePaid(id);
             });
           }}
-          className="text-xs uppercase tracking-[0.14em] text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
+          className="text-[11px] font-bold uppercase tracking-[0.14em] text-good hover:brightness-90 disabled:opacity-50"
         >
           Mark paid
         </button>
