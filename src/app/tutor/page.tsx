@@ -11,7 +11,6 @@ import {
   Send,
 } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
-import { StatChip } from "@/components/student/stat-chip";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
@@ -30,7 +29,6 @@ import {
   getRecentLessonNotes,
   getStudentsToBump,
   getSubmissionsToMark,
-  getTodayLessons,
   getTutorWeekLessons,
   requireTutor,
 } from "./_data";
@@ -54,7 +52,6 @@ export default async function TutorDashboard() {
   weekEnd.setDate(weekStart.getDate() + 7);
 
   const [
-    todayLessons,
     weekLessons,
     submissions,
     missingNotes,
@@ -63,7 +60,6 @@ export default async function TutorDashboard() {
     recentNotes,
     bumpRows,
   ] = await Promise.all([
-    getTodayLessons(tutor.id),
     getTutorWeekLessons(tutor.id, weekStart, weekEnd),
     getSubmissionsToMark(tutor.id, 9),
     getLessonsMissingNotes(tutor.id, 5),
@@ -180,33 +176,6 @@ export default async function TutorDashboard() {
           </div>
         </div>
       </section>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <StatChip
-          icon="📚"
-          hue="brand"
-          value={todayLessons.length}
-          label="Classes today"
-        />
-        <StatChip
-          icon="✏️"
-          hue={pendingMark > 0 ? "coral" : "mint"}
-          value={pendingMark}
-          label="To mark"
-        />
-        <StatChip
-          icon="📝"
-          hue={pendingNotes > 0 ? "sun" : "mint"}
-          value={pendingNotes}
-          label="Notes pending"
-        />
-        <StatChip
-          icon="🗓️"
-          hue="sky"
-          value={weekLessons.length}
-          label="Lessons this week"
-        />
-      </div>
 
       <div className="space-y-5 min-w-0">
           <div className="grid lg:grid-cols-[2fr_1fr] gap-5">

@@ -29,27 +29,6 @@ function todayDateString() {
   return d.toISOString().slice(0, 10);
 }
 
-export async function getTodayLessons(tutorId: string) {
-  return db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      location: lessons.location,
-      onlineLink: lessons.onlineLink,
-      className: classes.name,
-      classId: classes.id,
-      subjectName: subjects.name,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .where(and(eq(lessons.tutorId, tutorId), eq(lessons.date, todayDateString())))
-    .orderBy(asc(lessons.startTime));
-}
-
 export async function getTutorClasses(tutorId: string) {
   const rows = await db
     .select({
@@ -320,6 +299,41 @@ export async function getTutorHomework(tutorId: string) {
       .reduce((a, r) => a + r.total, 0);
     return { ...i, total, toMark, marked };
   });
+}
+
+export async function getTutorMarkingQueue(tutorId: string) {
+  // One row per student submission awaiting marking (status submitted/late),
+  // joined with subject + student so the queue can be grouped by subject.
+  return db
+    .select({
+      homeworkId: homework.id,
+      homeworkTitle: homework.title,
+      dueDate: homework.dueDate,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      className: classes.name,
+      studentId: homeworkAssignments.studentId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      status: homeworkAssignments.status,
+      submittedAt: homeworkAssignments.submittedAt,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .leftJoin(classes, eq(classes.id, homework.classId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .where(
+      and(
+        eq(homework.tutorId, tutorId),
+        inArray(homeworkAssignments.status, ["submitted", "late"]),
+      ),
+    )
+    .orderBy(
+      asc(subjects.name),
+      asc(profiles.lastName),
+      asc(profiles.firstName),
+    );
 }
 
 export async function getHomeworkDetail(tutorId: string, homeworkId: string) {
