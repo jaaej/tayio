@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, relativeTime } from "@/lib/format";
 import { getFeedback, resolveSelectedChild } from "../_data";
@@ -19,7 +20,10 @@ export default async function ParentFeedbackPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Tutor feedback" title="Tutor feedback" />
+        <PageHeader
+          title="Tutor feedback"
+          sub="Your tutor's comments after each lesson."
+        />
         <EmptyChildrenNotice />
       </div>
     );
@@ -30,8 +34,8 @@ export default async function ParentFeedbackPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Tutor feedback"
-        title={`Notes for ${selected.firstName}`}
+        title={`Feedback for ${selected.firstName}`}
+        sub="Your tutor's parent-visible comments after each lesson."
       />
 
       {children.length > 1 && (
@@ -44,7 +48,7 @@ export default async function ParentFeedbackPage({
         </div>
       )}
 
-      <div className="rise space-y-5" style={{ animationDelay: "60ms" }}>
+      <div className="rise space-y-4" style={{ animationDelay: "60ms" }}>
         {rows.length === 0 ? (
           <Card>
             <p className="text-ink-soft">
@@ -55,16 +59,16 @@ export default async function ParentFeedbackPage({
         ) : (
           rows.map((r) => (
             <Card key={r.id} className="p-0 overflow-hidden">
-              <div className="px-6 py-4 border-b border-hairline/60 flex items-baseline justify-between gap-3">
-                <div className="min-w-0 truncate text-[13px] font-extrabold tracking-[-0.01em] text-ink">
-                  {r.subjectName ?? "Lesson"}
-                  {r.topicCovered ? (
-                    <span className="ml-2 font-medium text-muted">
-                      · {r.topicCovered}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-line/70">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <SubjectPill name={r.subjectName ?? "Lesson"} />
+                  {r.topicCovered && (
+                    <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
+                      {r.topicCovered}
                     </span>
-                  ) : null}
+                  )}
                 </div>
-                <div className="shrink-0 text-[11px] uppercase tracking-[0.16em] text-muted font-bold">
+                <div className="text-xs text-muted font-semibold shrink-0">
                   {formatDateLong(r.lessonDate)} · {r.tutorName}
                 </div>
               </div>
@@ -72,7 +76,7 @@ export default async function ParentFeedbackPage({
                 <p className="text-lg text-ink leading-relaxed">
                   {r.parentVisibleComment}
                 </p>
-                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] text-muted">
+                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
                   {relativeTime(r.createdAt)}
                 </div>
               </div>

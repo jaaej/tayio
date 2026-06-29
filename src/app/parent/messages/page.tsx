@@ -11,7 +11,6 @@ export default async function ParentMessagesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Direct messages"
         title="Messages"
         sub="Conversations with your child's tutors and the admin office."
       />

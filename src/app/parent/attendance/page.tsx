@@ -1,6 +1,4 @@
 import { Card } from "@/components/ui/card";
-import { StatusBadge } from "@/components/data/status-badge";
-import { StatTile } from "@/components/data/stat-tile";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import {
@@ -9,8 +7,10 @@ import {
 } from "@/lib/status";
 import { getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { SectionHeader } from "../_components/section-header";
 import { PageHeader } from "../_components/page-header";
+import { Kpi } from "../_components/kpi";
+import { StatusPill } from "../_components/status-pill";
+import { Table, Th, Td, Tr } from "../_components/table";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -26,7 +26,7 @@ export default async function ParentAttendancePage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Attendance" title="Attendance" />
+        <PageHeader title="Attendance" sub="Your child's lesson attendance." />
         <EmptyChildrenNotice />
       </div>
     );
@@ -36,7 +36,10 @@ export default async function ParentAttendancePage({
 
   const total = rows.length;
   const present = rows.filter(
-    (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
+    (r) =>
+      r.status === "present" ||
+      r.status === "late" ||
+      r.status === "makeup_attended",
   ).length;
   const absent = rows.filter((r) => r.status === "absent").length;
   const rate = total > 0 ? Math.round((present / total) * 100) : null;
@@ -44,8 +47,8 @@ export default async function ParentAttendancePage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Attendance"
-        title={`${selected.firstName}'s lessons`}
+        title={`${selected.firstName}'s attendance`}
+        sub="Every logged lesson and how it was marked."
       />
 
       {children.length > 1 && (
@@ -59,79 +62,69 @@ export default async function ParentAttendancePage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
+        className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <StatTile
+        <Kpi
           label="Attendance rate"
           value={rate !== null ? `${rate}%` : "—"}
-          accent={
-            rate === null
-              ? "muted"
-              : rate >= 90
-                ? "success"
-                : rate >= 75
-                  ? "brand"
-                  : "warn"
+          sub="All logged lessons"
+          delta={
+            rate === null ? "flat" : rate >= 90 ? "up" : rate < 75 ? "down" : "flat"
           }
         />
-        <StatTile
+        <Kpi
           label="Absences"
           value={absent.toString()}
-          accent={absent === 0 ? "success" : "warn"}
+          sub="Marked absent"
+          delta={absent === 0 ? "up" : "down"}
         />
-        <StatTile
-          label="Lessons logged"
-          value={total.toString()}
-          accent="brand"
-        />
+        <Kpi label="Lessons logged" value={total.toString()} sub="This term" />
       </section>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
         <Card className="p-0 overflow-hidden">
-          <SectionHeader
-            title="Lesson log"
-            link={{ href: "/parent/feedback", label: "Tutor feedback" }}
-          />
           {rows.length === 0 ? (
             <div className="px-6 py-8 text-sm text-ink-soft">
               No attendance has been recorded yet for {selected.firstName}.
             </div>
           ) : (
-            <div className="divide-y divide-hairline/60">
-              {rows.map((r) => (
-                <div
-                  key={r.lessonId}
-                  className="grid grid-cols-12 items-center gap-4 px-6 py-4"
-                >
-                  <div className="col-span-4 min-w-0">
-                    <div className="text-base text-ink">
-                      {formatDateLong(r.date)}
-                    </div>
-                    <div className="text-xs text-muted mt-0.5">
-                      {formatTime(r.startTime)}
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-sm text-ink-soft min-w-0 truncate">
-                    {r.subjectName ?? "—"}
-                  </div>
-                  <div className="col-span-2 text-sm text-ink-soft min-w-0 truncate">
-                    {r.tutorName}
-                  </div>
-                  <div className="col-span-3 flex items-center justify-end gap-3">
-                    {r.note && (
-                      <span className="text-xs text-muted truncate max-w-[10rem]">
-                        {r.note}
-                      </span>
-                    )}
-                    <StatusBadge
-                      label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
-                      className={ATTENDANCE_STATUS_STYLE[r.status]}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Date</Th>
+                  <Th>Subject</Th>
+                  <Th>Tutor</Th>
+                  <Th>Note</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <Tr key={r.lessonId}>
+                    <Td>
+                      <div className="font-bold text-ink whitespace-nowrap">
+                        {formatDateLong(r.date)}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {formatTime(r.startTime)}
+                      </div>
+                    </Td>
+                    <Td className="text-ink-soft">{r.subjectName ?? "—"}</Td>
+                    <Td className="text-ink-soft">{r.tutorName}</Td>
+                    <Td className="text-muted max-w-[14rem] truncate">
+                      {r.note || "—"}
+                    </Td>
+                    <Td>
+                      <StatusPill
+                        label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
+                        className={ATTENDANCE_STATUS_STYLE[r.status]}
+                      />
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
           )}
         </Card>
       </div>
