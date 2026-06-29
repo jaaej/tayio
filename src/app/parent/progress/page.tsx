@@ -1,31 +1,40 @@
-import Link from "next/link";
-import { Card, CardLabel } from "@/components/ui/card";
-import { MasteryBar, ProgressBar } from "@/components/data/progress-bar";
-import { StatTile } from "@/components/data/stat-tile";
+import { Card } from "@/components/ui/card";
+import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
-import { relativeTime } from "@/lib/format";
+import { MASTERY_LABEL } from "@/lib/status";
 import {
   getChildProgressBySubject,
   getDashboardData,
-  getFeedback,
   resolveSelectedChild,
 } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
+import { Kpi } from "../_components/kpi";
+import { StatusPill } from "../_components/status-pill";
+import { Table, Th, Td, Tr } from "../_components/table";
 
-const MASTERY_LABEL = {
-  not_started: "Not started",
-  needs_work: "Needs work",
-  improving: "Improving",
-  strong: "Strong",
-} as const;
+type Mastery = "not_started" | "needs_work" | "improving" | "strong";
 
-const MASTERY_TONE = {
-  strong: "text-emerald-700 bg-emerald-50",
-  improving: "text-brand-700 bg-brand-50",
-  needs_work: "text-amber-800 bg-amber-50",
-  not_started: "text-ink-soft bg-brand-50/40",
-} as const;
+const MASTERY_PILL: Record<Mastery, string> = {
+  strong: "bg-emerald-100 text-emerald-900",
+  improving: "bg-brand-100 text-navy-800",
+  needs_work: "bg-amber-100 text-amber-900",
+  not_started: "bg-surface-2 text-ink-soft",
+};
+
+const MASTERY_PCT: Record<Mastery, number> = {
+  strong: 92,
+  improving: 64,
+  needs_work: 34,
+  not_started: 8,
+};
+
+const MASTERY_BAR: Record<Mastery, string> = {
+  strong: "bg-emerald-500",
+  improving: "bg-brand-500",
+  needs_work: "bg-amber-500",
+  not_started: "bg-line-strong",
+};
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -38,29 +47,29 @@ export default async function ParentProgressPage({
   const { child: requested } = await searchParams;
   const { children, selected } = await resolveSelectedChild(user.id, requested);
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header dateLabel={dateLabel} />
+        <PageHeader
+          title="Progress"
+          sub="How your child is tracking across subjects and topics."
+        />
         <EmptyChildrenNotice />
       </div>
     );
   }
 
-  const [subjects, dashboard, feedback] = await Promise.all([
+  const [subjects, dashboard] = await Promise.all([
     getChildProgressBySubject(selected.id),
     getDashboardData(selected.id),
-    getFeedback(selected.id),
   ]);
 
-  const allTopics = subjects.flatMap((s) => s.topics);
+  const topics = subjects.flatMap((s) =>
+    s.topics.map((t) => ({
+      ...t,
+      subjectName: s.subjectName,
+    })),
+  );
   const trackedSubjects = subjects.filter((s) => s.topics.length > 0);
 
   const overall =
@@ -69,23 +78,19 @@ export default async function ParentProgressPage({
           trackedSubjects.reduce((acc, s) => acc + s.masteryPercent, 0) /
             trackedSubjects.length,
         )
-      : 0;
+      : null;
 
-  const strongCount = allTopics.filter((t) => t.mastery === "strong").length;
-  const needsWorkCount = allTopics.filter(
+  const strongCount = topics.filter((t) => t.mastery === "strong").length;
+  const needsWorkCount = topics.filter(
     (t) => t.mastery === "needs_work" || t.mastery === "not_started",
   ).length;
 
-  const homeworkRatio =
-    dashboard.homeworkTotal > 0
-      ? `${dashboard.homeworkCompleted}/${dashboard.homeworkTotal}`
-      : "—";
-
-  const latestFeedback = feedback[0] ?? null;
-
   return (
     <div className="space-y-6">
-      <Header dateLabel={dateLabel} subtitle={selected.firstName} />
+      <PageHeader
+        title={`${selected.firstName}'s progress`}
+        sub="Topic-by-topic mastery across every subject."
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -98,247 +103,94 @@ export default async function ParentProgressPage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-5 gap-4 rise"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <StatTile
+        <Kpi
           label="Overall mastery"
-          value={`${overall}%`}
-          accent={overall >= 75 ? "success" : overall >= 50 ? "brand" : "warn"}
+          value={overall !== null ? `${overall}%` : "—"}
+          sub={`${trackedSubjects.length} subject${trackedSubjects.length === 1 ? "" : "s"} tracked`}
+          delta={overall !== null && overall >= 75 ? "up" : "flat"}
         />
-        <StatTile
+        <Kpi
           label="Topics mastered"
           value={strongCount.toString()}
-          accent="success"
+          sub="Rated strong"
+          delta={strongCount > 0 ? "up" : "flat"}
         />
-        <StatTile
+        <Kpi
           label="Needs work"
           value={needsWorkCount.toString()}
-          accent={needsWorkCount > 0 ? "warn" : "muted"}
+          sub="Weak or untouched"
+          delta={needsWorkCount === 0 ? "up" : "down"}
         />
-        <StatTile
+        <Kpi
           label="Attendance"
           value={
             dashboard.attendanceRate !== null
               ? `${dashboard.attendanceRate}%`
               : "—"
           }
-          accent={
-            dashboard.attendanceRate === null
-              ? "muted"
-              : dashboard.attendanceRate >= 90
-                ? "success"
-                : dashboard.attendanceRate >= 75
-                  ? "brand"
-                  : "warn"
-          }
-          href={`/parent/classes?child=${selected.id}`}
-        />
-        <StatTile
-          label="Homework"
-          value={homeworkRatio}
-          accent={
-            dashboard.homeworkTotal === 0
-              ? "muted"
-              : dashboard.homeworkCompleted / dashboard.homeworkTotal >= 0.9
-                ? "success"
-                : dashboard.homeworkCompleted / dashboard.homeworkTotal >= 0.6
-                  ? "brand"
-                  : "warn"
-          }
-          href={`/parent/homework?child=${selected.id}`}
+          sub="Last 4 weeks"
         />
       </section>
 
-      {subjects.length === 0 ? (
-        <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            {selected.firstName} isn't enrolled in any subjects yet. Once
-            classes start, the tutor will begin tracking topics here.
-          </div>
-        </Card>
-      ) : (
-        <div
-          className="grid lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:gap-6 rise"
-          style={{ animationDelay: "80ms" }}
-        >
-          <div className="space-y-5 min-w-0">
-            {subjects.map((s) => (
-              <Card key={s.subjectId} className="p-0 overflow-hidden">
-                <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-xl font-medium text-ink truncate">
-                      {s.subjectName}
-                    </div>
-                    {s.yearLevel && (
-                      <div className="text-xs uppercase tracking-[0.16em] text-muted mt-1">
-                        {s.yearLevel}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-3xl font-light text-ink tabular-nums leading-none">
-                      {s.masteryPercent}%
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted mt-1">
-                      {s.topics.length} topic{s.topics.length === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  {s.topics.length === 0 ? (
-                    <div className="text-sm text-ink-soft">
-                      No topics tagged yet. The tutor will add them as
-                      material gets covered in class.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {s.topics.map((t) => (
-                        <div
-                          key={t.topic}
-                          className="grid grid-cols-[1fr_auto] gap-3 items-center"
-                        >
-                          <MasteryBar
-                            label={t.topic}
-                            mastery={t.mastery}
-                            className="min-w-0"
-                          />
-                          <span
-                            className={
-                              "shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] " +
-                              MASTERY_TONE[t.mastery]
-                            }
-                          >
-                            {MASTERY_LABEL[t.mastery]}
+      <div className="rise" style={{ animationDelay: "80ms" }}>
+        {topics.length === 0 ? (
+          <Card>
+            <div className="py-6 text-sm text-ink-soft">
+              {selected.firstName} isn't enrolled in any subjects with tracked
+              topics yet. Once classes start, the tutor will begin tracking
+              topics here.
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-0 overflow-hidden">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Topic</Th>
+                  <Th>Subject</Th>
+                  <Th className="w-[34%]">Mastery</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {topics.map((t, i) => {
+                  const m = t.mastery as Mastery;
+                  return (
+                    <Tr key={`${t.subjectName}-${t.topic}-${i}`}>
+                      <Td className="font-bold text-ink">{t.topic}</Td>
+                      <Td>
+                        <SubjectPill name={t.subjectName} />
+                      </Td>
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 flex-1 rounded-full bg-surface-2 overflow-hidden">
+                            <span
+                              className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
+                              style={{ width: `${MASTERY_PCT[m]}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-ink-soft tabular-nums w-9 text-right">
+                            {MASTERY_PCT[m]}%
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <aside className="space-y-5 min-w-0 lg:sticky lg:top-6 lg:self-start">
-            <Card className="p-0 overflow-hidden">
-              <SectionHeader title="Overall" />
-              <div className="p-5">
-                <CardLabel>Across all subjects</CardLabel>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <div className="text-6xl font-light text-ink tabular-nums">
-                    {overall}%
-                  </div>
-                </div>
-                <div className="mt-5 space-y-3.5">
-                  {subjects.map((s) => (
-                    <ProgressBar
-                      key={s.subjectId}
-                      label={s.subjectName}
-                      percent={s.masteryPercent}
-                      color={
-                        s.masteryPercent >= 85
-                          ? "bg-emerald-500"
-                          : s.masteryPercent >= 60
-                            ? "bg-brand-600"
-                            : s.masteryPercent >= 30
-                              ? "bg-amber-500"
-                              : "bg-hairline"
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            {latestFeedback && (
-              <Card className="p-0 overflow-hidden">
-                <SectionHeader
-                  title="Latest From The Tutor"
-                  link={{ href: "/parent/feedback", label: "All notes" }}
-                />
-                <div className="px-6 py-5">
-                  <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
-                    <span className="truncate">
-                      {latestFeedback.subjectName ?? "Lesson"} ·{" "}
-                      {latestFeedback.tutorName}
-                    </span>
-                    <span className="shrink-0">
-                      {relativeTime(latestFeedback.createdAt)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-base text-ink-soft leading-relaxed">
-                    {latestFeedback.parentVisibleComment}
-                  </p>
-                </div>
-              </Card>
-            )}
-
-            <Card className="p-0 overflow-hidden">
-              <SectionHeader title="Focus Areas" />
-              {needsWorkCount === 0 ? (
-                <div className="px-6 py-8 text-sm text-ink-soft">
-                  No weak topics right now — {selected.firstName} is keeping
-                  pace.
-                </div>
-              ) : (
-                <ul className="divide-y divide-hairline/60">
-                  {subjects.flatMap((s) =>
-                    s.topics
-                      .filter(
-                        (t) =>
-                          t.mastery === "needs_work" ||
-                          t.mastery === "not_started",
-                      )
-                      .slice(0, 6)
-                      .map((t) => (
-                        <li
-                          key={`${s.subjectId}-${t.topic}`}
-                          className="px-5 py-3"
-                        >
-                          <div className="flex items-baseline justify-between gap-3">
-                            <div className="text-sm text-ink truncate">
-                              {t.topic}
-                            </div>
-                            <span
-                              className={
-                                "shrink-0 text-[10px] uppercase tracking-[0.14em] " +
-                                (t.mastery === "needs_work"
-                                  ? "text-amber-800"
-                                  : "text-ink-soft")
-                              }
-                            >
-                              {MASTERY_LABEL[t.mastery]}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted mt-0.5 truncate">
-                            {s.subjectName}
-                          </div>
-                        </li>
-                      )),
-                  )}
-                </ul>
-              )}
-            </Card>
-
-          </aside>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Header({ dateLabel, subtitle }: { dateLabel: string; subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-        {dateLabel}
+                      </Td>
+                      <Td>
+                        <StatusPill
+                          label={MASTERY_LABEL[m] ?? m}
+                          className={MASTERY_PILL[m]}
+                        />
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </Card>
+        )}
       </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Progress` : "Progress"}
-      </h1>
-    </header>
+    </div>
   );
 }

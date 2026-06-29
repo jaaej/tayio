@@ -71,13 +71,13 @@ export function FeedbackList({ items }: { items: FeedbackItem[] }) {
           <button
             type="button"
             onClick={markAllRead}
-            className="text-[11px] uppercase tracking-[0.14em] text-brand-700 hover:underline"
+            className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-700 hover:underline"
           >
             Mark all read
           </button>
         </div>
       )}
-      <div className="divide-y divide-hairline/60">
+      <div className="divide-y divide-line/70">
         {items.map((f) => {
           const isRead = hydrated && read.has(f.id);
           return (
@@ -86,37 +86,38 @@ export function FeedbackList({ items }: { items: FeedbackItem[] }) {
               type="button"
               onClick={() => toggle(f.id)}
               aria-pressed={isRead}
-              className={`block w-full text-left px-6 py-5 transition-colors ${
-                isRead
-                  ? "bg-transparent"
-                  : "bg-gradient-to-r from-brand-50/40 via-brand-50/10 to-transparent"
-              } hover:bg-brand-50/30`}
+              className={`flex w-full items-start gap-3 text-left px-5 py-4 transition-colors ${
+                isRead ? "bg-transparent" : "bg-brand-50/50"
+              } hover:bg-surface-2/70`}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted">
-                    <span
-                      aria-hidden
-                      className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
-                        isRead ? "bg-hairline" : "bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100/60"
-                      }`}
-                    />
-                    <span className="truncate">
-                      {f.subjectName ?? "Lesson"} · {f.tutorName}
-                    </span>
-                  </div>
-                  <p
-                    className={`mt-1.5 text-base leading-relaxed line-clamp-2 ${
-                      isRead ? "text-ink-soft/70" : "text-ink-soft"
-                    }`}
-                  >
-                    {f.parentVisibleComment}
-                  </p>
+              <span
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shrink-0 mt-0.5 bg-brand-50 text-brand-700"
+              >
+                {f.subjectName ?? "Lesson"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-bold text-ink truncate">
+                    {f.tutorName}
+                  </span>
+                  <span className="text-[11px] text-muted shrink-0">
+                    {f.timeLabel}
+                  </span>
                 </div>
-                <span className="text-[11px] uppercase tracking-[0.14em] text-muted shrink-0">
-                  {f.timeLabel}
-                </span>
+                <p
+                  className={`mt-1 text-sm leading-relaxed line-clamp-2 ${
+                    isRead ? "text-ink-soft/70" : "text-ink-soft"
+                  }`}
+                >
+                  {f.parentVisibleComment}
+                </p>
               </div>
+              {!isRead && (
+                <span
+                  aria-hidden
+                  className="h-2 w-2 rounded-full bg-brand-500 shrink-0 mt-1.5"
+                />
+              )}
             </button>
           );
         })}

@@ -79,11 +79,14 @@ export default async function ParentSubjectPage({
       </Link>
 
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-          <h1 className="text-3xl lg:text-4xl font-medium tracking-tight text-ink truncate">
-            {data.subjectName} — {data.childFirstName}
+        <div className="px-6 py-5 border-b border-hairline/60">
+          <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-muted">
+            {data.childFirstName}
+          </div>
+          <h1 className="mt-1.5 text-2xl lg:text-3xl font-extrabold tracking-[-0.02em] text-ink truncate">
+            {data.subjectName}
           </h1>
-          <p className="text-sm text-ink-soft mt-1 truncate">
+          <p className="text-sm text-muted mt-1 truncate">
             {data.className} · {data.currentTerm.year} · Term{" "}
             {data.currentTerm.termNumber}
           </p>

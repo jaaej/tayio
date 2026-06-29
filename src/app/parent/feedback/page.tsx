@@ -1,8 +1,10 @@
 import { Card } from "@/components/ui/card";
+import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, relativeTime } from "@/lib/format";
 import { getFeedback, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
+import { PageHeader } from "../_components/page-header";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -18,7 +20,10 @@ export default async function ParentFeedbackPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader
+          title="Tutor feedback"
+          sub="Your tutor's comments after each lesson."
+        />
         <EmptyChildrenNotice />
       </div>
     );
@@ -28,7 +33,10 @@ export default async function ParentFeedbackPage({
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        title={`Feedback for ${selected.firstName}`}
+        sub="Your tutor's parent-visible comments after each lesson."
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -40,7 +48,7 @@ export default async function ParentFeedbackPage({
         </div>
       )}
 
-      <div className="rise space-y-5" style={{ animationDelay: "60ms" }}>
+      <div className="rise space-y-4" style={{ animationDelay: "60ms" }}>
         {rows.length === 0 ? (
           <Card>
             <p className="text-ink-soft">
@@ -51,16 +59,16 @@ export default async function ParentFeedbackPage({
         ) : (
           rows.map((r) => (
             <Card key={r.id} className="p-0 overflow-hidden">
-              <div className="px-6 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
-                <div className="min-w-0 truncate">
-                  {r.subjectName ?? "Lesson"}
-                  {r.topicCovered ? (
-                    <span className="ml-2 text-ink-soft normal-case tracking-normal">
-                      · {r.topicCovered}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-line/70">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <SubjectPill name={r.subjectName ?? "Lesson"} />
+                  {r.topicCovered && (
+                    <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
+                      {r.topicCovered}
                     </span>
-                  ) : null}
+                  )}
                 </div>
-                <div className="shrink-0">
+                <div className="text-xs text-muted font-semibold shrink-0">
                   {formatDateLong(r.lessonDate)} · {r.tutorName}
                 </div>
               </div>
@@ -68,7 +76,7 @@ export default async function ParentFeedbackPage({
                 <p className="text-lg text-ink leading-relaxed">
                   {r.parentVisibleComment}
                 </p>
-                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] text-muted">
+                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
                   {relativeTime(r.createdAt)}
                 </div>
               </div>
@@ -77,19 +85,5 @@ export default async function ParentFeedbackPage({
         )}
       </div>
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Tutor Feedback
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `Notes for ${subtitle}` : "Tutor Feedback"}
-      </h1>
-    </header>
   );
 }

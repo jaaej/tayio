@@ -13,10 +13,7 @@ export function ChildSwitcher({
 }) {
   if (children.length <= 1) return null;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] uppercase tracking-[0.16em] text-muted mr-2">
-        Viewing
-      </span>
+    <div className="inline-flex flex-wrap items-center gap-1 rounded-[16px] border border-line bg-card p-1.5 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
       {children.map((c) => {
         const active = c.id === selectedId;
         const href = `${basePath}?child=${c.id}`;
@@ -24,17 +21,37 @@ export function ChildSwitcher({
           <Link
             key={c.id}
             href={href}
+            aria-current={active ? "true" : undefined}
             className={cn(
-              "px-3 py-1.5 rounded-full text-sm border transition-colors",
-              active
-                ? "border-navy-800 bg-navy-800 text-white"
-                : "border-hairline text-ink-soft hover:text-ink hover:bg-brand-100",
+              "flex items-center gap-2.5 rounded-[11px] px-3 py-2 transition-colors",
+              active ? "bg-brand-50" : "hover:bg-surface-2",
             )}
           >
-            {c.firstName}
-            {c.yearLevel ? (
-              <span className="ml-2 text-[11px] opacity-70">{c.yearLevel}</span>
-            ) : null}
+            <span
+              className={cn(
+                "grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-extrabold",
+                active
+                  ? "bg-brand-600 text-white"
+                  : "bg-surface-2 text-ink-soft",
+              )}
+            >
+              {c.firstName.charAt(0).toUpperCase()}
+            </span>
+            <span className="text-left leading-tight">
+              <span
+                className={cn(
+                  "block text-[13px] font-bold",
+                  active ? "text-brand-700" : "text-ink",
+                )}
+              >
+                {c.firstName}
+              </span>
+              {c.yearLevel ? (
+                <span className="block text-[11px] text-muted">
+                  {c.yearLevel}
+                </span>
+              ) : null}
+            </span>
           </Link>
         );
       })}
@@ -44,8 +61,8 @@ export function ChildSwitcher({
 
 export function EmptyChildrenNotice() {
   return (
-    <div className="rounded-2xl border border-hairline/60 bg-card p-10 text-center">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+    <div className="rounded-[14px] border border-line bg-card p-10 text-center shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-16px_rgba(31,40,90,0.10)]">
+      <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-muted">
         No children linked
       </div>
       <p className="mt-4 text-ink-soft max-w-md mx-auto">

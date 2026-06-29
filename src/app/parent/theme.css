@@ -1,0 +1,37 @@
+/* ===========================================================
+ * Parent portal — v2 cornflower/indigo theme scope.
+ *
+ * Mirrors .theme-student / .theme-tutor in globals.css so the parent
+ * portal renders in the same Taiyo cornflower palette as the reference
+ * design kit — without touching globals.css or any shared component.
+ * Scoped under .theme-parent; the rules only set CSS custom properties
+ * (plus the wrapper's own background/colour), so they are inert anywhere
+ * the .theme-parent class is not present. The shared shell, Card, and
+ * StatTile recolour automatically because they read these var()-backed
+ * Tailwind tokens.
+ * =========================================================== */
+.theme-parent {
+  --brand-50: #eef3fe;
+  --brand-100: #d7e2fd;
+  --brand-200: #a0bffc;
+  --brand-300: #7a9bf5;
+  --brand-400: #5e76ea;
+  --brand-500: #4f5bd5;
+  --brand-600: #3f4ab5;
+  --brand-700: #323a91;
+
+  --ink: #0e1116;
+  --ink-soft: #2a2e39;
+  --muted: #6b7080;
+  --hairline: #e1e7f5;
+
+  --background: #eef3fd;
+  --surface: #ffffff;
+  --surface-2: #f2f5fc;
+  --surface-3: #f2f5fc;
+  --card: #ffffff;
+
+  background: var(--background);
+  color: var(--ink);
+  min-height: 100vh;
+}

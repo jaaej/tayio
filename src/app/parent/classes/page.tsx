@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/data/status-badge";
-import { StatTile } from "@/components/data/stat-tile";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import {
@@ -24,6 +23,9 @@ import {
   parseMonthParam,
 } from "../_components/month-calendar";
 import { SectionHeader } from "../_components/section-header";
+import { PageHeader } from "../_components/page-header";
+import { Kpi } from "../_components/kpi";
+import { BtnLink } from "../_components/button-link";
 import { submitRescheduleRequest } from "../_actions";
 
 type SearchParams = Promise<{
@@ -46,7 +48,10 @@ export default async function ParentClassesPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader
+          title="Classes"
+          sub="Your children's lessons and reschedule requests."
+        />
         <EmptyChildrenNotice />
       </div>
     );
@@ -96,7 +101,17 @@ export default async function ParentClassesPage({
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        title={`${selected.firstName}'s classes`}
+        sub="Calendar, attendance log and reschedule requests."
+        actions={
+          mode === "view" && upcomingLessons.length > 0 ? (
+            <BtnLink href={pickLessonHref} variant="brand">
+              Reschedule a class
+            </BtnLink>
+          ) : undefined
+        }
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -132,32 +147,24 @@ export default async function ParentClassesPage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
+        className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <StatTile
+        <Kpi
           label="Attendance rate"
           value={rate !== null ? `${rate}%` : "—"}
-          accent={
-            rate === null
-              ? "muted"
-              : rate >= 90
-                ? "success"
-                : rate >= 75
-                  ? "brand"
-                  : "warn"
+          sub="All logged lessons"
+          delta={
+            rate === null ? "flat" : rate >= 90 ? "up" : rate < 75 ? "down" : "flat"
           }
         />
-        <StatTile
+        <Kpi
           label="Absences"
           value={absent.toString()}
-          accent={absent === 0 ? "success" : "warn"}
+          sub="Marked absent"
+          delta={absent === 0 ? "up" : "down"}
         />
-        <StatTile
-          label="Lessons logged"
-          value={total.toString()}
-          accent="brand"
-        />
+        <Kpi label="Lessons logged" value={total.toString()} sub="This term" />
       </section>
 
       {mode === "pick-slot" && rescheduleLesson ? (
@@ -342,19 +349,5 @@ export default async function ParentClassesPage({
       </div>
 
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Classes
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Classes` : "Classes"}
-      </h1>
-    </header>
   );
 }

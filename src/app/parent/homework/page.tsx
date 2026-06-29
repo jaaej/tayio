@@ -1,18 +1,15 @@
 import { Card } from "@/components/ui/card";
-import { StatusBadge } from "@/components/data/status-badge";
-import { ScoreBadge } from "@/components/data/score-badge";
-import { StatTile } from "@/components/data/stat-tile";
-import { SubjectCard } from "@/components/data/subject-card";
+import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { formatDueDate } from "@/lib/format";
-import {
-  HOMEWORK_STATUS_LABEL,
-  HOMEWORK_STATUS_STYLE,
-} from "@/lib/status";
+import { HOMEWORK_STATUS_LABEL, HOMEWORK_STATUS_STYLE } from "@/lib/status";
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { SectionHeader } from "../_components/section-header";
-import Link from "next/link";
+import { PageHeader } from "../_components/page-header";
+import { Kpi } from "../_components/kpi";
+import { StatusPill } from "../_components/status-pill";
+import { Tabs, type TabItem } from "../_components/tabs";
+import { Table, Th, Td, Tr } from "../_components/table";
 
 type SearchParams = Promise<{ child?: string; subject?: string }>;
 
@@ -28,7 +25,10 @@ export default async function ParentHomeworkPage({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <Header />
+        <PageHeader
+          title="Homework"
+          sub="Your children's homework and their submission status."
+        />
         <EmptyChildrenNotice />
       </div>
     );
@@ -41,9 +41,9 @@ export default async function ParentHomeworkPage({
     const name = r.subjectName ?? r.className ?? "Other";
     subjectCounts.set(name, (subjectCounts.get(name) ?? 0) + 1);
   }
-  const subjectList = Array.from(subjectCounts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const subjectNames = Array.from(subjectCounts.keys()).sort((a, b) =>
+    a.localeCompare(b),
+  );
 
   const rows = subjectFilter
     ? allRows.filter(
@@ -53,7 +53,8 @@ export default async function ParentHomeworkPage({
 
   const total = rows.length;
   const completed = rows.filter(
-    (r) => r.status === "submitted" || r.status === "marked" || r.status === "returned",
+    (r) =>
+      r.status === "submitted" || r.status === "marked" || r.status === "returned",
   ).length;
   const outstanding = rows.filter(
     (r) =>
@@ -63,13 +64,22 @@ export default async function ParentHomeworkPage({
   ).length;
   const late = rows.filter((r) => r.status === "late").length;
 
-  const baseQs = new URLSearchParams();
-  if (selected.id) baseQs.set("child", selected.id);
-  const clearHref = `/parent/homework?${baseQs.toString()}`;
+  const base = `/parent/homework?child=${selected.id}`;
+  const tabs: TabItem[] = [
+    { label: "All", href: base, active: !subjectFilter },
+    ...subjectNames.map((s) => ({
+      label: s,
+      href: `${base}&subject=${encodeURIComponent(s)}`,
+      active: subjectFilter === s,
+    })),
+  ];
 
   return (
     <div className="space-y-6">
-      <Header subtitle={selected.firstName} />
+      <PageHeader
+        title={`${selected.firstName}'s homework`}
+        sub="Tasks set by the tutor and their submission status."
+      />
 
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
@@ -82,73 +92,36 @@ export default async function ParentHomeworkPage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-3 gap-4 rise"
+        className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
-        <StatTile
+        <Kpi
           label="Completion"
-          value={total > 0 ? `${completed} / ${total}` : "—"}
-          accent={
-            total === 0
-              ? "muted"
-              : completed / total >= 0.9
-                ? "success"
-                : completed / total >= 0.6
-                  ? "brand"
-                  : "warn"
-          }
+          value={total > 0 ? `${completed}/${total}` : "—"}
+          sub="Submitted or marked"
+          delta={total > 0 && completed / total >= 0.9 ? "up" : "flat"}
         />
-        <StatTile
+        <Kpi
           label="Outstanding"
           value={outstanding.toString()}
-          accent={outstanding === 0 ? "success" : "warn"}
+          sub="Not yet submitted"
+          delta={outstanding === 0 ? "up" : "down"}
         />
-        <StatTile
+        <Kpi
           label="Late"
           value={late.toString()}
-          accent={late === 0 ? "success" : "warn"}
+          sub="Past due date"
+          delta={late === 0 ? "up" : "down"}
         />
       </section>
 
-      {subjectList.length > 0 && (
-        <section
-          className="rise"
-          style={{ animationDelay: "60ms" }}
-          aria-label="Filter by subject"
-        >
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted mb-3">
-            Filter by Subject
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-            {subjectList.map((s) => {
-              const qs = new URLSearchParams(baseQs);
-              qs.set("subject", s.name);
-              const active = subjectFilter === s.name;
-              return (
-                <SubjectCard
-                  key={s.name}
-                  href={`/parent/homework?${qs.toString()}`}
-                  subject={s.name}
-                  meta={`${s.count} item${s.count === 1 ? "" : "s"}`}
-                  badge={active ? { label: "Showing", tone: "success" } : undefined}
-                />
-              );
-            })}
-          </div>
-          {subjectFilter && (
-            <div className="mt-3">
-              <Link
-                href={clearHref}
-                className="text-xs text-brand-700 hover:underline"
-              >
-                ← Show all subjects
-              </Link>
-            </div>
-          )}
-        </section>
+      {subjectNames.length > 0 && (
+        <div className="rise overflow-x-auto" style={{ animationDelay: "50ms" }}>
+          <Tabs items={tabs} />
+        </div>
       )}
 
-      <div className="rise" style={{ animationDelay: "80ms" }}>
+      <div className="rise" style={{ animationDelay: "70ms" }}>
         {rows.length === 0 ? (
           <Card>
             <p className="text-ink-soft">
@@ -159,62 +132,52 @@ export default async function ParentHomeworkPage({
           </Card>
         ) : (
           <Card className="p-0 overflow-hidden">
-            <SectionHeader
-              title={subjectFilter ? `${subjectFilter} Homework` : "All Homework"}
-              right={`${rows.length} item${rows.length === 1 ? "" : "s"}`}
-            />
-            <div className="divide-y divide-hairline/60">
-              {rows.map((r) => (
-                <div key={r.homeworkId} className="px-6 py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-muted">
-                        {r.subjectName ?? r.className ?? "Homework"}
-                      </div>
-                      <h3 className="mt-1 text-lg text-ink truncate">{r.title}</h3>
-                      <div className="mt-1.5 text-xs text-muted">
-                        Due {formatDueDate(r.dueDate)}
-                        {r.submittedAt
-                          ? ` · Submitted ${formatDueDate(r.submittedAt)}`
-                          : ""}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <StatusBadge
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Task</Th>
+                  <Th>Subject</Th>
+                  <Th>Due</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Score</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <Tr key={r.homeworkId}>
+                    <Td>
+                      <div className="font-bold text-ink">{r.title}</div>
+                      {r.feedback && (
+                        <div className="mt-1 text-xs text-muted line-clamp-1 max-w-md">
+                          <span className="font-bold text-ink-soft">Tutor:</span>{" "}
+                          {r.feedback}
+                        </div>
+                      )}
+                    </Td>
+                    <Td>
+                      <SubjectPill
+                        name={r.subjectName ?? r.className ?? "Other"}
+                      />
+                    </Td>
+                    <Td className="text-muted whitespace-nowrap">
+                      {formatDueDate(r.dueDate)}
+                    </Td>
+                    <Td>
+                      <StatusPill
                         label={HOMEWORK_STATUS_LABEL[r.status] ?? r.status}
                         className={HOMEWORK_STATUS_STYLE[r.status]}
                       />
-                      {r.score !== null ? <ScoreBadge score={r.score} /> : null}
-                    </div>
-                  </div>
-                  {r.feedback ? (
-                    <div className="mt-4 border-t border-hairline/60 pt-3 text-sm text-ink-soft">
-                      <span className="text-[11px] uppercase tracking-[0.16em] text-muted mr-2">
-                        Tutor
-                      </span>
-                      {r.feedback}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+                    </Td>
+                    <Td className="text-right tabular-nums font-extrabold text-ink">
+                      {r.score !== null ? r.score : "—"}
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
           </Card>
         )}
       </div>
     </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle?: string }) {
-  return (
-    <header className="rise">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600" />
-        Homework
-      </div>
-      <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-        {subtitle ? `${subtitle}'s Homework` : "Homework"}
-      </h1>
-    </header>
   );
 }
