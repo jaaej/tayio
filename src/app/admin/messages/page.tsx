@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, CardLabel } from "@/components/ui/card";
+import { Card, CardHead, PageHeader, Empty } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import {
   listDmDirectoryForAdmin,
@@ -17,30 +17,27 @@ export default async function AdminMessagesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Messages
-        </h1>
-        <p className="mt-1 text-sm text-ink-soft">
-          Your direct conversations with parents, students, and tutors. Start a
-          new conversation from the directory below.
-        </p>
-      </header>
+      <PageHeader
+        className="rise"
+        eyebrow="Direct messages"
+        title="Messages"
+        sub="Your direct conversations with parents, students, and tutors. Start a new one from the directory below."
+      />
 
-      <section className="space-y-2">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-ink-soft font-medium px-1">
+      <section className="space-y-2.5 rise" style={{ animationDelay: "60ms" }}>
+        <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted px-1">
           Conversations
         </div>
         {threads.length === 0 ? (
           <Card>
-            <div className="py-6 text-sm text-ink-soft">
+            <Empty>
               No conversations yet. Pick someone from the directory below to
               start one.
-            </div>
+            </Empty>
           </Card>
         ) : (
-          <Card className="p-0 overflow-hidden">
-            <ul className="divide-y divide-hairline/60">
+          <Card>
+            <ul className="divide-y divide-line">
               {threads.map((t) => (
                 <li key={t.threadId}>
                   <ThreadRow thread={t} hrefPrefix="/admin/messages" />
@@ -51,8 +48,8 @@ export default async function AdminMessagesPage() {
         )}
       </section>
 
-      <section className="space-y-4">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-ink-soft font-medium px-1">
+      <section className="space-y-3 rise" style={{ animationDelay: "120ms" }}>
+        <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted px-1">
           Directory
         </div>
         <div className="grid lg:grid-cols-3 gap-4">
@@ -73,20 +70,24 @@ function DirectoryColumn({
   entries: DmDirectoryEntry[];
 }) {
   return (
-    <Card className="p-0 overflow-hidden">
-      <div className="px-5 py-3 border-b border-hairline/60 flex items-baseline justify-between">
-        <CardLabel>{label}</CardLabel>
-        <span className="text-xs text-muted tabular-nums">{entries.length}</span>
-      </div>
+    <Card>
+      <CardHead
+        title={label}
+        action={
+          <span className="text-[12px] font-bold text-muted tabular-nums">
+            {entries.length}
+          </span>
+        }
+      />
       {entries.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-ink-soft">None on file.</div>
+        <Empty>None on file.</Empty>
       ) : (
-        <ul className="divide-y divide-hairline/60 max-h-96 overflow-y-auto">
+        <ul className="divide-y divide-line max-h-96 overflow-y-auto">
           {entries.map((e) => (
             <li key={e.id}>
               <Link
                 href={`/admin/messages/with/${e.id}`}
-                className="block px-5 py-3 text-sm text-ink hover:bg-brand-50/40 transition-colors"
+                className="block px-5 py-3.5 text-[14px] font-semibold text-ink hover:bg-surface-2 hover:text-brand-700 transition-colors"
               >
                 {e.firstName} {e.lastName}
               </Link>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/admin/ui";
 import { deleteAnnouncement } from "@/app/admin/_lib/actions-announcements";
 
 export function DeleteAnnouncementButton({
@@ -12,8 +14,10 @@ export function DeleteAnnouncementButton({
 }) {
   const [pending, start] = useTransition();
   return (
-    <button
+    <Button
       type="button"
+      variant="danger"
+      size="sm"
       disabled={pending}
       onClick={() => {
         if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
@@ -21,9 +25,10 @@ export function DeleteAnnouncementButton({
           await deleteAnnouncement(id);
         });
       }}
-      className="text-xs uppercase tracking-[0.14em] text-rose-700 hover:text-rose-900 disabled:opacity-50 shrink-0"
+      className="shrink-0"
     >
+      <Trash2 className="h-3.5 w-3.5" aria-hidden />
       Delete
-    </button>
+    </Button>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Pill, Button } from "@/components/admin/ui";
 import {
   enrollStudent,
   withdrawStudent,
@@ -54,30 +55,26 @@ export function EnrollmentsManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <div className="text-sm text-ink-soft">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[13px] font-bold text-ink-soft tabular-nums">
           {enrolled.length} of {capacity} enrolled
         </div>
-        {atCapacity && (
-          <div className="text-xs uppercase tracking-wide text-amber-700">
-            At capacity
-          </div>
-        )}
+        {atCapacity && <Pill tone="warn">At capacity</Pill>}
       </div>
 
       {enrolled.length === 0 ? (
-        <div className="text-sm text-ink-soft italic">
+        <div className="text-[13px] text-muted italic">
           No students enrolled yet.
         </div>
       ) : (
-        <ul className="divide-y divide-hairline/60 rounded-lg border border-hairline/60 overflow-hidden">
+        <ul className="divide-y divide-line rounded-[14px] border border-line overflow-hidden">
           {enrolled.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between gap-3 px-4 py-3"
+              className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface-2 transition-colors"
             >
               <div className="min-w-0">
-                <div className="text-sm text-ink truncate">
+                <div className="text-[14px] font-bold text-ink truncate">
                   {s.firstName} {s.lastName}
                 </div>
                 <div className="text-xs text-muted truncate">
@@ -88,7 +85,7 @@ export function EnrollmentsManager({
                 type="button"
                 onClick={() => handleRemove(s.id)}
                 disabled={pending}
-                className="text-xs text-rose-700 hover:underline disabled:opacity-50"
+                className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
               >
                 Remove
               </button>
@@ -97,15 +94,15 @@ export function EnrollmentsManager({
         </ul>
       )}
 
-      <div className="border-t border-hairline/60 pt-4 space-y-2">
-        <div className="text-xs uppercase tracking-wide text-muted">
+      <div className="border-t border-line pt-4 space-y-2">
+        <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
           Add a student
         </div>
         <div className="flex gap-2">
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            className="flex-1 rounded-md border border-hairline/60 bg-card px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink"
             disabled={pending}
           >
             <option value="">— Select a student —</option>
@@ -115,14 +112,13 @@ export function EnrollmentsManager({
               </option>
             ))}
           </select>
-          <button
+          <Button
             type="button"
             onClick={handleAdd}
             disabled={!selected || pending}
-            className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? "Adding…" : "Add"}
-          </button>
+          </Button>
         </div>
         {availableStudents.length === 0 && (
           <div className="text-xs text-muted">
@@ -131,7 +127,7 @@ export function EnrollmentsManager({
         )}
       </div>
 
-      {error && <div className="text-sm text-rose-700">{error}</div>}
+      {error && <div className="text-[13px] font-semibold text-bad">{error}</div>}
     </div>
   );
 }

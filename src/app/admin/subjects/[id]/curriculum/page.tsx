@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { Card, Hero, HeroChip, BackLink } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { subjectWeeks, subjects, terms } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
@@ -39,13 +39,16 @@ export default async function AdminSubjectCurriculumPage({
 
   if (!currentTerm) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-medium text-ink">
-          {subject.name} — Curriculum
-        </h1>
-        <p className="text-sm text-ink-soft">
+      <div className="space-y-6 max-w-[1200px]">
+        <BackLink href="/admin/classes">Back to classes</BackLink>
+        <Hero
+          eyebrow="Curriculum"
+          title={subject.name}
+          icon={subject.name.charAt(0).toUpperCase()}
+        />
+        <p className="text-[13px] text-ink-soft">
           No terms defined yet.{" "}
-          <Link href="/admin/terms" className="text-brand-700 hover:underline">
+          <Link href="/admin/terms" className="text-brand-600 font-semibold hover:underline">
             Create one →
           </Link>
         </p>
@@ -69,25 +72,25 @@ export default async function AdminSubjectCurriculumPage({
     : weeks[0];
 
   return (
-    <div className="space-y-6">
-      <Link
-        href="/admin/classes"
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-      >
-        ← Back to classes
-      </Link>
+    <div className="space-y-6 max-w-[1200px]">
+      <BackLink href="/admin/classes">Back to classes</BackLink>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100">
-          <h1 className="text-3xl lg:text-4xl font-medium tracking-tight text-ink truncate">
-            {subject.name} — Curriculum
-          </h1>
-          <p className="text-sm text-ink-soft mt-1 truncate">
-            {currentTerm.year} · Term {currentTerm.termNumber} ·{" "}
-            {currentTerm.startDate} to {currentTerm.endDate}
-          </p>
-        </div>
+      <Hero
+        eyebrow="Curriculum"
+        title={subject.name}
+        icon={subject.name.charAt(0).toUpperCase()}
+        chips={
+          <>
+            <HeroChip>{currentTerm.year}</HeroChip>
+            <HeroChip>Term {currentTerm.termNumber}</HeroChip>
+            <HeroChip>
+              {currentTerm.startDate} – {currentTerm.endDate}
+            </HeroChip>
+          </>
+        }
+      />
 
+      <Card>
         <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] gap-6 p-6">
           <WeekStripAdmin
             weeks={weeks}
@@ -96,7 +99,7 @@ export default async function AdminSubjectCurriculumPage({
             subjectId={subjectId}
             selectedWeekId={selectedWeek?.id ?? null}
           />
-          <div className="lg:border-l lg:border-hairline/60 lg:pl-6">
+          <div className="lg:border-l lg:border-line lg:pl-6">
             {isNew || !selectedWeek ? (
               <WeekEditor subjectId={subjectId} termId={currentTerm.id} />
             ) : (

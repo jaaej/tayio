@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { CalendarClock } from "lucide-react";
 import { db } from "@/db/client";
 import { familyLinks, profiles } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
-import { Card, CardLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardHead,
+  CardBody,
+  Pill,
+  Hero,
+  HeroChip,
+  BackLink,
+  Empty,
+} from "@/components/admin/ui";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
 import { EditUserForm } from "./_components/edit-user-form";
@@ -82,45 +91,38 @@ export default async function UserDetailPage({
       .where(eq(familyLinks.parentId, user.id));
   }
 
-  return (
-    <div className="space-y-10">
-      <div>
-        <Link
-          href="/admin/users"
-          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-        >
-          ← All users
-        </Link>
-      </div>
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
-      <header className="rise flex items-start justify-between gap-6">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            User profile
-          </div>
-          <h1 className="mt-2 text-4xl font-medium tracking-tight text-ink">
-            {user.firstName} {user.lastName}
-          </h1>
-          <div className="mt-2 text-sm text-ink-soft">{user.email}</div>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <Badge tone="brand">{user.role}</Badge>
-          <Badge tone={user.isActive ? "success" : "muted"}>
-            {user.isActive ? "active" : "inactive"}
-          </Badge>
+  return (
+    <div className="space-y-6 max-w-[1100px]">
+      <BackLink href="/admin/users">All users</BackLink>
+
+      <Hero
+        className="rise"
+        eyebrow="User profile"
+        icon={initials}
+        title={`${user.firstName} ${user.lastName}`}
+        chips={
+          <>
+            <HeroChip>{user.role}</HeroChip>
+            <HeroChip>{user.isActive ? "Active" : "Inactive"}</HeroChip>
+            <HeroChip>{user.email}</HeroChip>
+          </>
+        }
+        right={
           <a
             href={`/admin/messages/with/${user.id}`}
-            className="mt-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors uppercase tracking-[0.14em]"
+            className="inline-flex items-center rounded-full bg-white/[0.18] border border-white/30 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.14em] text-white hover:bg-white/25 transition-colors"
           >
             Message
           </a>
-        </div>
-      </header>
+        }
+      />
 
       <section className="rise" style={{ animationDelay: "80ms" }}>
-        <Card>
-          <CardLabel>Profile</CardLabel>
-          <div className="mt-4">
+        <Card accent="brand">
+          <CardHead title="Profile" />
+          <CardBody>
             <EditUserForm
               id={user.id}
               firstName={user.firstName}
@@ -130,74 +132,74 @@ export default async function UserDetailPage({
               school={user.school ?? ""}
               role={user.role}
             />
-          </div>
+          </CardBody>
         </Card>
       </section>
 
       {reschedule === "ok" && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <div className="text-sm text-emerald-900">
+        <Card accent="good">
+          <CardBody className="text-[13px] text-good font-medium">
             Reschedule saved. The original tutor, new tutor, and linked parents
             have been notified.
-          </div>
+          </CardBody>
         </Card>
       )}
       {reschedule === "error" && (
-        <Card className="border-rose-200 bg-rose-50">
-          <div className="text-sm text-rose-900">
+        <Card accent="bad">
+          <CardBody className="text-[13px] text-bad font-medium">
             Couldn't save that reschedule. Try again.
-          </div>
+          </CardBody>
         </Card>
       )}
 
       {user.role === "student" && (
         <section className="rise" style={{ animationDelay: "100ms" }}>
           <Card>
-            <CardLabel>Upcoming lessons</CardLabel>
-            <p className="mt-1 mb-4 text-xs text-muted">
-              Next 3 weeks. Click reschedule to move this student to a different
-              slot (other enrolled students keep the original lesson).
-            </p>
+            <CardHead
+              title="Upcoming lessons"
+              action={
+                <span className="text-[12px] text-muted">Next 3 weeks</span>
+              }
+            />
             {upcomingLessons.length === 0 ? (
-              <div className="text-sm text-ink-soft">
-                No upcoming lessons in the next 3 weeks.
-              </div>
+              <Empty>No upcoming lessons in the next 3 weeks.</Empty>
             ) : (
-              <ul className="divide-y divide-hairline/60 -mx-2">
+              <div className="divide-y divide-line">
                 {upcomingLessons.map((l) => (
-                  <li
+                  <div
                     key={l.id}
-                    className="px-2 py-3 flex items-center gap-3 flex-wrap"
+                    className="px-5 py-3.5 flex items-center gap-3 flex-wrap hover:bg-surface-2 transition-colors"
                   >
                     <div className="min-w-[180px]">
-                      <div className="text-sm font-medium text-ink">
+                      <div className="text-[14px] font-bold text-ink">
                         {l.subjectName}
                       </div>
-                      <div className="text-xs text-muted truncate">
+                      <div className="text-[12px] text-muted truncate">
                         {l.className}
                       </div>
                     </div>
-                    <div className="min-w-[140px] text-sm text-ink-soft tabular-nums">
+                    <div className="min-w-[140px] text-[13px] text-ink-soft tabular-nums">
                       {formatDateLong(l.date)}
                     </div>
-                    <div className="min-w-[110px] text-sm text-ink-soft tabular-nums">
+                    <div className="min-w-[110px] text-[13px] text-ink-soft tabular-nums">
                       {formatTime(l.startTime)} – {formatTime(l.endTime)}
                     </div>
-                    <div className="min-w-[140px] text-sm text-ink-soft">
+                    <div className="min-w-[140px] text-[13px] text-ink-soft">
                       {l.tutorFirstName} {l.tutorLastName}
                     </div>
                     {l.status !== "upcoming" && (
-                      <Badge tone="muted">{l.status}</Badge>
+                      <Pill tone="default">{l.status}</Pill>
                     )}
                     <Link
                       href={`/admin/users/${id}/reschedule/${l.id}`}
-                      className="ml-auto rounded-lg border border-hairline/60 bg-card px-3 py-1.5 text-xs font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors uppercase tracking-[0.12em]"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
                     >
+                      <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                       Reschedule
                     </Link>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </Card>
         </section>
@@ -206,10 +208,10 @@ export default async function UserDetailPage({
       {(user.role === "parent" || user.role === "student") && (
         <section className="rise" style={{ animationDelay: "120ms" }}>
           <Card>
-            <CardLabel>
-              {user.role === "parent" ? "Children" : "Parents"}
-            </CardLabel>
-            <div className="mt-4">
+            <CardHead
+              title={user.role === "parent" ? "Children" : "Parents"}
+            />
+            <CardBody>
               <FamilyLinksManager
                 viewer={user.role}
                 userId={user.id}
@@ -240,7 +242,7 @@ export default async function UserDetailPage({
                       }))
                 }
               />
-            </div>
+            </CardBody>
           </Card>
         </section>
       )}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
-import { Card, CardLabel } from "@/components/ui/card";
+import { Card, CardHead, CardBody, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CreateClassForm } from "./_components/create-class-form";
@@ -105,79 +105,73 @@ export default async function ClassesPage({
     .orderBy(subjects.name);
 
   return (
-    <div className="space-y-10">
-      <header className="rise">
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Class Management
-        </h1>
-      </header>
+    <div className="space-y-6 max-w-[1400px]">
+      <PageHeader
+        className="rise"
+        eyebrow="Operations"
+        title="Class Management"
+        actions={
+          <Pill tone="brand">
+            {rows.length} class{rows.length === 1 ? "" : "es"}
+          </Pill>
+        }
+      />
 
       <section className="grid lg:grid-cols-2 gap-5 rise">
         <Card>
-          <CardLabel>Create class</CardLabel>
-          <div className="mt-4">
+          <CardHead title="Create class" />
+          <CardBody>
             <CreateClassForm tutors={tutors} subjects={subjectList} />
-          </div>
+          </CardBody>
         </Card>
         <Card>
-          <CardLabel>Subjects</CardLabel>
-          <ul className="mt-3 divide-y divide-hairline/60">
-            {subjectList.length === 0 && (
-              <li className="py-2 text-sm text-muted">No subjects yet.</li>
-            )}
-            {subjectList.map((s) => (
-              <li key={s.id}>
+          <CardHead title="Subjects" action={<CreateSubjectForm />} />
+          {subjectList.length === 0 ? (
+            <Empty>No subjects yet.</Empty>
+          ) : (
+            <div className="divide-y divide-line">
+              {subjectList.map((s) => (
                 <Link
+                  key={s.id}
                   href={`/admin/subjects/${s.id}/curriculum`}
-                  className="py-2 -mx-2 px-2 rounded text-sm text-ink-soft flex items-center justify-between hover:bg-brand-50 hover:text-ink transition-colors"
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface-2 transition-colors"
                 >
-                  <span>{s.name}</span>
+                  <span className="text-[14px] font-bold text-ink truncate">
+                    {s.name}
+                  </span>
                   <span className="flex items-center gap-2 shrink-0">
-                    {s.yearLevel && (
-                      <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
-                        Yr {s.yearLevel}
-                      </span>
-                    )}
-                    <span className="text-[11px] uppercase tracking-wide text-brand-700">
+                    {s.yearLevel && <Pill tone="sky">Yr {s.yearLevel}</Pill>}
+                    <span className="text-[12px] font-bold text-brand-600">
                       Curriculum →
                     </span>
                   </span>
                 </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4">
-            <CreateSubjectForm />
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </section>
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Card className="p-0 overflow-hidden">
-          <div className="px-5 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
-            <div className="text-xl font-medium text-ink">
-              {isMonth ? "Monthly Schedule" : "Weekly Schedule"}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href={
-                  isMonth
-                    ? "/admin/classes"
-                    : `/admin/classes?view=month`
-                }
-                className="text-sm text-brand-700 hover:underline"
-              >
-                {isMonth ? "← Back to weekly" : "Open monthly →"}
-              </Link>
-              <span className="text-sm uppercase tracking-[0.18em] text-muted">
-                {rows.length} class{rows.length === 1 ? "" : "es"}
-              </span>
-            </div>
-          </div>
+        <Card>
+          <CardHead
+            title={isMonth ? "Monthly Schedule" : "Weekly Schedule"}
+            action={
+              <div className="flex items-center gap-3">
+                <Link
+                  href={isMonth ? "/admin/classes" : `/admin/classes?view=month`}
+                  className="text-[12px] font-bold text-brand-600 hover:underline"
+                >
+                  {isMonth ? "← Back to weekly" : "Open monthly →"}
+                </Link>
+                <Pill>
+                  {rows.length} class{rows.length === 1 ? "" : "es"}
+                </Pill>
+              </div>
+            }
+          />
           {rows.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-ink-soft">
-              No classes yet — create your first above.
-            </div>
+            <Empty>No classes yet — create your first above.</Empty>
           ) : isMonth ? (
             <MonthView rows={rows} monthParam={m} />
           ) : (
@@ -231,24 +225,24 @@ function WeekView({
           <Link
             href={`/admin/classes?w=${isoLocal(prevWeek)}`}
             aria-label="Previous week"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={`/admin/classes?w=${isoLocal(nextWeek)}`}
             aria-label="Next week"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
             ›
           </Link>
         </div>
-        <div className="text-sm font-medium text-ink tabular-nums">
+        <div className="text-[14px] font-bold text-ink tabular-nums">
           {shortDate(weekStart)} – {shortDate(weekEnd)}
         </div>
         <Link
           href="/admin/classes"
-          className="text-[11px] uppercase tracking-[0.16em] text-brand-700 hover:underline"
+          className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
         >
           This week
         </Link>
@@ -335,30 +329,30 @@ function MonthView({
           <Link
             href={`/admin/classes?view=month&m=${mKey(prevMonth)}`}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={`/admin/classes?view=month&m=${mKey(nextMonth)}`}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
             ›
           </Link>
         </div>
-        <div className="text-sm font-medium text-ink tabular-nums">
+        <div className="text-[14px] font-bold text-ink tabular-nums">
           {MONTH_NAMES[month]} {year}
         </div>
         <Link
           href="/admin/classes?view=month"
-          className="text-[11px] uppercase tracking-[0.16em] text-brand-700 hover:underline"
+          className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
         >
           This month
         </Link>
       </div>
       <div className="p-5">
-        <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.18em] text-muted mb-2">
+        <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
             <div key={d} className="text-center py-2">
               {d}
@@ -372,19 +366,19 @@ function MonthView({
               <div
                 key={d.iso}
                 className={cn(
-                  "rounded-xl border min-h-[140px] p-2 flex flex-col gap-1.5",
+                  "rounded-[14px] border min-h-[140px] p-2 flex flex-col gap-1.5",
                   d.inMonth
-                    ? "bg-card border-hairline/50"
-                    : "bg-brand-50/20 border-hairline/30",
+                    ? "bg-surface border-line"
+                    : "bg-surface-2/50 border-line/60",
                   d.isWeekend && d.inMonth && "bg-brand-50/30",
                   d.isToday &&
-                    "border-navy-800/40 ring-2 ring-brand-300 ring-offset-0",
+                    "ring-2 ring-brand-300 ring-offset-0 border-brand-400",
                 )}
               >
                 <div
                   className={cn(
-                    "text-xs tabular-nums font-semibold px-1",
-                    d.inMonth ? "text-ink" : "text-muted/60",
+                    "text-xs tabular-nums font-bold px-1",
+                    d.inMonth ? "text-ink" : "text-muted-2",
                     d.isToday && "text-brand-700",
                   )}
                 >
@@ -395,10 +389,10 @@ function MonthView({
                     <Link
                       key={c.id}
                       href={`/admin/classes/${c.id}`}
-                      className="block rounded-md px-1.5 py-1 text-[10px] leading-tight bg-brand-100 hover:bg-brand-200 transition-colors"
+                      className="block rounded-lg px-1.5 py-1 text-[10px] leading-tight bg-brand-50 hover:bg-brand-100 transition-colors"
                       title={`${c.name} · ${c.subject} · ${c.tutorFirst} ${c.tutorLast} · ${c.startTime ?? ""}-${c.endTime ?? ""}`}
                     >
-                      <div className="font-medium text-ink truncate">
+                      <div className="font-bold text-ink truncate">
                         {c.subject}
                       </div>
                       <div className="text-ink-soft truncate">
@@ -477,7 +471,7 @@ function ScheduleGrid({ rows }: { rows: ClassRow[] }) {
         {WEEKDAYS_SCHEDULE.map((d) => (
           <div
             key={d.idx}
-            className="text-center py-2 text-[11px] uppercase tracking-[0.18em] text-muted"
+            className="text-center py-2 text-[11px] uppercase tracking-[0.16em] font-bold text-muted"
           >
             {d.short}
           </div>
@@ -494,8 +488,8 @@ function ScheduleGrid({ rows }: { rows: ClassRow[] }) {
       </div>
 
       {unscheduled.length > 0 && (
-        <div className="border-t border-hairline/60 pt-4">
-          <div className="text-xs uppercase tracking-wide text-muted mb-2">
+        <div className="border-t border-line pt-4">
+          <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2">
             Without a recurring slot
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -503,9 +497,9 @@ function ScheduleGrid({ rows }: { rows: ClassRow[] }) {
               <Link
                 key={c.id}
                 href={`/admin/classes/${c.id}`}
-                className="rounded-lg border border-hairline/60 bg-card p-3 hover:border-brand-400 hover:bg-brand-50 transition-colors"
+                className="rounded-[14px] border border-line bg-surface p-3 hover:border-brand-400 hover:bg-surface-2 transition-colors"
               >
-                <div className="text-sm font-medium text-ink truncate">
+                <div className="text-[14px] font-bold text-ink truncate">
                   {c.name}
                 </div>
                 <div className="text-xs text-ink-soft truncate">
@@ -559,7 +553,7 @@ function ScheduleHourRow({
           return (
             <div
               key={key}
-              className="h-16 rounded-md border border-hairline/40 bg-card/30"
+              className="h-16 rounded-lg border border-line/60 bg-surface-2/40"
             />
           );
         }
@@ -570,7 +564,7 @@ function ScheduleHourRow({
                 key={c.id}
                 href={`/admin/classes/${c.id}`}
                 className={cn(
-                  "block rounded-md border border-brand-300 bg-brand-100 px-2 py-1.5 hover:bg-brand-200 hover:border-brand-400 transition-colors overflow-hidden",
+                  "block rounded-lg border border-brand-200 bg-brand-50 px-2 py-1.5 hover:bg-brand-100 hover:border-brand-400 transition-colors overflow-hidden",
                   c.spanHours > 1 && "min-h-[4rem]",
                 )}
                 style={
@@ -580,7 +574,7 @@ function ScheduleHourRow({
                 }
                 title={`${c.name} · ${c.subject} · ${c.tutor} · ${formatTime(c.startTime)}-${formatTime(c.endTime)}`}
               >
-                <div className="text-[11px] font-semibold text-ink truncate">
+                <div className="text-[11px] font-bold text-ink truncate">
                   {c.subject}
                 </div>
                 <div className="text-[10px] text-ink-soft truncate">

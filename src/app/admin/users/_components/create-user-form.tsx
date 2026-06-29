@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 
 const ROLES = ["student", "parent", "tutor", "admin"] as const;
@@ -97,11 +97,17 @@ export function CreateUserForm() {
         </>
       )}
       <div className="sm:col-span-2 flex items-center gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="brand" disabled={pending}>
           {pending ? "Creating…" : "Create user"}
         </Button>
-        {ok && <span className="text-xs text-emerald-700">Account created.</span>}
-        {error && <span className="text-xs text-rose-700">{error}</span>}
+        {ok && (
+          <span className="text-[12px] font-semibold text-good">
+            Account created.
+          </span>
+        )}
+        {error && (
+          <span className="text-[12px] font-semibold text-bad">{error}</span>
+        )}
       </div>
     </form>
   );

@@ -6,6 +6,7 @@ import {
   updateTerm,
   deleteTerm,
 } from "@/app/admin/_lib/actions-terms";
+import { Button } from "@/components/admin/ui";
 import type { Term } from "@/db/schema";
 
 export function TermForm({ existing }: { existing?: Term }) {
@@ -24,22 +25,22 @@ export function TermForm({ existing }: { existing?: Term }) {
 
   return (
     <form action={submit} className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-      <label className="text-sm">
-        <div className="text-xs uppercase tracking-wide text-muted mb-1">Year</div>
+      <label>
+        <div className="text-[12px] font-bold text-ink-soft mb-1">Year</div>
         <input
           name="year"
           type="number"
           defaultValue={existing?.year ?? new Date().getFullYear()}
-          className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink"
           required
         />
       </label>
-      <label className="text-sm">
-        <div className="text-xs uppercase tracking-wide text-muted mb-1">Term</div>
+      <label>
+        <div className="text-[12px] font-bold text-ink-soft mb-1">Term</div>
         <select
           name="termNumber"
           defaultValue={existing?.termNumber ?? 1}
-          className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink"
         >
           {[1, 2, 3, 4].map((n) => (
             <option key={n} value={n}>
@@ -48,37 +49,34 @@ export function TermForm({ existing }: { existing?: Term }) {
           ))}
         </select>
       </label>
-      <label className="text-sm">
-        <div className="text-xs uppercase tracking-wide text-muted mb-1">Start</div>
+      <label>
+        <div className="text-[12px] font-bold text-ink-soft mb-1">Start</div>
         <input
           name="startDate"
           type="date"
           defaultValue={existing?.startDate ?? ""}
-          className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink"
           required
         />
       </label>
-      <label className="text-sm">
-        <div className="text-xs uppercase tracking-wide text-muted mb-1">End</div>
+      <label>
+        <div className="text-[12px] font-bold text-ink-soft mb-1">End</div>
         <input
           name="endDate"
           type="date"
           defaultValue={existing?.endDate ?? ""}
-          className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink"
           required
         />
       </label>
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
+        <Button type="submit" variant="brand" disabled={pending}>
           {pending ? "Saving…" : existing ? "Save" : "Add"}
-        </button>
+        </Button>
         {existing && (
-          <button
+          <Button
             type="button"
+            variant="danger"
             onClick={() => {
               if (
                 confirm(
@@ -91,14 +89,13 @@ export function TermForm({ existing }: { existing?: Term }) {
                 });
               }
             }}
-            className="rounded-md border border-red-300 text-red-700 px-3 py-2 text-sm"
           >
             Delete
-          </button>
+          </Button>
         )}
       </div>
       {error && (
-        <div className="col-span-full text-sm text-red-700">{error}</div>
+        <div className="col-span-full text-[13px] font-semibold text-bad">{error}</div>
       )}
     </form>
   );

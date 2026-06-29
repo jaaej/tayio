@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/admin/ui";
 import {
   sendPasswordReset,
   setUserActive,
@@ -25,7 +25,7 @@ export function UserRowActions({
     <div className="inline-flex items-center gap-2 justify-end">
       <Link
         href={`/admin/users/${id}`}
-        className="text-xs uppercase tracking-[0.14em] text-brand-700 hover:text-brand-600"
+        className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600 hover:text-brand-700 transition-colors"
       >
         Open →
       </Link>

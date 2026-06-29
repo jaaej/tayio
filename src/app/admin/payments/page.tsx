@@ -1,10 +1,18 @@
 import { desc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { Wallet, AlertTriangle, FileText } from "lucide-react";
 import { db } from "@/db/client";
 import { invoices, profiles } from "@/db/schema";
-import { Card, CardLabel } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import {
+  Card,
+  CardHead,
+  CardBody,
+  Pill,
+  StatTile,
+  PageHeader,
+  Empty,
+  type PillTone,
+} from "@/components/admin/ui";
 import { CreateInvoiceForm } from "./_components/create-invoice-form";
 import { InvoiceActions } from "./_components/invoice-actions";
 
@@ -18,13 +26,13 @@ type Status =
   | "refunded"
   | "cancelled";
 
-const STATUS_TONE: Record<Status, "success" | "warn" | "danger" | "muted" | "neutral"> = {
-  paid: "success",
-  unpaid: "neutral",
-  overdue: "danger",
-  partially_paid: "warn",
-  refunded: "muted",
-  cancelled: "muted",
+const STATUS_TONE: Record<Status, PillTone> = {
+  paid: "good",
+  unpaid: "warn",
+  overdue: "bad",
+  partially_paid: "info",
+  refunded: "grape",
+  cancelled: "default",
 };
 
 function formatMoney(amount: string, currency: string) {
@@ -93,128 +101,127 @@ export default async function PaymentsPage() {
     { paid: 0, overdue: 0, outstanding: 0 },
   );
 
+  const money0 = (n: number) =>
+    new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: "AUD",
+      maximumFractionDigits: 0,
+    }).format(n);
+
   return (
-    <div className="space-y-10">
-      <header className="rise">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
-          Invoices
-        </div>
-        <h1 className="mt-2 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Who Has Paid, Who Hasn&apos;t
-        </h1>
-        <p className="mt-3 text-sm text-ink-soft max-w-xl">
-          Manual invoice tracking for the MVP. Stripe integration arrives in
-          Phase 3 — mark payments here as they clear in your bank.
-        </p>
-      </header>
+    <div className="space-y-6 max-w-[1400px]">
+      <PageHeader
+        className="rise"
+        eyebrow="Invoices"
+        title="Who has paid, who hasn't"
+        sub="Manual invoice tracking for the MVP. Stripe integration arrives in Phase 3 — mark payments here as they clear in your bank."
+      />
 
       <section className="grid sm:grid-cols-3 gap-4 rise">
-        <Card>
-          <CardLabel>Paid this view</CardLabel>
-          <div className="mt-2 text-3xl font-light text-emerald-700">
-            {new Intl.NumberFormat("en-AU", {
-              style: "currency",
-              currency: "AUD",
-              maximumFractionDigits: 0,
-            }).format(totals.paid)}
-          </div>
-        </Card>
-        <Card>
-          <CardLabel>Outstanding</CardLabel>
-          <div className="mt-2 text-3xl font-light text-ink">
-            {new Intl.NumberFormat("en-AU", {
-              style: "currency",
-              currency: "AUD",
-              maximumFractionDigits: 0,
-            }).format(totals.outstanding)}
-          </div>
-        </Card>
-        <Card>
-          <CardLabel>Overdue</CardLabel>
-          <div className="mt-2 text-3xl font-light text-rose-700">
-            {new Intl.NumberFormat("en-AU", {
-              style: "currency",
-              currency: "AUD",
-              maximumFractionDigits: 0,
-            }).format(totals.overdue)}
-          </div>
-        </Card>
+        <StatTile
+          label="Paid this view"
+          value={money0(totals.paid)}
+          icon={<Wallet className="h-5 w-5" />}
+          tone="good"
+          accent
+        />
+        <StatTile
+          label="Outstanding"
+          value={money0(totals.outstanding)}
+          icon={<FileText className="h-5 w-5" />}
+          tone="brand"
+          accent
+        />
+        <StatTile
+          label="Overdue"
+          value={money0(totals.overdue)}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone={totals.overdue > 0 ? "bad" : "good"}
+          accent
+        />
       </section>
 
       <section className="rise" style={{ animationDelay: "80ms" }}>
         <Card>
-          <CardLabel>Create invoice</CardLabel>
-          <div className="mt-4">
+          <CardHead title="Create invoice" />
+          <CardBody>
             {parents.length === 0 ? (
-              <div className="text-sm text-muted">
+              <div className="text-[13px] text-muted">
                 Create a parent account first under User management.
               </div>
             ) : (
               <CreateInvoiceForm parents={parents} students={students} />
             )}
-          </div>
+          </CardBody>
         </Card>
       </section>
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Parent</TH>
-              <TH>Student</TH>
-              <TH>Description</TH>
-              <TH className="text-right">Amount</TH>
-              <TH>Due</TH>
-              <TH>Status</TH>
-              <TH className="text-right">Actions</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {rows.length === 0 && (
-              <TR>
-                <TD colSpan={7} className="text-center text-muted py-8">
-                  No invoices yet.
-                </TD>
-              </TR>
-            )}
-            {rows.map((r) => (
-              <TR key={r.id}>
-                <TD>
-                  <div className="font-medium">
-                    {r.parentFirst} {r.parentLast}
-                  </div>
-                  <div className="text-xs text-muted">{r.parentEmail}</div>
-                </TD>
-                <TD className="text-ink-soft">
-                  {r.studentFirst
-                    ? `${r.studentFirst} ${r.studentLast}`
-                    : "—"}
-                </TD>
-                <TD className="text-ink-soft text-xs">
-                  {r.description || "—"}
-                </TD>
-                <TD className="text-right font-medium">
-                  {formatMoney(r.amount, r.currency)}
-                </TD>
-                <TD className="text-ink-soft text-xs">
-                  {new Date(r.dueDate).toLocaleDateString("en-AU", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </TD>
-                <TD>
-                  <Badge tone={STATUS_TONE[r.status as Status]}>
-                    {r.status.replace("_", " ")}
-                  </Badge>
-                </TD>
-                <TD className="text-right">
-                  <InvoiceActions id={r.id} status={r.status as Status} />
-                </TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
+        <Card>
+          <CardHead title="All invoices" />
+          {rows.length === 0 ? (
+            <Empty>No invoices yet.</Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
+                    <th className="text-left px-5 py-2.5">Parent</th>
+                    <th className="text-left px-5 py-2.5">Student</th>
+                    <th className="text-left px-5 py-2.5">Description</th>
+                    <th className="text-right px-5 py-2.5">Amount</th>
+                    <th className="text-left px-5 py-2.5">Due</th>
+                    <th className="text-left px-5 py-2.5">Status</th>
+                    <th className="text-right px-5 py-2.5">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b border-line hover:bg-surface-2 transition-colors"
+                    >
+                      <td className="px-5 py-3 text-[13px]">
+                        <div className="font-bold text-ink">
+                          {r.parentFirst} {r.parentLast}
+                        </div>
+                        <div className="text-[12px] text-muted">
+                          {r.parentEmail}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-[13px] text-ink-soft">
+                        {r.studentFirst
+                          ? `${r.studentFirst} ${r.studentLast}`
+                          : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-[12px] text-ink-soft">
+                        {r.description || "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[13px] font-extrabold tabular-nums text-ink">
+                        {formatMoney(r.amount, r.currency)}
+                      </td>
+                      <td className="px-5 py-3 text-[12px] text-ink-soft tabular-nums">
+                        {new Date(r.dueDate).toLocaleDateString("en-AU", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-5 py-3">
+                        <Pill tone={STATUS_TONE[r.status as Status]}>
+                          {r.status.replace("_", " ")}
+                        </Pill>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <InvoiceActions id={r.id} status={r.status as Status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </section>
     </div>
   );

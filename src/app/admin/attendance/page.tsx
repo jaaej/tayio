@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { Card } from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
+import { Card, CardHead, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import {
   attendance,
@@ -70,80 +71,69 @@ export default async function AdminAttendancePage({
     .limit(200);
 
   return (
-    <div className="space-y-6">
-      <header className="rise">
-        <h1 className="text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-          Attendance
-        </h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Lessons since {formatDateLong(fromIso)}. Tutors mark attendance at
-          their lesson page; admin can correct here.
-        </p>
-      </header>
+    <div className="space-y-6 max-w-[1400px]">
+      <PageHeader
+        className="rise"
+        eyebrow="Attendance"
+        title="Attendance"
+        sub={`Lessons since ${formatDateLong(fromIso)}. Tutors mark attendance at their lesson page; admin can correct here.`}
+      />
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between">
-          <div className="text-xl font-medium text-ink">Recent lessons</div>
-          <span className="text-sm uppercase tracking-[0.18em] text-muted">
-            {rows.length} shown
-          </span>
-        </div>
+      <Card className="rise">
+        <CardHead
+          title="Recent lessons"
+          action={<Pill tone="brand">{rows.length} shown</Pill>}
+        />
         {rows.length === 0 ? (
-          <div className="px-6 py-8 text-sm text-ink-soft">
-            No lessons in this period.
-          </div>
+          <Empty>No lessons in this period.</Empty>
         ) : (
-          <ul className="divide-y divide-hairline/60">
+          <div className="divide-y divide-line">
             {rows.map((r) => (
-              <li key={r.lessonId}>
-                <Link
-                  href={`/admin/attendance/${r.lessonId}`}
-                  className="grid grid-cols-12 items-center gap-3 px-5 py-3.5 hover:bg-brand-50 transition-colors"
-                >
-                  <div className="col-span-3 min-w-0">
-                    <div className="text-sm text-ink">
-                      {formatDateLong(r.date)}
-                    </div>
-                    <div className="text-xs text-muted tabular-nums">
-                      {formatTime(r.startTime)} – {formatTime(r.endTime)}
-                    </div>
+              <Link
+                key={r.lessonId}
+                href={`/admin/attendance/${r.lessonId}`}
+                className="grid grid-cols-12 items-center gap-3 px-5 py-3.5 hover:bg-surface-2 transition-colors"
+              >
+                <div className="col-span-3 min-w-0">
+                  <div className="text-[14px] font-bold text-ink truncate">
+                    {formatDateLong(r.date)}
                   </div>
-                  <div className="col-span-3 min-w-0">
-                    <div className="text-sm text-ink truncate">
-                      {r.className}
-                    </div>
-                    <div className="text-xs text-muted truncate">
-                      {r.subjectName}
-                    </div>
+                  <div className="text-[12px] text-muted tabular-nums mt-0.5">
+                    {formatTime(r.startTime)} – {formatTime(r.endTime)}
                   </div>
-                  <div className="col-span-2 text-sm text-ink-soft truncate">
-                    {r.tutorFirst} {r.tutorLast}
+                </div>
+                <div className="col-span-3 min-w-0">
+                  <div className="text-[13px] text-ink truncate">
+                    {r.className}
                   </div>
-                  <div className="col-span-3 flex items-center gap-2 text-xs">
-                    <span className="rounded px-2 py-0.5 bg-emerald-100 text-emerald-800 tabular-nums">
-                      {r.presentCount} present
+                  <div className="text-[12px] text-muted truncate mt-0.5">
+                    {r.subjectName}
+                  </div>
+                </div>
+                <div className="col-span-2 text-[13px] text-ink-soft truncate">
+                  {r.tutorFirst} {r.tutorLast}
+                </div>
+                <div className="col-span-3 flex flex-wrap items-center gap-1.5">
+                  <Pill tone="good">{r.presentCount} present</Pill>
+                  {r.lateCount > 0 && (
+                    <Pill tone="warn">{r.lateCount} late</Pill>
+                  )}
+                  {r.absentCount > 0 && (
+                    <Pill tone="bad">{r.absentCount} absent</Pill>
+                  )}
+                  {r.totalMarked === 0 && (
+                    <span className="text-[12px] text-muted">
+                      Not marked yet
                     </span>
-                    {r.lateCount > 0 && (
-                      <span className="rounded px-2 py-0.5 bg-amber-100 text-amber-800 tabular-nums">
-                        {r.lateCount} late
-                      </span>
-                    )}
-                    {r.absentCount > 0 && (
-                      <span className="rounded px-2 py-0.5 bg-rose-100 text-rose-800 tabular-nums">
-                        {r.absentCount} absent
-                      </span>
-                    )}
-                    {r.totalMarked === 0 && (
-                      <span className="text-muted">Not marked yet</span>
-                    )}
-                  </div>
-                  <div className="col-span-1 text-right text-[11px] uppercase tracking-wide text-brand-700">
-                    Edit →
-                  </div>
-                </Link>
-              </li>
+                  )}
+                </div>
+                <div className="col-span-1 flex items-center justify-end gap-1 text-[11px] uppercase tracking-[0.14em] font-bold text-brand-700">
+                  Edit
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                </div>
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </Card>
     </div>

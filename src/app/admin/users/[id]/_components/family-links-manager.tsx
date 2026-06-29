@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/admin/ui";
 import {
   createFamilyLink,
   removeFamilyLink,
@@ -34,18 +34,18 @@ export function FamilyLinksManager({
   return (
     <div className="space-y-4">
       {existing.length === 0 && (
-        <div className="text-sm text-muted">No links yet.</div>
+        <div className="text-[13px] text-muted">No links yet.</div>
       )}
 
-      <ul className="divide-y divide-hairline/60">
+      <ul className="divide-y divide-line">
         {existing.map((p) => (
           <li
             key={p.id}
-            className="py-2 flex items-center justify-between gap-4"
+            className="py-2.5 flex items-center justify-between gap-4"
           >
             <div>
-              <div className="text-sm text-ink">{p.name}</div>
-              <div className="text-xs text-muted">{p.email}</div>
+              <div className="text-[14px] font-bold text-ink">{p.name}</div>
+              <div className="text-[12px] text-muted">{p.email}</div>
             </div>
             <Button
               size="sm"
@@ -91,7 +91,7 @@ export function FamilyLinksManager({
           }}
         >
           <div className="flex-1 space-y-1.5">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
               Add {viewer === "parent" ? "child" : "parent"}
             </div>
             <Select
@@ -105,17 +105,17 @@ export function FamilyLinksManager({
               ))}
             </Select>
           </div>
-          <Button type="submit" disabled={pending || !picked}>
+          <Button type="submit" variant="brand" disabled={pending || !picked}>
             Link
           </Button>
         </form>
       ) : (
-        <div className="text-xs text-muted">
+        <div className="text-[12px] text-muted">
           No more {viewer === "parent" ? "students" : "parents"} to link.
         </div>
       )}
 
-      {error && <div className="text-xs text-rose-700">{error}</div>}
+      {error && <div className="text-[12px] font-semibold text-bad">{error}</div>}
     </div>
   );
 }

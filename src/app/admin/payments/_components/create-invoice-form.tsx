@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { createInvoice } from "@/app/admin/_lib/actions-invoices";
@@ -98,13 +98,11 @@ export function CreateInvoiceForm({
         />
       </div>
       <div className="sm:col-span-2 flex items-center gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="brand" disabled={pending}>
           {pending ? "Creating…" : "Create invoice"}
         </Button>
-        {ok && (
-          <span className="text-xs text-emerald-700">Invoice created.</span>
-        )}
-        {error && <span className="text-xs text-rose-700">{error}</span>}
+        {ok && <span className="text-[12px] font-semibold text-good">Invoice created.</span>}
+        {error && <span className="text-[12px] font-semibold text-bad">{error}</span>}
       </div>
     </form>
   );

@@ -1,13 +1,17 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { StatTile } from "@/components/data/stat-tile";
+import {
+  Users,
+  GraduationCap,
+  AlertTriangle,
+  FileText,
+} from "lucide-react";
 import { StatusBadge } from "@/components/data/status-badge";
 import { ProgressBar } from "@/components/data/progress-bar";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
+import { Card, CardHead, Pill, StatTile, PageHeader, Empty } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import {
   formatDueDate,
@@ -79,48 +83,58 @@ export default async function AdminDashboard() {
   const attentionItems = tutorBacklog.length + overdueList.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1400px]">
       {/* Title strip */}
-      <header className="flex items-baseline justify-between rise">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
+      <PageHeader
+        className="rise"
+        eyebrow={
+          <>
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-500 animate-pulse" />
             Operations · {dateLabel}
+          </>
+        }
+        title="Dashboard"
+        actions={
+          <div className="hidden md:flex items-center gap-2">
+            <Pill tone="brand">{stats.activeStudents} students</Pill>
+            <Pill tone="sky">{stats.activeTutors} tutors</Pill>
           </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Dashboard
-          </h1>
-        </div>
-        <div className="hidden md:flex items-center gap-3 text-sm">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-            Roster
-          </span>
-          <span className="text-ink font-medium tabular-nums">
-            {stats.activeStudents}
-          </span>
-          <span className="text-muted">students</span>
-          <span className="text-muted">·</span>
-          <span className="text-ink font-medium tabular-nums">
-            {stats.activeTutors}
-          </span>
-          <span className="text-muted">tutors</span>
-        </div>
-      </header>
+        }
+      />
 
       {/* Stat strip */}
       <section
-        className="grid grid-cols-1 sm:grid-cols-2 gap-4 rise"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
+          label="Active students"
+          value={stats.activeStudents}
+          icon={<Users className="h-5 w-5" />}
+          tone="brand"
+          accent
+          href="/admin/users"
+        />
+        <StatTile
+          label="Active tutors"
+          value={stats.activeTutors}
+          icon={<GraduationCap className="h-5 w-5" />}
+          tone="sky"
+          accent
+        />
+        <StatTile
           label="Flagged students"
-          value={atRisk.length.toString()}
-          accent={atRisk.length > 0 ? "warn" : "muted"}
+          value={atRisk.length}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone={atRisk.length > 0 ? "warn" : "good"}
+          accent
         />
         <StatTile
           label="Notes pending"
-          value={stats.notesPending.toString()}
-          accent={stats.notesPending > 0 ? "warn" : "muted"}
+          value={stats.notesPending}
+          icon={<FileText className="h-5 w-5" />}
+          tone={stats.notesPending > 0 ? "coral" : "good"}
+          accent
           href="/admin/classes"
         />
       </section>
@@ -133,59 +147,61 @@ export default async function AdminDashboard() {
           style={{ animationDelay: "80ms" }}
         >
           {/* Needs your attention */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader
-              title="Needs Your Attention"
-              right={
-                attentionItems > 0
-                  ? `${attentionItems} item${attentionItems === 1 ? "" : "s"}`
-                  : "All clear"
+          <Card>
+            <CardHead
+              title="Needs your attention"
+              action={
+                <Pill tone={attentionItems > 0 ? "warn" : "good"}>
+                  {attentionItems > 0
+                    ? `${attentionItems} item${attentionItems === 1 ? "" : "s"}`
+                    : "All clear"}
+                </Pill>
               }
             />
             {attentionItems === 0 ? (
               <Empty>Nothing to action — every tutor and parent is up to date.</Empty>
             ) : (
-              <div className="divide-y divide-hairline/60">
+              <div className="divide-y divide-line">
                 {tutorBacklog.map((t) => (
                   <Link
                     key={t.tutorId}
                     href={`/admin/users/${t.tutorId}`}
-                    className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
+                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-base text-ink truncate">
+                      <div className="text-[14px] font-bold text-ink truncate">
                         {t.firstName} {t.lastName}
                       </div>
-                      <div className="text-sm text-muted mt-0.5">
+                      <div className="text-[12px] text-muted mt-0.5">
                         {t.pendingNotes} lesson note
                         {t.pendingNotes === 1 ? "" : "s"} overdue · last 14 days
                       </div>
                     </div>
-                    <Badge tone="warn">Notes</Badge>
+                    <Pill tone="warn">Notes</Pill>
                   </Link>
                 ))}
                 {overdueList.map((inv) => (
                   <Link
                     key={inv.id}
                     href="/admin/payments"
-                    className="flex items-center gap-4 px-6 py-3.5 hover:bg-brand-50 transition-colors"
+                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-base text-ink truncate">
+                      <div className="text-[14px] font-bold text-ink truncate">
                         {inv.parentFirst} {inv.parentLast}
                         {inv.studentFirst ? (
-                          <span className="text-muted">
+                          <span className="text-muted font-normal">
                             {" "}
                             · {inv.studentFirst} {inv.studentLast}
                           </span>
                         ) : null}
                       </div>
-                      <div className="text-sm text-muted mt-0.5">
+                      <div className="text-[12px] text-muted mt-0.5">
                         {formatMoney(Number(inv.amount))} · due{" "}
                         {formatDueDate(new Date(`${inv.dueDate}T00:00:00`))}
                       </div>
                     </div>
-                    <Badge tone="danger">Overdue</Badge>
+                    <Pill tone="bad">Overdue</Pill>
                   </Link>
                 ))}
               </div>
@@ -193,47 +209,56 @@ export default async function AdminDashboard() {
           </Card>
 
           {/* This week */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader
-              title="This Week"
-              link={{ href: "/admin/classes", label: "All classes" }}
+          <Card>
+            <CardHead
+              title="This week"
+              action={
+                <Link
+                  href="/admin/classes"
+                  className="text-[12px] font-bold text-brand-600 hover:underline"
+                >
+                  All classes →
+                </Link>
+              }
             />
-            <div className="p-4 bg-gradient-to-b from-brand-50/30 to-transparent">
+            <div className="p-4 bg-gradient-to-b from-brand-50/40 to-transparent">
               <MiniWeekCalendar events={events} weekStart={weekStart} />
             </div>
           </Card>
 
           {/* At-risk students */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader
+          <Card>
+            <CardHead
               title="At-risk students"
-              right={
-                atRisk.length > 0
-                  ? `${atRisk.length} flagged`
-                  : "None right now"
+              action={
+                <Pill tone={atRisk.length > 0 ? "warn" : "good"}>
+                  {atRisk.length > 0
+                    ? `${atRisk.length} flagged`
+                    : "None right now"}
+                </Pill>
               }
             />
             {atRisk.length === 0 ? (
               <Empty>No students with pending homework backlog.</Empty>
             ) : (
-              <div className="divide-y divide-hairline/60">
+              <div className="divide-y divide-line">
                 {atRisk.map((s) => (
                   <Link
                     key={s.studentId}
                     href={`/admin/users/${s.studentId}`}
-                    className="block px-6 py-3.5 hover:bg-brand-50 transition-colors"
+                    className="block px-5 py-3.5 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex items-baseline justify-between gap-3 mb-2">
                       <div className="min-w-0">
-                        <div className="text-base text-ink truncate">
+                        <div className="text-[14px] font-bold text-ink truncate">
                           {s.firstName} {s.lastName}
                         </div>
-                        <div className="text-sm text-muted mt-0.5">
+                        <div className="text-[12px] text-muted mt-0.5">
                           {s.yearLevel ? `Yr ${s.yearLevel} · ` : ""}
                           {s.pendingHomework} pending homework
                         </div>
                       </div>
-                      <span className="text-sm text-ink-soft tabular-nums shrink-0">
+                      <span className="text-[13px] font-bold text-ink-soft tabular-nums shrink-0">
                         {s.completionPercent}%
                       </span>
                     </div>
@@ -241,10 +266,10 @@ export default async function AdminDashboard() {
                       percent={s.completionPercent}
                       color={
                         s.completionPercent >= 75
-                          ? "bg-emerald-500"
+                          ? "bg-mint"
                           : s.completionPercent >= 40
-                            ? "bg-amber-500"
-                            : "bg-rose-500"
+                            ? "bg-sun-500"
+                            : "bg-coral"
                       }
                     />
                   </Link>
@@ -254,28 +279,28 @@ export default async function AdminDashboard() {
           </Card>
 
           {/* Recent activity */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Recent Activity" />
+          <Card>
+            <CardHead title="Recent activity" />
             {activity.length === 0 ? (
               <Empty>No enrolments, payments, or announcements yet.</Empty>
             ) : (
-              <div className="divide-y divide-hairline/60">
+              <div className="divide-y divide-line">
                 {activity.map((a, i) => (
                   <Link
                     key={`${a.kind}-${i}`}
                     href={a.href}
-                    className="flex items-center gap-4 px-6 py-3 hover:bg-brand-50 transition-colors"
+                    className="flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors"
                   >
                     <ActivityDot kind={a.kind} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-ink truncate">{a.title}</div>
+                      <div className="text-[13px] text-ink truncate">{a.title}</div>
                       {a.meta && (
-                        <div className="text-xs text-muted mt-0.5 truncate">
+                        <div className="text-[12px] text-muted mt-0.5 truncate">
                           {a.meta}
                         </div>
                       )}
                     </div>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted shrink-0">
+                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
                       {relativeTime(a.at)}
                     </span>
                   </Link>
@@ -287,20 +312,27 @@ export default async function AdminDashboard() {
 
         {/* ASIDE */}
         <aside
-          className="space-y-5 min-w-0 rise lg:sticky lg:top-6 lg:self-start"
+          className="space-y-5 min-w-0 rise lg:sticky lg:top-[76px] lg:self-start"
           style={{ animationDelay: "120ms" }}
         >
           {/* Announcements */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader
+          <Card accent="brand">
+            <CardHead
               title="Announcements"
-              link={{ href: "/admin/announcements", label: "Compose" }}
+              action={
+                <Link
+                  href="/admin/announcements"
+                  className="text-[12px] font-bold text-brand-600 hover:underline"
+                >
+                  Compose →
+                </Link>
+              }
             />
             {notices.length === 0 ? (
               <Empty>
                 Nothing published yet —{" "}
                 <Link
-                  className="text-brand-700 hover:underline"
+                  className="text-brand-700 font-semibold hover:underline"
                   href="/admin/announcements"
                 >
                   send your first
@@ -308,24 +340,24 @@ export default async function AdminDashboard() {
                 .
               </Empty>
             ) : (
-              <div className="divide-y divide-hairline/60">
+              <div className="divide-y divide-line">
                 {notices.map((n) => (
                   <div
                     key={n.id}
-                    className="px-5 py-3.5 hover:bg-brand-50/40 transition-colors"
+                    className="px-5 py-3.5 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />
-                        <div className="text-sm text-ink font-medium truncate">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0" />
+                        <div className="text-[13px] text-ink font-semibold truncate">
                           {n.title}
                         </div>
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted shrink-0">
+                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
                         {relativeTime(new Date(n.publishedAt))}
                       </div>
                     </div>
-                    <div className="mt-1.5 ml-3.5 text-xs text-muted">
+                    <div className="mt-1.5 ml-3.5 text-[12px] text-muted">
                       {n.className
                         ? `Class · ${n.className}`
                         : n.audienceRole
@@ -339,9 +371,9 @@ export default async function AdminDashboard() {
           </Card>
 
           {/* Jump to */}
-          <Card className="p-0 overflow-hidden">
-            <SectionHeader title="Jump To" />
-            <div className="grid grid-cols-2 divide-x divide-y divide-hairline/60">
+          <Card>
+            <CardHead title="Jump to" />
+            <div className="grid grid-cols-2 divide-x divide-y divide-line">
               <JumpLink href="/admin/users" label="Users" />
               <JumpLink href="/admin/classes" label="Classes" />
               <JumpLink href="/admin/enrolments" label="Enrolments" />
@@ -351,11 +383,11 @@ export default async function AdminDashboard() {
             </div>
           </Card>
 
-          {/* Today’s lessons preview */}
+          {/* Today's lessons preview */}
           {weekLessons.filter((l) => l.date === isoDate(now)).length > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <SectionHeader title="Today's Lessons" />
-              <div className="divide-y divide-hairline/60">
+            <Card>
+              <CardHead title="Today's lessons" />
+              <div className="divide-y divide-line">
                 {weekLessons
                   .filter((l) => l.date === isoDate(now))
                   .slice(0, 6)
@@ -364,14 +396,14 @@ export default async function AdminDashboard() {
                       key={l.id}
                       className="flex items-center gap-3 px-5 py-3"
                     >
-                      <div className="text-xs text-muted tabular-nums shrink-0 w-14">
+                      <div className="text-[12px] text-muted tabular-nums shrink-0 w-14 font-semibold">
                         {l.startTime.slice(0, 5)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-ink truncate">
+                        <div className="text-[13px] text-ink font-semibold truncate">
                           {l.subjectName}
                         </div>
-                        <div className="text-xs text-muted truncate">
+                        <div className="text-[12px] text-muted truncate">
                           {l.tutorFirst} {l.tutorLast}
                         </div>
                       </div>
@@ -390,52 +422,11 @@ export default async function AdminDashboard() {
   );
 }
 
-function SectionHeader({
-  title,
-  eyebrow,
-  right,
-  link,
-}: {
-  title: string;
-  eyebrow?: string;
-  right?: string;
-  link?: { href: string; label: string };
-}) {
-  return (
-    <div className="px-6 py-5 border-b border-hairline/60 bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 flex items-baseline justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-xl font-medium text-ink uppercase tracking-wide">{title}</div>
-        {eyebrow && (
-          <div className="text-sm uppercase tracking-[0.16em] text-muted mt-1 truncate">
-            {eyebrow}
-          </div>
-        )}
-      </div>
-      {link ? (
-        <Link
-          href={link.href}
-          className="text-sm text-brand-700 hover:underline shrink-0"
-        >
-          {link.label} →
-        </Link>
-      ) : right ? (
-        <span className="text-sm uppercase tracking-[0.18em] text-muted shrink-0">
-          {right}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
-}
-
 function JumpLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="px-5 py-4 text-sm text-ink-soft hover:bg-brand-50 hover:text-ink transition-colors text-center"
+      className="px-5 py-4 text-[13px] font-semibold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors text-center"
     >
       {label}
     </Link>
@@ -445,10 +436,10 @@ function JumpLink({ href, label }: { href: string; label: string }) {
 function ActivityDot({ kind }: { kind: "enrolment" | "payment" | "announcement" }) {
   const color =
     kind === "payment"
-      ? "bg-emerald-500"
+      ? "bg-mint"
       : kind === "enrolment"
-        ? "bg-brand-600"
-        : "bg-amber-500";
+        ? "bg-brand-500"
+        : "bg-sun-500";
   return (
     <span
       className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${color}`}
