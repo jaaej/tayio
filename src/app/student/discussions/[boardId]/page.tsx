@@ -70,7 +70,7 @@ export default async function StudentBoardPage({
   const uniqueAuthors = new Set(threads.map((t) => t.authorName)).size;
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="space-y-6">
       <Link
         href="/student/discussions"
         className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-muted hover:text-ink transition-colors"

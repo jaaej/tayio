@@ -1,13 +1,9 @@
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { Badge } from "@/components/student/pill";
 import { StudentHero } from "@/components/student/student-hero";
-import { StatChip } from "@/components/student/stat-chip";
 import { SubjectCard } from "@/components/student/subject-card";
 import { QuestRow } from "@/components/student/quest-row";
-import { EncourageBanner } from "@/components/student/encourage-banner";
 import { TodayTimeline, type TimelineItem } from "@/components/student/today-timeline";
-import { AchievementMedal } from "@/components/student/achievement-medal";
-import { ProgressRing } from "@/components/student/progress-ring";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
@@ -27,8 +23,6 @@ import {
   getStudentLessons,
   getStudentSubjects,
 } from "./_lib/queries";
-
-const WEEKLY_LESSON_GOAL = 5;
 
 export default async function StudentDashboard() {
   const user = await requireRole("student");
@@ -66,10 +60,6 @@ export default async function StudentDashboard() {
         h.status === "resubmission_requested",
     )
     .slice(0, 5);
-  const doneThisWeek = allHomework.filter(
-    (h) => h.status === "marked" || h.status === "submitted",
-  ).length;
-  const totalHomework = allHomework.length;
 
   const todayLessons = weekLessons.filter((l) => l.date === todayIso);
   const todayItems: TimelineItem[] = todayLessons.map((l) => {
@@ -84,15 +74,6 @@ export default async function StudentDashboard() {
       subjectName: l.subjectName,
     };
   });
-
-  const thisWeekLessonsCount = weekLessons.filter((l) => {
-    const d = new Date(`${l.date}T00:00:00`);
-    return d >= weekStart && d < weekEnd;
-  }).length;
-  const weeklyGoalPct = Math.round(
-    (Math.min(thisWeekLessonsCount, WEEKLY_LESSON_GOAL) / WEEKLY_LESSON_GOAL) *
-      100,
-  );
 
   // Week calendar events
   const calendarEvents: CalendarEvent[] = [];
@@ -122,12 +103,6 @@ export default async function StudentDashboard() {
   }
 
   // Static gamification placeholders.
-  const achievements = [
-    { name: "Week streak", emoji: "🔥", medal: "sun" as const, earned: true },
-    { name: "Quiz ace",    emoji: "🎯", medal: "mint" as const, earned: false },
-    { name: "Bookworm",    emoji: "📚", medal: "grape" as const, earned: false },
-    { name: "Top of class",emoji: "🏆", medal: "sky" as const, earned: false },
-  ];
   const level = 1;
   const xpCurrent = 0;
   const xpToNext = 500;
@@ -142,33 +117,6 @@ export default async function StudentDashboard() {
         xpCurrent={xpCurrent}
         xpToNext={xpToNext}
       />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <StatChip
-          icon="⚡"
-          hue="brand"
-          value={`+${xpCurrent}`}
-          label="XP this week"
-        />
-        <StatChip
-          icon="✓"
-          hue="mint"
-          value={`${doneThisWeek} / ${totalHomework}`}
-          label="Homework done"
-        />
-        <StatChip
-          icon="📅"
-          hue="sky"
-          value={thisWeekLessonsCount}
-          label="Lessons this week"
-        />
-        <StatChip
-          icon="🎖️"
-          hue="grape"
-          value={achievements.filter((a) => a.earned).length}
-          label="Badges earned"
-        />
-      </div>
 
       <div className="grid lg:grid-cols-[2fr_1fr] gap-5 items-start">
         {/* LEFT */}
@@ -202,7 +150,7 @@ export default async function StudentDashboard() {
             )}
           </div>
 
-          <Card className="overflow-hidden">
+          <Card accent="var(--sky)" className="overflow-hidden">
             <CardHead
               title="This week"
               action={<a href="/student/timetable">Full timetable →</a>}
@@ -217,7 +165,7 @@ export default async function StudentDashboard() {
 
           <div>
             <SectionHead title="Your quests" actionHref="/student/subjects" actionLabel="All homework →" />
-            <Card flat className="overflow-hidden">
+            <Card flat accent="var(--mint)" className="overflow-hidden">
               {openHomework.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted">
                   You're caught up — no quests right now 🎉
@@ -237,52 +185,12 @@ export default async function StudentDashboard() {
                 </div>
               )}
             </Card>
-            {openHomework.length > 0 && (
-              <div className="mt-3.5">
-                <EncourageBanner emoji="🚀">
-                  Finish <strong>{openHomework.length}</strong>{" "}
-                  {openHomework.length === 1 ? "quest" : "quests"} this week to keep your streak and hit{" "}
-                  <strong>Level {level + 1}!</strong>
-                </EncourageBanner>
-              </div>
-            )}
           </div>
         </div>
 
         {/* RIGHT */}
         <div className="space-y-5 min-w-0">
-          <Card>
-            <CardHead
-              title="Weekly goal"
-              action={
-                <span className="flex items-center gap-1 text-warn">
-                  🔥 On track
-                </span>
-              }
-            />
-            <CardBody>
-              <div className="flex items-center gap-5 py-1.5">
-                <ProgressRing
-                  value={weeklyGoalPct}
-                  size={92}
-                  stroke={10}
-                  color="var(--brand-500)"
-                  track="var(--brand-100)"
-                />
-                <div>
-                  <div className="text-[24px] font-extrabold tracking-[-0.02em] text-ink leading-none">
-                    {weeklyGoalPct}%
-                  </div>
-                  <div className="text-[12px] text-muted mt-1 leading-snug">
-                    of your weekly goal<br />
-                    {Math.min(thisWeekLessonsCount, WEEKLY_LESSON_GOAL)} of {WEEKLY_LESSON_GOAL} sessions
-                  </div>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card>
+          <Card accent="var(--sun-500)">
             <CardHead
               title="Today"
               action={<a href="/student/timetable">Timetable →</a>}
@@ -292,27 +200,7 @@ export default async function StudentDashboard() {
             </CardBody>
           </Card>
 
-          <Card>
-            <CardHead
-              title="Achievements"
-              action={`${achievements.filter((a) => a.earned).length} of ${achievements.length}`}
-            />
-            <CardBody>
-              <div className="grid grid-cols-4 gap-2.5">
-                {achievements.map((a) => (
-                  <AchievementMedal
-                    key={a.name}
-                    name={a.name}
-                    emoji={a.emoji}
-                    medal={a.medal}
-                    earned={a.earned}
-                  />
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card>
+          <Card accent="var(--coral)">
             <CardHead title="Announcements" />
             <CardBody tight>
               {notices.length === 0 ? (

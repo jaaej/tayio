@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Send } from "lucide-react";
+import { BadgeCheck, Send } from "lucide-react";
 import type { AccentTokens } from "@/lib/subject-colors";
 import type { ThreadDetail } from "@/lib/discussions-queries";
 import { postReply } from "@/app/_actions/discussions";
-import { initialOf, relativeShort, roleColor } from "./role-tone";
+import { initialOf, isStaffRole, relativeShort, roleColor } from "./role-tone";
 
 type Reply = ThreadDetail["replies"][number];
 
@@ -37,9 +37,9 @@ export function StudentReplyList({
   }
 
   return (
-    <ol className="divide-y divide-line">
-      {topLevel.map((r, i) => (
-        <li key={r.id} className={i === 0 ? "pb-6" : "py-6 last:pb-0"}>
+    <ol className="space-y-3">
+      {topLevel.map((r) => (
+        <li key={r.id}>
           <ReplyRow
             reply={r}
             childReplies={childrenByParent.get(r.id) ?? []}
@@ -69,9 +69,33 @@ function ReplyRow({
 
   const body = reply.deletedAt ? "[removed by admin]" : reply.body;
   const avatarColor = roleColor(reply.authorRole);
+  const isStaff = isStaffRole(reply.authorRole) && !reply.deletedAt;
 
   return (
-    <div>
+    <div
+      className={
+        isStaff
+          ? "rounded-[18px] p-5"
+          : "rounded-[16px] p-4 transition-colors hover:bg-surface-2"
+      }
+      style={
+        isStaff
+          ? {
+              background: tokens.bgFrom,
+              boxShadow: `inset 0 0 0 1.5px ${tokens.arrow}`,
+            }
+          : undefined
+      }
+    >
+      {isStaff && (
+        <div
+          className="mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]"
+          style={{ background: tokens.pillBg, color: tokens.pillText }}
+        >
+          <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+          {reply.authorRole === "tutor" ? "Tutor answer" : "Staff answer"}
+        </div>
+      )}
       <div className="flex gap-4">
         <div
           className="h-[40px] w-[40px] rounded-full grid place-items-center text-[14px] font-bold text-white shrink-0"
@@ -114,7 +138,7 @@ function ReplyRow({
       {childReplies.length > 0 && (
         <div
           className="mt-5 ml-[56px] pl-5 space-y-5 border-l-2"
-          style={{ borderColor: tokens.bgFrom }}
+          style={{ borderColor: tokens.ring }}
         >
           {childReplies.map((c) => (
             <NestedReply key={c.id} reply={c} tokens={tokens} />

@@ -11,6 +11,11 @@ export function roleColor(role: string): string {
   return ROLE_TONE[role as keyof typeof ROLE_TONE] ?? ROLE_TONE.student;
 }
 
+// Tutors and admins give authoritative answers — their replies get highlighted.
+export function isStaffRole(role: string): boolean {
+  return role === "tutor" || role === "admin";
+}
+
 export function initialOf(name: string): string {
   return (name.trim().charAt(0) || "?").toUpperCase();
 }
