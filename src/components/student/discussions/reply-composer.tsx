@@ -24,7 +24,7 @@ export function StudentReplyComposer({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group w-full flex items-center gap-4 rounded-[20px] bg-surface border border-line px-5 py-4 text-left transition-all duration-150 hover:border-line-strong hover:shadow-[0_18px_38px_-22px_rgba(31,40,90,0.25)]"
+        className="group w-full flex items-center gap-4 rounded-[20px] bg-surface border border-line px-5 py-4 text-left transition-all duration-150 hover:border-line-strong hover:shadow-[0_18px_38px_-22px_rgba(31,40,90,0.25)] motion-safe:hover:-translate-y-[2px]"
       >
         <div
           className="h-[40px] w-[40px] rounded-full grid place-items-center text-[14px] font-bold text-white shrink-0"
@@ -37,7 +37,9 @@ export function StudentReplyComposer({
         </span>
         <span
           className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(31,40,90,0.5)] shrink-0"
-          style={{ background: tokens.arrow }}
+          style={{
+            background: `linear-gradient(135deg, ${tokens.arrow}, ${tokens.title})`,
+          }}
         >
           <Send className="h-3.5 w-3.5" aria-hidden />
           Reply
@@ -95,8 +97,10 @@ export function StudentReplyComposer({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(31,40,90,0.5)] disabled:opacity-50 transition-transform hover:-translate-y-[1px]"
-          style={{ background: tokens.arrow }}
+          className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(31,40,90,0.5)] disabled:opacity-50 transition-transform motion-safe:hover:-translate-y-[1px] motion-safe:active:scale-[0.98]"
+          style={{
+            background: `linear-gradient(135deg, ${tokens.arrow}, ${tokens.title})`,
+          }}
         >
           <Send className="h-3.5 w-3.5" aria-hidden />
           {pending ? "Posting…" : "Post reply"}

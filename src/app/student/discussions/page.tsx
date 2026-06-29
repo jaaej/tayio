@@ -30,7 +30,7 @@ export default async function StudentDiscussionsPage() {
     <div className="space-y-6">
       {/* Hero strip — indigo gradient, glass stat tile */}
       <section
-        className="relative overflow-hidden rounded-[28px] px-7 py-7 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
+        className="relative overflow-hidden rounded-[28px] px-8 py-8 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
         style={{
           background:
             "radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)",
@@ -51,10 +51,10 @@ export default async function StudentDiscussionsPage() {
           <div className="text-[11px] uppercase tracking-[0.2em] font-bold opacity-80">
             Discussions
           </div>
-          <h1 className="mt-1.5 text-[28px] lg:text-[32px] font-bold tracking-[-0.02em] leading-tight">
+          <h1 className="mt-2 text-[32px] lg:text-[36px] font-bold tracking-[-0.02em] leading-tight">
             Ask. Answer. Level up.
           </h1>
-          <p className="mt-2 max-w-[440px] text-[13px] opacity-85">
+          <p className="mt-3 max-w-[480px] text-[15px] opacity-85">
             Subject boards for class questions, plus a general help board for
             everything else.
           </p>
@@ -65,7 +65,7 @@ export default async function StudentDiscussionsPage() {
       {generalHelp && (
         <Link
           href={`/student/discussions/${boardSegment(generalHelp.id)}`}
-          className="group relative block bg-surface border border-line rounded-[22px] p-6 overflow-hidden transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_60px_-20px_rgba(31,40,90,0.25)]"
+          className="group relative block bg-surface border border-line rounded-[22px] p-7 overflow-hidden transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_60px_-20px_rgba(31,40,90,0.25)]"
         >
           <div
             aria-hidden
@@ -80,24 +80,24 @@ export default async function StudentDiscussionsPage() {
                 "radial-gradient(circle, var(--sun-100), transparent 70%)",
             }}
           />
-          <div className="relative flex items-center gap-5">
+          <div className="relative flex items-center gap-6">
             <div
-              className="h-[60px] w-[60px] rounded-[16px] grid place-items-center shrink-0"
+              className="h-[68px] w-[68px] rounded-[18px] grid place-items-center shrink-0"
               style={{
                 background: "var(--sun-100)",
                 color: "var(--sun-600)",
               }}
             >
-              <MessageCircleQuestion className="h-7 w-7" strokeWidth={2.25} />
+              <MessageCircleQuestion className="h-8 w-8" strokeWidth={2.25} />
             </div>
             <div className="flex-1 min-w-0">
               <div
-                className="text-[10px] uppercase tracking-[0.18em] font-bold"
+                className="text-[11px] uppercase tracking-[0.18em] font-bold"
                 style={{ color: "var(--sun-600)" }}
               >
                 Open to all subjects
               </div>
-              <div className="mt-1 text-[20px] font-bold text-ink tracking-[-0.01em] leading-tight">
+              <div className="mt-1 text-[22px] font-bold text-ink tracking-[-0.01em] leading-tight">
                 {generalHelp.label}
               </div>
             </div>
@@ -123,8 +123,8 @@ export default async function StudentDiscussionsPage() {
       {/* Subject boards grid */}
       {subjectBoards.length > 0 ? (
         <section>
-          <div className="flex items-end justify-between mb-3 px-1">
-            <h3 className="m-0 text-[17px] font-bold tracking-[-0.01em] text-ink">
+          <div className="flex items-end justify-between mb-4 px-1">
+            <h3 className="m-0 text-[18px] font-bold tracking-[-0.01em] text-ink">
               Your subject boards
             </h3>
             <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
@@ -132,7 +132,7 @@ export default async function StudentDiscussionsPage() {
               {subjectBoards.length === 1 ? "subject" : "subjects"}
             </span>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 gap-5">
             {subjectBoards.map((b) => {
               if (b.id.kind !== "subject") return null;
               const family = colorFamilyForSubject(b.label);
@@ -144,7 +144,7 @@ export default async function StudentDiscussionsPage() {
                 <Link
                   key={b.id.subjectId}
                   href={`/student/discussions/${boardSegment(b.id)}`}
-                  className="group relative block bg-surface border border-line rounded-[22px] p-5 overflow-hidden transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_60px_-20px_rgba(31,40,90,0.25)]"
+                  className="group relative block bg-surface border border-line rounded-[22px] p-6 overflow-hidden transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_60px_-20px_rgba(31,40,90,0.25)]"
                 >
                   <div
                     aria-hidden
@@ -153,7 +153,7 @@ export default async function StudentDiscussionsPage() {
                   />
                   <div className="mt-1.5 flex items-center justify-between">
                     <div
-                      className="h-[46px] w-[46px] rounded-[14px] grid place-items-center text-[20px] font-bold"
+                      className="h-[54px] w-[54px] rounded-[16px] grid place-items-center text-[22px] font-bold"
                       style={{
                         background: tokens.bgFrom,
                         color: tokens.arrow,
@@ -162,15 +162,15 @@ export default async function StudentDiscussionsPage() {
                       {initial}
                     </div>
                     <MessagesSquare
-                      className="h-[18px] w-[18px]"
+                      className="h-5 w-5"
                       style={{ color: tokens.arrow, opacity: 0.55 }}
                       aria-hidden
                     />
                   </div>
-                  <div className="mt-4 text-[10px] uppercase tracking-[0.16em] font-bold text-muted">
+                  <div className="mt-4 text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
                     Subject board
                   </div>
-                  <div className="mt-1 text-[16px] font-bold text-ink leading-tight tracking-[-0.01em]">
+                  <div className="mt-1.5 text-[18px] font-bold text-ink leading-tight tracking-[-0.01em]">
                     {b.label}
                   </div>
                   <div className="mt-4 pt-4 border-t border-line flex items-center justify-between">

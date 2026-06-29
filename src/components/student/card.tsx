@@ -11,19 +11,35 @@ import { cn } from "@/lib/utils";
 export function Card({
   className,
   flat,
+  accent,
+  children,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { flat?: boolean }) {
+}: React.HTMLAttributes<HTMLDivElement> & {
+  flat?: boolean;
+  /** When set, renders a coloured top accent stripe (e.g. "var(--sky)"). */
+  accent?: string;
+}) {
   return (
     <div
       className={cn(
         "rounded-[14px] border border-line bg-surface",
+        accent && "relative overflow-hidden",
         flat
           ? ""
           : "shadow-[0_1px_0_rgba(15,17,30,0.04),0_1px_2px_rgba(15,17,30,0.04)]",
         className,
       )}
       {...props}
-    />
+    >
+      {accent && (
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1.5"
+          style={{ background: accent }}
+        />
+      )}
+      {children}
+    </div>
   );
 }
 
