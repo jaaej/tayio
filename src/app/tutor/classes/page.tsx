@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { Users, BookOpen } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
-import { StatChip } from "@/components/student/stat-chip";
 import { Pill } from "@/components/student/pill";
 import {
   MiniWeekCalendar,
@@ -33,13 +33,6 @@ function trimTime(t: string | null) {
   return t ? t.slice(0, 5) : "—";
 }
 
-function classHours(start: string | null, end: string | null) {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  return (eh * 60 + em - sh * 60 - sm) / 60;
-}
-
 export default async function TutorClassesPage() {
   const tutor = await requireTutor();
 
@@ -64,11 +57,6 @@ export default async function TutorClassesPage() {
     href: `/tutor/lessons/${l.id}`,
   }));
 
-  const totalHours = list.reduce(
-    (acc, c) => acc + classHours(c.startTime, c.endTime),
-    0,
-  );
-
   return (
     <div className="space-y-5">
       <PageHead
@@ -84,33 +72,6 @@ export default async function TutorClassesPage() {
             : undefined
         }
       />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <StatChip
-          icon="📚"
-          hue="brand"
-          value={list.length}
-          label="Classes"
-        />
-        <StatChip
-          icon="🧑‍🎓"
-          hue="sky"
-          value={students.length}
-          label="Students"
-        />
-        <StatChip
-          icon="🗓️"
-          hue="grape"
-          value={weekLessons.length}
-          label="Lessons this week"
-        />
-        <StatChip
-          icon="⏱️"
-          hue="sun"
-          value={`${Math.round(totalHours * 10) / 10}h`}
-          label="Teaching hours / wk"
-        />
-      </div>
 
       {list.length > 0 && (
         <Card className="overflow-hidden">
@@ -204,25 +165,42 @@ export default async function TutorClassesPage() {
                         </Pill>
                       </dd>
                     </dl>
-                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-line">
-                      <Link
-                        href={`/tutor/classes/${c.id}/students`}
-                        className="inline-flex items-center gap-1 rounded-full bg-surface-2 border border-line px-2.5 py-1 text-[11px] font-bold text-ink-soft hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 transition-colors"
-                      >
-                        Students →
-                      </Link>
-                      <Link
-                        href={`/tutor/classes/${c.id}/homework`}
-                        className="inline-flex items-center gap-1 rounded-full bg-surface-2 border border-line px-2.5 py-1 text-[11px] font-bold text-ink-soft hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 transition-colors"
-                      >
-                        Homework →
-                      </Link>
-                      <Link
-                        href={`/tutor/classes/${c.id}/curriculum`}
-                        className="inline-flex items-center gap-1 rounded-full bg-brand-600 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-brand-700 transition-colors"
-                      >
-                        Curriculum →
-                      </Link>
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-line">
+                      {[
+                        {
+                          href: `/tutor/classes/${c.id}/students`,
+                          label: "Students",
+                          Icon: Users,
+                        },
+                        {
+                          href: `/tutor/classes/${c.id}/curriculum`,
+                          label: "Curriculum",
+                          Icon: BookOpen,
+                        },
+                      ].map(({ href, label, Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          className="group/tile flex flex-col items-center gap-1.5 rounded-[14px] border border-line bg-surface-2 px-2 py-3 text-center transition-all duration-150 hover:-translate-y-[3px] hover:border-brand-200 hover:bg-brand-50 hover:shadow-[0_10px_20px_-12px_rgba(31,40,90,0.4)]"
+                        >
+                          <span
+                            className="grid place-items-center h-9 w-9 rounded-[10px]"
+                            style={{
+                              background: accent.pillBg,
+                              color: accent.pillText,
+                            }}
+                          >
+                            <Icon
+                              className="h-[18px] w-[18px]"
+                              strokeWidth={2.2}
+                              aria-hidden
+                            />
+                          </span>
+                          <span className="text-[12px] font-bold leading-tight text-ink-soft group-hover/tile:text-brand-700">
+                            {label}
+                          </span>
+                        </Link>
+                      ))}
                     </div>
                   </CardBody>
                 </Card>

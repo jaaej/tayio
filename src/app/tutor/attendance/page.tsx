@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Card, CardBody, CardHead } from "@/components/student/card";
-import { PageHead, SectionHead } from "@/components/student/page-head";
+import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
-import { StatChip } from "@/components/student/stat-chip";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { getTutorAttendanceOverview, requireTutor } from "../_data";
 
 export default async function TutorAttendancePage() {
@@ -12,34 +12,37 @@ export default async function TutorAttendancePage() {
 
   const todayIso = isoDate(new Date());
 
-  // Bucket lessons into today / upcoming / past so each gets its own card
-  // with a clear tutor next-action ("mark today's lesson now" beats "scroll
-  // through 30 rows to find it").
   const today = rows.filter((l) => l.date === todayIso);
-  const upcoming = rows.filter((l) => l.date > todayIso);
+  // Everything except today (upcoming + past), already date-desc from the query.
+  const rest = rows.filter((l) => l.date !== todayIso);
   const past = rows.filter((l) => l.date < todayIso);
-
   const unmarkedPast = past.filter(
     (l) => l.marked === 0 || (l.roster > 0 && l.marked < l.roster),
   );
-  const fullyMarkedPast = past.filter(
-    (l) => l.roster > 0 && l.marked >= l.roster,
-  );
 
-  const totals = past.reduce(
-    (acc, l) => {
-      acc.present += l.present;
-      acc.late += l.late;
-      acc.absent += l.absent;
-      acc.marked += l.marked;
-      return acc;
-    },
-    { present: 0, late: 0, absent: 0, marked: 0 },
-  );
-  const attendanceRate =
-    totals.marked > 0
-      ? Math.round(((totals.present + totals.late) / totals.marked) * 100)
-      : null;
+  // Group the non-today lessons by class. First-appearance order means the
+  // class with the most recent lesson lands on top (rows arrive date-desc).
+  const classGroups: Array<{
+    classId: string;
+    className: string;
+    subjectName: string;
+    lessons: typeof rows;
+  }> = [];
+  const classIndex = new Map<string, number>();
+  for (const l of rest) {
+    let idx = classIndex.get(l.classId);
+    if (idx === undefined) {
+      idx = classGroups.length;
+      classIndex.set(l.classId, idx);
+      classGroups.push({
+        classId: l.classId,
+        className: l.className,
+        subjectName: l.subjectName,
+        lessons: [],
+      });
+    }
+    classGroups[idx].lessons.push(l);
+  }
 
   return (
     <div className="space-y-5">
@@ -49,44 +52,12 @@ export default async function TutorAttendancePage() {
         sub={`Last 4 weeks · ${past.length} past lesson${past.length === 1 ? "" : "s"} · ${unmarkedPast.length} still need marking`}
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <StatChip
-          icon="✓"
-          hue={
-            attendanceRate === null
-              ? "brand"
-              : attendanceRate >= 90
-                ? "mint"
-                : attendanceRate >= 75
-                  ? "sun"
-                  : "coral"
-          }
-          value={attendanceRate === null ? "—" : `${attendanceRate}%`}
-          label="Avg attendance"
-        />
-        <StatChip
-          icon="📅"
-          hue="sky"
-          value={today.length}
-          label="Today's lessons"
-        />
-        <StatChip
-          icon="⚠️"
-          hue={unmarkedPast.length > 0 ? "coral" : "mint"}
-          value={unmarkedPast.length}
-          label="Past unmarked"
-        />
-        <StatChip
-          icon="🎯"
-          hue="grape"
-          value={fullyMarkedPast.length}
-          label="Past fully marked"
-        />
-      </div>
-
       {today.length > 0 && (
         <Card className="overflow-hidden border-brand-300">
-          <CardHead title="Today" action={`${today.length} lesson${today.length === 1 ? "" : "s"}`} />
+          <CardHead
+            title="Today"
+            action={`${today.length} lesson${today.length === 1 ? "" : "s"}`}
+          />
           <CardBody tight>
             <ul className="divide-y divide-line">
               {today.map((l) => (
@@ -97,58 +68,84 @@ export default async function TutorAttendancePage() {
         </Card>
       )}
 
-      {upcoming.length > 0 && (
-        <div>
-          <SectionHead title="Upcoming · next 7 days" />
-          <Card className="overflow-hidden">
-            <CardBody tight>
-              <ul className="divide-y divide-line">
-                {upcoming.map((l) => (
-                  <LessonRow key={l.id} lesson={l} />
-                ))}
-              </ul>
-            </CardBody>
-          </Card>
-        </div>
-      )}
-
-      <div>
-        <SectionHead
-          title="Past lessons"
-          actionHref="/tutor/classes"
-          actionLabel="By class →"
-        />
-        {past.length === 0 ? (
+      {classGroups.length === 0 ? (
+        today.length === 0 ? (
           <Card>
             <CardBody>
               <div className="text-sm text-muted text-center py-2">
-                No past lessons in the last 4 weeks.
+                No lessons in the last 4 weeks.
               </div>
             </CardBody>
           </Card>
-        ) : (
-          <Card className="overflow-hidden">
-            <CardBody tight>
-              <ul className="divide-y divide-line">
-                {past.map((l) => (
-                  <LessonRow key={l.id} lesson={l} />
-                ))}
-              </ul>
-            </CardBody>
-          </Card>
-        )}
-      </div>
+        ) : null
+      ) : (
+        classGroups.map((g) => {
+          const accent = getAccentTokens(colorFamilyForSubject(g.subjectName));
+          const initial = g.subjectName.charAt(0).toUpperCase();
+          const unmarked = g.lessons.filter(
+            (l) =>
+              l.date < todayIso && (l.marked === 0 || l.marked < l.roster),
+          ).length;
+          return (
+            <Card key={g.classId} className="overflow-hidden">
+              <div
+                className="px-4 py-3 flex items-center gap-3 border-b border-line"
+                style={{
+                  background: `linear-gradient(135deg, ${accent.bgFrom} 0%, ${accent.bgTo} 100%)`,
+                }}
+              >
+                <div
+                  className="h-9 w-9 rounded-[10px] grid place-items-center text-[14px] font-extrabold shrink-0"
+                  style={{ background: accent.title, color: "#fff" }}
+                >
+                  {initial}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="text-[10px] uppercase tracking-[0.12em] font-bold"
+                    style={{ color: accent.meta }}
+                  >
+                    {g.subjectName}
+                  </div>
+                  <div
+                    className="text-[14px] font-extrabold leading-tight truncate"
+                    style={{ color: accent.title }}
+                  >
+                    {g.className}
+                  </div>
+                </div>
+                {unmarked > 0 ? (
+                  <Pill tone="warn">{unmarked} to mark</Pill>
+                ) : (
+                  <span
+                    className="text-[11px] font-bold tabular-nums"
+                    style={{ color: accent.meta }}
+                  >
+                    {g.lessons.length} lesson{g.lessons.length === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+              <CardBody tight>
+                <ul className="divide-y divide-line">
+                  {g.lessons.map((l) => (
+                    <LessonRow key={l.id} lesson={l} hideClass />
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          );
+        })
+      )}
     </div>
   );
 }
 
 type LessonRowProps = {
-  lesson: Awaited<
-    ReturnType<typeof getTutorAttendanceOverview>
-  >[number];
+  lesson: Awaited<ReturnType<typeof getTutorAttendanceOverview>>[number];
+  hideClass?: boolean;
 };
 
-function LessonRow({ lesson: l }: LessonRowProps) {
+function LessonRow({ lesson: l, hideClass = false }: LessonRowProps) {
   const fullyMarked = l.roster > 0 && l.marked >= l.roster;
   const partial = l.marked > 0 && l.marked < l.roster;
   const unmarked = l.marked === 0;
@@ -169,22 +166,35 @@ function LessonRow({ lesson: l }: LessonRowProps) {
         href={`/tutor/lessons/${l.id}`}
         className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
       >
-        <div className="w-24 shrink-0">
-          <div className="text-[12px] font-bold text-ink tabular-nums">
-            {formatDateLong(l.date).split(",")[0]}
+        {hideClass ? (
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-bold text-ink tabular-nums">
+              {formatDateLong(l.date)}
+            </div>
+            <div className="text-[11px] text-muted mt-0.5 tabular-nums">
+              {formatTime(l.startTime)} · {l.roster} enrolled
+            </div>
           </div>
-          <div className="text-[11px] text-muted tabular-nums mt-0.5">
-            {formatTime(l.startTime)}
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-ink truncate">
-            {l.className}
-          </div>
-          <div className="text-[11px] text-muted truncate mt-0.5">
-            {l.subjectName} · {l.roster} enrolled
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="w-24 shrink-0">
+              <div className="text-[12px] font-bold text-ink tabular-nums">
+                {formatDateLong(l.date).split(",")[0]}
+              </div>
+              <div className="text-[11px] text-muted tabular-nums mt-0.5">
+                {formatTime(l.startTime)}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-bold text-ink truncate">
+                {l.className}
+              </div>
+              <div className="text-[11px] text-muted truncate mt-0.5">
+                {l.subjectName} · {l.roster} enrolled
+              </div>
+            </div>
+          </>
+        )}
         <div className="shrink-0 flex flex-col items-end gap-1">
           {statusPill}
           {l.marked > 0 && (
