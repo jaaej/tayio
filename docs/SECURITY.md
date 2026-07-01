@@ -235,6 +235,24 @@ create policy tutor_week_attachments_select_authenticated on public.tutor_week_a
   for select to authenticated using (true);
 ```
 
+### 0012 — RLS for previously-uncovered tables
+
+**File:** `supabase/migrations/0012_uncovered_tables_rls.sql`
+**Status:** Applied.
+**Risk:** Medium at apply time — enables RLS on 8 tables that previously had none. Wrapped in `BEGIN/COMMIT`. Requires the dev server stopped first (its connections hold locks that block `ALTER TABLE … ENABLE RLS`).
+
+**What it does:** Enables RLS + policies on 8 tables that shipped without any committed RLS and had relied only on server-side Drizzle (which bypasses RLS): `terms`, `subject_weeks`, `student_week_progress`, `discussion_threads`, `discussion_replies`, `dm_threads`, `dm_messages`, `dm_reads`. Adds one helper `public.is_dm_participant(p_thread_id uuid)` (`security definer`, pinned `search_path`, bool only, bypasses `dm_threads` RLS to avoid recursion).
+
+- **terms, subject_weeks** — read all authenticated, write admin (mirrors `subjects`).
+- **student_week_progress** — student own (read+write), parent of that student (read), admin all.
+- **discussion_threads / discussion_replies** — read all authenticated; author INSERT/UPDATE own; admin all (moderation + soft-delete).
+- **dm_threads / dm_messages** — participants read/write; **admin READ** (safeguarding oversight, see below); `dm_messages` INSERT requires `sender_id = auth.uid()` AND participant.
+- **dm_reads** — own only (read receipts stay private; no admin access).
+
+**Why admins can read DMs:** students are minors. Under the Victorian **Reportable Conduct Scheme** the organisation must be able to investigate reported conduct against workers/volunteers, which requires access to the relevant messages; **Child Safe Standards Standard 9** balances that against the child's right to privacy. Chosen model (per owner decision): admins *can* read for investigation/safeguarding, and that access should be accountable. **Follow-up owed:** (1) log admin DM reads (needs-basis, accountable); (2) a "report conversation" flow so access is report-triggered. Not legal advice — confirm against the org's Child Safety Policy.
+
+**Reversible by:** `alter table public.<t> disable row level security;` for each of the 8 tables, plus `drop function if exists public.is_dm_participant(uuid);`.
+
 ---
 
 ## Access matrix
@@ -262,6 +280,14 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `subject_topics`       | no   | all              | all                     | all                            | all   |
 | `tutor_week_sections`  | no   | enrolled with section's tutor | child enrolled with section's tutor | own (tutor_id match) | all |
 | `tutor_week_attachments` | no | enrolled with section's tutor | child enrolled with section's tutor | own (via parent section) | all |
+| `terms`                | no   | all              | all                     | all                            | all   |
+| `subject_weeks`        | no   | all              | all                     | all                            | all   |
+| `student_week_progress`| no   | own              | child's                 | no                             | all   |
+| `discussion_threads`   | no   | all              | all                     | all                            | all   |
+| `discussion_replies`   | no   | all              | all                     | all                            | all   |
+| `dm_threads`           | no   | participant      | participant             | participant                    | all (read) |
+| `dm_messages`          | no   | participant      | participant             | participant                    | all (read) |
+| `dm_reads`             | no   | own              | own                     | own                            | own   |
 
 \* `homework_assignments` UPDATE by student is row-restricted but **not** column-restricted — see Known caveats.
 \*\* student/parent portals read this via server-side Drizzle (bypasses RLS); not a real restriction in practice.
@@ -288,6 +314,14 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `subject_topics`       | —                    | —      | —                              | all   |
 | `tutor_week_sections`  | —                    | —      | INSERT/UPDATE/DELETE own       | all   |
 | `tutor_week_attachments` | —                  | —      | INSERT/UPDATE/DELETE own\*\*\* | all   |
+| `terms`                | —                    | —      | —                              | all   |
+| `subject_weeks`        | —                    | —      | —                              | all   |
+| `student_week_progress`| INSERT/UPDATE own    | —      | —                              | all   |
+| `discussion_threads`   | author own (I/U)     | author own (I/U) | author own (I/U)     | all   |
+| `discussion_replies`   | author own (I/U)     | author own (I/U) | author own (I/U)     | all   |
+| `dm_threads`           | participant          | participant | participant               | — (read-only) |
+| `dm_messages`          | INSERT own (sender)  | INSERT own (sender) | INSERT own (sender) | — (read-only) |
+| `dm_reads`             | own                  | own    | own                            | own   |
 
 \*\*\* "own" for `tutor_week_attachments` means the attachment's parent section is owned by the caller (`is_owner_of_tutor_section`).
 
