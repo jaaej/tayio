@@ -174,6 +174,34 @@ drop table if exists public.audit_logs;
 alter table public.subject_topics disable row level security;
 ```
 
+### 0010 — `tutor_week_sections` + `tutor_week_attachments` RLS
+
+**File:** `supabase/migrations/0010_tutor_week_sections_rls.sql`
+**Status:** Pending apply (DB-apply step deferred to controller checkpoint).
+**Risk:** Low. Additive — enables RLS on two new tables, adds a `SECURITY DEFINER` helper function, and writes six new policies. No existing rows or policies modified.
+
+**What it does:** Enables RLS on `public.tutor_week_sections` and `public.tutor_week_attachments` (both added to the schema in Task 1) and writes policies:
+
+- `tutor_week_sections_select_authenticated` — SELECT for any authenticated user.
+- `tutor_week_sections_tutor_all` — full DML gated on `tutor_id = auth.uid()`.
+- `tutor_week_sections_admin_all` — full DML for admins via `public.is_admin()`.
+- `tutor_week_attachments_select_authenticated` — SELECT for any authenticated user.
+- `tutor_week_attachments_tutor_all` — full DML gated on `public.is_owner_of_tutor_section(section_id)`.
+- `tutor_week_attachments_admin_all` — full DML for admins via `public.is_admin()`.
+
+Adds `SECURITY DEFINER` helper `public.is_owner_of_tutor_section(p_section_id uuid) returns boolean`: resolves whether the current authenticated user owns the parent `tutor_week_sections` row that an attachment hangs off. Follows the same pattern as existing helpers in 0004 — `search_path` pinned to `public, auth`, returns bool only (no data leaked), `stable` language SQL.
+
+**Why a helper for `tutor_week_attachments`:** the attachment table has no direct `tutor_id` column — ownership is inherited through `section_id → tutor_week_sections.tutor_id`. An inline EXISTS in the policy would trigger RLS on `tutor_week_sections` during policy evaluation, risking 42P17 (infinite recursion). The `SECURITY DEFINER` helper bypasses RLS on `tutor_week_sections` for that single ownership lookup only.
+
+Revokes all grants from `anon`; grants `SELECT` to `authenticated` for both tables.
+
+**Reversible by:**
+```sql
+alter table public.tutor_week_sections disable row level security;
+alter table public.tutor_week_attachments disable row level security;
+drop function if exists public.is_owner_of_tutor_section(uuid);
+```
+
 ---
 
 ## Access matrix
@@ -199,6 +227,8 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `notifications`        | no   | own (R+U-read)   | own (R+U-read)          | own (R+U-read)                 | all   |
 | `tutor_availability`   | no   | no (RLS)\*\*     | no (RLS)\*\*            | own                            | all   |
 | `subject_topics`       | no   | all              | all                     | all                            | all   |
+| `tutor_week_sections`  | no   | all              | all                     | all                            | all   |
+| `tutor_week_attachments` | no | all              | all                     | all                            | all   |
 
 \* `homework_assignments` UPDATE by student is row-restricted but **not** column-restricted — see Known caveats.
 \*\* student/parent portals read this via server-side Drizzle (bypasses RLS); not a real restriction in practice.
@@ -223,6 +253,10 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `notifications`        | UPDATE own (read_at) | —      | —                              | all   |
 | `tutor_availability`   | —                    | —      | INSERT/UPDATE/DELETE own       | all   |
 | `subject_topics`       | —                    | —      | —                              | all   |
+| `tutor_week_sections`  | —                    | —      | INSERT/UPDATE/DELETE own       | all   |
+| `tutor_week_attachments` | —                  | —      | INSERT/UPDATE/DELETE own\*\*\* | all   |
+
+\*\*\* "own" for `tutor_week_attachments` means the attachment's parent section is owned by the caller (`is_owner_of_tutor_section`).
 
 ---
 
