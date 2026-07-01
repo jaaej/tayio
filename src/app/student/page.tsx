@@ -176,7 +176,8 @@ export default async function StudentDashboard() {
                     <QuestRow
                       key={h.homeworkId}
                       title={h.title}
-                      sub={`${h.className ?? "Homework"} · due ${relativeTime(new Date(h.dueDate))}`}
+                      subject={h.className ?? "Homework"}
+                      meta={`due ${relativeTime(new Date(h.dueDate))}`}
                       xp={50}
                       done={false}
                       href={`/student/homework/${h.homeworkId}`}

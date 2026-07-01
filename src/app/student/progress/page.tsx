@@ -323,26 +323,6 @@ export default async function ProgressPage() {
               )}
             </section>
 
-            {/* How this works */}
-            <section className="rounded-[22px] border border-line bg-surface p-5">
-              <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-muted">
-                How this works
-              </div>
-              <div className="mt-2 text-[13px] text-ink-soft space-y-2 leading-relaxed">
-                <p>
-                  Each topic is rated by your tutor after lessons and homework.
-                  Ratings get averaged into a subject mastery score.
-                </p>
-                <p>
-                  <Link
-                    href="/student/subjects"
-                    className="text-brand-600 hover:text-brand-700 font-extrabold"
-                  >
-                    Open a subject →
-                  </Link>
-                </p>
-              </div>
-            </section>
           </aside>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { SubjectPill } from "./subject-pill";
 
 export type TimelineItem = {
   time: string;
@@ -43,9 +44,11 @@ export function TodayTimeline({ items }: { items: TimelineItem[] }) {
               <div className="font-bold text-[14px] text-ink truncate">
                 {t.title}
               </div>
-              <div className="text-[12px] text-muted truncate mt-0.5">
-                {t.sub}
-              </div>
+              {t.sub && (
+                <div className="mt-1.5">
+                  <SubjectPill subject={t.sub} />
+                </div>
+              )}
             </div>
           </div>
         );

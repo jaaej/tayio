@@ -1,20 +1,27 @@
 import Link from "next/link";
 import { Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Pill } from "./pill";
+import { SubjectPill } from "./subject-pill";
 
 /**
  * Quest row — homework reframed as a quest, with a checkbox and XP pill.
+ * The subject is a colour-coded pill (same family the subject uses
+ * everywhere); the due date sits beside it as a neutral chip. Replaces
+ * the old cramped "{subject} · {meta}" sub line.
  * Display-only here (no toggle); pass `done` to drive the visual state.
  */
 export function QuestRow({
   title,
-  sub,
+  subject,
+  meta,
   xp,
   done,
   href,
 }: {
   title: string;
-  sub: string;
+  subject: string;
+  meta: string;
   xp: number;
   done?: boolean;
   href?: string;
@@ -46,7 +53,10 @@ export function QuestRow({
         >
           {title}
         </div>
-        <div className="text-[12px] text-muted truncate mt-0.5">{sub}</div>
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <SubjectPill subject={subject} />
+          <Pill tone="neutral">{meta}</Pill>
+        </div>
       </div>
       <span className="ml-auto inline-flex items-center gap-1 bg-brand-50 text-brand-600 text-[11px] font-extrabold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
         <Zap className="h-3 w-3" />

@@ -8,6 +8,7 @@ import {
   CardBody,
 } from "@/components/student/card";
 import { Badge } from "@/components/student/pill";
+import { SubjectPill } from "@/components/student/subject-pill";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { formatDueDate, relativeTime } from "@/lib/format";
 import {
@@ -20,13 +21,6 @@ import {
   getStudentSubjects,
   type HomeworkRow as HomeworkRowData,
 } from "../_lib/queries";
-
-const MASTERY_LABEL = {
-  not_started: "Not started",
-  needs_work:  "Needs work",
-  improving:   "Improving",
-  strong:      "Strong",
-} as const;
 
 export default async function StudentSubjectsIndex() {
   const user = await requireRole("student");
@@ -71,18 +65,6 @@ export default async function StudentSubjectsIndex() {
   const marked = allHomework
     .filter((h) => h.status === "marked" || h.status === "returned")
     .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
-
-  // Weak topics — kept as the right-rail card
-  const allTopics = progress.flatMap((s) =>
-    s.topics.map((t) => ({ ...t, subjectName: s.subjectName, subjectId: s.subjectId })),
-  );
-  const focusTop = allTopics
-    .filter((t) => t.mastery === "needs_work" || t.mastery === "not_started")
-    .sort((a, b) => (a.mastery === "needs_work" ? -1 : 1))
-    .slice(0, 6);
-  const weakCount = allTopics.filter(
-    (t) => t.mastery === "needs_work" || t.mastery === "not_started",
-  ).length;
 
   // De-duped tutors
   const tutorRows = (() => {
@@ -230,49 +212,6 @@ export default async function StudentSubjectsIndex() {
 
         {/* RIGHT */}
         <div className="space-y-5 min-w-0">
-          {/* Focus next */}
-          <Card>
-            <CardHead
-              title="Focus next"
-              action={`${weakCount} topic${weakCount === 1 ? "" : "s"}`}
-            />
-            <CardBody tight>
-              {focusTop.length === 0 ? (
-                <div className="px-4 py-6 text-[13px] text-muted text-center">
-                  No weak topics — keep it up.
-                </div>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {focusTop.map((t) => (
-                    <li
-                      key={`${t.subjectId}-${t.topic}`}
-                      className="px-4 py-3"
-                    >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="text-[13px] font-semibold text-ink truncate">
-                          {t.topic}
-                        </div>
-                        <span
-                          className={
-                            "shrink-0 text-[10px] uppercase tracking-[0.12em] font-bold " +
-                            (t.mastery === "needs_work"
-                              ? "text-warn"
-                              : "text-muted")
-                          }
-                        >
-                          {MASTERY_LABEL[t.mastery]}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-muted mt-0.5 truncate">
-                        {t.subjectName}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
-
           {/* Your tutors */}
           <Card>
             <CardHead title="Your tutors" />
@@ -297,8 +236,10 @@ export default async function StudentSubjectsIndex() {
                         <div className="text-[13px] font-bold text-ink truncate">
                           {t.name}
                         </div>
-                        <div className="text-[11px] text-muted truncate mt-0.5">
-                          {t.subjects.join(" · ")}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {t.subjects.map((s) => (
+                            <SubjectPill key={s} subject={s} />
+                          ))}
                         </div>
                       </div>
                     </li>

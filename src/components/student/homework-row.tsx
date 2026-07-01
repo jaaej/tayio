@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { Pill } from "./pill";
+import { SubjectPill } from "./subject-pill";
 import {
   colorFamilyForSubject,
   getAccentTokens,
 } from "@/lib/subject-colors";
 
 /**
- * Homework row — subject color bar + title + meta (subject · due X).
- * Replaces the gamified QuestRow. No XP, no checkbox, no emoji.
+ * Homework row — subject color bar + title + chips (subject + due).
+ * The subject is a colour-coded pill (same family the subject uses
+ * everywhere); the due date sits beside it as a neutral chip. Replaces
+ * the old cramped "{subject} · {meta}" meta line.
  */
 export function HomeworkRow({
   title,
@@ -30,8 +34,9 @@ export function HomeworkRow({
       />
       <div className="min-w-0 flex-1">
         <div className="text-[14px] font-bold text-ink truncate">{title}</div>
-        <div className="text-[12px] text-muted truncate mt-0.5">
-          {subject} · {meta}
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <SubjectPill subject={subject} />
+          <Pill tone="neutral">{meta}</Pill>
         </div>
       </div>
       <ChevronRight className="h-4 w-4 text-muted shrink-0" />
