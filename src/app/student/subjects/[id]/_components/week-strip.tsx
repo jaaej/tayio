@@ -78,22 +78,19 @@ export function WeekStrip({
 
       {/* Week list — grouped by topic */}
       {(() => {
-        // Build consecutive topic groups (preserves week order within each topic)
-        const groups: Array<{ label: string; items: typeof weeks }> = [];
+        // Group by topic in first-occurrence order (one bucket per unique topic)
+        const groupMap = new Map<string, typeof weeks>();
         for (const w of weeks) {
           const label = w.topicName ?? "Other";
-          const last = groups[groups.length - 1];
-          if (!last || last.label !== label) {
-            groups.push({ label, items: [w] });
-          } else {
-            last.items.push(w);
-          }
+          if (!groupMap.has(label)) groupMap.set(label, []);
+          groupMap.get(label)!.push(w);
         }
+        const groups = [...groupMap.entries()].map(([label, items]) => ({ label, items }));
         const showHeadings = groups.length > 1;
         return (
           <div className="space-y-1">
             {groups.map((g) => (
-              <div key={g.label}>
+              <div key={g.items[0].topicId ?? "other"}>
                 {showHeadings && (
                   <div
                     className="px-2.5 pt-2 pb-0.5 text-[9px] uppercase tracking-[0.14em] font-extrabold"
