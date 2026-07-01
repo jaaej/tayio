@@ -78,7 +78,7 @@ export default async function HomeworkDetailPage({
   return (
     <div className="space-y-5">
       <Link
-        href="/student/homework"
+        href="/student/subjects"
         className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink"
       >
         ← All homework
