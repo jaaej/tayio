@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:push": "node scripts/db-push-guard.mjs",
+    "db:check-rls": "node scripts/check-rls.mjs",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
