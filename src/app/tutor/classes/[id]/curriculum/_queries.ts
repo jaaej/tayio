@@ -1,29 +1,22 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes,
-  classWeekOverrides,
-  homework,
-  subjectWeeks,
-  subjects,
-  terms,
+  classes, homework, subjectWeeks, subjects, terms,
+  tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
-import {
-  mergeOverride,
-  resolveCurrentTerm,
-  resolveMostRecentPastTerm,
-  type MergedWeek,
-} from "@/lib/curriculum";
+import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
 
-export type TutorCurriculumWeek = MergedWeek & {
-  templateTitle: string;
-  templateDescription: string | null;
-  templateVideoUrl: string | null;
-  templateBookletUrl: string | null;
-  overrideTitle: string | null;
-  overrideDescription: string | null;
-  overrideVideoUrl: string | null;
-  overrideBookletUrl: string | null;
+export type TutorSectionAttachment = { id: string; fileName: string; storagePath: string };
+export type TutorCurriculumWeek = {
+  subjectWeekId: string;
+  weekNumber: number;
+  title: string;
+  description: string | null;
+  videoUrl: string | null;
+  bookletUrl: string | null;
+  note: string | null;               // the tutor's section note
+  attachments: TutorSectionAttachment[];
+  hasSection: boolean;               // note or ≥1 attachment
   homework: Array<{ id: string; title: string; dueDate: Date }>;
 };
 
@@ -82,38 +75,45 @@ export async function getTutorCurriculum(
     .orderBy(asc(subjectWeeks.weekNumber));
   const weekIds = templates.map((t) => t.id);
 
-  const overrides =
-    weekIds.length > 0
-      ? await db
-          .select()
-          .from(classWeekOverrides)
-          .where(
-            and(
-              eq(classWeekOverrides.classId, classId),
-              inArray(classWeekOverrides.subjectWeekId, weekIds),
-            ),
-          )
-      : [];
-  const overrideByWeek = new Map(overrides.map((o) => [o.subjectWeekId, o]));
+  const sections = weekIds.length
+    ? await db.select().from(tutorWeekSections).where(and(
+        eq(tutorWeekSections.tutorId, tutorId),
+        inArray(tutorWeekSections.subjectWeekId, weekIds),
+      ))
+    : [];
+  const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
+  const sectionIds = sections.map((s) => s.id);
+  const atts = sectionIds.length
+    ? await db.select({
+        id: tutorWeekAttachments.id,
+        sectionId: tutorWeekAttachments.sectionId,
+        fileName: tutorWeekAttachments.fileName,
+        storagePath: tutorWeekAttachments.storagePath,
+      }).from(tutorWeekAttachments).where(inArray(tutorWeekAttachments.sectionId, sectionIds))
+    : [];
+  const attBySection = new Map<string, TutorSectionAttachment[]>();
+  for (const a of atts) {
+    if (!attBySection.has(a.sectionId)) attBySection.set(a.sectionId, []);
+    attBySection.get(a.sectionId)!.push({ id: a.id, fileName: a.fileName, storagePath: a.storagePath });
+  }
 
-  const hwRows =
-    weekIds.length > 0
-      ? await db
-          .select({
-            id: homework.id,
-            title: homework.title,
-            dueDate: homework.dueDate,
-            weekId: homework.weekId,
-          })
-          .from(homework)
-          .where(
-            and(
-              eq(homework.classId, classId),
-              inArray(homework.weekId, weekIds),
-            ),
-          )
-          .orderBy(asc(homework.dueDate))
-      : [];
+  const hwRows = weekIds.length
+    ? await db
+        .select({
+          id: homework.id,
+          title: homework.title,
+          dueDate: homework.dueDate,
+          weekId: homework.weekId,
+        })
+        .from(homework)
+        .where(
+          and(
+            eq(homework.classId, classId),
+            inArray(homework.weekId, weekIds),
+          ),
+        )
+        .orderBy(asc(homework.dueDate))
+    : [];
   const hwByWeek = new Map<string, Array<{ id: string; title: string; dueDate: Date }>>();
   for (const r of hwRows) {
     if (!r.weekId) continue;
@@ -122,18 +122,18 @@ export async function getTutorCurriculum(
   }
 
   const weeks: TutorCurriculumWeek[] = templates.map((tpl) => {
-    const o = overrideByWeek.get(tpl.id) ?? null;
-    const merged = mergeOverride(tpl, o);
+    const s = sectionByWeek.get(tpl.id) ?? null;
+    const attachments = s ? (attBySection.get(s.id) ?? []) : [];
     return {
-      ...merged,
-      templateTitle: tpl.title,
-      templateDescription: tpl.description,
-      templateVideoUrl: tpl.videoUrl,
-      templateBookletUrl: tpl.bookletUrl,
-      overrideTitle: o?.title ?? null,
-      overrideDescription: o?.description ?? null,
-      overrideVideoUrl: o?.videoUrl ?? null,
-      overrideBookletUrl: o?.bookletUrl ?? null,
+      subjectWeekId: tpl.id,
+      weekNumber: tpl.weekNumber,
+      title: tpl.title,
+      description: tpl.description,
+      videoUrl: tpl.videoUrl,
+      bookletUrl: tpl.bookletUrl,
+      note: s?.note ?? null,
+      attachments,
+      hasSection: Boolean(s?.note) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
     };
   });

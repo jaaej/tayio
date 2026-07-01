@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHead } from "@/components/student/card";
 import { requireRole } from "@/lib/auth";
+import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { getTutorCurriculum } from "./_queries";
 import { WeekStripTutor } from "./_components/week-strip-tutor";
-import { OverrideEditor } from "./_components/override-editor";
+import { SectionEditor } from "./_components/section-editor";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
 
@@ -24,6 +25,18 @@ export default async function TutorClassCurriculumPage({
 
   const selected =
     data.weeks.find((w) => w.subjectWeekId === weekParam) ?? data.weeks[0];
+
+  // Pre-sign base file URLs and attachment URLs for the selected week
+  const videoSignedUrl = selected ? await signCurriculumUrl(selected.videoUrl) : null;
+  const bookletSignedUrl = selected ? await signCurriculumUrl(selected.bookletUrl) : null;
+  const attachmentsWithUrls = selected
+    ? await Promise.all(
+        selected.attachments.map(async (att) => ({
+          ...att,
+          url: await signCurriculumUrl(att.storagePath),
+        })),
+      )
+    : [];
 
   return (
     <div className="space-y-5">
@@ -63,14 +76,21 @@ export default async function TutorClassCurriculumPage({
                 subjectWeekId: w.subjectWeekId,
                 weekNumber: w.weekNumber,
                 title: w.title,
-                hasOverride: w.hasOverride,
+                hasSection: w.hasSection,
                 homeworkCount: w.homework.length,
               }))}
               selectedWeekId={selected?.subjectWeekId ?? null}
             />
             <div className="lg:border-l lg:border-line lg:pl-5">
               {selected && (
-                <OverrideEditor classId={classId} week={selected} />
+                <SectionEditor
+                  classId={classId}
+                  week={selected}
+                  subjectName={data.subjectName}
+                  videoSignedUrl={videoSignedUrl}
+                  bookletSignedUrl={bookletSignedUrl}
+                  attachmentsWithUrls={attachmentsWithUrls}
+                />
               )}
             </div>
           </div>

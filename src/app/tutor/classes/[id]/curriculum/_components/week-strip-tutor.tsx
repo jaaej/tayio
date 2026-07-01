@@ -17,7 +17,7 @@ export function WeekStripTutor({
     subjectWeekId: string;
     weekNumber: number;
     title: string;
-    hasOverride: boolean;
+    hasSection: boolean;
     homeworkCount: number;
   }>;
   selectedWeekId: string | null;
@@ -69,9 +69,9 @@ export function WeekStripTutor({
                 >
                   Week {w.weekNumber}
                 </div>
-                {w.hasOverride && (
+                {w.hasSection && (
                   <span className="text-[9px] uppercase tracking-wide text-amber-700 font-semibold">
-                    Override
+                    Notes
                   </span>
                 )}
               </div>
