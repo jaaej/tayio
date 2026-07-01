@@ -662,19 +662,26 @@ export async function addTutorWeekAttachment(formData: FormData) {
   const sectionId = await ensureTutorSection(user.id, parsed.data.subjectWeekId);
   const up = await uploadTutorAttachment(sectionId, randomUUID(), file);
   if (!up.ok) return { ok: false as const, error: up.error };
-  await db.insert(tutorWeekAttachments).values({
-    sectionId,
-    fileName: file.name,
-    storagePath: up.path,
-    contentType: file.type || null,
-    sizeBytes: file.size,
-  });
+  try {
+    await db.insert(tutorWeekAttachments).values({
+      sectionId,
+      fileName: file.name,
+      storagePath: up.path,
+      contentType: file.type || null,
+      sizeBytes: file.size,
+    });
+  } catch (err) {
+    await removeCurriculumObject(up.path);
+    return { ok: false as const, error: (err as Error).message };
+  }
   revalidatePath(`/tutor/classes/${parsed.data.classId}/curriculum`);
   return { ok: true as const };
 }
 
 export async function removeTutorWeekAttachment(attachmentId: string, classId: string) {
   const user = await requireRole("tutor");
+  const inputParsed = z.object({ attachmentId: z.string().uuid(), classId: z.string().uuid() }).safeParse({ attachmentId, classId });
+  if (!inputParsed.success) return { ok: false as const, error: inputParsed.error.message };
   const [row] = await db
     .select({ path: tutorWeekAttachments.storagePath, tutorId: tutorWeekSections.tutorId })
     .from(tutorWeekAttachments)
@@ -682,8 +689,8 @@ export async function removeTutorWeekAttachment(attachmentId: string, classId: s
     .where(eq(tutorWeekAttachments.id, attachmentId))
     .limit(1);
   if (!row || row.tutorId !== user.id) return { ok: false as const, error: "Not found" };
-  await db.delete(tutorWeekAttachments).where(eq(tutorWeekAttachments.id, attachmentId));
   await removeCurriculumObject(row.path);
+  await db.delete(tutorWeekAttachments).where(eq(tutorWeekAttachments.id, attachmentId));
   revalidatePath(`/tutor/classes/${classId}/curriculum`);
   return { ok: true as const };
 }
