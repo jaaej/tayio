@@ -70,6 +70,8 @@ export default async function StudentSubjectPage({
     subjectWeekId: w.subjectWeekId,
     weekNumber: w.weekNumber,
     title: w.title,
+    topicId: w.topicId,
+    topicName: w.topicName,
     videoWatched: Boolean(w.videoWatchedAt),
     bookletOpened: Boolean(w.bookletOpenedAt),
     homeworkTotal: w.homework.length,
