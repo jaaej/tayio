@@ -318,8 +318,13 @@ for (const s of SUBJECTS) {
   for (let wk = 1; wk <= TERM_WEEKS; wk++) {
     const title = subjectTopics[(wk - 1) % subjectTopics.length];
     const description = `Week ${wk} · ${title}`;
-    // Round-robin across the 4 canonical topics for this subject
-    const topicId = topicIds.length > 0 ? topicIds[(wk - 1) % topicIds.length] : null;
+    // Contiguous blocks: a topic spans consecutive weeks (e.g. Algebra = weeks 1-3),
+    // so grouping by topic reads chronologically. Not round-robin.
+    const chunk = topicIds.length > 0 ? Math.ceil(TERM_WEEKS / topicIds.length) : 1;
+    const topicId =
+      topicIds.length > 0
+        ? topicIds[Math.min(topicIds.length - 1, Math.floor((wk - 1) / chunk))]
+        : null;
     // Dedupe by (subject, term, weekNumber)
     const [existing] = await sql`
       select id from subject_weeks
