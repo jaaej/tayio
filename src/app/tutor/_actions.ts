@@ -9,7 +9,6 @@ import {
   attendance,
   attendanceStatusEnum,
   classes,
-  classWeekOverrides,
   enrollments,
   homework,
   homeworkAssignments,
@@ -23,7 +22,7 @@ import {
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
-import { uploadCurriculumFile, uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
+import { uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
@@ -437,153 +436,6 @@ export async function toggleDateOverride(formData: FormData) {
   }
 
   revalidatePath("/tutor/timetable");
-}
-
-// --- Curriculum overrides -----------------------------------------------
-
-const overrideSchema = z.object({
-  classId: z.string().uuid(),
-  subjectWeekId: z.string().uuid(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  videoUrl: z.string().optional(),
-  bookletUrl: z.string().optional(),
-});
-
-async function assertTutorOwnsClass(tutorId: string, classId: string) {
-  const [row] = await db
-    .select({ id: classes.id })
-    .from(classes)
-    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
-    .limit(1);
-  return Boolean(row);
-}
-
-function isEmptyOverride(o: {
-  title: string | null;
-  description: string | null;
-  videoUrl: string | null;
-  bookletUrl: string | null;
-}) {
-  return !o.title && !o.description && !o.videoUrl && !o.bookletUrl;
-}
-
-export async function upsertClassWeekOverride(formData: FormData) {
-  const user = await requireRole("tutor");
-  const parsed = overrideSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
-  if (!(await assertTutorOwnsClass(user.id, parsed.data.classId))) {
-    return { ok: false as const, error: "Not your class" };
-  }
-
-  const { classId, subjectWeekId, ...fields } = parsed.data;
-  const normalized = Object.fromEntries(
-    Object.entries(fields).map(([k, v]) => [k, v === "" || v === undefined ? null : v]),
-  ) as {
-    title: string | null;
-    description: string | null;
-    videoUrl: string | null;
-    bookletUrl: string | null;
-  };
-
-  if (isEmptyOverride(normalized)) {
-    await db
-      .delete(classWeekOverrides)
-      .where(
-        and(
-          eq(classWeekOverrides.classId, classId),
-          eq(classWeekOverrides.subjectWeekId, subjectWeekId),
-        ),
-      );
-  } else {
-    await db
-      .insert(classWeekOverrides)
-      .values({ classId, subjectWeekId, ...normalized })
-      .onConflictDoUpdate({
-        target: [
-          classWeekOverrides.classId,
-          classWeekOverrides.subjectWeekId,
-        ],
-        set: { ...normalized, updatedAt: new Date() },
-      });
-  }
-
-  revalidatePath(`/tutor/classes/${classId}/curriculum`);
-  return { ok: true as const };
-}
-
-export async function resetClassWeekOverride(
-  classId: string,
-  subjectWeekId: string,
-) {
-  const user = await requireRole("tutor");
-  if (!(await assertTutorOwnsClass(user.id, classId))) {
-    return { ok: false as const, error: "Not your class" };
-  }
-  await db
-    .delete(classWeekOverrides)
-    .where(
-      and(
-        eq(classWeekOverrides.classId, classId),
-        eq(classWeekOverrides.subjectWeekId, subjectWeekId),
-      ),
-    );
-  revalidatePath(`/tutor/classes/${classId}/curriculum`);
-  return { ok: true as const };
-}
-
-export async function uploadTutorOverrideVideo(
-  classId: string,
-  subjectWeekId: string,
-  formData: FormData,
-) {
-  const user = await requireRole("tutor");
-  if (!(await assertTutorOwnsClass(user.id, classId))) {
-    return { ok: false as const, error: "Not your class" };
-  }
-  const file = formData.get("file");
-  if (!(file instanceof File)) return { ok: false as const, error: "No file" };
-
-  const ownerId = `${classId}-${subjectWeekId}`;
-  const res = await uploadCurriculumFile("videos", ownerId, file);
-  if (!res.ok) return res;
-
-  await db
-    .insert(classWeekOverrides)
-    .values({ classId, subjectWeekId, videoUrl: res.path })
-    .onConflictDoUpdate({
-      target: [classWeekOverrides.classId, classWeekOverrides.subjectWeekId],
-      set: { videoUrl: res.path, updatedAt: new Date() },
-    });
-  revalidatePath(`/tutor/classes/${classId}/curriculum`);
-  return { ok: true as const, path: res.path };
-}
-
-export async function uploadTutorOverrideBooklet(
-  classId: string,
-  subjectWeekId: string,
-  formData: FormData,
-) {
-  const user = await requireRole("tutor");
-  if (!(await assertTutorOwnsClass(user.id, classId))) {
-    return { ok: false as const, error: "Not your class" };
-  }
-  const file = formData.get("file");
-  if (!(file instanceof File)) return { ok: false as const, error: "No file" };
-
-  const ownerId = `${classId}-${subjectWeekId}`;
-  const res = await uploadCurriculumFile("booklets", ownerId, file);
-  if (!res.ok) return res;
-
-  await db
-    .insert(classWeekOverrides)
-    .values({ classId, subjectWeekId, bookletUrl: res.path })
-    .onConflictDoUpdate({
-      target: [classWeekOverrides.classId, classWeekOverrides.subjectWeekId],
-      set: { bookletUrl: res.path, updatedAt: new Date() },
-    });
-  revalidatePath(`/tutor/classes/${classId}/curriculum`);
-  return { ok: true as const, path: res.path };
 }
 
 // --- Tutor week section note + attachments ----------------------------------

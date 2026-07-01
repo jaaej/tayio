@@ -5,11 +5,9 @@ import { markBookletOpened } from "../_actions";
 
 export function BookletLink({
   subjectWeekId,
-  classId,
   alreadyOpened,
 }: {
   subjectWeekId: string;
-  classId: string;
   alreadyOpened: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -20,7 +18,7 @@ export function BookletLink({
       disabled={pending}
       onClick={() => {
         startTransition(async () => {
-          const res = await markBookletOpened(subjectWeekId, classId);
+          const res = await markBookletOpened(subjectWeekId);
           if (res.ok) window.open(res.url, "_blank", "noopener");
           else alert(res.error);
         });

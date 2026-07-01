@@ -27,11 +27,9 @@ import type { StudentCurriculumWeek } from "../_queries";
 
 export async function WeekContent({
   week,
-  classId,
   subjectName,
 }: {
   week: StudentCurriculumWeek;
-  classId: string;
   subjectName: string;
 }) {
   const videoSignedUrl = await signCurriculumUrl(week.videoUrl);
@@ -216,7 +214,6 @@ export async function WeekContent({
                 <div className="mt-3">
                   <BookletLink
                     subjectWeekId={week.subjectWeekId}
-                    classId={classId}
                     alreadyOpened={bookletDone}
                   />
                 </div>

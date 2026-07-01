@@ -131,7 +131,6 @@ export default async function StudentSubjectPage({
         />
         <WeekContent
           week={selectedWeek}
-          classId={data.classId}
           subjectName={data.subjectName}
         />
       </div>
