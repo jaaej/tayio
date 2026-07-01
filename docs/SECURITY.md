@@ -7,9 +7,19 @@ Living document for the Security & RLS layer. Every migration that touches RLS /
 - **Drizzle (`src/db/schema.ts`, `drizzle/`)** owns table DDL only — columns, types, foreign keys, indexes, enums.
 - **Raw SQL (`supabase/migrations/`)** owns everything else — RLS policies, triggers, functions, views, grants, storage buckets and policies.
 
-Apply order on any environment: Drizzle Kit first, then files in `supabase/migrations/` in numeric order.
-
 **Never re-define a policy or trigger in Drizzle.** Drizzle doesn't track raw SQL files; mixing the two silently drifts.
+
+### ⛔ Do NOT run `db:push` (`drizzle-kit push`) — it WIPES all RLS
+
+`drizzle-kit push` reconciles the DB to `src/db/schema.ts`. Because every RLS policy + the `lesson_notes_safe` view live in raw SQL (not `schema.ts`), push sees them as "drift" and **disables RLS + drops every policy + drops the view on ALL tables** — silently, and `--force` skips the confirmation. Functions/triggers survive; RLS/policies/views do not. (This caused a full RLS wipe on 2026-07-01; see 0012.)
+
+`npm run db:push` is therefore blocked by a guard (`scripts/db-push-guard.mjs`). **Safe schema-change workflow:**
+
+1. Update `src/db/schema.ts` (for Drizzle types only).
+2. Write the DDL as a raw-SQL `ALTER TABLE` in a new `supabase/migrations/NNNN_*.sql`, and apply it with `node scripts/apply-sql.mjs supabase/migrations/NNNN_*.sql`.
+3. Run **`npm run db:check-rls`** — audits every table and fails if any lost RLS. Run this after ANY database change.
+
+If `db:push` ever does run (or you bypass the guard with `npx drizzle-kit push`), **re-apply `supabase/migrations/0003`–`0012` in order with the dev server stopped** (its connections hold locks that block `ALTER TABLE … ENABLE RLS`), then `npm run db:check-rls`.
 
 ## Applying migrations
 
