@@ -202,6 +202,39 @@ alter table public.tutor_week_attachments disable row level security;
 drop function if exists public.is_owner_of_tutor_section(uuid);
 ```
 
+### 0011 — tutor section read scoping
+
+**File:** `supabase/migrations/0011_tutor_section_read_scope.sql`
+**Status:** Pending apply (DB-apply step deferred to controller checkpoint).
+**Risk:** Low. Replaces two permissive `using(true)` select policies with scoped ones; write policies from 0010 are unchanged.
+
+**What it does:** Replaces the 2a broad-read policies (`tutor_week_sections_select_authenticated` and `tutor_week_attachments_select_authenticated`, both `using(true)`) with policies gated by two new `SECURITY DEFINER` helper functions:
+
+- `public.can_read_tutor_section(p_tutor_id uuid, p_subject_week_id uuid) returns boolean` — returns true if the caller is the section's tutor, an admin, a student enrolled with that tutor for that subject's week, or a parent of such a student.
+- `public.can_read_tutor_section_att(p_section_id uuid) returns boolean` — resolves the parent `tutor_week_sections` row and delegates to `can_read_tutor_section`. Needed because `tutor_week_attachments` has no direct `tutor_id` or `subject_week_id` column; an inline EXISTS would risk 42P17 recursion.
+
+Both helpers follow the existing pattern: `language sql stable security definer set search_path = public, auth`, return bool only (no data leaked).
+
+**Why now (Part 2b):** 0010 shipped with `using(true)` select policies as a deliberate first-pass to unblock the tutor UI. Any authenticated user (including students and parents of unrelated students) could read all tutor sections. 0011 closes that gap.
+
+**Note — `class_week_overrides` dropped in Part 2b:** The companion Drizzle schema migration (`npm run db:push`, controller-gated Step 1 of Task 4) drops the `class_week_overrides` table entirely. That table was introduced in Task 1 but never populated — no data is lost. It had no RLS policies in 0010 (table was not present in that migration) and no rows in any environment. No SECURITY.md matrix entry existed for it; none is needed post-drop.
+
+**Reversible by:**
+```sql
+drop function if exists public.can_read_tutor_section(uuid, uuid);
+drop function if exists public.can_read_tutor_section_att(uuid);
+
+-- on tutor_week_sections
+drop policy if exists tutor_week_sections_select_scoped on public.tutor_week_sections;
+create policy tutor_week_sections_select_authenticated on public.tutor_week_sections
+  for select to authenticated using (true);
+
+-- on tutor_week_attachments
+drop policy if exists tutor_week_attachments_select_scoped on public.tutor_week_attachments;
+create policy tutor_week_attachments_select_authenticated on public.tutor_week_attachments
+  for select to authenticated using (true);
+```
+
 ---
 
 ## Access matrix
@@ -227,8 +260,8 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `notifications`        | no   | own (R+U-read)   | own (R+U-read)          | own (R+U-read)                 | all   |
 | `tutor_availability`   | no   | no (RLS)\*\*     | no (RLS)\*\*            | own                            | all   |
 | `subject_topics`       | no   | all              | all                     | all                            | all   |
-| `tutor_week_sections`  | no   | all              | all                     | all                            | all   |
-| `tutor_week_attachments` | no | all              | all                     | all                            | all   |
+| `tutor_week_sections`  | no   | enrolled with section's tutor | child enrolled with section's tutor | own (tutor_id match) | all |
+| `tutor_week_attachments` | no | enrolled with section's tutor | child enrolled with section's tutor | own (via parent section) | all |
 
 \* `homework_assignments` UPDATE by student is row-restricted but **not** column-restricted — see Known caveats.
 \*\* student/parent portals read this via server-side Drizzle (bypasses RLS); not a real restriction in practice.

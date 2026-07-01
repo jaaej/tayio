@@ -1,26 +1,46 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
-  classWeekOverrides,
   enrollments,
   familyLinks,
   homework,
   homeworkAssignments,
+  lessonNotes,
+  lessons,
   profiles,
   studentWeekProgress,
+  subjectTopics,
   subjectWeeks,
   subjects,
   terms,
+  tutorWeekAttachments,
+  tutorWeekSections,
 } from "@/db/schema";
 import {
-  mergeOverride,
   resolveCurrentTerm,
   resolveMostRecentPastTerm,
-  type MergedWeek,
 } from "@/lib/curriculum";
+import { signCurriculumUrl } from "@/lib/curriculum-storage";
 
-export type ParentCurriculumWeek = MergedWeek & {
+function isoLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export type ParentCurriculumWeek = {
+  subjectWeekId: string;
+  weekNumber: number;
+  title: string;
+  description: string | null;
+  videoUrl: string | null;
+  bookletUrl: string | null;
+  topicId: string | null;
+  topicName: string | null;
+  tutorNote: string | null;
+  tutorAttachments: Array<{ id: string; fileName: string; url: string | null }>;
   videoWatchedAt: Date | null;
   bookletOpenedAt: Date | null;
   homework: Array<{
@@ -29,6 +49,16 @@ export type ParentCurriculumWeek = MergedWeek & {
     dueDate: Date;
     status: string;
     score: string | null;
+  }>;
+  recaps: Array<{
+    lessonId: string;
+    date: string;
+    startTime: string;
+    tutorName: string;
+    topicCovered: string | null;
+    keyConcepts: string | null;
+    parentVisibleComment: string | null;
+    nextLessonFocus: string | null;
   }>;
 };
 
@@ -71,6 +101,7 @@ export async function getParentCurriculum(
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,
+      tutorId: classes.tutorId,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -122,16 +153,36 @@ export async function getParentCurriculum(
   if (templates.length === 0) return null;
   const weekIds = templates.map((w) => w.id);
 
-  const overrides = await db
+  // Topic names for this subject
+  const topicRows = await db
+    .select({ id: subjectTopics.id, name: subjectTopics.name })
+    .from(subjectTopics)
+    .where(eq(subjectTopics.subjectId, subjectId));
+  const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
+
+  // Tutor sections + attachments for the child's class tutor
+  const sections = await db
     .select()
-    .from(classWeekOverrides)
+    .from(tutorWeekSections)
     .where(
       and(
-        eq(classWeekOverrides.classId, enr.classId),
-        inArray(classWeekOverrides.subjectWeekId, weekIds),
+        eq(tutorWeekSections.tutorId, enr.tutorId),
+        inArray(tutorWeekSections.subjectWeekId, weekIds),
       ),
     );
-  const overrideByWeek = new Map(overrides.map((o) => [o.subjectWeekId, o]));
+  const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
+  const sectionIds = sections.map((s) => s.id);
+  const attRows = sectionIds.length
+    ? await db
+        .select()
+        .from(tutorWeekAttachments)
+        .where(inArray(tutorWeekAttachments.sectionId, sectionIds))
+    : [];
+  const attsBySection = new Map<string, typeof attRows>();
+  for (const a of attRows) {
+    if (!attsBySection.has(a.sectionId)) attsBySection.set(a.sectionId, []);
+    attsBySection.get(a.sectionId)!.push(a);
+  }
 
   const progress = await db
     .select()
@@ -169,22 +220,100 @@ export async function getParentCurriculum(
     hwByWeek.get(r.weekId)!.push(r);
   }
 
-  const weeks: ParentCurriculumWeek[] = templates.map((tpl) => {
-    const merged = mergeOverride(tpl, overrideByWeek.get(tpl.id) ?? null);
-    const p = progressByWeek.get(tpl.id);
-    return {
-      ...merged,
-      videoWatchedAt: p?.videoWatchedAt ?? null,
-      bookletOpenedAt: p?.bookletOpenedAt ?? null,
-      homework: (hwByWeek.get(tpl.id) ?? []).map((h) => ({
-        homeworkId: h.homeworkId,
-        title: h.title,
-        dueDate: h.dueDate,
-        status: h.status,
-        score: h.score,
-      })),
-    };
-  });
+  // Recaps: pull lessons for the child's class, bucket by week number
+  const termStart = new Date(`${term.startDate}T00:00:00`);
+  const termEndExclusive = new Date(`${term.endDate}T00:00:00`);
+  termEndExclusive.setDate(termEndExclusive.getDate() + 1);
+  const lessonRows = await db
+    .select({
+      lessonId: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      tutorFirst: profiles.firstName,
+      tutorLast: profiles.lastName,
+      topicCovered: lessonNotes.topicCovered,
+      keyConcepts: lessonNotes.keyConcepts,
+      parentVisibleComment: lessonNotes.parentVisibleComment,
+      nextLessonFocus: lessonNotes.nextLessonFocus,
+    })
+    .from(lessons)
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .leftJoin(
+      lessonNotes,
+      and(
+        eq(lessonNotes.lessonId, lessons.id),
+        eq(lessonNotes.studentId, childId),
+      ),
+    )
+    .where(
+      and(
+        eq(lessons.classId, enr.classId),
+        gte(lessons.date, term.startDate),
+        lt(lessons.date, isoLocal(termEndExclusive)),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+
+  const recapsByWeekNum = new Map<number, ParentCurriculumWeek["recaps"]>();
+  for (const r of lessonRows) {
+    const dt = new Date(`${r.date}T00:00:00`);
+    const diffDays = Math.floor(
+      (dt.getTime() - termStart.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const weekNum = Math.floor(diffDays / 7) + 1;
+    if (weekNum < 1) continue;
+    const list = recapsByWeekNum.get(weekNum) ?? [];
+    list.push({
+      lessonId: r.lessonId,
+      date: r.date,
+      startTime: r.startTime,
+      tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
+      topicCovered: r.topicCovered,
+      keyConcepts: r.keyConcepts,
+      parentVisibleComment: r.parentVisibleComment,
+      nextLessonFocus: r.nextLessonFocus,
+    });
+    recapsByWeekNum.set(weekNum, list);
+  }
+
+  const weeks: ParentCurriculumWeek[] = await Promise.all(
+    templates.map(async (tpl) => {
+      const p = progressByWeek.get(tpl.id);
+      const section = sectionByWeek.get(tpl.id);
+      const sectionAtts = section
+        ? (attsBySection.get(section.id) ?? [])
+        : [];
+      const tutorAttachments = await Promise.all(
+        sectionAtts.map(async (a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          url: await signCurriculumUrl(a.storagePath),
+        })),
+      );
+      return {
+        subjectWeekId: tpl.id,
+        weekNumber: tpl.weekNumber,
+        title: tpl.title,
+        description: tpl.description,
+        videoUrl: tpl.videoUrl,
+        bookletUrl: tpl.bookletUrl,
+        topicId: tpl.topicId,
+        topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
+        tutorNote: section?.note ?? null,
+        tutorAttachments,
+        videoWatchedAt: p?.videoWatchedAt ?? null,
+        bookletOpenedAt: p?.bookletOpenedAt ?? null,
+        homework: (hwByWeek.get(tpl.id) ?? []).map((h) => ({
+          homeworkId: h.homeworkId,
+          title: h.title,
+          dueDate: h.dueDate,
+          status: h.status,
+          score: h.score,
+        })),
+        recaps: recapsByWeekNum.get(tpl.weekNumber) ?? [],
+      };
+    }),
+  );
 
   return {
     childFirstName: child?.firstName ?? "",

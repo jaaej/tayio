@@ -563,28 +563,6 @@ export const tutorWeekAttachments = pgTable(
   (t) => [index("tutor_week_attachments_section_idx").on(t.sectionId)],
 );
 
-export const classWeekOverrides = pgTable(
-  "class_week_overrides",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    classId: uuid("class_id")
-      .notNull()
-      .references(() => classes.id, { onDelete: "cascade" }),
-    subjectWeekId: uuid("subject_week_id")
-      .notNull()
-      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
-    title: text("title"),
-    description: text("description"),
-    videoUrl: text("video_url"),
-    bookletUrl: text("booklet_url"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    uniqueIndex("class_week_overrides_unique_idx").on(t.classId, t.subjectWeekId),
-    index("class_week_overrides_class_idx").on(t.classId),
-  ],
-);
 
 export const studentWeekProgress = pgTable(
   "student_week_progress",
@@ -606,7 +584,6 @@ export type SubjectTopic = typeof subjectTopics.$inferSelect;
 export type SubjectWeek = typeof subjectWeeks.$inferSelect;
 export type TutorWeekSection = typeof tutorWeekSections.$inferSelect;
 export type TutorWeekAttachment = typeof tutorWeekAttachments.$inferSelect;
-export type ClassWeekOverride = typeof classWeekOverrides.$inferSelect;
 export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
 
 // ------------------------------------------------------------------------

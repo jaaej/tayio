@@ -5,7 +5,6 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
-  classWeekOverrides,
   enrollments,
   studentWeekProgress,
   subjectWeeks,
@@ -59,30 +58,17 @@ export async function markVideoWatched(subjectWeekId: string) {
   return { ok: true as const };
 }
 
-export async function markBookletOpened(
-  subjectWeekId: string,
-  classId: string,
-) {
+export async function markBookletOpened(subjectWeekId: string) {
   const user = await requireRole("student");
   if (!(await assertStudentCanAccessWeek(user.id, subjectWeekId))) {
     return { ok: false as const, error: "Not enrolled" };
   }
-  const [override] = await db
-    .select({ path: classWeekOverrides.bookletUrl })
-    .from(classWeekOverrides)
-    .where(
-      and(
-        eq(classWeekOverrides.subjectWeekId, subjectWeekId),
-        eq(classWeekOverrides.classId, classId),
-      ),
-    )
-    .limit(1);
   const [tpl] = await db
     .select({ path: subjectWeeks.bookletUrl })
     .from(subjectWeeks)
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
-  const path = override?.path ?? tpl?.path ?? null;
+  const path = tpl?.path ?? null;
   const url = await signCurriculumUrl(path);
   if (!url) return { ok: false as const, error: "Booklet unavailable" };
 

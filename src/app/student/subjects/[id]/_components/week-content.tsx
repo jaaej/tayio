@@ -27,11 +27,9 @@ import type { StudentCurriculumWeek } from "../_queries";
 
 export async function WeekContent({
   week,
-  classId,
   subjectName,
 }: {
   week: StudentCurriculumWeek;
-  classId: string;
   subjectName: string;
 }) {
   const videoSignedUrl = await signCurriculumUrl(week.videoUrl);
@@ -216,7 +214,6 @@ export async function WeekContent({
                 <div className="mt-3">
                   <BookletLink
                     subjectWeekId={week.subjectWeekId}
-                    classId={classId}
                     alreadyOpened={bookletDone}
                   />
                 </div>
@@ -238,6 +235,49 @@ export async function WeekContent({
           </div>
         </div>
       </div>
+
+      {/* FROM YOUR TUTOR — only when tutor has added a note or attachments */}
+      {(week.tutorNote || week.tutorAttachments.length > 0) && (
+        <section>
+          <SectionHead title="From your tutor" />
+          <div className="rounded-[18px] border border-line bg-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
+            {week.tutorNote && (
+              <div className="text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
+                {week.tutorNote}
+              </div>
+            )}
+            {week.tutorAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {week.tutorAttachments.map((att) =>
+                  att.url ? (
+                    <a
+                      key={att.id}
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-surface transition-colors"
+                    >
+                      <FileText
+                        className="h-3.5 w-3.5 shrink-0"
+                        style={{ color: tokens.arrow }}
+                      />
+                      {att.fileName}
+                    </a>
+                  ) : (
+                    <span
+                      key={att.id}
+                      className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-muted"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      {att.fileName}
+                    </span>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* LESSONS TIMELINE — recaps inline */}
       <section>

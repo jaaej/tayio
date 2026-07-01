@@ -2,20 +2,8 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   terms,
-  type ClassWeekOverride,
-  type SubjectWeek,
   type Term,
 } from "@/db/schema";
-
-export type MergedWeek = {
-  subjectWeekId: string;
-  weekNumber: number;
-  title: string;
-  description: string | null;
-  videoUrl: string | null;
-  bookletUrl: string | null;
-  hasOverride: boolean;
-};
 
 export async function resolveCurrentTerm(
   date: Date = new Date(),
@@ -57,17 +45,3 @@ export function currentWeekNumber(
   return week;
 }
 
-export function mergeOverride(
-  template: SubjectWeek,
-  override: ClassWeekOverride | null,
-): MergedWeek {
-  return {
-    subjectWeekId: template.id,
-    weekNumber: template.weekNumber,
-    title: override?.title ?? template.title,
-    description: override?.description ?? template.description,
-    videoUrl: override?.videoUrl ?? template.videoUrl,
-    bookletUrl: override?.bookletUrl ?? template.bookletUrl,
-    hasOverride: Boolean(override),
-  };
-}

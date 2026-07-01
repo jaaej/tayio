@@ -25,6 +25,8 @@ export function WeekStrip({
     subjectWeekId: string;
     weekNumber: number;
     title: string;
+    topicId: string | null;
+    topicName: string | null;
     videoWatched: boolean;
     bookletOpened: boolean;
     homeworkTotal: number;
@@ -74,108 +76,133 @@ export function WeekStrip({
         ))}
       </select>
 
-      {/* Week list */}
-      <div className="space-y-1">
-        {weeks.map((w) => {
-          const isActive = w.subjectWeekId === active;
-          const isCurrent = w.subjectWeekId === currentWeekIdHint;
-          const total = 2 + (w.homeworkTotal > 0 ? 1 : 0);
-          const done =
-            (w.videoWatched ? 1 : 0) +
-            (w.bookletOpened ? 1 : 0) +
-            (w.homeworkTotal > 0 && w.homeworkDone >= w.homeworkTotal ? 1 : 0);
-          const complete = total > 0 && done === total;
-
-          return (
-            <Link
-              key={w.subjectWeekId}
-              href={`${base}?term=${currentTermId}&week=${w.subjectWeekId}`}
-              className={cn(
-                "block rounded-[12px] px-2.5 py-2 transition-all border",
-                isActive
-                  ? "text-white shadow-[0_8px_18px_-12px_rgba(31,40,90,0.35)]"
-                  : "bg-white/75 backdrop-blur hover:bg-white/95",
-              )}
-              style={
-                isActive
-                  ? {
-                      background: `linear-gradient(135deg, ${accent.arrow} 0%, ${accent.title} 100%)`,
-                      borderColor: accent.arrow,
-                    }
-                  : {
-                      borderColor: "transparent",
-                    }
-              }
-            >
-              <div className="flex items-center justify-between gap-1.5">
-                <span
-                  className={cn(
-                    "text-[9px] uppercase tracking-[0.12em] font-extrabold",
-                  )}
-                  style={{
-                    color: isActive ? "rgba(255,255,255,0.85)" : accent.meta,
-                  }}
-                >
-                  Week {w.weekNumber}
-                </span>
-                {isCurrent && !isActive && (
-                  <span
-                    className="text-[8px] uppercase tracking-[0.1em] font-extrabold rounded-full px-1 py-0.5"
-                    style={{
-                      background: accent.arrow,
-                      color: "#fff",
-                    }}
+      {/* Week list — grouped by topic */}
+      {(() => {
+        // Group by topic in first-occurrence order (one bucket per unique topic)
+        const groupMap = new Map<string, typeof weeks>();
+        for (const w of weeks) {
+          const label = w.topicName ?? "Other";
+          if (!groupMap.has(label)) groupMap.set(label, []);
+          groupMap.get(label)!.push(w);
+        }
+        const groups = [...groupMap.entries()].map(([label, items]) => ({ label, items }));
+        const showHeadings = groups.length > 1;
+        return (
+          <div className="space-y-1">
+            {groups.map((g) => (
+              <div key={g.items[0].topicId ?? "other"}>
+                {showHeadings && (
+                  <div
+                    className="px-2.5 pt-2 pb-0.5 text-[9px] uppercase tracking-[0.14em] font-extrabold"
+                    style={{ color: accent.meta }}
                   >
-                    Now
-                  </span>
+                    {g.label}
+                  </div>
                 )}
-                {complete && !isActive && (
-                  <Check
-                    className="h-3 w-3"
-                    strokeWidth={3}
-                    style={{ color: accent.arrow }}
-                  />
-                )}
-              </div>
-              <div
-                className={cn(
-                  "mt-0.5 text-[12px] font-bold leading-tight line-clamp-2",
-                )}
-                style={{
-                  color: isActive ? "#fff" : accent.title,
-                }}
-              >
-                {w.title}
-              </div>
-              {w.homeworkTotal > 0 && (
-                <div className="mt-1.5">
-                  <span
-                    className="inline-flex items-center rounded-full px-1.5 py-0 text-[9px] font-bold tabular-nums"
-                    style={
-                      isActive
-                        ? {
-                            background: "rgba(255,255,255,0.25)",
-                            color: "#fff",
-                          }
-                        : w.homeworkDone >= w.homeworkTotal
+                {g.items.map((w) => {
+                  const isActive = w.subjectWeekId === active;
+                  const isCurrent = w.subjectWeekId === currentWeekIdHint;
+                  const total = 2 + (w.homeworkTotal > 0 ? 1 : 0);
+                  const done =
+                    (w.videoWatched ? 1 : 0) +
+                    (w.bookletOpened ? 1 : 0) +
+                    (w.homeworkTotal > 0 && w.homeworkDone >= w.homeworkTotal ? 1 : 0);
+                  const complete = total > 0 && done === total;
+
+                  return (
+                    <Link
+                      key={w.subjectWeekId}
+                      href={`${base}?term=${currentTermId}&week=${w.subjectWeekId}`}
+                      className={cn(
+                        "block rounded-[12px] px-2.5 py-2 transition-all border",
+                        isActive
+                          ? "text-white shadow-[0_8px_18px_-12px_rgba(31,40,90,0.35)]"
+                          : "bg-white/75 backdrop-blur hover:bg-white/95",
+                      )}
+                      style={
+                        isActive
                           ? {
-                              background: "var(--good-bg)",
-                              color: "var(--good)",
+                              background: `linear-gradient(135deg, ${accent.arrow} 0%, ${accent.title} 100%)`,
+                              borderColor: accent.arrow,
                             }
                           : {
-                              background: "var(--warn-bg)",
-                              color: "var(--warn)",
+                              borderColor: "transparent",
                             }
-                    }
-                  >
-                    {w.homeworkDone}/{w.homeworkTotal}
-                  </span>
-                </div>
-              )}
-            </Link>
-          );
-        })}
-      </div>
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span
+                          className={cn(
+                            "text-[9px] uppercase tracking-[0.12em] font-extrabold",
+                          )}
+                          style={{
+                            color: isActive ? "rgba(255,255,255,0.85)" : accent.meta,
+                          }}
+                        >
+                          Week {w.weekNumber}
+                        </span>
+                        {isCurrent && !isActive && (
+                          <span
+                            className="text-[8px] uppercase tracking-[0.1em] font-extrabold rounded-full px-1 py-0.5"
+                            style={{
+                              background: accent.arrow,
+                              color: "#fff",
+                            }}
+                          >
+                            Now
+                          </span>
+                        )}
+                        {complete && !isActive && (
+                          <Check
+                            className="h-3 w-3"
+                            strokeWidth={3}
+                            style={{ color: accent.arrow }}
+                          />
+                        )}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-0.5 text-[12px] font-bold leading-tight line-clamp-2",
+                        )}
+                        style={{
+                          color: isActive ? "#fff" : accent.title,
+                        }}
+                      >
+                        {w.title}
+                      </div>
+                      {w.homeworkTotal > 0 && (
+                        <div className="mt-1.5">
+                          <span
+                            className="inline-flex items-center rounded-full px-1.5 py-0 text-[9px] font-bold tabular-nums"
+                            style={
+                              isActive
+                                ? {
+                                    background: "rgba(255,255,255,0.25)",
+                                    color: "#fff",
+                                  }
+                                : w.homeworkDone >= w.homeworkTotal
+                                  ? {
+                                      background: "var(--good-bg)",
+                                      color: "var(--good)",
+                                    }
+                                  : {
+                                      background: "var(--warn-bg)",
+                                      color: "var(--warn)",
+                                    }
+                            }
+                          >
+                            {w.homeworkDone}/{w.homeworkTotal}
+                          </span>
+                        </div>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </aside>
   );
 }
