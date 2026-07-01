@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { Card, Hero, HeroChip, BackLink } from "@/components/admin/ui";
 import { db } from "@/db/client";
-import { subjectWeeks, subjects, terms } from "@/db/schema";
+import { subjectWeeks, subjects, terms, subjectTopics } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import { WeekStripAdmin } from "./_components/week-strip-admin";
 import { WeekEditor } from "./_components/week-editor";
+import { TopicsPanel } from "./_components/topics-panel";
 
 type SearchParams = Promise<{ term?: string; week?: string; new?: string }>;
 
@@ -67,6 +68,20 @@ export default async function AdminSubjectCurriculumPage({
     )
     .orderBy(asc(subjectWeeks.weekNumber));
 
+  const topics = await db
+    .select()
+    .from(subjectTopics)
+    .where(eq(subjectTopics.subjectId, subjectId))
+    .orderBy(asc(subjectTopics.position));
+
+  const countRows = await db
+    .select({ topicId: subjectWeeks.topicId, n: sql<number>`count(*)::int` })
+    .from(subjectWeeks)
+    .where(eq(subjectWeeks.subjectId, subjectId))
+    .groupBy(subjectWeeks.topicId);
+  const weekCounts: Record<string, number> = {};
+  for (const r of countRows) if (r.topicId) weekCounts[r.topicId] = r.n;
+
   const selectedWeek = weekParam
     ? weeks.find((w) => w.id === weekParam)
     : weeks[0];
@@ -91,6 +106,9 @@ export default async function AdminSubjectCurriculumPage({
       />
 
       <Card>
+        <div className="p-6 pb-0">
+          <TopicsPanel subjectId={subjectId} topics={topics} weekCounts={weekCounts} />
+        </div>
         <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] gap-6 p-6">
           <WeekStripAdmin
             weeks={weeks}
@@ -101,12 +119,13 @@ export default async function AdminSubjectCurriculumPage({
           />
           <div className="lg:border-l lg:border-line lg:pl-6">
             {isNew || !selectedWeek ? (
-              <WeekEditor subjectId={subjectId} termId={currentTerm.id} />
+              <WeekEditor subjectId={subjectId} termId={currentTerm.id} topics={topics} />
             ) : (
               <WeekEditor
                 existing={selectedWeek}
                 subjectId={subjectId}
                 termId={currentTerm.id}
+                topics={topics}
               />
             )}
           </div>

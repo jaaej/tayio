@@ -15,10 +15,12 @@ export function WeekEditor({
   existing,
   subjectId,
   termId,
+  topics,
 }: {
   existing?: SubjectWeek;
   subjectId: string;
   termId: string;
+  topics: { id: string; name: string }[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -75,6 +77,21 @@ export function WeekEditor({
             className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
             required
           />
+        </label>
+        <label className="block text-sm">
+          <div className="text-[12px] font-bold text-ink-soft mb-1">Topic</div>
+          <select
+            name="topicId"
+            defaultValue={existing?.topicId ?? ""}
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
+          >
+            <option value="">Unassigned</option>
+            {topics.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           <div className="text-[12px] font-bold text-ink-soft mb-1">

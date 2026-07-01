@@ -16,6 +16,10 @@ const weekInputSchema = z.object({
   description: z.string().optional(),
   videoUrl: z.string().optional(),
   bookletUrl: z.string().optional(),
+  topicId: z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.string().uuid().nullable(),
+  ),
 });
 
 export async function createSubjectWeek(formData: FormData) {

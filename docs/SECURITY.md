@@ -159,6 +159,21 @@ drop table if exists public.audit_logs;
 
 **Why it exists:** Supabase Advisor flagged it CRITICAL (RLS Disabled in Public) because the table was added after 0004. This is the catch-up.
 
+### 0009 — `subject_topics` RLS
+
+**File:** `supabase/migrations/0009_subject_topics_rls.sql`
+**Status:** Pending apply (DB-apply step deferred to controller checkpoint).
+**Risk:** Low. Additive — enables RLS on a new table and writes two new policies. No existing rows or policies modified.
+
+**What it does:** Enables RLS on `public.subject_topics` (added to the schema in the curriculum-topics feature branch) and writes policies mirroring the existing `subjects` table pattern: `subject_topics_select_authenticated` (SELECT for any authenticated user) + `subject_topics_admin_all` (full DML for admins via `public.is_admin()`). Revokes all grants from `anon`; grants `SELECT` to `authenticated`.
+
+**Why it mirrors `subjects`:** `subject_topics` is a reference/lookup table (curriculum metadata), not user-scoped data. Any authenticated user needs to read it to populate dropdowns and views; only admins should create/update/delete entries.
+
+**Reversible by:**
+```sql
+alter table public.subject_topics disable row level security;
+```
+
 ---
 
 ## Access matrix
@@ -183,6 +198,7 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `announcements`        | no   | by audience      | by audience             | by audience                    | all   |
 | `notifications`        | no   | own (R+U-read)   | own (R+U-read)          | own (R+U-read)                 | all   |
 | `tutor_availability`   | no   | no (RLS)\*\*     | no (RLS)\*\*            | own                            | all   |
+| `subject_topics`       | no   | all              | all                     | all                            | all   |
 
 \* `homework_assignments` UPDATE by student is row-restricted but **not** column-restricted — see Known caveats.
 \*\* student/parent portals read this via server-side Drizzle (bypasses RLS); not a real restriction in practice.
@@ -206,6 +222,7 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `announcements`        | —                    | —      | —                              | all   |
 | `notifications`        | UPDATE own (read_at) | —      | —                              | all   |
 | `tutor_availability`   | —                    | —      | INSERT/UPDATE/DELETE own       | all   |
+| `subject_topics`       | —                    | —      | —                              | all   |
 
 ---
 
