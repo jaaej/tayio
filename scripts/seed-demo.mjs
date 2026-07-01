@@ -222,6 +222,40 @@ for (const s of SUBJECTS) {
 }
 
 // ----------------------------------------------------------------------------
+// 2.2. Subject topics — 4 canonical topics per subject; weeks reference these.
+// ----------------------------------------------------------------------------
+
+const SUBJECT_TOPICS_MAP = {
+  "Year 9 Maths":         ["Algebra", "Geometry", "Statistics", "Number & Probability"],
+  "Year 9 English":       ["Analytical Writing", "Literature", "Persuasive Writing", "Language & Vocabulary"],
+  "Year 10 Maths":        ["Algebra & Functions", "Trigonometry", "Statistics & Probability", "Measurement"],
+  "Year 11 Methods":      ["Functions & Calculus", "Algebra", "Probability & Statistics", "Exponentials & Logs"],
+  "VCE Maths Methods":    ["Calculus", "Functions & Algebra", "Probability & Statistics", "Exam Preparation"],
+  "VCE Specialist Maths": ["Complex Numbers & Vectors", "Mechanics & Dynamics", "Differential Equations", "Proofs & Advanced Topics"],
+  "VCE Physics":          ["Motion & Forces", "Waves & Optics", "Electromagnetism", "Exam Preparation"],
+  "VCE Chemistry":        ["Organic Chemistry", "Chemical Equilibria", "Electrochemistry", "Exam Preparation"],
+  "VCE Biology":          ["Cellular Processes", "Genetics & Evolution", "Physiology", "Exam Preparation"],
+  "VCE English":          ["Text Analysis", "Comparative Study", "Persuasive Language", "Creative Writing"],
+};
+
+console.log("→ Upserting subject topics");
+const subjectTopicIds = {}; // { subjectName -> [id, id, ...] }
+for (const s of SUBJECTS) {
+  const sid = subjectIds[s.name];
+  const topicNames = SUBJECT_TOPICS_MAP[s.name] ?? ["Theory", "Application", "Review", "Exam Prep"];
+  subjectTopicIds[s.name] = [];
+  for (let pos = 0; pos < topicNames.length; pos++) {
+    const [row] = await sql`
+      insert into subject_topics (id, subject_id, name, position)
+      values (${randomUUID()}, ${sid}, ${topicNames[pos]}, ${pos + 1})
+      on conflict (subject_id, name) do update set position = excluded.position
+      returning id
+    `;
+    subjectTopicIds[s.name].push(row.id);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // 2.5. Curriculum scaffold — one term covering the lesson window, plus
 //      10 weekly placeholder subject_weeks per subject so the subject
 //      weekly page renders real content instead of "Curriculum coming soon".
@@ -280,9 +314,12 @@ for (const s of SUBJECTS) {
       "VCE English": ["text analysis", "comparative essay", "language analysis", "creative writing", "argument analysis", "context", "revision", "mock 1", "mock 2", "exam prep"],
     }[s.name] ?? FALLBACK_TOPICS;
 
+  const topicIds = subjectTopicIds[s.name] ?? [];
   for (let wk = 1; wk <= TERM_WEEKS; wk++) {
     const title = subjectTopics[(wk - 1) % subjectTopics.length];
     const description = `Week ${wk} · ${title}`;
+    // Round-robin across the 4 canonical topics for this subject
+    const topicId = topicIds.length > 0 ? topicIds[(wk - 1) % topicIds.length] : null;
     // Dedupe by (subject, term, weekNumber)
     const [existing] = await sql`
       select id from subject_weeks
@@ -291,12 +328,12 @@ for (const s of SUBJECTS) {
     `;
     let id;
     if (existing) {
-      await sql`update subject_weeks set title = ${title}, description = ${description}, updated_at = now() where id = ${existing.id}`;
+      await sql`update subject_weeks set title = ${title}, description = ${description}, topic_id = ${topicId}, updated_at = now() where id = ${existing.id}`;
       id = existing.id;
     } else {
       const [row] = await sql`
-        insert into subject_weeks (id, subject_id, term_id, week_number, title, description)
-        values (${randomUUID()}, ${sid}, ${termId}, ${wk}, ${title}, ${description})
+        insert into subject_weeks (id, subject_id, term_id, week_number, title, description, topic_id)
+        values (${randomUUID()}, ${sid}, ${termId}, ${wk}, ${title}, ${description}, ${topicId})
         returning id
       `;
       id = row.id;
@@ -1002,6 +1039,7 @@ for (const t of [
   "profiles",
   "family_links",
   "subjects",
+  "subject_topics",
   "terms",
   "subject_weeks",
   "classes",
