@@ -527,6 +527,42 @@ export const subjectWeeks = pgTable(
   ],
 );
 
+export const tutorWeekSections = pgTable(
+  "tutor_week_sections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tutorId: uuid("tutor_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    subjectWeekId: uuid("subject_week_id")
+      .notNull()
+      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("tutor_week_sections_tutor_week_idx").on(t.tutorId, t.subjectWeekId),
+    index("tutor_week_sections_week_idx").on(t.subjectWeekId),
+  ],
+);
+
+export const tutorWeekAttachments = pgTable(
+  "tutor_week_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => tutorWeekSections.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    contentType: text("content_type"),
+    sizeBytes: integer("size_bytes"),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tutor_week_attachments_section_idx").on(t.sectionId)],
+);
+
 export const classWeekOverrides = pgTable(
   "class_week_overrides",
   {
@@ -568,6 +604,8 @@ export const studentWeekProgress = pgTable(
 export type Term = typeof terms.$inferSelect;
 export type SubjectTopic = typeof subjectTopics.$inferSelect;
 export type SubjectWeek = typeof subjectWeeks.$inferSelect;
+export type TutorWeekSection = typeof tutorWeekSections.$inferSelect;
+export type TutorWeekAttachment = typeof tutorWeekAttachments.$inferSelect;
 export type ClassWeekOverride = typeof classWeekOverrides.$inferSelect;
 export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
 

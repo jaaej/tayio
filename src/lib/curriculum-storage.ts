@@ -50,3 +50,40 @@ export async function uploadCurriculumFile(
   if (error) return { ok: false, error: error.message };
   return { ok: true, path };
 }
+
+export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+export const ATTACHMENT_MIMES = [
+  "application/pdf",
+  "image/png", "image/jpeg", "image/gif", "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+];
+
+export async function uploadTutorAttachment(
+  sectionId: string,
+  fileId: string,
+  file: File,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  if (file.size > ATTACHMENT_MAX_BYTES) {
+    return { ok: false, error: "File exceeds max size (25 MB)" };
+  }
+  if (!ATTACHMENT_MIMES.includes(file.type)) {
+    return { ok: false, error: `Unsupported file type: ${file.type}` };
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+  const path = `tutor-sections/${sectionId}/${fileId}.${ext}`;
+  const supabase = await createClient();
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, path };
+}
+
+export async function removeCurriculumObject(path: string): Promise<void> {
+  const supabase = await createClient();
+  await supabase.storage.from(BUCKET).remove([path]);
+}
