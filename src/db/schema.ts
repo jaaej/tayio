@@ -483,6 +483,24 @@ export const terms = pgTable(
   (t) => [uniqueIndex("terms_year_term_idx").on(t.year, t.termNumber)],
 );
 
+export const subjectTopics = pgTable(
+  "subject_topics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subject_topics_subject_name_idx").on(t.subjectId, t.name),
+    index("subject_topics_subject_idx").on(t.subjectId),
+  ],
+);
+
 export const subjectWeeks = pgTable(
   "subject_weeks",
   {
@@ -493,6 +511,7 @@ export const subjectWeeks = pgTable(
     termId: uuid("term_id")
       .notNull()
       .references(() => terms.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id").references(() => subjectTopics.id, { onDelete: "set null" }),
     weekNumber: integer("week_number").notNull(),
     title: text("title").notNull(),
     description: text("description"),
@@ -547,6 +566,7 @@ export const studentWeekProgress = pgTable(
 );
 
 export type Term = typeof terms.$inferSelect;
+export type SubjectTopic = typeof subjectTopics.$inferSelect;
 export type SubjectWeek = typeof subjectWeeks.$inferSelect;
 export type ClassWeekOverride = typeof classWeekOverrides.$inferSelect;
 export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
