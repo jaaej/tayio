@@ -16,11 +16,15 @@ import {
   homeworkStatusEnum,
   lessonNotes,
   lessons,
+  subjectWeeks,
   tutorAvailability,
+  tutorWeekAttachments,
+  tutorWeekSections,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
-import { uploadCurriculumFile } from "@/lib/curriculum-storage";
+import { uploadCurriculumFile, uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
+import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
 const HOMEWORK_BUCKET = "homework-attachments";
@@ -580,4 +584,106 @@ export async function uploadTutorOverrideBooklet(
     });
   revalidatePath(`/tutor/classes/${classId}/curriculum`);
   return { ok: true as const, path: res.path };
+}
+
+// --- Tutor week section note + attachments ----------------------------------
+
+async function tutorTeachesSubjectWeek(tutorId: string, subjectWeekId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: classes.id })
+    .from(subjectWeeks)
+    .innerJoin(
+      classes,
+      and(eq(classes.subjectId, subjectWeeks.subjectId), eq(classes.tutorId, tutorId)),
+    )
+    .where(eq(subjectWeeks.id, subjectWeekId))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function ensureTutorSection(tutorId: string, subjectWeekId: string): Promise<string> {
+  const [existing] = await db
+    .select({ id: tutorWeekSections.id })
+    .from(tutorWeekSections)
+    .where(and(eq(tutorWeekSections.tutorId, tutorId), eq(tutorWeekSections.subjectWeekId, subjectWeekId)))
+    .limit(1);
+  if (existing) return existing.id;
+  const [row] = await db
+    .insert(tutorWeekSections)
+    .values({ tutorId, subjectWeekId })
+    .returning({ id: tutorWeekSections.id });
+  return row.id;
+}
+
+const tutorNoteSchema = z.object({
+  classId: z.string().uuid(),
+  subjectWeekId: z.string().uuid(),
+  note: z.string().max(5000).optional(),
+});
+
+export async function upsertTutorWeekNote(formData: FormData) {
+  const user = await requireRole("tutor");
+  const parsed = tutorNoteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  if (!(await tutorTeachesSubjectWeek(user.id, parsed.data.subjectWeekId))) {
+    return { ok: false as const, error: "Not your subject" };
+  }
+  const note = parsed.data.note?.trim() || null;
+  await db
+    .insert(tutorWeekSections)
+    .values({ tutorId: user.id, subjectWeekId: parsed.data.subjectWeekId, note })
+    .onConflictDoUpdate({
+      target: [tutorWeekSections.tutorId, tutorWeekSections.subjectWeekId],
+      set: { note, updatedAt: new Date() },
+    });
+  revalidatePath(`/tutor/classes/${parsed.data.classId}/curriculum`);
+  return { ok: true as const };
+}
+
+const attachmentMetaSchema = z.object({
+  classId: z.string().uuid(),
+  subjectWeekId: z.string().uuid(),
+});
+
+export async function addTutorWeekAttachment(formData: FormData) {
+  const user = await requireRole("tutor");
+  const parsed = attachmentMetaSchema.safeParse({
+    classId: formData.get("classId"),
+    subjectWeekId: formData.get("subjectWeekId"),
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false as const, error: "No file provided" };
+  }
+  if (!(await tutorTeachesSubjectWeek(user.id, parsed.data.subjectWeekId))) {
+    return { ok: false as const, error: "Not your subject" };
+  }
+  const sectionId = await ensureTutorSection(user.id, parsed.data.subjectWeekId);
+  const up = await uploadTutorAttachment(sectionId, randomUUID(), file);
+  if (!up.ok) return { ok: false as const, error: up.error };
+  await db.insert(tutorWeekAttachments).values({
+    sectionId,
+    fileName: file.name,
+    storagePath: up.path,
+    contentType: file.type || null,
+    sizeBytes: file.size,
+  });
+  revalidatePath(`/tutor/classes/${parsed.data.classId}/curriculum`);
+  return { ok: true as const };
+}
+
+export async function removeTutorWeekAttachment(attachmentId: string, classId: string) {
+  const user = await requireRole("tutor");
+  const [row] = await db
+    .select({ path: tutorWeekAttachments.storagePath, tutorId: tutorWeekSections.tutorId })
+    .from(tutorWeekAttachments)
+    .innerJoin(tutorWeekSections, eq(tutorWeekSections.id, tutorWeekAttachments.sectionId))
+    .where(eq(tutorWeekAttachments.id, attachmentId))
+    .limit(1);
+  if (!row || row.tutorId !== user.id) return { ok: false as const, error: "Not found" };
+  await db.delete(tutorWeekAttachments).where(eq(tutorWeekAttachments.id, attachmentId));
+  await removeCurriculumObject(row.path);
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const };
 }
