@@ -263,6 +263,22 @@ create policy tutor_week_attachments_select_authenticated on public.tutor_week_a
 
 **Reversible by:** `alter table public.<t> disable row level security;` for each of the 8 tables, plus `drop function if exists public.is_dm_participant(uuid);`.
 
+### 0013 — `profiles.role` update lock
+
+**File:** `supabase/migrations/0013_profiles_role_lock.sql`
+**Status:** Applied 2026-07-02. Verified via JWT impersonation (4/4: self-promote blocked, non-role field updates while role pinned, admin can change, postgres/server bypasses).
+**Risk:** Low. Adds a `BEFORE UPDATE` trigger + function; no schema or data change.
+
+**What it does:** Closes checklist A8 / Known caveat §1. `profiles_update_own` (from 0004) lets a user UPDATE any column on their own row, including `role`. This adds `public.enforce_profiles_role_lock()` (`SECURITY INVOKER`, pinned `search_path`) + a `BEFORE UPDATE` trigger that silently reverts `role` to its OLD value unless the caller is an admin (`is_admin()`) or a trusted server context (`current_user not in ('authenticated','anon')` → postgres/service_role). Mirrors the silent-revert pattern of 0007.
+
+**Why it matters:** the authoritative role lives in `auth.users.app_metadata` (server-only) and every policy reads role from `auth.jwt()`, so a self-set `profiles.role` grants no access *today*. This pins the display column too, so any future code path that trusts `profiles.role` for authz can't become a privilege-escalation vector.
+
+**Reversible by:**
+```sql
+drop trigger if exists profiles_role_lock on public.profiles;
+drop function if exists public.enforce_profiles_role_lock;
+```
+
 ---
 
 ## Access matrix
