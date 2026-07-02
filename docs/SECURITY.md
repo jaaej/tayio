@@ -287,7 +287,7 @@ drop function if exists public.enforce_profiles_role_lock;
 
 **What it does:** Backend rate limiting (checklist B3 / C4). Adds `public.rate_limits (bucket, identifier, window_started_at, count)` and `public.check_rate_limit(bucket, identifier, max, window_seconds) returns boolean` — an atomic fixed-window counter (upsert with a CASE that resets once the window elapses; all SET expressions see the pre-update row so window/count stay consistent). Postgres-backed so it works across serverless instances.
 
-**Access:** RLS enabled with an explicit deny-all policy (`rate_limits_no_client_access`, `using(false)`) plus `revoke all` from anon/authenticated — unreachable via the client SDK. Only the postgres role (Drizzle) and the `SECURITY DEFINER` function touch it. Consumed server-side by `src/lib/rate-limit.ts` (login action, DM send, discussion thread/reply).
+**Access:** RLS enabled with an explicit deny-all policy (`rate_limits_no_client_access`, `using(false)`) plus `revoke all` from anon/authenticated — unreachable via the client SDK. `EXECUTE` on `check_rate_limit` is **revoked from public/anon/authenticated** too: because the function increments the counter, a granted client could call it with a victim's identifier to lock them out (broken access control / DoS). Only the owner (postgres role, used by Drizzle) executes it. Consumed server-side by `src/lib/rate-limit.ts` (login action, DM send, discussion thread/reply).
 
 **Reversible by:**
 ```sql

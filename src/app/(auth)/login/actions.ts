@@ -45,8 +45,12 @@ export async function loginAction(
     (data.user?.app_metadata?.role as string | undefined) ??
     (data.user?.user_metadata?.role as string | undefined);
 
-  // Open-redirect guard: only same-origin relative paths.
-  const safeNext =
-    next.startsWith("/") && !next.startsWith("//") ? next : null;
-  redirect(safeNext ?? (role ? `/${role}` : "/"));
+  // Open-redirect guard: allow only same-origin absolute paths. First char must
+  // be "/" and the second must NOT be "/" or "\" — this rejects protocol-
+  // relative ("//host") and backslash ("/\host") forms that browsers normalize
+  // to another origin. Also reject any control characters (browsers strip
+  // \t\r\n from URLs, which could smuggle a "//").
+  const isSafeNext =
+    /^\/[^/\\]/.test(next) && !/[\x00-\x1f\x7f]/.test(next);
+  redirect((isSafeNext ? next : null) ?? (role ? `/${role}` : "/"));
 }

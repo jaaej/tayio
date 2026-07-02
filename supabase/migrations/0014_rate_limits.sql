@@ -72,7 +72,12 @@ $$;
 comment on function public.check_rate_limit is
   'Atomic fixed-window rate limiter. Increments (bucket, identifier) and returns true while count <= p_max within p_window_seconds; resets the window once elapsed. Called server-side via the postgres role.';
 
-revoke all on function public.check_rate_limit(text, text, integer, integer) from public;
-grant execute on function public.check_rate_limit(text, text, integer, integer) to authenticated;
+-- Callable only by the owner (postgres role — used by Drizzle server-side).
+-- Do NOT grant execute to authenticated/anon: the function INCREMENTS the
+-- counter, so a logged-in user could call it with someone else's identifier
+-- (e.g. bucket='login_email', a victim's email) to fill their bucket and lock
+-- them out — broken access control / DoS. The app never calls it via a JWT.
+revoke all on function public.check_rate_limit(text, text, integer, integer)
+  from public, anon, authenticated;
 
 commit;
