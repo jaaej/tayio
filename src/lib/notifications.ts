@@ -1,3 +1,4 @@
+import "server-only";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notifications } from "@/db/schema";
