@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { canDM, getUserRole } from "@/lib/dm-permissions";
+import { rateLimit } from "@/lib/rate-limit";
 
 const BODY_MAX = 4000;
 
@@ -35,6 +36,17 @@ export async function sendMessage(formData: FormData) {
   });
 
   const user = await requireRole(parsed.rolePrefix);
+
+  if (
+    !(await rateLimit({
+      bucket: "dm_send",
+      identifier: user.id,
+      max: 30,
+      windowSeconds: 60,
+    }))
+  ) {
+    throw new Error("You're sending messages too quickly. Please slow down.");
+  }
 
   const threadRow = await db
     .select({

@@ -609,6 +609,22 @@ export const lessonsRelations = relations(lessons, ({ one, many }) => ({
   attendance: many(attendance),
 }));
 
+// Backend rate limiting (migration 0014). Written/read only server-side via
+// the postgres role and the check_rate_limit() function; RLS-locked with no
+// policies. Table def kept here for schema discipline; not queried via the ORM.
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    bucket: text("bucket").notNull(),
+    identifier: text("identifier").notNull(),
+    windowStartedAt: timestamp("window_started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.bucket, t.identifier] })],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Homework = typeof homework.$inferSelect;

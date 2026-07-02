@@ -11,6 +11,7 @@ import {
   notifications,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { canSeeBoard } from "@/lib/discussions-queries";
 import {
   resolveBoardId,
@@ -49,6 +50,18 @@ export async function createThread(formData: FormData) {
   });
 
   const user = await requireRole(parsed.rolePrefix);
+
+  if (
+    !(await rateLimit({
+      bucket: "discussion_thread",
+      identifier: user.id,
+      max: 10,
+      windowSeconds: 60,
+    }))
+  ) {
+    throw new Error("You're posting too quickly. Please slow down.");
+  }
+
   const board = resolveBoardId(parsed.boardSegment);
   if (!board) throw new Error("Invalid board");
 
@@ -86,6 +99,17 @@ export async function postReply(formData: FormData) {
   });
 
   const user = await requireRole(parsed.rolePrefix);
+
+  if (
+    !(await rateLimit({
+      bucket: "discussion_reply",
+      identifier: user.id,
+      max: 30,
+      windowSeconds: 60,
+    }))
+  ) {
+    throw new Error("You're posting too quickly. Please slow down.");
+  }
 
   const threadRow = await db
     .select({
