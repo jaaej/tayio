@@ -38,10 +38,10 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
 | B1 | Role lives in `app_metadata` (server-only), not `user_metadata` | ✓ | P0 | Migration 0002 |
-| B2 | Auth code reads `app_metadata.role` first | ✓ | P0 | Commit 124bfb7 |
+| B2 | Auth code reads `app_metadata.role` **only** | ✓ | P0 | **Hardened 2026-07-02 (OWASP A07).** Removed the `?? user_metadata?.role` fallback everywhere (`lib/auth.ts`, `middleware.ts` ×2, `login/actions.ts`, homework-submit API route). `user_metadata` is user-mutable via `supabase.auth.updateUser()`, so trusting it (even as fallback) was a latent privilege-escalation path. Verified all 23 users have `app_metadata.role` (0 would break). Dead `signup/form.tsx` (client `signUp` writing role to `user_metadata`) deleted |
 | B3 | Rate limiting on `/login` (brute-force protection) | ✓ | P0 | **Implemented + verified 2026-07-02.** Login moved from client-side `signInWithPassword` to a server action (`src/app/(auth)/login/actions.ts`) wrapped in a Postgres-backed rate limiter (migration 0014, `check_rate_limit`): 20/5min per IP + 5/15min per email. Limiter function verified (fixed-window + reset PASS); login flow (server-side sign-in + cookie + redirect) verified in dev browser. Free-tier; no Pro Auth Hooks needed. Deploy note: per-IP limit assumes a trusted proxy (Vercel) — see `rate-limit.ts` trust boundary; per-email limit is IP-independent |
 | B4 | Account lockout after N failed attempts | ⚠ | P1 | Partially addressed by B3's per-email limit (5 fails / 15 min throttles that account). Not a persistent lockout; revisit if needed |
-| B5 | Password complexity requirements | ☐ | P1 | Supabase dashboard → Auth → Policies |
+| B5 | Password complexity requirements | ⚠ | P1 | Code-side minimums aligned 2026-07-02: admin-created passwords `min(8)` (was 6), reset flow already `min(8)`. Full complexity policy (length/charset/breach-check) is a Supabase dashboard setting — Auth → Policies (still to configure) |
 | B6 | Email verification loop enforced on signup | ☐ | P0 | Currently seed scripts pass `email_confirm: true`; real signup flow must require verification |
 | B7 | Password reset flow tested end-to-end | ⚠ | P0 | Pages built 2026-05-27: `/forgot-password` (email entry) and `/reset-password` (new password form). Wired via existing `/auth/callback` exchange. **Dev test still pending: click through end-to-end with a seed account on built-in SMTP.** For production SMTP setup see K6 |
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
@@ -58,7 +58,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | C3 | XSS protection on user-generated content (lesson notes, feedback) | ✓ | P0 | Audited 2026-05-27 — no raw HTML rendering of user input found in any portal page. React's default escape covers everything |
 | C4 | Rate limiting on write endpoints (homework submit, feedback post) | ✓ | P1 | **2026-07-02.** `src/lib/rate-limit.ts` (`rateLimit`, fails open) over migration 0014. Applied to the abuse-prone public writes: DM send (30/min/user), discussion thread (10/min), discussion reply (30/min) — all keyed by user id, generous enough to never hit normal use. Reusable helper for any other action |
 | C5 | Service role key NEVER returned in any API response | ✓ | P0 | Audited 2026-05-27 — `createAdminClient()` is only ever instantiated server-side (in `_actions/*` and `_lib/*` files), never returned to the client. Service key is in `.env.local` only, server-read only |
-| C6 | Service role used only when RLS-bypass is genuinely required | ⚠ | P0 | Audited 2026-05-27. Drizzle `db` (postgres role, bypasses RLS) is used for ALL server-side reads + writes — by design for the current architecture. `createAdminClient()` (true service-role) used only in `actions-users.ts` for auth.users mutations (creating/updating/banning users), which genuinely require it. No abuse. Open follow-up: switch some reads to the user's JWT session so RLS would defend against bugs in server code — but that's a significant refactor |
+| C6 | Service role used only when RLS-bypass is genuinely required | ✓ | P0 | **Re-audited 2026-07-02 (OWASP A01 + server-action review).** `createAdminClient()` (true service-role) used only in `actions-users.ts` for auth.users CRUD (genuinely required); `server-only`-guarded. Drizzle `db` (postgres role, bypasses RLS) is the deliberate architecture — **app-layer `requireRole` + ownership checks are the primary control and were verified present on every server action** (K3 review: no broken-access-control findings). RLS is defense-in-depth. Optional future (Option B): run reads under user JWT so RLS also enforces — significant refactor, not required given verified app-layer gating |
 | C7 | No dynamic code-evaluation primitives or string-concatenated SQL | ✓ | P0 | Audited 2026-05-27 — no `eval`, `new Function`, or string-concat SQL anywhere. Drizzle parameterises every query. `scripts/apply-sql.mjs` uses `sql.unsafe()` but only on trusted migration files |
 
 ## D. Secrets / Configuration
@@ -68,7 +68,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | D1 | `.env.local` in `.gitignore` | ✓ | P0 | `.gitignore` has `.env*`; no `.env` files tracked. Verified 2026-05-27 |
 | D2 | No secrets in git history | ✓ | P0 | Verified 2026-05-27 — scanned for service role JWTs, `SUPABASE_SERVICE_ROLE_KEY=`, private key blocks. Zero hits |
 | D3 | Vercel production env vars set separately from dev | ☐ | P0 | When deploying |
-| D4 | Anon key vs service role key — usage audited | ☐ | P0 | Anon: client SDK only. Service: server-only, never imported into a client component |
+| D4 | Anon key vs service role key — usage audited | ✓ | P0 | **Audited 2026-07-02 (J4/J5 + OWASP).** Anon key: client SDK + server SSR clients only. Service-role key: only in `supabase-admin.ts`, `server-only`-guarded, never in a `"use client"` file (verified 0 client `process.env` refs). No secret reaches the browser bundle |
 | D5 | Supabase JWT secret rotated from any default / pre-shared value | ☐ | P1 | Supabase dashboard |
 | D6 | Service role key rotation procedure documented | ☐ | P1 | When you'd rotate, how to rotate, what breaks |
 
@@ -100,9 +100,9 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| G1 | Audit logs for admin actions | ⚠ | P0 | Migration 0006 applied. Triggers on `profiles`, `family_links`, `classes`, `enrollments`, `invoices`, `announcements`. Caveat: server-context mutations (Drizzle via postgres role) log with `actor_id = NULL`. To get reliable actor capture, server actions must set JWT claims before mutating |
+| G1 | Audit logs for admin actions | ✓ | P0 | Migration 0006 (triggers on `profiles`, `family_links`, `classes`, `enrollments`, `invoices`, `announcements`). **Actor capture closed 2026-07-02:** `src/lib/with-actor.ts` `withActor()` sets `request.jwt.claims` transaction-locally so the SECURITY DEFINER trigger records the acting admin. Applied to every audited admin mutation (announcements, classes, enrollments, invoices, profiles updates, family links). Verified: with `withActor` → `actor_id` + `actor_role` populated; control without → NULL. Note: `createUser`'s profile row is inserted by the `handle_new_auth_user` trigger (auth context), so that one INSERT still logs NULL actor — the subsequent `updateUser`/role changes are attributed |
 | G2 | Failed login attempt logging | ☐ | P1 | Supabase logs this; surface it |
-| G3 | Sensitive-action logging (data export, account changes, role changes) | ⚠ | P0 | Covered by G1 — every INSERT/UPDATE/DELETE on the six watched tables is logged with old + new JSONB. Same actor-capture caveat as G1 |
+| G3 | Sensitive-action logging (data export, account changes, role changes) | ✓ | P0 | Covered by G1 — every INSERT/UPDATE/DELETE on the six watched tables is logged with old + new JSONB and now an attributed actor (via `withActor`). **Admin-DM-read logging (safeguarding) deferred — no in-app path yet:** `getThreadForMe` scopes the admin messages UI to threads the admin participates in; RLS (0012) permits admin read of all DMs but nothing surfaces non-participant conversations. When a safeguarding-oversight view is built, instrument it with an audit READ row + report/reason gate |
 | G4 | Error monitoring (Sentry / similar) | ☐ | P1 | Catches unexpected failures including security ones |
 | G5 | Alerting on RLS-denial spikes (possible enumeration attack) | ☐ | P2 | Future; requires log aggregation |
 | G6 | Postgres query log retention policy | ☐ | P1 | Supabase default; document |
@@ -127,19 +127,19 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 |---|---|---|---|---|
 | I1 | Supabase point-in-time recovery enabled | ☐ | P0 | Paid tier feature; verify on production |
 | I2 | Backup restore actually tested at least once | ☐ | P1 | Untested backups are wishes |
-| I3 | Incident response runbook | ☐ | P1 | What to do when X happens |
-| I4 | Service role key compromise procedure | ☐ | P0 | Must include: rotate key, audit logs, notify users |
-| I5 | Admin account compromise procedure | ☐ | P1 | Lock admin, audit recent admin actions, restore from backup if needed |
-| I6 | Migration rollback procedure | ⚠ | P1 | Partly in SECURITY.md (per-migration "reversible by" sections); needs a single runbook |
+| I3 | Incident response runbook | ✓ | P1 | **`docs/runbooks.md` §I3** — triage/contain/assess/eradicate/recover/notify, incl. minors breach-notification duties (Privacy Act NDB + Reportable Conduct) |
+| I4 | Service role key compromise procedure | ✓ | P0 | **`docs/runbooks.md` §I4** — rotate in Supabase, update `.env.local`+Vercel+redeploy, assess exposure window via audit_logs, git-history note |
+| I5 | Admin account compromise procedure | ✓ | P1 | **`docs/runbooks.md` §I5** — ban + revoke sessions, audit `actor_id` actions, reverse via `old_data`, check planted persistence |
+| I6 | Migration rollback procedure | ✓ | P1 | **`docs/runbooks.md` §I6** — stop dev server, apply per-migration "Reversible by" via `apply-sql.mjs`, re-run `db:check-rls`; never `db:push`; PITR for data |
 | I7 | Production Supabase project separate from dev | ☐ | P0 | If it isn't already — verify |
 
 ## J. Code / Dependency Security
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| J1 | `npm audit` clean | ☐ | P1 | Run `npm audit` regularly; fix high/critical |
+| J1 | `npm audit` clean | ⚠ | P1 | **Triaged 2026-07-02.** 6 moderate, all transitive/dev: `esbuild` via `@esbuild-kit` → `drizzle-kit` (devDependency, not shipped) and `postcss` bundled inside `next`. Both "fixes" are breaking downgrades (`npm audit fix --force` wants `next@9.3.3`) — rejected. Neither processes untrusted input at runtime. Revisit on Next / drizzle-kit upgrade; do NOT force-downgrade |
 | J2 | Dependabot or Renovate enabled | ✓ | P1 | `.github/dependabot.yml` — weekly npm checks, PRs grouped by stack (Next, Supabase, Drizzle). Auto-activates on push to GitHub |
-| J3 | No `sql.unsafe()` / Drizzle raw SQL without parameterisation | ⚠ | P0 | `scripts/apply-sql.mjs` uses it (migrations only, trusted input) — audit any other usage |
+| J3 | No `sql.unsafe()` / Drizzle raw SQL without parameterisation | ✓ | P0 | **Re-audited 2026-07-02 (OWASP A03).** Only `scripts/apply-sql.mjs` uses `sql.unsafe` (trusted migration files). All app queries use the Drizzle builder or parameterised tagged `sql\`\`` templates (incl. `rate-limit.ts`, ranking queries). No string-concatenated SQL, no `sql.raw` in app code |
 | J4 | `"server-only"` import on all server-side modules with secrets | ✓ | P0 | **Closed 2026-07-02.** Full audit. Added `import "server-only"` to the 7 unguarded plain modules — critically `src/db/client.ts` (DATABASE_URL) and `src/app/admin/_lib/supabase-admin.ts` (service-role key), plus `lib/notifications.ts`, `lib/curriculum.ts`, and the three per-subject `_queries.ts`. `"use server"` action files are inherently server-only; page/route files are server-only in the App Router |
 | J5 | No `process.env.X` access in client components | ✓ | P0 | **Verified 2026-07-02.** Audited all 47 `"use client"` files — zero `process.env` references (public or otherwise). Only non-`NEXT_PUBLIC_*` env reads are in server modules (`db/client.ts`, `supabase-admin.ts`), now `server-only`-guarded (J4) |
 
@@ -147,11 +147,11 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| K1 | OWASP Top 10 self-audit | ☐ | P0 | Walk the list against this codebase |
+| K1 | OWASP Top 10 self-audit | ✓ | P0 | **Done 2026-07-02.** Full A01–A10 pass. No injection/XSS/SSRF/deserialization issues. Findings fixed: A07 user_metadata role fallback (B2), A01 open redirect in `auth/callback` + login (guarded), A09 audit actor capture (G1/G3 via `withActor`), A02 admin password min 6→8, A04 dead signup footgun removed. Residual (accepted/documented): A05 `script-src 'unsafe-inline'` (F3 — nonce not viable on static pages), login/createUser return raw Supabase error text (minor) |
 | K2 | Penetration test (or HackerOne-style bounty) | ☐ | P2 | Probably overkill for MVP, essential later |
-| K3 | Security review of all server actions before launch | ☐ | P0 | Pairs with C-section items |
+| K3 | Security review of all server actions before launch | ✓ | P0 | **Done 2026-07-02.** Audited every `"use server"` action + the one API route for broken access control. Result: no CRITICAL/IDOR — every ID-taking action has an ownership/scope check (`assertOwns*`, `assertTeaches*`, `canSeeBoard`, `canDM`, thread-participant, `studentId = user.id`), every admin action gates `requireAdmin`. One finding fixed (homework-submit route read `user_metadata.role` first → now `app_metadata` only) |
 | K4 | Supabase project settings reviewed (URL allowlist, redirect URLs, JWT secret) | ☐ | P0 | One-time before launch |
-| K5 | All P0 items in this checklist resolved | ☐ | P0 | Gate for launch |
+| K5 | All P0 items in this checklist resolved | ☐ | P0 | Gate for launch. **All code-side P0s now resolved.** Remaining P0s are deploy/dashboard/legal only: E4 bucket flip, B6 email verification, D3/F1/F7/F8/I1/I7/K4/K6 deploy config, H1–H3 legal (privacy/ToS/parental consent) |
 | K6 | Configure production SMTP provider | ☐ | P0 | **Pre-launch must.** Supabase's built-in email service is limited to 4 emails/hour and sends from `noreply@mail.app.supabase.io` (lands in spam, not branded). Required for: password reset (B7), email change, magic links if ever used. Set in Supabase dashboard → Project Settings → Auth → SMTP Settings. Recommended providers: Resend, AWS SES, SendGrid |
 
 ---
