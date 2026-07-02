@@ -11,8 +11,12 @@ const ROLE_HOME: Record<UserRole, string> = {
 
 const ROLE_PREFIXES = Object.values(ROLE_HOME);
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders: Headers,
+  csp: string,
+) {
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +28,16 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          // Forward refreshed cookies to Server Components on this same request
+          // (requestHeaders is what we pass through, not request.cookies).
+          requestHeaders.set(
+            "cookie",
+            request.cookies
+              .getAll()
+              .map((c) => `${c.name}=${c.value}`)
+              .join("; "),
+          );
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -71,5 +84,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // CSP on the rendered (passthrough) response. Redirects have no HTML body, so
+  // the nonce there is irrelevant — this is only reached for non-redirects.
+  response.headers.set("Content-Security-Policy", csp);
   return response;
 }
