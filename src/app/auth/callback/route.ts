@@ -11,5 +11,10 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  // Open-redirect guard: allow only same-origin absolute paths. Reject
+  // protocol-relative ("//host") / backslash ("/\host") forms and control
+  // chars that would resolve to another origin.
+  const safeNext =
+    /^\/[^/\\]/.test(next) && !/[\x00-\x1f\x7f]/.test(next) ? next : "/";
+  return NextResponse.redirect(new URL(safeNext, url.origin));
 }

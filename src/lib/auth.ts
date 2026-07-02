@@ -13,12 +13,11 @@ export async function getCurrentUser() {
 export async function requireRole(role: UserRole) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  // app_metadata first: it's server-only and the source of truth for role.
-  // user_metadata is user-mutable via supabase.auth.updateUser() and only
-  // kept as a fallback for any user that predates migration 0002's backfill.
-  const userRole = (user.app_metadata?.role ?? user.user_metadata?.role) as
-    | UserRole
-    | undefined;
+  // Role is read ONLY from app_metadata — it's server-only and the source of
+  // truth. user_metadata is user-mutable via supabase.auth.updateUser(), so it
+  // must never be trusted for authorization. Migration 0002 backfilled every
+  // user's app_metadata.role (verified 0 missing), so no fallback is needed.
+  const userRole = user.app_metadata?.role as UserRole | undefined;
   if (userRole !== role) redirect("/login");
   return user;
 }

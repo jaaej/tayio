@@ -41,9 +41,8 @@ export async function loginAction(
     return { error: error.message };
   }
 
-  const role =
-    (data.user?.app_metadata?.role as string | undefined) ??
-    (data.user?.user_metadata?.role as string | undefined);
+  // app_metadata only — user_metadata is user-mutable and must not gate access.
+  const role = data.user?.app_metadata?.role as string | undefined;
 
   // Open-redirect guard: allow only same-origin absolute paths. First char must
   // be "/" and the second must NOT be "/" or "\" — this rejects protocol-

@@ -19,9 +19,8 @@ export async function POST(
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL("/login", request.url), 303);
 
-  const role = (user.user_metadata?.role ?? user.app_metadata?.role) as
-    | string
-    | undefined;
+  // app_metadata only — user_metadata is user-mutable and must not gate access.
+  const role = user.app_metadata?.role as string | undefined;
   if (role !== "student") {
     return NextResponse.redirect(new URL("/login", request.url), 303);
   }

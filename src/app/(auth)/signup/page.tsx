@@ -2,12 +2,15 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
 
 // Public signup is disabled at the application layer. Accounts are created
-// by admin staff via scripts/seed-users.mjs (or the admin portal once that
-// flow exists). Belt-and-braces: the Supabase project also has email signups
-// disabled in Authentication → Providers → Email.
+// by admin staff via scripts/seed-users.mjs or the admin portal. Belt-and-
+// braces: the Supabase project also has email signups disabled in
+// Authentication → Providers → Email.
 //
-// To re-enable: restore the import of SignupForm from "./form" and put it
-// back into the page body.
+// The old client-side SignupForm was removed on purpose: it called
+// supabase.auth.signUp({ data: { role } }) from the browser, writing a
+// caller-chosen role into user-mutable user_metadata — a self-service
+// privilege-escalation path. Any future self-service signup MUST set role
+// server-side into app_metadata only (never trust a client-supplied role).
 
 export default function SignupPage() {
   return (
