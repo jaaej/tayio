@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { enrollments, profiles } from "@/db/schema";
 import { requireAdmin } from "./guard";
+import { withActor } from "@/lib/with-actor";
 
 const pair = z.object({
   classId: z.string().uuid(),
@@ -13,7 +14,7 @@ const pair = z.object({
 });
 
 export async function enrollStudent(input: z.infer<typeof pair>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = pair.parse(input);
 
   const [student] = await db
@@ -35,22 +36,24 @@ export async function enrollStudent(input: z.infer<typeof pair>) {
       ),
     );
 
-  if (existing.length > 0) {
-    await db
-      .update(enrollments)
-      .set({ withdrawnAt: null, enrolledAt: new Date() })
-      .where(
-        and(
-          eq(enrollments.classId, data.classId),
-          eq(enrollments.studentId, data.studentId),
-        ),
-      );
-  } else {
-    await db.insert(enrollments).values({
-      classId: data.classId,
-      studentId: data.studentId,
-    });
-  }
+  await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    if (existing.length > 0) {
+      await tx
+        .update(enrollments)
+        .set({ withdrawnAt: null, enrolledAt: new Date() })
+        .where(
+          and(
+            eq(enrollments.classId, data.classId),
+            eq(enrollments.studentId, data.studentId),
+          ),
+        );
+    } else {
+      await tx.insert(enrollments).values({
+        classId: data.classId,
+        studentId: data.studentId,
+      });
+    }
+  });
 
   revalidatePath("/admin/enrolments");
   revalidatePath("/admin/classes");
@@ -59,34 +62,38 @@ export async function enrollStudent(input: z.infer<typeof pair>) {
 }
 
 export async function withdrawStudent(input: z.infer<typeof pair>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = pair.parse(input);
-  await db
-    .update(enrollments)
-    .set({ withdrawnAt: new Date() })
-    .where(
-      and(
-        eq(enrollments.classId, data.classId),
-        eq(enrollments.studentId, data.studentId),
-        isNull(enrollments.withdrawnAt),
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(enrollments)
+      .set({ withdrawnAt: new Date() })
+      .where(
+        and(
+          eq(enrollments.classId, data.classId),
+          eq(enrollments.studentId, data.studentId),
+          isNull(enrollments.withdrawnAt),
+        ),
       ),
-    );
+  );
   revalidatePath("/admin/enrolments");
   revalidatePath(`/admin/classes/${data.classId}`);
   return { ok: true as const };
 }
 
 export async function removeEnrollment(input: z.infer<typeof pair>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = pair.parse(input);
-  await db
-    .delete(enrollments)
-    .where(
-      and(
-        eq(enrollments.classId, data.classId),
-        eq(enrollments.studentId, data.studentId),
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .delete(enrollments)
+      .where(
+        and(
+          eq(enrollments.classId, data.classId),
+          eq(enrollments.studentId, data.studentId),
+        ),
       ),
-    );
+  );
   revalidatePath("/admin/enrolments");
   return { ok: true as const };
 }

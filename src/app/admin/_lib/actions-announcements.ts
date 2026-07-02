@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { announcements } from "@/db/schema";
 import { requireAdmin } from "./guard";
+import { withActor } from "@/lib/with-actor";
 
 const roleEnum = z.enum(["student", "parent", "tutor", "admin"]);
 
@@ -26,24 +27,29 @@ export async function createAnnouncement(
 ) {
   const user = await requireAdmin();
   const data = createAnnouncementSchema.parse(input);
-  const [row] = await db
-    .insert(announcements)
-    .values({
-      authorId: user.id,
-      title: data.title,
-      body: data.body,
-      audienceRole: data.audienceRole || null,
-      audienceClassId: data.audienceClassId || null,
-    })
-    .returning({ id: announcements.id });
+  const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    const [r] = await tx
+      .insert(announcements)
+      .values({
+        authorId: user.id,
+        title: data.title,
+        body: data.body,
+        audienceRole: data.audienceRole || null,
+        audienceClassId: data.audienceClassId || null,
+      })
+      .returning({ id: announcements.id });
+    return r;
+  });
   revalidatePath("/admin/announcements");
   return { ok: true as const, id: row.id };
 }
 
 export async function deleteAnnouncement(id: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(id);
-  await db.delete(announcements).where(eq(announcements.id, id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx.delete(announcements).where(eq(announcements.id, id)),
+  );
   revalidatePath("/admin/announcements");
   return { ok: true as const };
 }

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, subjects } from "@/db/schema";
 import { requireAdmin } from "./guard";
+import { withActor } from "@/lib/with-actor";
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
@@ -44,23 +45,26 @@ const classSchema = z.object({
 });
 
 export async function createClass(input: z.infer<typeof classSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = classSchema.parse(input);
-  const [row] = await db
-    .insert(classes)
-    .values({
-      name: data.name,
-      subjectId: data.subjectId,
-      tutorId: data.tutorId,
-      capacity: data.capacity,
-      location: data.location || null,
-      onlineLink: data.onlineLink || null,
-      isRecurring: data.isRecurring,
-      weekday: data.weekday ?? null,
-      startTime: data.startTime || null,
-      endTime: data.endTime || null,
-    })
-    .returning({ id: classes.id });
+  const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    const [r] = await tx
+      .insert(classes)
+      .values({
+        name: data.name,
+        subjectId: data.subjectId,
+        tutorId: data.tutorId,
+        capacity: data.capacity,
+        location: data.location || null,
+        onlineLink: data.onlineLink || null,
+        isRecurring: data.isRecurring,
+        weekday: data.weekday ?? null,
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
+      })
+      .returning({ id: classes.id });
+    return r;
+  });
   revalidatePath("/admin/classes");
   revalidatePath("/admin/enrolments");
   revalidatePath("/admin");
@@ -70,32 +74,36 @@ export async function createClass(input: z.infer<typeof classSchema>) {
 const updateClassSchema = classSchema.extend({ id: z.string().uuid() });
 
 export async function updateClass(input: z.infer<typeof updateClassSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = updateClassSchema.parse(input);
-  await db
-    .update(classes)
-    .set({
-      name: data.name,
-      subjectId: data.subjectId,
-      tutorId: data.tutorId,
-      capacity: data.capacity,
-      location: data.location || null,
-      onlineLink: data.onlineLink || null,
-      isRecurring: data.isRecurring,
-      weekday: data.weekday ?? null,
-      startTime: data.startTime || null,
-      endTime: data.endTime || null,
-    })
-    .where(eq(classes.id, data.id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(classes)
+      .set({
+        name: data.name,
+        subjectId: data.subjectId,
+        tutorId: data.tutorId,
+        capacity: data.capacity,
+        location: data.location || null,
+        onlineLink: data.onlineLink || null,
+        isRecurring: data.isRecurring,
+        weekday: data.weekday ?? null,
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
+      })
+      .where(eq(classes.id, data.id)),
+  );
   revalidatePath("/admin/classes");
   revalidatePath("/admin/enrolments");
   return { ok: true as const };
 }
 
 export async function deleteClass(id: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(id);
-  await db.delete(classes).where(eq(classes.id, id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx.delete(classes).where(eq(classes.id, id)),
+  );
   revalidatePath("/admin/classes");
   revalidatePath("/admin/enrolments");
   return { ok: true as const };

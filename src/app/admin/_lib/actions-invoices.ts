@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invoices } from "@/db/schema";
 import { requireAdmin } from "./guard";
+import { withActor } from "@/lib/with-actor";
 
 const statusEnum = z.enum([
   "unpaid",
@@ -26,32 +27,37 @@ const createInvoiceSchema = z.object({
 });
 
 export async function createInvoice(input: z.infer<typeof createInvoiceSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = createInvoiceSchema.parse(input);
-  const [row] = await db
-    .insert(invoices)
-    .values({
-      parentId: data.parentId,
-      studentId: data.studentId || null,
-      amount: data.amount.toFixed(2),
-      currency: data.currency.toUpperCase(),
-      dueDate: data.dueDate,
-      description: data.description ?? null,
-      status: "unpaid",
-    })
-    .returning({ id: invoices.id });
+  const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    const [r] = await tx
+      .insert(invoices)
+      .values({
+        parentId: data.parentId,
+        studentId: data.studentId || null,
+        amount: data.amount.toFixed(2),
+        currency: data.currency.toUpperCase(),
+        dueDate: data.dueDate,
+        description: data.description ?? null,
+        status: "unpaid",
+      })
+      .returning({ id: invoices.id });
+    return r;
+  });
   revalidatePath("/admin/payments");
   revalidatePath("/admin");
   return { ok: true as const, id: row.id };
 }
 
 export async function markInvoicePaid(id: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(id);
-  await db
-    .update(invoices)
-    .set({ status: "paid", paidAt: new Date() })
-    .where(eq(invoices.id, id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(invoices)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(eq(invoices.id, id)),
+  );
   revalidatePath("/admin/payments");
   revalidatePath("/admin");
   return { ok: true as const };
@@ -61,16 +67,18 @@ export async function setInvoiceStatus(
   id: string,
   status: z.infer<typeof statusEnum>,
 ) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(id);
   statusEnum.parse(status);
-  await db
-    .update(invoices)
-    .set({
-      status,
-      paidAt: status === "paid" ? new Date() : null,
-    })
-    .where(eq(invoices.id, id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(invoices)
+      .set({
+        status,
+        paidAt: status === "paid" ? new Date() : null,
+      })
+      .where(eq(invoices.id, id)),
+  );
   revalidatePath("/admin/payments");
   return { ok: true as const };
 }

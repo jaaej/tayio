@@ -7,12 +7,13 @@ import { db } from "@/db/client";
 import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
+import { withActor } from "@/lib/with-actor";
 
 const roleEnum = z.enum(["student", "parent", "tutor", "admin"]);
 
 const createUserSchema = z.object({
   email: z.string().email().max(320),
-  password: z.string().min(6).max(128),
+  password: z.string().min(8).max(128),
   role: roleEnum,
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -79,21 +80,23 @@ const updateUserSchema = z.object({
 });
 
 export async function updateUser(input: z.infer<typeof updateUserSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = updateUserSchema.parse(input);
 
-  await db
-    .update(profiles)
-    .set({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone || null,
-      yearLevel: data.yearLevel || null,
-      school: data.school || null,
-      role: data.role,
-      updatedAt: new Date(),
-    })
-    .where(eq(profiles.id, data.id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(profiles)
+      .set({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone || null,
+        yearLevel: data.yearLevel || null,
+        school: data.school || null,
+        role: data.role,
+        updatedAt: new Date(),
+      })
+      .where(eq(profiles.id, data.id)),
+  );
 
   const admin = createAdminClient();
   await admin.auth.admin.updateUserById(data.id, {
@@ -109,13 +112,15 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
 }
 
 export async function setUserActive(id: string, isActive: boolean) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(id);
 
-  await db
-    .update(profiles)
-    .set({ isActive, updatedAt: new Date() })
-    .where(eq(profiles.id, id));
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(profiles)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(profiles.id, id)),
+  );
 
   const admin = createAdminClient();
   await admin.auth.admin.updateUserById(id, {
@@ -142,7 +147,7 @@ const familyLinkSchema = z.object({
 });
 
 export async function createFamilyLink(input: z.infer<typeof familyLinkSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = familyLinkSchema.parse(input);
 
   const [parent] = await db
@@ -161,29 +166,33 @@ export async function createFamilyLink(input: z.infer<typeof familyLinkSchema>) 
     return { ok: false as const, error: "Student account not found" };
   }
 
-  await db
-    .insert(familyLinks)
-    .values({
-      parentId: data.parentId,
-      studentId: data.studentId,
-      relationship: data.relationship,
-    })
-    .onConflictDoNothing();
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .insert(familyLinks)
+      .values({
+        parentId: data.parentId,
+        studentId: data.studentId,
+        relationship: data.relationship,
+      })
+      .onConflictDoNothing(),
+  );
 
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
 
 export async function removeFamilyLink(parentId: string, studentId: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
   z.string().uuid().parse(parentId);
   z.string().uuid().parse(studentId);
 
-  await db
-    .delete(familyLinks)
-    .where(
-      and(eq(familyLinks.parentId, parentId), eq(familyLinks.studentId, studentId)),
-    );
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .delete(familyLinks)
+      .where(
+        and(eq(familyLinks.parentId, parentId), eq(familyLinks.studentId, studentId)),
+      ),
+  );
 
   revalidatePath("/admin/users");
   return { ok: true as const };
