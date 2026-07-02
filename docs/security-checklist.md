@@ -28,7 +28,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | A5 | Storage policies for homework attachments | ☐ | P1 | Bucket not created yet; ~15 min once it is |
 | A6 | Storage policies for resource library (admin/tutor uploads) | ☐ | P1 | Bucket not created yet |
 | A7 | Storage policies for profile photos | ☐ | P2 | Feature not built |
-| A8 | Column-level UPDATE restriction on `profiles.role` | ⚠ | P1 | Caveat §1 in SECURITY.md — currently no impact but defence-in-depth |
+| A8 | Column-level UPDATE restriction on `profiles.role` | ✓ | P1 | **Closed 2026-07-02, migration 0013.** BEFORE UPDATE trigger silently reverts `profiles.role` unless caller is admin or a trusted server context (postgres/service_role). Verified via JWT impersonation: self-promote blocked, non-role updates unaffected, admin + server bypass work |
 | A9 | Column-level UPDATE restriction on `homework_assignments.{score,feedback,marked_at,marked_by}` | ✓ | P0 | Migration 0007 — BEFORE UPDATE trigger silently reverts these columns unless caller is admin or homework's authoring tutor. Verified 2026-05-27 |
 | A10 | New-table RLS discipline (every `pgTable` addition gets a migration entry) | ☐ | P0 | Process, not code — keep `SECURITY.md` updated |
 | A11 | Periodic re-run of Supabase Advisor | ☐ | P1 | Catches RLS-disabled-in-public regressions |
@@ -54,7 +54,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
 | C1 | CSRF protection (Next.js Server Actions origin check) | ✓ | P0 | Verified 2026-05-27 — no custom server-action config in `next.config.ts` disables the default origin check. Next 16 Server Actions enforce same-origin by default |
-| C2 | Zod validation on every server action input | ⚠ | P0 | Audited 2026-05-27. Most actions use Zod (all admin, discussions, parts of tutor). Gaps: `parent/_actions.ts:submitRescheduleRequest` reason field has no length cap; `tutor/_actions.ts:saveLessonNote` text fields uncapped; `tutor/_actions.ts:createHomework` title/description uncapped. Storage-abuse only; no security bypass |
+| C2 | Zod validation on every server action input | ✓ | P0 | **Closed 2026-07-02.** Full audit of every `"use server"` action. All free-text inputs now length-capped: Zod-schema actions got `.max(N)` (announcements body 10k, users name/phone/school/email/password, classes name/location/onlineLink/description, curriculum description/urls, invoices description, family relationship); manual-FormData actions (tutor saveAttendance/saveLessonNote/createHomework/markSubmission, admin adminSaveAttendance, parent + admin reschedule reason) use `src/lib/validation.ts` `optionalText`/`requiredText` or an inline length guard. Type/format validation was already present; this closes the storage-abuse gap |
 | C3 | XSS protection on user-generated content (lesson notes, feedback) | ✓ | P0 | Audited 2026-05-27 — no raw HTML rendering of user input found in any portal page. React's default escape covers everything |
 | C4 | Rate limiting on write endpoints (homework submit, feedback post) | ⚠ | P1 | Same constraint as B3 — Pro-tier Supabase Auth Hooks or custom server-action wrapper. Deferred |
 | C5 | Service role key NEVER returned in any API response | ✓ | P0 | Audited 2026-05-27 — `createAdminClient()` is only ever instantiated server-side (in `_actions/*` and `_lib/*` files), never returned to the client. Service key is in `.env.local` only, server-read only |
@@ -76,11 +76,11 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| E1 | Server-side file type validation (MIME + magic bytes, not just extension) | ☐ | P0 | **Now an active concern:** `tutor/_actions.ts:createHomework` accepts uploads to the `homework-attachments` bucket with type from the client (`file.type \|\| "application/octet-stream"`) and extension from the client-supplied filename. Audit 2026-05-27 |
-| E2 | Server-side file size limits | ☐ | P0 | **Active concern:** `createHomework` has no max file size. DoS / storage abuse risk |
-| E3 | Filename sanitisation (path traversal, special chars) | ⚠ | P0 | `createHomework` uses `${tutor.id}/${Date.now()}-${randomUUID()}.${ext}` — path is safe (no user-controlled directory), but `ext` comes from the client. Could write a `.html` or `.exe` |
-| E4 | Public vs private bucket separation | ☐ | P0 | Homework submissions: private. Resources: public is OK |
-| E5 | Signed URL expiry for private downloads | ☐ | P0 | Default Supabase signed URL is fine; don't use long-lived URLs |
+| E1 | Server-side file type validation (MIME + magic bytes, not just extension) | ✓ | P0 | **Closed 2026-07-02.** `src/lib/upload-validation.ts` sniffs leading bytes (pdf/png/jpeg/gif/webp/zip-OOXML/ole-Office/mp4/webm; text validated as UTF-8) and requires the *declared* MIME to be in a per-context allowlist AND the content family to match. All three upload paths (`createHomework`, `uploadTutorAttachment`, `uploadCurriculumFile`) route through it. Residual (accepted): OOXML/OLE subtypes not distinguished — verifies container family only. `image/svg+xml` deliberately excluded (XSS vector). Logic verified with 24 unit cases incl. html/exe-spoofed-as-pdf → rejected |
+| E2 | Server-side file size limits | ✓ | P0 | **Closed 2026-07-02.** `validateUpload` enforces per-policy `maxBytes` (25 MB attachments/booklets, 500 MB video) + rejects empty files, before any upload |
+| E3 | Filename sanitisation (path traversal, special chars) | ✓ | P0 | **Closed 2026-07-02.** Extension + content-type are now **canonical**, derived from the validated allowlist entry — never from the client filename. A client cannot force a `.html`/`.exe`/`.svg` extension or a `text/html` content-type. Path components remain server-generated (`tutor.id`/`sectionId` + `randomUUID`) |
+| E4 | Public vs private bucket separation | ⚠ | P0 | **Code half done 2026-07-02.** `createHomework` now stores the storage **path** (not a persisted public URL); reads go through `signHomeworkAttachment` (student + tutor homework pages). No legacy rows to migrate (0 rows had attachment_url). **Remaining (needs you):** (1) flip the `homework-attachments` bucket to **private** in the Supabase dashboard; (2) ensure signing works on the private bucket — either add a storage.objects SELECT policy for that bucket (A5) or switch signing to a service-role client (app already authorizes who loads the homework, then signs); (3) live-test download as student + tutor. Curriculum (video/booklet) + submissions already use signed URLs |
+| E5 | Signed URL expiry for private downloads | ✓ | P0 | Signed URLs are short-lived (1 hr): curriculum `SIGNED_URL_TTL_SECONDS = 3600`, homework attachments + submissions `3600`. No long-lived/persisted URLs stored after E4 code change |
 | E6 | Virus / malware scanning on uploads | ☐ | P2 | Real concern once external parents upload; defer |
 
 ## F. Network / Headers
@@ -88,11 +88,11 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
 | F1 | HTTPS only in production | ⚠ | P0 | Code clean (only `http://` in code is the SVG namespace ID); auth callback uses `url.origin`. Verify Vercel "HTTPS redirect" toggle at deploy time |
-| F2 | HSTS header | ☐ | P1 | Vercel can be configured |
-| F3 | Content-Security-Policy header in `next.config.ts` | ☐ | P1 | Restricts script sources, defends against XSS |
-| F4 | X-Frame-Options / frame-ancestors (clickjacking) | ☐ | P1 | Set in `next.config.ts` headers |
-| F5 | X-Content-Type-Options: nosniff | ☐ | P1 | Set in `next.config.ts` headers |
-| F6 | Referrer-Policy: strict-origin-when-cross-origin (or stricter) | ☐ | P1 | Privacy |
+| F2 | HSTS header | ✓ | P1 | **2026-07-02** — `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` in `next.config.ts`. Ignored by browsers over http (dev), enforced over https (prod) |
+| F3 | Content-Security-Policy header in `next.config.ts` | ⚠ | P1 | **2026-07-02** — CSP set in `next.config.ts`, env-derived Supabase origin (https+wss). Locked down: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `form-action 'self'`, scoped img/media/connect. **Caveat:** `script-src` still allows `'unsafe-inline'` (Next injects inline bootstrap/hydration scripts) — so CSP is NOT yet a real XSS control for scripts. Upgrade path = per-request nonce via middleware. `style-src 'unsafe-inline'` required by inline `style={{}}` usage. **Needs a live `curl -I` smoke test + click-through before trusting** |
+| F4 | X-Frame-Options / frame-ancestors (clickjacking) | ✓ | P1 | **2026-07-02** — `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` in `next.config.ts` |
+| F5 | X-Content-Type-Options: nosniff | ✓ | P1 | **2026-07-02** — set in `next.config.ts` headers |
+| F6 | Referrer-Policy: strict-origin-when-cross-origin (or stricter) | ✓ | P1 | **2026-07-02** — set in `next.config.ts` headers; also `Permissions-Policy` disables camera/mic/geo/topics |
 | F7 | Supabase CORS allowed origins set to production domain only | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Project Settings → API → Site URL = `https://<your-domain>` |
 | F8 | Auth redirect URLs whitelisted in Supabase | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Authentication → URL Configuration → Redirect URLs: add `http://localhost:3000/auth/callback` (dev) and `https://<your-domain>/auth/callback` (prod). Callback path verified at `src/app/auth/callback/route.ts` |
 
@@ -140,8 +140,8 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | J1 | `npm audit` clean | ☐ | P1 | Run `npm audit` regularly; fix high/critical |
 | J2 | Dependabot or Renovate enabled | ✓ | P1 | `.github/dependabot.yml` — weekly npm checks, PRs grouped by stack (Next, Supabase, Drizzle). Auto-activates on push to GitHub |
 | J3 | No `sql.unsafe()` / Drizzle raw SQL without parameterisation | ⚠ | P0 | `scripts/apply-sql.mjs` uses it (migrations only, trusted input) — audit any other usage |
-| J4 | `"server-only"` import on all server-side modules with secrets | ☐ | P0 | Already used in `parent/_lib/availability.ts`; audit others |
-| J5 | No `process.env.X` access in client components | ☐ | P0 | Only `NEXT_PUBLIC_*` allowed client-side |
+| J4 | `"server-only"` import on all server-side modules with secrets | ✓ | P0 | **Closed 2026-07-02.** Full audit. Added `import "server-only"` to the 7 unguarded plain modules — critically `src/db/client.ts` (DATABASE_URL) and `src/app/admin/_lib/supabase-admin.ts` (service-role key), plus `lib/notifications.ts`, `lib/curriculum.ts`, and the three per-subject `_queries.ts`. `"use server"` action files are inherently server-only; page/route files are server-only in the App Router |
+| J5 | No `process.env.X` access in client components | ✓ | P0 | **Verified 2026-07-02.** Audited all 47 `"use client"` files — zero `process.env` references (public or otherwise). Only non-`NEXT_PUBLIC_*` env reads are in server modules (`db/client.ts`, `supabase-admin.ts`), now `server-only`-guarded (J4) |
 
 ## K. Pre-launch verification
 
