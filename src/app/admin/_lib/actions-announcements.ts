@@ -12,7 +12,7 @@ const roleEnum = z.enum(["student", "parent", "tutor", "admin"]);
 const createAnnouncementSchema = z
   .object({
     title: z.string().min(1).max(200),
-    body: z.string().min(1),
+    body: z.string().min(1).max(10000),
     audienceRole: roleEnum.optional().nullable(),
     audienceClassId: z.string().uuid().optional().nullable(),
   })

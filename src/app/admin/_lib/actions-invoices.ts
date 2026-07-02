@@ -22,7 +22,7 @@ const createInvoiceSchema = z.object({
   amount: z.coerce.number().positive().multipleOf(0.01),
   currency: z.string().min(3).max(3).default("AUD"),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  description: z.string().optional(),
+  description: z.string().max(1000).optional(),
 });
 
 export async function createInvoice(input: z.infer<typeof createInvoiceSchema>) {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { attendance, attendanceStatusEnum } from "@/db/schema";
+import { optionalText } from "@/lib/validation";
 import { requireAdmin } from "./guard";
 
 const statusSchema = z.enum(attendanceStatusEnum.enumValues);
@@ -13,14 +14,14 @@ export async function adminSaveAttendance(formData: FormData) {
   const lessonId = String(formData.get("lessonId") ?? "");
   if (!lessonId) throw new Error("Missing lessonId");
 
-  const entries: { studentId: string; status: string; note: string }[] = [];
+  const entries: { studentId: string; status: string; note: string | null }[] = [];
   for (const [key, value] of formData.entries()) {
     const match = key.match(/^status\[(.+)\]$/);
     if (!match) continue;
     const studentId = match[1];
     const status = String(value ?? "");
     if (!status) continue;
-    const note = String(formData.get(`note[${studentId}]`) ?? "");
+    const note = optionalText(formData.get(`note[${studentId}]`), 2000);
     entries.push({ studentId, status, note });
   }
 

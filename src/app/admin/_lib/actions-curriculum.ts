@@ -13,9 +13,9 @@ const weekInputSchema = z.object({
   termId: z.string().uuid(),
   weekNumber: z.coerce.number().int().min(1).max(20),
   title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  videoUrl: z.string().optional(),
-  bookletUrl: z.string().optional(),
+  description: z.string().max(5000).optional(),
+  videoUrl: z.string().max(2000).optional(),
+  bookletUrl: z.string().max(2000).optional(),
   topicId: z.preprocess(
     (v) => (v === "" || v == null ? null : v),
     z.string().uuid().nullable(),

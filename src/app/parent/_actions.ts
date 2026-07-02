@@ -42,7 +42,7 @@ export async function submitRescheduleRequest(formData: FormData) {
   const slotRaw = String(formData.get("slot") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!lessonId) {
+  if (!lessonId || reason.length > 2000) {
     redirect(buildRedirect(childId, monthIso, "error"));
   }
 

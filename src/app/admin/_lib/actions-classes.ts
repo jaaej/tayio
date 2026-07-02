@@ -10,9 +10,9 @@ import { requireAdmin } from "./guard";
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
 const subjectSchema = z.object({
-  name: z.string().min(1),
-  yearLevel: z.string().optional(),
-  description: z.string().optional(),
+  name: z.string().min(1).max(200),
+  yearLevel: z.string().max(40).optional(),
+  description: z.string().max(5000).optional(),
 });
 
 export async function createSubject(input: z.infer<typeof subjectSchema>) {
@@ -31,12 +31,12 @@ export async function createSubject(input: z.infer<typeof subjectSchema>) {
 }
 
 const classSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   subjectId: z.string().uuid(),
   tutorId: z.string().uuid(),
   capacity: z.coerce.number().int().min(1).max(200),
-  location: z.string().optional().nullable(),
-  onlineLink: z.string().url().optional().or(z.literal("")).nullable(),
+  location: z.string().max(200).optional().nullable(),
+  onlineLink: z.string().url().max(2000).optional().or(z.literal("")).nullable(),
   isRecurring: z.coerce.boolean(),
   weekday: z.coerce.number().int().min(0).max(6).optional().nullable(),
   startTime: z.string().regex(timeRegex).optional().nullable(),

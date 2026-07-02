@@ -11,14 +11,14 @@ import { requireAdmin } from "./guard";
 const roleEnum = z.enum(["student", "parent", "tutor", "admin"]);
 
 const createUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email().max(320),
+  password: z.string().min(6).max(128),
   role: roleEnum,
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  phone: z.string().optional(),
-  yearLevel: z.string().optional(),
-  school: z.string().optional(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  phone: z.string().max(40).optional(),
+  yearLevel: z.string().max(40).optional(),
+  school: z.string().max(200).optional(),
 });
 
 export async function createUser(input: z.infer<typeof createUserSchema>) {
@@ -70,11 +70,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
 
 const updateUserSchema = z.object({
   id: z.string().uuid(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  phone: z.string().optional().nullable(),
-  yearLevel: z.string().optional().nullable(),
-  school: z.string().optional().nullable(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  phone: z.string().max(40).optional().nullable(),
+  yearLevel: z.string().max(40).optional().nullable(),
+  school: z.string().max(200).optional().nullable(),
   role: roleEnum,
 });
 
@@ -138,7 +138,7 @@ export async function sendPasswordReset(email: string) {
 const familyLinkSchema = z.object({
   parentId: z.string().uuid(),
   studentId: z.string().uuid(),
-  relationship: z.string().min(1).default("parent"),
+  relationship: z.string().min(1).max(60).default("parent"),
 });
 
 export async function createFamilyLink(input: z.infer<typeof familyLinkSchema>) {

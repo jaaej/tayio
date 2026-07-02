@@ -53,7 +53,7 @@ export async function rescheduleStudentLesson(formData: FormData) {
   const slotRaw = String(formData.get("slot") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!studentId || !lessonId) {
+  if (!studentId || !lessonId || reason.length > 2000) {
     redirect(`/admin/users/${studentId}?reschedule=error`);
   }
 
