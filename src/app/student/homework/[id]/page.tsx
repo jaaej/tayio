@@ -19,7 +19,7 @@ import {
   getHomeworkDetail,
   getStudentTestRank,
 } from "../../_lib/queries";
-import { HOMEWORK_BUCKET } from "../_storage";
+import { HOMEWORK_BUCKET, signHomeworkAttachment } from "../_storage";
 
 export default async function HomeworkDetailPage({
   params,
@@ -51,13 +51,7 @@ export default async function HomeworkDetailPage({
 
   const supabase = await createClient();
   const submissionLink = await signedSubmissionLink(supabase, hw.submissionUrl);
-  const attachmentHref = hw.attachmentUrl
-    ? hw.attachmentUrl.startsWith("http")
-      ? hw.attachmentUrl
-      : (await supabase.storage
-          .from(HOMEWORK_BUCKET)
-          .createSignedUrl(hw.attachmentUrl, 3600)).data?.signedUrl ?? null
-    : null;
+  const attachmentHref = await signHomeworkAttachment(supabase, hw.attachmentUrl);
 
   // effectiveStatus is "not_started" → "viewed" by now, so omit it here.
   const canSubmit =

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/input";
 import { formatDueDate, relativeTime } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
-import { HOMEWORK_BUCKET } from "@/app/student/homework/_storage";
+import { HOMEWORK_BUCKET, signHomeworkAttachment } from "@/app/student/homework/_storage";
 import { markSubmission } from "../../_actions";
 import { getHomeworkDetail, requireTutor } from "../../_data";
 
@@ -49,6 +49,11 @@ export default async function HomeworkDetailPage({
     })),
   );
 
+  const attachmentHref = await signHomeworkAttachment(
+    await createClient(),
+    homework.attachmentUrl,
+  );
+
   const toMarkCount = signedSubmissions.filter(
     (s) => s.status === "submitted" || s.status === "late",
   ).length;
@@ -73,9 +78,9 @@ export default async function HomeworkDetailPage({
             {homework.allowResubmission && (
               <span className="text-muted">Resubmission allowed</span>
             )}
-            {homework.attachmentUrl && (
+            {attachmentHref && (
               <a
-                href={homework.attachmentUrl}
+                href={attachmentHref}
                 target="_blank"
                 rel="noreferrer"
                 className="text-brand-600 font-bold hover:text-brand-700"

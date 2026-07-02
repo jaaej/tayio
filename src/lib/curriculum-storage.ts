@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  validateUpload,
+  ATTACHMENT_POLICY,
+  VIDEO_POLICY,
+  BOOKLET_POLICY,
+} from "@/lib/upload-validation";
 
 export const BUCKET = "curriculum";
 export const SIGNED_URL_TTL_SECONDS = 60 * 60;
-
-export const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
-export const BOOKLET_MAX_BYTES = 25 * 1024 * 1024;
-
-export const VIDEO_MIMES = ["video/mp4", "video/webm", "video/quicktime"];
-export const BOOKLET_MIMES = ["application/pdf"];
 
 export async function signCurriculumUrl(
   path: string | null,
@@ -26,59 +26,41 @@ export async function uploadCurriculumFile(
   ownerId: string,
   file: File,
 ): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
-  const maxBytes = kind === "videos" ? VIDEO_MAX_BYTES : BOOKLET_MAX_BYTES;
-  const mimes = kind === "videos" ? VIDEO_MIMES : BOOKLET_MIMES;
+  const validated = await validateUpload(
+    file,
+    kind === "videos" ? VIDEO_POLICY : BOOKLET_POLICY,
+  );
+  if (!validated.ok) return validated;
 
-  if (file.size > maxBytes) {
-    return {
-      ok: false,
-      error: `File exceeds max size (${maxBytes / (1024 * 1024)} MB)`,
-    };
-  }
-  if (!mimes.includes(file.type)) {
-    return { ok: false, error: `Unsupported file type: ${file.type}` };
-  }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
-  const path = `${kind}/${ownerId}.${ext}`;
+  const path = `${kind}/${ownerId}.${validated.file.ext}`;
 
   const supabase = await createClient();
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, file, {
+      upsert: true,
+      contentType: validated.file.contentType,
+    });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true, path };
 }
-
-export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
-export const ATTACHMENT_MIMES = [
-  "application/pdf",
-  "image/png", "image/jpeg", "image/gif", "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-];
 
 export async function uploadTutorAttachment(
   sectionId: string,
   fileId: string,
   file: File,
 ): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
-  if (file.size > ATTACHMENT_MAX_BYTES) {
-    return { ok: false, error: "File exceeds max size (25 MB)" };
-  }
-  if (!ATTACHMENT_MIMES.includes(file.type)) {
-    return { ok: false, error: `Unsupported file type: ${file.type}` };
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
-  const path = `tutor-sections/${sectionId}/${fileId}.${ext}`;
+  const validated = await validateUpload(file, ATTACHMENT_POLICY);
+  if (!validated.ok) return validated;
+  const path = `tutor-sections/${sectionId}/${fileId}.${validated.file.ext}`;
   const supabase = await createClient();
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { upsert: false, contentType: file.type });
+    .upload(path, file, {
+      upsert: false,
+      contentType: validated.file.contentType,
+    });
   if (error) return { ok: false, error: error.message };
   return { ok: true, path };
 }

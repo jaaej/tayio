@@ -23,6 +23,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
+import { validateUpload, HOMEWORK_POLICY } from "@/lib/upload-validation";
+import { optionalText, requiredText } from "@/lib/validation";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
@@ -87,14 +89,14 @@ export async function saveAttendance(formData: FormData) {
   await assertOwnsLesson(tutor.id, lessonId);
 
   // Iterate each "status[<studentId>]" pair
-  const entries: { studentId: string; status: string; note: string }[] = [];
+  const entries: { studentId: string; status: string; note: string | null }[] = [];
   for (const [key, value] of formData.entries()) {
     const match = key.match(/^status\[(.+)\]$/);
     if (!match) continue;
     const studentId = match[1];
     const status = String(value ?? "");
     if (!status) continue;
-    const note = String(formData.get(`note[${studentId}]`) ?? "");
+    const note = optionalText(formData.get(`note[${studentId}]`), 2000);
     entries.push({ studentId, status, note });
   }
 
@@ -135,14 +137,13 @@ export async function saveLessonNote(formData: FormData) {
   await assertTeachesStudent(tutor.id, studentId);
 
   const data = {
-    topicCovered: String(formData.get("topicCovered") ?? "") || null,
-    performance: String(formData.get("performance") ?? "") || null,
-    strengths: String(formData.get("strengths") ?? "") || null,
-    struggles: String(formData.get("struggles") ?? "") || null,
-    nextLessonFocus: String(formData.get("nextLessonFocus") ?? "") || null,
-    parentVisibleComment:
-      String(formData.get("parentVisibleComment") ?? "") || null,
-    internalNote: String(formData.get("internalNote") ?? "") || null,
+    topicCovered: optionalText(formData.get("topicCovered"), 5000),
+    performance: optionalText(formData.get("performance"), 5000),
+    strengths: optionalText(formData.get("strengths"), 5000),
+    struggles: optionalText(formData.get("struggles"), 5000),
+    nextLessonFocus: optionalText(formData.get("nextLessonFocus"), 5000),
+    parentVisibleComment: optionalText(formData.get("parentVisibleComment"), 5000),
+    internalNote: optionalText(formData.get("internalNote"), 5000),
   };
 
   // Upsert by (lessonId, studentId, tutorId) — schema has no unique on those,
@@ -172,14 +173,13 @@ export async function saveLessonNote(formData: FormData) {
 
 export async function createHomework(formData: FormData) {
   const tutor = await requireTutor();
-  const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
+  const title = requiredText(formData.get("title"), 200, "Title");
+  const description = optionalText(formData.get("description"), 5000);
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const classId = String(formData.get("classId") ?? "") || null;
   const weekId = String(formData.get("weekId") ?? "") || null;
   const allowResubmission = formData.get("allowResubmission") === "on";
 
-  if (!title) throw new Error("Title required");
   if (!dueDateRaw) throw new Error("Due date required");
   const dueDate = new Date(dueDateRaw);
   if (Number.isNaN(dueDate.getTime())) throw new Error("Invalid due date");
@@ -210,22 +210,23 @@ export async function createHomework(formData: FormData) {
   let attachmentUrl: string | null = null;
   const file = formData.get("attachment");
   if (file instanceof File && file.size > 0) {
+    const validated = await validateUpload(file, HOMEWORK_POLICY);
+    if (!validated.ok) throw new Error(validated.error);
     const supabase = await createClient();
-    const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-    const path = `${tutor.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`;
     const { error } = await supabase.storage
       .from(HOMEWORK_BUCKET)
-      .upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
+      .upload(path, file, {
+        contentType: validated.file.contentType,
         upsert: false,
       });
     if (error) {
       // Soft-fail: persist homework without attachment, surface message on next page.
       console.error("homework upload failed", error.message);
     } else {
-      const { data } = supabase.storage.from(HOMEWORK_BUCKET).getPublicUrl(path);
-      attachmentUrl = data.publicUrl;
+      // Store the storage path (not a public URL); signed on read so the bucket
+      // can be private. See student/homework/_storage.ts:signHomeworkAttachment.
+      attachmentUrl = path;
     }
   }
 
@@ -267,7 +268,7 @@ export async function markSubmission(formData: FormData) {
   const studentId = String(formData.get("studentId") ?? "");
   const status = String(formData.get("status") ?? "marked");
   const scoreRaw = String(formData.get("score") ?? "").trim();
-  const feedback = String(formData.get("feedback") ?? "").trim();
+  const feedback = optionalText(formData.get("feedback"), 5000);
 
   if (!homeworkId || !studentId) throw new Error("Missing ids");
   await assertOwnsHomework(tutor.id, homeworkId);
