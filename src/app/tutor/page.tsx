@@ -4,10 +4,8 @@ import {
   BellRing,
   CheckCircle2,
   Clock,
-  FileText,
   Flame,
   Inbox,
-  Pencil,
   Send,
 } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
@@ -24,8 +22,6 @@ import {
 import { requireRole } from "@/lib/auth";
 import {
   getLessonsMissingNotes,
-  getPendingMarkCount,
-  getPendingNotesCount,
   getRecentLessonNotes,
   getStudentsToBump,
   getSubmissionsToMark,
@@ -55,16 +51,12 @@ export default async function TutorDashboard() {
     weekLessons,
     submissions,
     missingNotes,
-    pendingMark,
-    pendingNotes,
     recentNotes,
     bumpRows,
   ] = await Promise.all([
     getTutorWeekLessons(tutor.id, weekStart, weekEnd),
     getSubmissionsToMark(tutor.id, 9),
     getLessonsMissingNotes(tutor.id, 5),
-    getPendingMarkCount(tutor.id),
-    getPendingNotesCount(tutor.id),
     getRecentLessonNotes(tutor.id, 4),
     getStudentsToBump(tutor.id, 12),
   ]);
@@ -136,9 +128,6 @@ export default async function TutorDashboard() {
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const bumpStudentCount = bumpList.length;
-  const actionTotal = pendingMark + pendingNotes + bumpStudentCount;
-
   return (
     <div className="space-y-5">
       {/* Hero band — soft brand gradient, time-based greeting, avatar +
@@ -178,58 +167,15 @@ export default async function TutorDashboard() {
       </section>
 
       <div className="space-y-5 min-w-0">
-          <div className="grid lg:grid-cols-[2fr_1fr] gap-5">
-            <Card className="overflow-hidden">
-              <CardHead
-                title="This week"
-                action={<Link href="/tutor/timetable">Open timetable →</Link>}
-              />
-              <CardBody>
-                <MiniWeekCalendar events={events} weekStart={weekStart} />
-              </CardBody>
-            </Card>
-
-            <Card className="overflow-hidden">
-              <CardHead
-                title="Action snapshot"
-                action={
-                  actionTotal === 0 ? (
-                    <span className="text-good">Clear</span>
-                  ) : (
-                    <span className="text-warn">{actionTotal} open</span>
-                  )
-                }
-              />
-              <CardBody tight>
-                <ul className="divide-y divide-line">
-                  <ActionRow
-                    icon={<Pencil className="h-4 w-4" />}
-                    tone={pendingMark > 0 ? "warn" : "good"}
-                    label="Mark submissions"
-                    count={pendingMark}
-                    href="/tutor/homework"
-                    emptyLabel="No work waiting"
-                  />
-                  <ActionRow
-                    icon={<FileText className="h-4 w-4" />}
-                    tone={pendingNotes > 0 ? "warn" : "good"}
-                    label="Write lesson notes"
-                    count={pendingNotes}
-                    href="/tutor/notes"
-                    emptyLabel="Notes up to date"
-                  />
-                  <ActionRow
-                    icon={<BellRing className="h-4 w-4" />}
-                    tone={bumpStudentCount > 0 ? "bad" : "good"}
-                    label="Bump overdue students"
-                    count={bumpStudentCount}
-                    href="/tutor/students"
-                    emptyLabel="Everyone on track"
-                  />
-                </ul>
-              </CardBody>
-            </Card>
-          </div>
+          <Card className="overflow-hidden">
+            <CardHead
+              title="This week"
+              action={<Link href="/tutor/timetable">Open timetable →</Link>}
+            />
+            <CardBody>
+              <MiniWeekCalendar events={events} weekStart={weekStart} />
+            </CardBody>
+          </Card>
 
           <Card className="overflow-hidden">
             <RichHeader
@@ -257,16 +203,25 @@ export default async function TutorDashboard() {
                 />
               </CardBody>
             ) : (
-              <div>
+              /* Late and Submitted sit side by side on desktop when both
+               * exist; either one alone takes the full width. Collapses
+               * back to stacked below lg. */
+              <div
+                className={
+                  lateCount > 0 && onTimeSubmissions.length > 0
+                    ? "grid lg:grid-cols-2 lg:divide-x lg:divide-line"
+                    : undefined
+                }
+              >
                 {lateCount > 0 && (
-                  <>
+                  <div className="min-w-0">
                     <BandedSubsection
                       label="Late — review first"
                       count={lateCount}
                       tone="bad"
                       icon={<Flame className="h-3.5 w-3.5" />}
                     />
-                    <div className="p-4 grid sm:grid-cols-2 gap-3.5">
+                    <div className="p-3.5 grid sm:grid-cols-2 gap-3 items-start">
                       {lateSubmissions.map((s) => (
                         <SubmissionCard
                           key={`${s.homeworkId}-${s.studentId}`}
@@ -275,17 +230,17 @@ export default async function TutorDashboard() {
                         />
                       ))}
                     </div>
-                  </>
+                  </div>
                 )}
                 {onTimeSubmissions.length > 0 && (
-                  <>
+                  <div className="min-w-0">
                     <BandedSubsection
                       label="Submitted"
                       count={onTimeSubmissions.length}
                       tone="good"
                       icon={<CheckCircle2 className="h-3.5 w-3.5" />}
                     />
-                    <div className="p-4 grid sm:grid-cols-2 gap-3.5">
+                    <div className="p-3.5 grid sm:grid-cols-2 gap-3 items-start">
                       {onTimeSubmissions.map((s) => (
                         <SubmissionCard
                           key={`${s.homeworkId}-${s.studentId}`}
@@ -293,7 +248,7 @@ export default async function TutorDashboard() {
                         />
                       ))}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             )}
@@ -414,55 +369,6 @@ export default async function TutorDashboard() {
           </div>
       </div>
     </div>
-  );
-}
-
-function ActionRow({
-  icon,
-  tone,
-  label,
-  count,
-  href,
-  emptyLabel,
-}: {
-  icon: React.ReactNode;
-  tone: "good" | "warn" | "bad";
-  label: string;
-  count: number;
-  href: string;
-  emptyLabel: string;
-}) {
-  const isEmpty = count === 0;
-  const iconBg =
-    tone === "good"
-      ? "bg-good-bg text-good"
-      : tone === "bad"
-        ? "bg-bad-bg text-bad"
-        : "bg-warn-bg text-warn";
-  return (
-    <li>
-      <Link
-        href={href}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
-      >
-        <div
-          className={`h-8 w-8 rounded-[10px] grid place-items-center shrink-0 ${iconBg}`}
-        >
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-ink truncate">{label}</div>
-          <div className="text-[11px] text-muted mt-0.5 truncate">
-            {isEmpty ? emptyLabel : `${count} pending`}
-          </div>
-        </div>
-        {!isEmpty && (
-          <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-2 rounded-full bg-ink text-white text-[11px] font-extrabold tabular-nums leading-none shrink-0">
-            {count}
-          </span>
-        )}
-      </Link>
-    </li>
   );
 }
 
@@ -606,30 +512,30 @@ function SubmissionCard({
     ? "bg-gradient-to-br from-bad-bg via-surface to-surface border-bad/40"
     : "bg-gradient-to-br from-brand-50/60 via-surface to-surface border-brand-100";
   const avatarCls = urgent
-    ? "bg-bad text-white ring-4 ring-bad/15"
-    : "bg-brand-500 text-white ring-4 ring-brand-100";
+    ? "bg-bad text-white ring-bad/15"
+    : "bg-brand-500 text-white ring-brand-100";
   const ctaCls = urgent
     ? "bg-bad hover:opacity-90"
     : "bg-brand-600 hover:bg-brand-700";
   return (
     <Link
       href={`/tutor/homework/${s.homeworkId}`}
-      className={`group block rounded-[16px] border p-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(15,17,30,0.18)] ${cardCls}`}
+      className={`group block rounded-[14px] border p-3 transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(15,17,30,0.18)] ${cardCls}`}
     >
       {/* Top: identity */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <div
-          className={`h-11 w-11 rounded-full grid place-items-center text-[13px] font-extrabold shrink-0 ${avatarCls}`}
+          className={`h-9 w-9 rounded-full grid place-items-center text-[12px] font-extrabold shrink-0 ring-2 ${avatarCls}`}
         >
           {s.firstName.charAt(0)}
           {s.lastName.charAt(0)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-extrabold text-ink truncate">
+          <div className="text-[13px] font-extrabold text-ink truncate">
             {s.firstName} {s.lastName}
           </div>
           {s.className && (
-            <div className="mt-1 inline-flex items-center text-[10px] uppercase tracking-[0.1em] font-bold text-muted-2 bg-surface-2 border border-line rounded-full px-2 py-0.5">
+            <div className="text-[10px] uppercase tracking-[0.1em] font-bold text-muted-2 truncate mt-0.5">
               {s.className}
             </div>
           )}
@@ -642,31 +548,29 @@ function SubmissionCard({
         )}
       </div>
 
-      {/* Middle: homework title in its own subtle inset panel */}
-      <div className="mt-3 rounded-[10px] bg-surface border border-line px-3 py-2.5">
-        <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-muted-2">
-          Homework
-        </div>
-        <div className="text-[13px] font-bold text-ink line-clamp-2 leading-snug mt-0.5">
-          {s.title}
-        </div>
+      {/* Middle: homework title, single compact line */}
+      <div
+        className="mt-2 text-[12px] font-bold text-ink line-clamp-1 leading-snug"
+        title={s.title}
+      >
+        {s.title}
       </div>
 
       {/* Bottom: meta + filled CTA */}
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-2">
         {s.submittedAt ? (
           <span className="text-[11px] text-muted flex items-center gap-1 min-w-0">
             <Clock className="h-3 w-3 shrink-0" />
-            <span className="truncate">submitted {relativeTime(s.submittedAt)}</span>
+            <span className="truncate">{relativeTime(s.submittedAt)}</span>
           </span>
         ) : (
           <span />
         )}
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full text-white px-3.5 py-2 text-[11px] uppercase tracking-[0.12em] font-extrabold transition-all group-hover:translate-x-0.5 shadow-[0_4px_12px_-4px_rgba(50,58,145,0.4)] ${ctaCls}`}
+          className={`inline-flex items-center gap-1 rounded-full text-white px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] font-extrabold transition-all group-hover:translate-x-0.5 shadow-[0_4px_12px_-4px_rgba(50,58,145,0.4)] ${ctaCls}`}
         >
           Mark
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight className="h-3 w-3" />
         </span>
       </div>
     </Link>
