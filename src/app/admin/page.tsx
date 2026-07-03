@@ -1,32 +1,19 @@
 import Link from "next/link";
-import {
-  Users,
-  GraduationCap,
-  AlertTriangle,
-  FileText,
-} from "lucide-react";
-import { StatusBadge } from "@/components/data/status-badge";
 import { ProgressBar } from "@/components/data/progress-bar";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
-import { Card, CardHead, Pill, StatTile, PageHeader, Empty } from "@/components/admin/ui";
+import { Card, CardHead, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import {
   formatDueDate,
   formatMoney,
-  isoDate,
   relativeTime,
   startOfMondayWeek,
 } from "@/lib/format";
 import {
-  LESSON_STATUS_LABEL,
-  LESSON_STATUS_STYLE,
-} from "@/lib/status";
-import {
   getAtRiskStudents,
-  getOpsStats,
   getOverdueInvoices,
   getRecentActivity,
   getRecentAnnouncements,
@@ -43,20 +30,11 @@ export default async function AdminDashboard() {
   const weekStart = startOfMondayWeek(now);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 7);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const fourteenDaysAgo = new Date(now);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  const [stats, tutorBacklog, overdueList, atRisk, weekLessons, activity, notices] =
+  const [tutorBacklog, overdueList, atRisk, weekLessons, activity, notices] =
     await Promise.all([
-      getOpsStats({
-        weekStart,
-        weekEnd,
-        monthStart,
-        prevMonthStart,
-        today: now,
-      }),
       getTutorsWithPendingNotes(fourteenDaysAgo, now, 5),
       getOverdueInvoices(now, 5),
       getAtRiskStudents(5),
@@ -94,50 +72,7 @@ export default async function AdminDashboard() {
           </>
         }
         title="Dashboard"
-        actions={
-          <div className="hidden md:flex items-center gap-2">
-            <Pill tone="brand">{stats.activeStudents} students</Pill>
-            <Pill tone="sky">{stats.activeTutors} tutors</Pill>
-          </div>
-        }
       />
-
-      {/* Stat strip */}
-      <section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
-        style={{ animationDelay: "40ms" }}
-      >
-        <StatTile
-          label="Active students"
-          value={stats.activeStudents}
-          icon={<Users className="h-5 w-5" />}
-          tone="brand"
-          accent
-          href="/admin/users"
-        />
-        <StatTile
-          label="Active tutors"
-          value={stats.activeTutors}
-          icon={<GraduationCap className="h-5 w-5" />}
-          tone="sky"
-          accent
-        />
-        <StatTile
-          label="Flagged students"
-          value={atRisk.length}
-          icon={<AlertTriangle className="h-5 w-5" />}
-          tone={atRisk.length > 0 ? "warn" : "good"}
-          accent
-        />
-        <StatTile
-          label="Notes pending"
-          value={stats.notesPending}
-          icon={<FileText className="h-5 w-5" />}
-          tone={stats.notesPending > 0 ? "coral" : "good"}
-          accent
-          href="/admin/classes"
-        />
-      </section>
 
       {/* Main + Aside */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:gap-6">
@@ -370,66 +305,9 @@ export default async function AdminDashboard() {
             )}
           </Card>
 
-          {/* Jump to */}
-          <Card>
-            <CardHead title="Jump to" />
-            <div className="grid grid-cols-2 divide-x divide-y divide-line">
-              <JumpLink href="/admin/users" label="Users" />
-              <JumpLink href="/admin/classes" label="Classes" />
-              <JumpLink href="/admin/enrolments" label="Enrolments" />
-              <JumpLink href="/admin/payments" label="Payments" />
-              <JumpLink href="/admin/announcements" label="Announcements" />
-              <JumpLink href="/admin/reports" label="Reports" />
-            </div>
-          </Card>
-
-          {/* Today's lessons preview */}
-          {weekLessons.filter((l) => l.date === isoDate(now)).length > 0 && (
-            <Card>
-              <CardHead title="Today's lessons" />
-              <div className="divide-y divide-line">
-                {weekLessons
-                  .filter((l) => l.date === isoDate(now))
-                  .slice(0, 6)
-                  .map((l) => (
-                    <div
-                      key={l.id}
-                      className="flex items-center gap-3 px-5 py-3"
-                    >
-                      <div className="text-[12px] text-muted tabular-nums shrink-0 w-14 font-semibold">
-                        {l.startTime.slice(0, 5)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] text-ink font-semibold truncate">
-                          {l.subjectName}
-                        </div>
-                        <div className="text-[12px] text-muted truncate">
-                          {l.tutorFirst} {l.tutorLast}
-                        </div>
-                      </div>
-                      <StatusBadge
-                        label={LESSON_STATUS_LABEL[l.status] ?? l.status}
-                        className={LESSON_STATUS_STYLE[l.status]}
-                      />
-                    </div>
-                  ))}
-              </div>
-            </Card>
-          )}
         </aside>
       </div>
     </div>
-  );
-}
-
-function JumpLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="px-5 py-4 text-[13px] font-semibold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors text-center"
-    >
-      {label}
-    </Link>
   );
 }
 
