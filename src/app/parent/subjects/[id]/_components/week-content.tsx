@@ -67,7 +67,7 @@ export async function WeekContentParent({
             href={bookletSignedUrl}
             target="_blank"
             rel="noopener"
-            className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-4 py-2 text-sm font-medium hover:bg-brand-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium hover:bg-brand-50"
           >
             Open PDF →
           </a>
@@ -87,7 +87,7 @@ export async function WeekContentParent({
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
             From your child&apos;s tutor
           </div>
-          <div className="rounded-xl border border-hairline/60 bg-card p-4 space-y-3">
+          <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
             {week.tutorNote && (
               <div className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">
                 {week.tutorNote}
@@ -102,7 +102,7 @@ export async function WeekContentParent({
                       href={att.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-hairline/60 bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-brand-50 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-brand-50 transition-colors"
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted" />
                       {att.fileName}
@@ -110,7 +110,7 @@ export async function WeekContentParent({
                   ) : (
                     <span
                       key={att.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-hairline/60 bg-background px-3 py-2 text-[12px] font-semibold text-muted"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-background px-3 py-2 text-[12px] font-semibold text-muted"
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0" />
                       {att.fileName}
@@ -143,7 +143,7 @@ export async function WeekContentParent({
               return (
                 <li
                   key={r.lessonId}
-                  className="rounded-xl border border-hairline/60 bg-card p-4"
+                  className="rounded-xl border border-line bg-surface p-4"
                 >
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">
                     <div>
@@ -194,7 +194,7 @@ export async function WeekContentParent({
             No homework tagged to this week.
           </div>
         ) : (
-          <ul className="divide-y divide-hairline/60 rounded-xl border border-hairline/60 bg-card overflow-hidden">
+          <ul className="divide-y divide-line/70 rounded-xl border border-line bg-surface overflow-hidden">
             {week.homework.map((h) => (
               <li
                 key={h.homeworkId}
@@ -215,7 +215,7 @@ export async function WeekContentParent({
         )}
       </section>
 
-      <section className="rounded-xl border border-hairline/60 bg-brand-50/40 px-4 py-3 text-sm text-ink-soft">
+      <section className="rounded-xl border border-line bg-brand-50/40 px-4 py-3 text-sm text-ink-soft">
         Progress: {videoDone ? "✓" : "○"} Video · {bookletDone ? "✓" : "○"}{" "}
         Booklet · {homeworkDone}/{week.homework.length || 0} homework
       </section>
@@ -226,7 +226,7 @@ export async function WeekContentParent({
 function RecapField({ label, body }: { label: string; body: string }) {
   return (
     <div className="flex gap-3">
-      <div className="w-[3px] rounded-full shrink-0 bg-hairline/60" />
+      <div className="w-[3px] rounded-full shrink-0 bg-line-strong" />
       <div className="min-w-0 flex-1">
         <div className="text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
           {label}

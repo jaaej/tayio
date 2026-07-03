@@ -13,13 +13,11 @@ export function SectionHeader({
   link?: { href: string; label: string };
 }) {
   return (
-    <div className="px-6 py-4 border-b border-hairline/60 flex items-center justify-between gap-3">
+    <div className="px-5 py-4 border-b border-line flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
-          {title}
-        </h2>
+        <h2 className="text-[14px] font-bold text-ink truncate">{title}</h2>
         {description && (
-          <p className="text-sm text-muted mt-0.5">{description}</p>
+          <p className="text-[13px] text-muted mt-0.5">{description}</p>
         )}
       </div>
       {link ? (

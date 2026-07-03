@@ -130,7 +130,7 @@ export function MonthCalendar({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-4">
-          <h2 className="text-2xl lg:text-3xl font-medium text-ink tabular-nums">
+          <h2 className="text-2xl lg:text-3xl font-extrabold tracking-[-0.02em] text-ink tabular-nums">
             {MONTH_NAMES[month]} {year}
           </h2>
           <Link
@@ -144,14 +144,14 @@ export function MonthCalendar({
           <Link
             href={navBase(prev)}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={navBase(next)}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-card text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-400 hover:text-ink transition-colors"
           >
             ›
           </Link>
@@ -181,7 +181,7 @@ export function MonthCalendar({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
+      <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-line text-[10px] uppercase tracking-[0.14em] text-muted">
         <LegendDot color="bg-brand-600" label="Lesson" />
         <LegendDot color="bg-amber-500" label="Rescheduled" />
         <LegendDot color="bg-rose-500" label="Cancelled" />
@@ -223,19 +223,19 @@ function DayCell({
       className={cn(
         "min-h-[140px] lg:min-h-[156px] xl:min-h-[172px] rounded-xl border flex flex-col transition-colors",
         day.isToday
-          ? "border-navy-800/40 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_18px_-12px_rgba(29,41,81,0.3)]"
+          ? "border-brand-500/50 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_18px_-12px_rgba(31,40,90,0.3)]"
           : day.inMonth
             ? day.isWeekend
-              ? "border-hairline/40 bg-brand-50/30"
-              : "border-hairline/40 bg-card"
-            : "border-hairline/30 bg-card/40",
+              ? "border-line/70 bg-brand-50/30"
+              : "border-line/70 bg-surface"
+            : "border-line/50 bg-surface/40",
       )}
     >
       <div
         className={cn(
           "px-2.5 pt-1.5 pb-1 flex items-center justify-between",
           day.isToday
-            ? "text-navy-800"
+            ? "text-brand-700"
             : day.inMonth
               ? "text-ink"
               : "text-muted/60",

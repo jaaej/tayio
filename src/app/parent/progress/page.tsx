@@ -1,4 +1,5 @@
-import { Card } from "@/components/ui/card";
+import { TrendingUp, Medal, AlertTriangle, ClipboardCheck } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { MASTERY_LABEL } from "@/lib/status";
@@ -8,8 +9,6 @@ import {
   resolveSelectedChild,
 } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { PageHeader } from "../_components/page-header";
-import { Kpi } from "../_components/kpi";
 import { StatusPill } from "../_components/status-pill";
 import { Table, Th, Td, Tr } from "../_components/table";
 
@@ -17,7 +16,7 @@ type Mastery = "not_started" | "needs_work" | "improving" | "strong";
 
 const MASTERY_PILL: Record<Mastery, string> = {
   strong: "bg-emerald-100 text-emerald-900",
-  improving: "bg-brand-100 text-navy-800",
+  improving: "bg-brand-100 text-brand-700",
   needs_work: "bg-amber-100 text-amber-900",
   not_started: "bg-surface-2 text-ink-soft",
 };
@@ -106,46 +105,58 @@ export default async function ParentProgressPage({
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <Kpi
+        <StatTile
           label="Overall mastery"
           value={overall !== null ? `${overall}%` : "—"}
-          sub={`${trackedSubjects.length} subject${trackedSubjects.length === 1 ? "" : "s"} tracked`}
-          delta={overall !== null && overall >= 75 ? "up" : "flat"}
+          icon={<TrendingUp className="h-5 w-5" />}
+          tone="grape"
+          accent
+          delta={`${trackedSubjects.length} subject${trackedSubjects.length === 1 ? "" : "s"} tracked`}
+          deltaTone={overall !== null && overall >= 75 ? "up" : "flat"}
         />
-        <Kpi
+        <StatTile
           label="Topics mastered"
           value={strongCount.toString()}
-          sub="Rated strong"
-          delta={strongCount > 0 ? "up" : "flat"}
+          icon={<Medal className="h-5 w-5" />}
+          tone="sun"
+          accent
+          delta="Rated strong"
+          deltaTone={strongCount > 0 ? "up" : "flat"}
         />
-        <Kpi
+        <StatTile
           label="Needs work"
           value={needsWorkCount.toString()}
-          sub="Weak or untouched"
-          delta={needsWorkCount === 0 ? "up" : "down"}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone={needsWorkCount === 0 ? "good" : "coral"}
+          accent
+          delta="Weak or untouched"
+          deltaTone={needsWorkCount === 0 ? "up" : "down"}
         />
-        <Kpi
+        <StatTile
           label="Attendance"
           value={
             dashboard.attendanceRate !== null
               ? `${dashboard.attendanceRate}%`
               : "—"
           }
-          sub="Last 4 weeks"
+          icon={<ClipboardCheck className="h-5 w-5" />}
+          tone="mint"
+          accent
+          delta="Last 4 weeks"
         />
       </section>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
         {topics.length === 0 ? (
           <Card>
-            <div className="py-6 text-sm text-ink-soft">
+            <Empty>
               {selected.firstName} isn't enrolled in any subjects with tracked
               topics yet. Once classes start, the tutor will begin tracking
               topics here.
-            </div>
+            </Empty>
           </Card>
         ) : (
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <Table>
               <thead>
                 <tr>

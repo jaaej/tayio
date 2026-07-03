@@ -29,7 +29,7 @@ export function WeekSidebarParent({
         onChange={(e) => {
           window.location.href = `${base}?child=${childId}&term=${e.target.value}`;
         }}
-        className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2 text-sm"
+        className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm"
       >
         {termsAvailable.map((t) => (
           <option key={t.id} value={t.id}>

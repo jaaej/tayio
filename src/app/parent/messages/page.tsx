@@ -1,8 +1,7 @@
-import { Card } from "@/components/ui/card";
+import { Card, PageHeader, Empty } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { listMyThreads } from "@/lib/dm-queries";
 import { ThreadRow } from "@/components/dm/thread-row";
-import { PageHeader } from "../_components/page-header";
 
 export default async function ParentMessagesPage() {
   const user = await requireRole("parent");
@@ -16,13 +15,11 @@ export default async function ParentMessagesPage() {
       />
       {threads.length === 0 ? (
         <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            No conversations yet. Start one from a contact card.
-          </div>
+          <Empty>No conversations yet. Start one from a contact card.</Empty>
         </Card>
       ) : (
-        <Card className="p-0 overflow-hidden">
-          <ul className="divide-y divide-hairline/60">
+        <Card>
+          <ul className="divide-y divide-line/70">
             {threads.map((t) => (
               <li key={t.threadId}>
                 <ThreadRow thread={t} hrefPrefix="/parent/messages" />

@@ -1,4 +1,5 @@
-import { Card } from "@/components/ui/card";
+import { ClipboardCheck, UserX, CalendarDays } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import {
@@ -7,8 +8,6 @@ import {
 } from "@/lib/status";
 import { getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { PageHeader } from "../_components/page-header";
-import { Kpi } from "../_components/kpi";
 import { StatusPill } from "../_components/status-pill";
 import { Table, Th, Td, Tr } from "../_components/table";
 
@@ -65,29 +64,42 @@ export default async function ParentAttendancePage({
         className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <Kpi
+        <StatTile
           label="Attendance rate"
           value={rate !== null ? `${rate}%` : "—"}
-          sub="All logged lessons"
-          delta={
+          icon={<ClipboardCheck className="h-5 w-5" />}
+          tone="mint"
+          accent
+          delta="All logged lessons"
+          deltaTone={
             rate === null ? "flat" : rate >= 90 ? "up" : rate < 75 ? "down" : "flat"
           }
         />
-        <Kpi
+        <StatTile
           label="Absences"
           value={absent.toString()}
-          sub="Marked absent"
-          delta={absent === 0 ? "up" : "down"}
+          icon={<UserX className="h-5 w-5" />}
+          tone={absent === 0 ? "good" : "coral"}
+          accent
+          delta="Marked absent"
+          deltaTone={absent === 0 ? "up" : "down"}
         />
-        <Kpi label="Lessons logged" value={total.toString()} sub="This term" />
+        <StatTile
+          label="Lessons logged"
+          value={total.toString()}
+          icon={<CalendarDays className="h-5 w-5" />}
+          tone="sky"
+          accent
+          delta="This term"
+        />
       </section>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
-        <Card className="p-0 overflow-hidden">
+        <Card>
           {rows.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-ink-soft">
+            <Empty>
               No attendance has been recorded yet for {selected.firstName}.
-            </div>
+            </Empty>
           ) : (
             <Table>
               <thead>

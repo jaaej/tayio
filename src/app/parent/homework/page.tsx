@@ -1,12 +1,11 @@
-import { Card } from "@/components/ui/card";
+import { ClipboardList, Clock, AlertTriangle } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { formatDueDate } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL, HOMEWORK_STATUS_STYLE } from "@/lib/status";
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { PageHeader } from "../_components/page-header";
-import { Kpi } from "../_components/kpi";
 import { StatusPill } from "../_components/status-pill";
 import { Tabs, type TabItem } from "../_components/tabs";
 import { Table, Th, Td, Tr } from "../_components/table";
@@ -95,23 +94,32 @@ export default async function ParentHomeworkPage({
         className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
-        <Kpi
+        <StatTile
           label="Completion"
           value={total > 0 ? `${completed}/${total}` : "—"}
-          sub="Submitted or marked"
-          delta={total > 0 && completed / total >= 0.9 ? "up" : "flat"}
+          icon={<ClipboardList className="h-5 w-5" />}
+          tone="sky"
+          accent
+          delta="Submitted or marked"
+          deltaTone={total > 0 && completed / total >= 0.9 ? "up" : "flat"}
         />
-        <Kpi
+        <StatTile
           label="Outstanding"
           value={outstanding.toString()}
-          sub="Not yet submitted"
-          delta={outstanding === 0 ? "up" : "down"}
+          icon={<Clock className="h-5 w-5" />}
+          tone={outstanding === 0 ? "good" : "warn"}
+          accent
+          delta="Not yet submitted"
+          deltaTone={outstanding === 0 ? "up" : "down"}
         />
-        <Kpi
+        <StatTile
           label="Late"
           value={late.toString()}
-          sub="Past due date"
-          delta={late === 0 ? "up" : "down"}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone={late === 0 ? "good" : "coral"}
+          accent
+          delta="Past due date"
+          deltaTone={late === 0 ? "up" : "down"}
         />
       </section>
 
@@ -124,14 +132,14 @@ export default async function ParentHomeworkPage({
       <div className="rise" style={{ animationDelay: "70ms" }}>
         {rows.length === 0 ? (
           <Card>
-            <p className="text-ink-soft">
+            <Empty>
               {subjectFilter
                 ? `No ${subjectFilter} homework for ${selected.firstName}.`
                 : `No homework has been assigned to ${selected.firstName} yet.`}
-            </p>
+            </Empty>
           </Card>
         ) : (
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <Table>
               <thead>
                 <tr>
