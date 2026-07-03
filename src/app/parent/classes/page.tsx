@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { ClipboardCheck, UserX, CalendarDays } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { StatusBadge } from "@/components/data/status-badge";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
@@ -23,8 +24,6 @@ import {
   parseMonthParam,
 } from "../_components/month-calendar";
 import { SectionHeader } from "../_components/section-header";
-import { PageHeader } from "../_components/page-header";
-import { Kpi } from "../_components/kpi";
 import { BtnLink } from "../_components/button-link";
 import { submitRescheduleRequest } from "../_actions";
 
@@ -124,25 +123,29 @@ export default async function ParentClassesPage({
       )}
 
       {params.submitted === "1" && (
-        <Card className="rise border-emerald-200/70 bg-emerald-50">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-emerald-800">
-            Request submitted
+        <Card accent="good" className="rise">
+          <div className="p-5">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-good">
+              Request submitted
+            </div>
+            <p className="mt-1 text-sm text-ink-soft">
+              Your reschedule request has been sent to the admin team. They'll
+              confirm by email.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-emerald-900">
-            Your reschedule request has been sent to the admin team. They'll
-            confirm by email.
-          </p>
         </Card>
       )}
 
       {params.error === "1" && (
-        <Card className="rise border-rose-200/70 bg-rose-50">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-rose-800">
-            Couldn't submit request
+        <Card accent="bad" className="rise">
+          <div className="p-5">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad">
+              Couldn't submit request
+            </div>
+            <p className="mt-1 text-sm text-ink-soft">
+              Please pick a slot and try again.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-rose-900">
-            Please pick a slot and try again.
-          </p>
         </Card>
       )}
 
@@ -150,31 +153,48 @@ export default async function ParentClassesPage({
         className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <Kpi
+        <StatTile
           label="Attendance rate"
           value={rate !== null ? `${rate}%` : "—"}
-          sub="All logged lessons"
-          delta={
+          icon={<ClipboardCheck className="h-5 w-5" />}
+          tone="mint"
+          accent
+          delta="All logged lessons"
+          deltaTone={
             rate === null ? "flat" : rate >= 90 ? "up" : rate < 75 ? "down" : "flat"
           }
         />
-        <Kpi
+        <StatTile
           label="Absences"
           value={absent.toString()}
-          sub="Marked absent"
-          delta={absent === 0 ? "up" : "down"}
+          icon={<UserX className="h-5 w-5" />}
+          tone={absent === 0 ? "good" : "coral"}
+          accent
+          delta="Marked absent"
+          deltaTone={absent === 0 ? "up" : "down"}
         />
-        <Kpi label="Lessons logged" value={total.toString()} sub="This term" />
+        <StatTile
+          label="Lessons logged"
+          value={total.toString()}
+          icon={<CalendarDays className="h-5 w-5" />}
+          tone="sky"
+          accent
+          delta="This term"
+        />
       </section>
 
       {mode === "pick-slot" && rescheduleLesson ? (
-        <form action={submitRescheduleRequest} className="space-y-3">
+        <form
+          action={submitRescheduleRequest}
+          className="space-y-3 rise"
+          style={{ animationDelay: "60ms" }}
+        >
           <input type="hidden" name="lessonId" value={rescheduleLesson.id} />
           <input type="hidden" name="childId" value={selected.id} />
           <input type="hidden" name="month" value={monthIso} />
 
-          <Card className="p-0 overflow-hidden rise" style={{ animationDelay: "60ms" }}>
-            <div className="px-6 py-5 border-b border-hairline/60 bg-brand-50">
+          <Card>
+            <div className="px-6 py-5 border-b border-line bg-brand-50">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] uppercase tracking-[0.16em] text-brand-700">
@@ -208,7 +228,7 @@ export default async function ParentClassesPage({
                   name="reason"
                   rows={2}
                   placeholder="Anything the admin team should know?"
-                  className="mt-1 block w-full rounded-lg border border-hairline/70 bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="mt-1 block w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
               <div className="mt-3">
@@ -242,10 +262,8 @@ export default async function ParentClassesPage({
           </Card>
         </form>
       ) : (
-        <Card
-          className="p-0 overflow-hidden rise"
-          style={{ animationDelay: "60ms" }}
-        >
+        <div className="rise" style={{ animationDelay: "60ms" }}>
+        <Card>
           <SectionHeader
             title={`${selected.firstName}'s schedule`}
             description={
@@ -255,7 +273,7 @@ export default async function ParentClassesPage({
             }
           />
           {mode === "pick-lesson" && (
-            <div className="px-6 py-3 bg-brand-50 border-b border-hairline/60 flex items-baseline justify-between gap-3">
+            <div className="px-6 py-3 bg-brand-50 border-b border-line flex items-baseline justify-between gap-3">
               <div className="text-sm text-ink">
                 <span className="font-medium">Pick the class to move.</span>
                 <span className="text-muted ml-2">
@@ -274,9 +292,9 @@ export default async function ParentClassesPage({
             <div className="px-5 pt-5">
               <Link
                 href={pickLessonHref}
-                className="group flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 text-navy-800 px-6 py-3 hover:from-brand-200 hover:via-brand-300 hover:to-brand-200 transition-colors"
+                className="group flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 text-brand-700 px-6 py-3 hover:from-brand-200 hover:via-brand-300 hover:to-brand-200 transition-colors"
               >
-                <span className="text-base font-medium">Reschedule a class</span>
+                <span className="text-base font-bold">Reschedule a class</span>
                 <span
                   aria-hidden
                   className="text-xl shrink-0 transition-transform group-hover:translate-x-1"
@@ -297,20 +315,21 @@ export default async function ParentClassesPage({
             />
           </div>
         </Card>
+        </div>
       )}
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
-        <Card className="p-0 overflow-hidden">
+        <Card>
           <SectionHeader
             title="Lesson Log"
             link={{ href: "/parent/feedback", label: "Tutor feedback" }}
           />
           {attendanceRows.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-ink-soft">
+            <Empty>
               No attendance has been recorded yet for {selected.firstName}.
-            </div>
+            </Empty>
           ) : (
-            <div className="divide-y divide-hairline/60">
+            <div className="divide-y divide-line/70">
               {attendanceRows.map((r) => (
                 <div
                   key={r.lessonId}

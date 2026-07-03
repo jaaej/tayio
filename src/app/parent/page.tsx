@@ -1,6 +1,13 @@
 import Link from "next/link";
-import { Receipt, Megaphone } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import {
+  Receipt,
+  Megaphone,
+  ClipboardCheck,
+  ClipboardList,
+  TrendingUp,
+  CreditCard,
+} from "lucide-react";
+import { Card, StatTile, Hero, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import {
@@ -29,11 +36,8 @@ import {
 } from "./_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "./_components/child-switcher";
 import { SectionHeader } from "./_components/section-header";
-import { PageHeader } from "./_components/page-header";
-import { Kpi } from "./_components/kpi";
 import { StatusPill } from "./_components/status-pill";
 import { Table, Th, Td, Tr } from "./_components/table";
-import { BtnLink } from "./_components/button-link";
 import { FeedbackList, type FeedbackItem } from "./_components/feedback-list";
 
 type SearchParams = Promise<{ child?: string }>;
@@ -55,7 +59,8 @@ export default async function ParentDashboard({
   if (!selected) {
     return (
       <div className="space-y-6">
-        <PageHeader
+        <Hero
+          eyebrow="Parent portal"
           title={`Hello, ${parentName}`}
           sub="Here's how your family is tracking this week."
         />
@@ -106,18 +111,25 @@ export default async function ParentDashboard({
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <Hero
+        eyebrow="Parent portal"
         title={`Hello, ${parentName}`}
         sub={`Here's how ${selected.firstName} is tracking this week.`}
-        actions={
-          <>
-            <BtnLink href={`/parent/classes${childQs}&reschedule=pick`}>
+        right={
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <Link
+              href={`/parent/classes${childQs}&reschedule=pick`}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-lg bg-white/[0.14] border border-white/30 text-white hover:bg-white/[0.22] transition-colors"
+            >
               Reschedule a class
-            </BtnLink>
-            <BtnLink href="/parent/payments" variant="brand">
+            </Link>
+            <Link
+              href="/parent/payments"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-lg bg-white text-brand-700 hover:bg-brand-50 transition-colors"
+            >
               Payments
-            </BtnLink>
-          </>
+            </Link>
+          </div>
         }
       />
 
@@ -136,43 +148,59 @@ export default async function ParentDashboard({
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
-        <Kpi
+        <StatTile
           label="Attendance"
           value={data.attendanceRate !== null ? `${data.attendanceRate}%` : "—"}
-          sub="Last 4 weeks"
-          delta={
+          icon={<ClipboardCheck className="h-5 w-5" />}
+          tone="mint"
+          accent
+          delta="Last 4 weeks"
+          deltaTone={
             data.attendanceRate !== null && data.attendanceRate >= 90
               ? "up"
               : data.attendanceRate !== null && data.attendanceRate < 75
                 ? "down"
                 : "flat"
           }
+          href={`/parent/attendance${childQs}`}
         />
-        <Kpi
+        <StatTile
           label="Homework"
           value={
             data.homeworkTotal > 0
               ? `${data.homeworkCompleted}/${data.homeworkTotal}`
               : "—"
           }
-          sub="Completed this term"
-          delta={
+          icon={<ClipboardList className="h-5 w-5" />}
+          tone="sky"
+          accent
+          delta="Completed this term"
+          deltaTone={
             data.homeworkTotal > 0 &&
             data.homeworkCompleted / data.homeworkTotal >= 0.9
               ? "up"
               : "flat"
           }
+          href={`/parent/homework${childQs}`}
         />
-        <Kpi
+        <StatTile
           label="Overall mastery"
           value={overallMastery !== null ? `${overallMastery}%` : "—"}
-          sub={`${mastery.length} subject${mastery.length === 1 ? "" : "s"}`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          tone="grape"
+          accent
+          delta={`${mastery.length} subject${mastery.length === 1 ? "" : "s"}`}
+          href={`/parent/progress${childQs}`}
         />
-        <Kpi
+        <StatTile
           label="Outstanding"
           value={formatMoney(outstanding)}
-          sub={outstanding > 0 ? "Payment due" : "All paid up"}
-          delta={outstanding > 0 ? "down" : "up"}
+          icon={<CreditCard className="h-5 w-5" />}
+          tone={outstanding > 0 ? "warn" : "good"}
+          accent
+          delta={outstanding > 0 ? "Payment due" : "All paid up"}
+          deltaTone={outstanding > 0 ? "down" : "up"}
+          href="/parent/payments"
         />
       </section>
 
@@ -180,7 +208,7 @@ export default async function ParentDashboard({
       <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-5 lg:gap-6">
         {/* LEFT */}
         <div className="space-y-5 min-w-0 rise" style={{ animationDelay: "80ms" }}>
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <SectionHeader
               title="From the tutor"
               link={{ href: "/parent/feedback", label: "All feedback" }}
@@ -195,7 +223,7 @@ export default async function ParentDashboard({
             )}
           </Card>
 
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <SectionHeader
               title="Homework"
               link={{ href: "/parent/homework", label: "All homework" }}
@@ -243,7 +271,7 @@ export default async function ParentDashboard({
           className="space-y-5 min-w-0 rise"
           style={{ animationDelay: "120ms" }}
         >
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <SectionHeader
               title="Payments"
               link={{ href: "/parent/payments", label: "View all" }}
@@ -279,7 +307,7 @@ export default async function ParentDashboard({
             )}
           </Card>
 
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <SectionHeader title="Announcements" />
             {notices.length === 0 ? (
               <Empty>No announcements right now.</Empty>
@@ -310,7 +338,7 @@ export default async function ParentDashboard({
             )}
           </Card>
 
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <SectionHeader title="Contact" />
             <div className="divide-y divide-line/70">
               {tutors.length === 0 && !admin ? (
@@ -368,8 +396,4 @@ function ContactRow({
       </Link>
     </div>
   );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-8 text-sm text-ink-soft">{children}</div>;
 }

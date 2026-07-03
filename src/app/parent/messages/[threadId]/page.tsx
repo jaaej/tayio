@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, BackLink } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { MessageList } from "@/components/dm/message-list";
@@ -25,20 +23,16 @@ export default async function ParentThreadPage({
 
   return (
     <div className="space-y-4 flex flex-col h-[calc(100dvh-160px)]">
-      <Link
-        href="/parent/messages"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.14em] text-muted hover:text-ink font-medium"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-        Messages
-      </Link>
-      <Card className="px-5 py-3 flex items-baseline gap-2 shrink-0">
-        <div className="text-lg font-semibold text-ink">{thread.otherName}</div>
-        <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-medium">
-          {thread.otherRole}
+      <BackLink href="/parent/messages">Messages</BackLink>
+      <Card className="shrink-0">
+        <div className="px-5 py-3 flex items-baseline gap-2">
+          <div className="text-lg font-bold text-ink">{thread.otherName}</div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-medium">
+            {thread.otherRole}
+          </div>
         </div>
       </Card>
-      <Card className="flex-1 flex flex-col overflow-hidden p-0">
+      <Card className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto p-5">
           <MessageList messages={thread.messages} meId={user.id} />
         </div>

@@ -44,7 +44,7 @@ export function WeekStripParent({
           onChange={(e) => {
             window.location.href = `${base}?child=${childId}&term=${e.target.value}`;
           }}
-          className="w-full rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink"
         >
           {termsAvailable.map((t) => (
             <option key={t.id} value={t.id}>
@@ -92,7 +92,7 @@ export function WeekStripParent({
                           "block rounded-2xl border-2 px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-16px_rgba(29,41,81,0.32)]",
                           isActive
                             ? "border-brand-600 bg-gradient-to-br from-brand-200 via-brand-100 to-brand-50 shadow-[0_8px_24px_-12px_rgba(29,41,81,0.4)]"
-                            : "border-hairline/60 bg-card hover:border-brand-300",
+                            : "border-line bg-surface hover:border-brand-300",
                           !isActive && complete && "bg-emerald-50/40 border-emerald-300",
                         )}
                       >
@@ -162,7 +162,7 @@ function Marker({
       title={title}
       className={cn(
         "inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold",
-        on ? "bg-emerald-500 text-white" : "bg-hairline/40 text-muted",
+        on ? "bg-emerald-500 text-white" : "bg-line-strong/60 text-muted",
       )}
     >
       {on ? "✓" : label}

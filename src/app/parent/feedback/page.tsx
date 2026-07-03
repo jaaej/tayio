@@ -1,10 +1,9 @@
-import { Card } from "@/components/ui/card";
+import { Card, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, relativeTime } from "@/lib/format";
 import { getFeedback, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { PageHeader } from "../_components/page-header";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -51,15 +50,15 @@ export default async function ParentFeedbackPage({
       <div className="rise space-y-4" style={{ animationDelay: "60ms" }}>
         {rows.length === 0 ? (
           <Card>
-            <p className="text-ink-soft">
+            <Empty>
               No tutor feedback yet. Notes will appear here after each of{" "}
               {selected.firstName}'s lessons.
-            </p>
+            </Empty>
           </Card>
         ) : (
           rows.map((r) => (
-            <Card key={r.id} className="p-0 overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-line/70">
+            <Card key={r.id}>
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <SubjectPill name={r.subjectName ?? "Lesson"} />
                   {r.topicCovered && (
@@ -72,7 +71,7 @@ export default async function ParentFeedbackPage({
                   {formatDateLong(r.lessonDate)} · {r.tutorName}
                 </div>
               </div>
-              <div className="px-6 py-5">
+              <div className="px-5 py-5">
                 <p className="text-lg text-ink leading-relaxed">
                   {r.parentVisibleComment}
                 </p>

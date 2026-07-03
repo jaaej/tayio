@@ -1,5 +1,11 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CreditCard, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Card,
+  Button,
+  StatTile,
+  PageHeader,
+  Empty,
+} from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_STYLE } from "@/lib/status";
@@ -7,8 +13,6 @@ import {
   getInvoicesForParent,
   getOutstandingBalanceForParent,
 } from "../_data";
-import { PageHeader } from "../_components/page-header";
-import { Kpi } from "../_components/kpi";
 import { StatusPill } from "../_components/status-pill";
 import { Table, Th, Td, Tr } from "../_components/table";
 
@@ -33,50 +37,65 @@ export default async function ParentPaymentsPage() {
         className="grid grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
-        <Kpi
+        <StatTile
           label="Outstanding"
           value={formatMoney(outstanding)}
-          sub={outstanding > 0 ? "Payment due" : "All paid up"}
-          delta={outstanding > 0 ? "down" : "up"}
+          icon={<CreditCard className="h-5 w-5" />}
+          tone={outstanding > 0 ? "warn" : "good"}
+          accent
+          delta={outstanding > 0 ? "Payment due" : "All paid up"}
+          deltaTone={outstanding > 0 ? "down" : "up"}
         />
-        <Kpi label="Paid" value={paid.toString()} sub="Invoices settled" />
-        <Kpi
+        <StatTile
+          label="Paid"
+          value={paid.toString()}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          tone="mint"
+          accent
+          delta="Invoices settled"
+        />
+        <StatTile
           label="Overdue"
           value={overdue.toString()}
-          sub="Past due date"
-          delta={overdue === 0 ? "up" : "down"}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone={overdue === 0 ? "good" : "coral"}
+          accent
+          delta="Past due date"
+          deltaTone={overdue === 0 ? "up" : "down"}
         />
       </section>
 
       {outstanding > 0 && (
-        <Card
-          className="rise flex flex-wrap items-center justify-between gap-4"
-          style={{ animationDelay: "50ms" }}
-        >
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
-              Total due
+        <div className="rise" style={{ animationDelay: "50ms" }}>
+          <Card accent="warn">
+            <div className="p-5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
+                  Total due
+                </div>
+                <div className="mt-1 text-3xl font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+                  {formatMoney(outstanding)}
+                </div>
+                <div className="mt-1 text-xs text-muted">
+                  Payments are processed externally — confirmation arrives by
+                  email.
+                </div>
+              </div>
+              <Button type="button" variant="brand" disabled>
+                Pay (coming soon)
+              </Button>
             </div>
-            <div className="mt-1 text-3xl font-extrabold tracking-[-0.02em] text-ink tabular-nums">
-              {formatMoney(outstanding)}
-            </div>
-            <div className="mt-1 text-xs text-muted">
-              Payments are processed externally — confirmation arrives by email.
-            </div>
-          </div>
-          <Button type="button" variant="brand" disabled>
-            Pay (coming soon)
-          </Button>
-        </Card>
+          </Card>
+        </div>
       )}
 
       <div className="rise" style={{ animationDelay: "70ms" }}>
         {rows.length === 0 ? (
           <Card>
-            <p className="text-ink-soft">No invoices issued yet.</p>
+            <Empty>No invoices issued yet.</Empty>
           </Card>
         ) : (
-          <Card className="p-0 overflow-hidden">
+          <Card>
             <Table>
               <thead>
                 <tr>

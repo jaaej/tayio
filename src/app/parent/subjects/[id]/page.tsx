@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { resolveSelectedChild } from "@/app/parent/_data";
 import { currentWeekNumber } from "@/lib/curriculum";
@@ -75,13 +75,13 @@ export default async function ParentSubjectPage({
     <div className="space-y-6">
       <Link
         href={`/parent?child=${resolved.selected.id}`}
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+        className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
       >
         ← Overview
       </Link>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-5 border-b border-hairline/60">
+      <Card>
+        <div className="px-6 py-5 border-b border-line">
           <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-muted">
             {data.childFirstName}
           </div>
@@ -104,7 +104,7 @@ export default async function ParentSubjectPage({
             selectedWeekId={selected?.subjectWeekId ?? null}
             currentWeekIdHint={currentWeekHint}
           />
-          <div className="lg:border-l lg:border-hairline/60 lg:pl-6">
+          <div className="lg:border-l lg:border-line lg:pl-6">
             {selected && <WeekContentParent week={selected} />}
           </div>
         </div>

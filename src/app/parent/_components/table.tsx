@@ -2,7 +2,7 @@ import type { ReactNode, ThHTMLAttributes, TdHTMLAttributes } from "react";
 
 /**
  * Reference data table (`.tbl`): uppercase header row on a tinted
- * surface, hairline row separators, hover highlight. Wrap in a Card with
+ * surface, line row separators, hover highlight. Wrap in a Card with
  * `p-0 overflow-hidden` so the header bleeds to the card edges.
  */
 export function Table({ children }: { children: ReactNode }) {
