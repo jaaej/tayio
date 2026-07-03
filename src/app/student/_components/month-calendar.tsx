@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/lib/format";
+import { formatTime, startOfMondayWeek } from "@/lib/format";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -82,18 +82,43 @@ export function monthBounds(
   return { fromIso: isoLocal(from), toIso: isoLocal(to) };
 }
 
+/** Parse ?week=YYYY-MM-DD, snapping any date to its Monday. Defaults to the current week. */
+export function parseWeekParam(value: string | undefined): Date {
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = new Date(`${value}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) return startOfMondayWeek(d);
+  }
+  return startOfMondayWeek(new Date());
+}
+
+export function weekBounds(weekStart: Date): {
+  fromIso: string;
+  toIso: string;
+} {
+  const to = new Date(weekStart);
+  to.setDate(weekStart.getDate() + 7);
+  return { fromIso: isoLocal(weekStart), toIso: isoLocal(to) };
+}
+
 export function MonthCalendar({
   year,
   month,
   lessons,
   homework,
   basePath,
+  subjectColorHomework = false,
 }: {
   year: number;
   month: number;
   lessons: MonthLesson[];
   homework: MonthHomework[];
   basePath: string;
+  /**
+   * Colour homework chips by subject accent family (like lesson chips)
+   * instead of by status; status moves to the left bar + ring
+   * (red = overdue, green = submitted). Used by the subjects page.
+   */
+  subjectColorHomework?: boolean;
 }) {
   const firstOfMonth = new Date(year, month, 1);
   const firstDow = firstOfMonth.getDay();
@@ -208,23 +233,179 @@ export function MonthCalendar({
         </div>
         <div className="grid grid-cols-7 gap-1.5">
           {visibleDays.map((d) => (
-            <DayCell key={d.iso} day={d} />
+            <DayCell
+              key={d.iso}
+              day={d}
+              subjectColorHomework={subjectColorHomework}
+            />
           ))}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
-        <LegendDot color="bg-brand-500" label="Lesson" />
-        <LegendDot color="bg-amber-500" label="Homework due" />
-        <LegendDot color="bg-good" label="Done" />
-        <LegendDot color="bg-bad" label="Cancelled" />
+      <CalendarLegend subjectColorHomework={subjectColorHomework} />
+    </div>
+  );
+}
+
+/**
+ * WeekCalendar — single Mon–Sun row using the same day cells, chips, and
+ * legend as MonthCalendar, navigable via ?week=YYYY-MM-DD links.
+ */
+export function WeekCalendar({
+  weekStart,
+  lessons,
+  homework,
+  basePath,
+  subjectColorHomework = false,
+}: {
+  /** Monday of the displayed week (midnight, local). */
+  weekStart: Date;
+  lessons: MonthLesson[];
+  homework: MonthHomework[];
+  basePath: string;
+  subjectColorHomework?: boolean;
+}) {
+  const todayIso = isoLocal(new Date());
+
+  const lessonsByDate = new Map<string, MonthLesson[]>();
+  for (const l of lessons) {
+    if (!lessonsByDate.has(l.date)) lessonsByDate.set(l.date, []);
+    lessonsByDate.get(l.date)!.push(l);
+  }
+  for (const list of lessonsByDate.values()) {
+    list.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+  const homeworkByDate = new Map<string, MonthHomework[]>();
+  for (const h of homework) {
+    if (!homeworkByDate.has(h.dueDate)) homeworkByDate.set(h.dueDate, []);
+    homeworkByDate.get(h.dueDate)!.push(h);
+  }
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const iso = isoLocal(d);
+    return {
+      iso,
+      dayNum: d.getDate(),
+      inMonth: true,
+      isToday: iso === todayIso,
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      lessons: lessonsByDate.get(iso) ?? [],
+      homework: homeworkByDate.get(iso) ?? [],
+    };
+  });
+
+  const prev = new Date(weekStart);
+  prev.setDate(weekStart.getDate() - 7);
+  const next = new Date(weekStart);
+  next.setDate(weekStart.getDate() + 7);
+  const nav = (d: Date) => `${basePath}?week=${isoLocal(d)}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-4">
+          <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+            {weekRangeLabel(weekStart)}
+          </h2>
+          <Link
+            href={nav(startOfMondayWeek(new Date()))}
+            className="text-[11px] uppercase tracking-[0.16em] text-brand-600 hover:text-brand-700 font-bold"
+          >
+            Today
+          </Link>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={nav(prev)}
+            aria-label="Previous week"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+          >
+            ‹
+          </Link>
+          <Link
+            href={nav(next)}
+            aria-label="Next week"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+          >
+            ›
+          </Link>
+        </div>
       </div>
+
+      <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
+        <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
+          {DAY_LABELS.map((d, i) => (
+            <div
+              key={d}
+              className={cn(
+                "text-center py-2",
+                (i === 5 || i === 6) && "text-muted",
+              )}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {days.map((d) => (
+            <DayCell
+              key={d.iso}
+              day={d}
+              subjectColorHomework={subjectColorHomework}
+            />
+          ))}
+        </div>
+      </div>
+
+      <CalendarLegend subjectColorHomework={subjectColorHomework} />
+    </div>
+  );
+}
+
+function weekRangeLabel(start: Date): string {
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  if (sameYear && start.getMonth() === end.getMonth()) {
+    return `${start.getDate()} – ${end.getDate()} ${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()}`;
+  }
+  const part = (d: Date, withYear: boolean) =>
+    `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}${withYear ? ` ${d.getFullYear()}` : ""}`;
+  return `${part(start, !sameYear)} – ${part(end, true)}`;
+}
+
+function CalendarLegend({
+  subjectColorHomework,
+}: {
+  subjectColorHomework: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
+      {subjectColorHomework ? (
+        <>
+          <LegendDot color="bg-bad" label="Overdue" />
+          <LegendDot color="bg-good" label="Submitted" />
+          <span className="normal-case tracking-normal text-muted-2">
+            Chips coloured by subject
+          </span>
+        </>
+      ) : (
+        <>
+          <LegendDot color="bg-brand-500" label="Lesson" />
+          <LegendDot color="bg-amber-500" label="Homework due" />
+          <LegendDot color="bg-good" label="Done" />
+          <LegendDot color="bg-bad" label="Cancelled" />
+        </>
+      )}
     </div>
   );
 }
 
 function DayCell({
   day,
+  subjectColorHomework,
 }: {
   day: {
     iso: string;
@@ -235,6 +416,7 @@ function DayCell({
     lessons: MonthLesson[];
     homework: MonthHomework[];
   };
+  subjectColorHomework: boolean;
 }) {
   return (
     <div
@@ -279,9 +461,13 @@ function DayCell({
         {day.lessons.map((l) => (
           <LessonChip key={l.id} lesson={l} dimmed={!day.inMonth} />
         ))}
-        {day.homework.map((h) => (
-          <HomeworkChip key={h.id} homework={h} dimmed={!day.inMonth} />
-        ))}
+        {day.homework.map((h) =>
+          subjectColorHomework ? (
+            <SubjectHomeworkChip key={h.id} homework={h} dimmed={!day.inMonth} />
+          ) : (
+            <HomeworkChip key={h.id} homework={h} dimmed={!day.inMonth} />
+          ),
+        )}
       </div>
     </div>
   );
@@ -350,6 +536,53 @@ function HomeworkChip({
       >
         {h.title}
       </div>
+    </Link>
+  );
+}
+
+/**
+ * Homework chip coloured by subject (same accent treatment as LessonChip).
+ * Status is carried by the left bar + ring rather than the fill:
+ * red bar + ring = overdue, green bar + dimmed = submitted/marked.
+ */
+function SubjectHomeworkChip({
+  homework: h,
+  dimmed,
+}: {
+  homework: MonthHomework;
+  dimmed: boolean;
+}) {
+  const subject = h.className ?? "Homework";
+  const t = getAccentTokens(colorFamilyForSubject(subject));
+  const done = h.status === "submitted" || h.status === "marked";
+  const overdue =
+    !done && (h.status === "late" || h.dueDate < isoLocal(new Date()));
+  const stateLabel = overdue ? ", overdue" : done ? ", submitted" : "";
+  return (
+    <Link
+      href={`/student/homework/${h.id}`}
+      title={`${h.title} — ${subject}`}
+      aria-label={`${h.title} — ${subject}, due ${h.dueDate}${stateLabel}`}
+      className={cn(
+        "relative block rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]",
+        overdue && "ring-1 ring-inset ring-bad/60",
+        (dimmed || done) && "opacity-50",
+      )}
+      style={{
+        backgroundColor: done ? t.bgTo : t.pillBg,
+        color: t.pillText,
+      }}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-1 bottom-1 w-[3px] rounded-full",
+          overdue && "bg-bad",
+          done && "bg-good",
+        )}
+        style={overdue || done ? undefined : { backgroundColor: t.arrow }}
+      />
+      <div className="text-[11px] truncate font-bold">{h.title}</div>
     </Link>
   );
 }
