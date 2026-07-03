@@ -12,6 +12,15 @@ import { SubjectPill } from "@/components/student/subject-pill";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { formatDueDate, relativeTime } from "@/lib/format";
 import {
+  MonthCalendar,
+  WeekCalendar,
+  monthBounds,
+  parseMonthParam,
+  parseWeekParam,
+  weekBounds,
+  type MonthHomework,
+} from "../_components/month-calendar";
+import {
   colorFamilyForSubject,
   getAccentTokens,
 } from "@/lib/subject-colors";
@@ -22,22 +31,42 @@ import {
   type HomeworkRow as HomeworkRowData,
 } from "../_lib/queries";
 
-export default async function StudentSubjectsIndex() {
+export default async function StudentSubjectsIndex({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; week?: string }>;
+}) {
   const user = await requireRole("student");
-  const [subjects, progress, allHomework] = await Promise.all([
+  const [subjects, progress, allHomework, params] = await Promise.all([
     getStudentSubjects(user.id),
     getStudentProgressBySubject(user.id),
     getStudentHomework(user.id),
+    searchParams,
   ]);
 
   const now = new Date();
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
-  const weekAhead = new Date(startOfToday);
-  weekAhead.setDate(startOfToday.getDate() + 7);
 
-  // Bucket homework. Open items split by due date; completed items split by
-  // submitted-vs-marked. Matches the buckets the old standalone homework page used.
+  // Due-date calendar, timetable-styled. Defaults to a single week
+  // (?week=YYYY-MM-DD to navigate); ?month=YYYY-MM enlarges to the full
+  // month. Open + submitted items land on their due dates; overdue and
+  // marked items live in the sidebar.
+  const isMonthView = Boolean(params.month);
+  const { year, month } = parseMonthParam(params.month);
+  const weekStart = parseWeekParam(params.week);
+  const { fromIso, toIso } = isMonthView
+    ? monthBounds(year, month)
+    : weekBounds(weekStart);
+  // "Full month" toggle target: the month owning most of the viewed week
+  // (its Thursday, per ISO convention) — not the Monday, which can sit in
+  // the previous month.
+  const weekMid = new Date(weekStart);
+  weekMid.setDate(weekStart.getDate() + 3);
+  const monthKey = isMonthView
+    ? params.month!
+    : `${weekMid.getFullYear()}-${String(weekMid.getMonth() + 1).padStart(2, "0")}`;
+
   const openStatuses = new Set([
     "not_started",
     "viewed",
@@ -45,23 +74,19 @@ export default async function StudentSubjectsIndex() {
     "late",
   ]);
   const open = allHomework.filter((h) => openStatuses.has(h.status));
+  const submitted = allHomework.filter((h) => h.status === "submitted");
+  const calendarHomework: MonthHomework[] = [...open, ...submitted]
+    .map((h) => ({
+      id: h.homeworkId,
+      dueDate: isoLocal(h.dueDate),
+      title: h.title,
+      status: h.status,
+      className: h.className,
+    }))
+    .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
   const overdue = open
     .filter((h) => h.dueDate < startOfToday || h.status === "late")
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  const dueSoon = open
-    .filter(
-      (h) =>
-        h.status !== "late" &&
-        h.dueDate >= startOfToday &&
-        h.dueDate < weekAhead,
-    )
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  const dueLater = open
-    .filter((h) => h.status !== "late" && h.dueDate >= weekAhead)
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  const submitted = allHomework
-    .filter((h) => h.status === "submitted")
-    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
   const marked = allHomework
     .filter((h) => h.status === "marked" || h.status === "returned")
     .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
@@ -134,7 +159,7 @@ export default async function StudentSubjectsIndex() {
             </div>
           </div>
 
-          {/* Homework — overall list, bucketed */}
+          {/* Homework — full-month due-date calendar (timetable style) */}
           <div>
             <SectionHead title="Homework" />
             {allHomework.length === 0 ? (
@@ -146,72 +171,120 @@ export default async function StudentSubjectsIndex() {
                 </CardBody>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {overdue.length > 0 && (
-                  <Card className="overflow-hidden">
-                    <CardHead
-                      title="Overdue"
-                      action={
-                        <span className="text-bad">
-                          {overdue.length} item{overdue.length === 1 ? "" : "s"}
-                        </span>
-                      }
+              <Card className="overflow-hidden">
+                <CardHead
+                  title="Due dates"
+                  action={
+                    <div
+                      role="group"
+                      aria-label="Calendar view"
+                      className="inline-flex rounded-lg border border-line overflow-hidden"
+                    >
+                      <Link
+                        href="/student/subjects"
+                        aria-current={!isMonthView ? "page" : undefined}
+                        className={
+                          !isMonthView
+                            ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
+                            : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
+                        }
+                      >
+                        Week
+                      </Link>
+                      <Link
+                        href={`/student/subjects?month=${monthKey}`}
+                        aria-current={isMonthView ? "page" : undefined}
+                        className={
+                          isMonthView
+                            ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
+                            : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
+                        }
+                      >
+                        Full month
+                      </Link>
+                    </div>
+                  }
+                />
+                <div className="p-4 lg:p-5">
+                  {isMonthView ? (
+                    <MonthCalendar
+                      year={year}
+                      month={month}
+                      lessons={[]}
+                      homework={calendarHomework}
+                      basePath="/student/subjects"
+                      subjectColorHomework
                     />
-                    <HomeworkList items={overdue} />
-                  </Card>
-                )}
-                {dueSoon.length > 0 && (
-                  <Card className="overflow-hidden">
-                    <CardHead
-                      title="Due this week"
-                      action={`${dueSoon.length} item${dueSoon.length === 1 ? "" : "s"}`}
+                  ) : (
+                    <WeekCalendar
+                      weekStart={weekStart}
+                      lessons={[]}
+                      homework={calendarHomework}
+                      basePath="/student/subjects"
+                      subjectColorHomework
                     />
-                    <HomeworkList items={dueSoon} />
-                  </Card>
-                )}
-                {dueLater.length > 0 && (
-                  <Card className="overflow-hidden">
-                    <CardHead
-                      title="Coming up"
-                      action={`${dueLater.length} item${dueLater.length === 1 ? "" : "s"}`}
-                    />
-                    <HomeworkList items={dueLater} />
-                  </Card>
-                )}
-                {submitted.length > 0 && (
-                  <Card className="overflow-hidden">
-                    <CardHead
-                      title="Submitted"
-                      action={`${submitted.length} item${submitted.length === 1 ? "" : "s"}`}
-                    />
-                    <HomeworkList items={submitted} />
-                  </Card>
-                )}
-                {marked.length > 0 && (
-                  <Card className="overflow-hidden">
-                    <CardHead
-                      title="Marked"
-                      action={`${marked.length} item${marked.length === 1 ? "" : "s"}`}
-                    />
-                    <HomeworkList items={marked} />
-                  </Card>
-                )}
-                {open.length === 0 && submitted.length === 0 && marked.length === 0 && (
-                  <Card>
-                    <CardBody>
-                      <div className="text-sm text-muted text-center py-2">
-                        You're caught up — nothing to submit.
-                      </div>
-                    </CardBody>
-                  </Card>
-                )}
-              </div>
+                  )}
+                </div>
+              </Card>
             )}
           </div>
         </div>
 
         {/* RIGHT */}
         <div className="space-y-5 min-w-0">
+          {/* Overdue homework */}
+          {overdue.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHead
+                title="Overdue"
+                action={
+                  <span className="text-bad">
+                    {overdue.length} item{overdue.length === 1 ? "" : "s"}
+                  </span>
+                }
+              />
+              <HomeworkList items={overdue} />
+            </Card>
+          )}
+
+          {/* Marked homework */}
+          {marked.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHead
+                title="Marked"
+                action={
+                  <Link
+                    href="/student/homework"
+                    className="hover:text-brand-700"
+                  >
+                    All homework →
+                  </Link>
+                }
+              />
+              <ul className="divide-y divide-line">
+                {marked.slice(0, 6).map((h) => (
+                  <li key={h.homeworkId}>
+                    <HomeworkRow
+                      title={h.title}
+                      subject={h.className ?? "Homework"}
+                      meta={
+                        h.score
+                          ? `score ${h.score}`
+                          : `marked · due ${formatDueDate(h.dueDate)}`
+                      }
+                      href={`/student/homework/${h.homeworkId}`}
+                    />
+                  </li>
+                ))}
+              </ul>
+              {marked.length > 6 && (
+                <div className="border-t border-line px-4 py-2.5 text-[12px] text-muted">
+                  {marked.length - 6} more in your homework list
+                </div>
+              )}
+            </Card>
+          )}
+
           {/* Your tutors */}
           <Card>
             <CardHead title="Your tutors" />
@@ -252,6 +325,13 @@ export default async function StudentSubjectsIndex() {
       </div>
     </div>
   );
+}
+
+function isoLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function HomeworkList({ items }: { items: HomeworkRowData[] }) {
