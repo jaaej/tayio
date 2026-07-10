@@ -7,12 +7,15 @@ import {
   enrollments,
   homework,
   homeworkAssignments,
+  invoices,
   lessonNotes,
   lessons,
   profiles,
   progressTopics,
   subjects,
+  type UserRole,
 } from "@/db/schema";
+import { ADMIN_TIERS } from "@/lib/roles";
 
 export type RecentFeedback = {
   lessonId: string;
@@ -107,7 +110,7 @@ export type StudentAnnouncement = {
   title: string;
   body: string;
   publishedAt: Date;
-  audienceRole: "student" | "parent" | "tutor" | "admin" | null;
+  audienceRole: UserRole | null;
 };
 
 export async function getRelevantAnnouncements(
@@ -957,4 +960,77 @@ export async function getStudentLessonsWithNotes(
     .limit(30);
 
   return rows.map(({ noteId, ...r }) => ({ ...r, hasNote: noteId !== null }));
+}
+
+// --- Unrestricted-student features (role-tiers spec 2026-07-09) ---
+// These read the student's OWN invoices (invoices.studentId = self). Gated at
+// the page/action layer by requireUnrestrictedStudent(); restricted students
+// never reach them.
+
+export type StudentInvoiceRow = {
+  id: string;
+  amount: string;
+  currency: string;
+  status: (typeof invoices.status.enumValues)[number];
+  issuedAt: Date;
+  dueDate: string;
+  paidAt: Date | null;
+  description: string | null;
+};
+
+export async function getInvoicesForStudent(
+  studentId: string,
+): Promise<StudentInvoiceRow[]> {
+  return db
+    .select({
+      id: invoices.id,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      status: invoices.status,
+      issuedAt: invoices.issuedAt,
+      dueDate: invoices.dueDate,
+      paidAt: invoices.paidAt,
+      description: invoices.description,
+    })
+    .from(invoices)
+    .where(eq(invoices.studentId, studentId))
+    .orderBy(desc(invoices.issuedAt));
+}
+
+export async function getOutstandingBalanceForStudent(
+  studentId: string,
+): Promise<number> {
+  const rows = await db
+    .select({ amount: invoices.amount, status: invoices.status })
+    .from(invoices)
+    .where(eq(invoices.studentId, studentId));
+  return rows
+    .filter(
+      (r) =>
+        r.status === "unpaid" ||
+        r.status === "overdue" ||
+        r.status === "partially_paid",
+    )
+    .reduce((sum, r) => sum + Number(r.amount), 0);
+}
+
+export type StudentAdminContact = {
+  id: string;
+  firstName: string;
+  lastName: string;
+} | null;
+
+/** One active admin the student can DM (unrestricted students only). */
+export async function getAdminContactForStudent(): Promise<StudentAdminContact> {
+  const rows = await db
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    })
+    .from(profiles)
+    .where(and(inArray(profiles.role, ADMIN_TIERS), eq(profiles.isActive, true)))
+    .orderBy(asc(profiles.firstName))
+    .limit(1);
+  return rows[0] ?? null;
 }

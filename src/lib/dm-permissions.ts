@@ -8,10 +8,17 @@ import {
   profiles,
   type UserRole,
 } from "@/db/schema";
+import { coarseRole, studentTier } from "@/lib/roles";
 
 /**
  * Can user `me` (with role `meRole`) DM user `target` (with role `targetRole`)?
  * Encodes both the role-pair matrix and the relationship clause.
+ *
+ * Roles may be passed as tiered values (e.g. student_unrestricted); the matrix
+ * works on the coarse family. The one tier-sensitive rule: a RESTRICTED student
+ * has no DM channel with the admin office (their parent is the admin contact),
+ * so restricted-student <-> admin is blocked while unrestricted-student <->
+ * admin is allowed.
  */
 export async function canDM(
   meId: string,
@@ -20,25 +27,33 @@ export async function canDM(
   targetRole: UserRole,
 ): Promise<boolean> {
   if (meId === targetId) return false;
-  if (meRole === targetRole) return false;
+  const meC = coarseRole(meRole);
+  const targetC = coarseRole(targetRole);
+  if (meC === targetC) return false;
 
-  if (meRole === "admin" || targetRole === "admin") return true;
+  if (meC === "admin" || targetC === "admin") {
+    // Restricted students cannot DM the admin office.
+    const studentRole =
+      meC === "student" ? meRole : targetC === "student" ? targetRole : null;
+    if (studentRole && studentTier(studentRole) === "restricted") return false;
+    return true;
+  }
 
   if (
-    (meRole === "parent" && targetRole === "tutor") ||
-    (meRole === "tutor" && targetRole === "parent")
+    (meC === "parent" && targetC === "tutor") ||
+    (meC === "tutor" && targetC === "parent")
   ) {
-    const parentId = meRole === "parent" ? meId : targetId;
-    const tutorId = meRole === "tutor" ? meId : targetId;
+    const parentId = meC === "parent" ? meId : targetId;
+    const tutorId = meC === "tutor" ? meId : targetId;
     return parentTutorShareClass(parentId, tutorId);
   }
 
   if (
-    (meRole === "student" && targetRole === "tutor") ||
-    (meRole === "tutor" && targetRole === "student")
+    (meC === "student" && targetC === "tutor") ||
+    (meC === "tutor" && targetC === "student")
   ) {
-    const studentId = meRole === "student" ? meId : targetId;
-    const tutorId = meRole === "tutor" ? meId : targetId;
+    const studentId = meC === "student" ? meId : targetId;
+    const tutorId = meC === "tutor" ? meId : targetId;
     return studentTutorShareClass(studentId, tutorId);
   }
 

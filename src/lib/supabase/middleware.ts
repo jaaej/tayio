@@ -4,9 +4,13 @@ import type { UserRole } from "@/db/schema";
 
 const ROLE_HOME: Record<UserRole, string> = {
   student: "/student",
+  student_restricted: "/student",
+  student_unrestricted: "/student",
   parent: "/parent",
   tutor: "/tutor",
   admin: "/admin",
+  admin_restricted: "/admin",
+  admin_unrestricted: "/admin",
 };
 
 const ROLE_PREFIXES = Object.values(ROLE_HOME);

@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   MessageCircle,
   Bell,
+  CreditCard,
   LogOut,
   Search,
 } from "lucide-react";
@@ -74,7 +75,27 @@ export async function StudentShell({
       unread = 0;
     }
   }
-  const sections: NavSection[] = SECTIONS.map((s) => ({
+  // Unrestricted students self-manage billing, so they get a Payments link.
+  const isUnrestricted =
+    (user?.app_metadata?.role as string | undefined) === "student_unrestricted";
+  const baseSections: NavSection[] = isUnrestricted
+    ? SECTIONS.map((s) =>
+        s.heading === "Inbox"
+          ? {
+              ...s,
+              items: [
+                ...s.items,
+                {
+                  label: "Payments",
+                  href: "/student/payments",
+                  icon: <CreditCard className={IC} />,
+                },
+              ],
+            }
+          : s,
+      )
+    : SECTIONS;
+  const sections: NavSection[] = baseSections.map((s) => ({
     ...s,
     items: s.items.map((item) =>
       item.href === "/student/messages" ? { ...item, badge: unread } : item,

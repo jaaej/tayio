@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/wordmark";
 import type { UserRole } from "@/db/schema";
+import { coarseRole, type CoarseRole } from "@/lib/roles";
 import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
@@ -30,7 +31,7 @@ import { NavLinks, type NavItem } from "./nav-links";
 
 const ICON_CLASS = "h-[18px] w-[18px]";
 
-const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
+const NAV_BY_ROLE: Record<CoarseRole, NavItem[]> = {
   student: [
     { label: "Dashboard", href: "/student", icon: <LayoutDashboard className={ICON_CLASS} /> },
     { label: "My subjects", href: "/student/subjects", icon: <BookOpen className={ICON_CLASS} /> },
@@ -77,7 +78,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
 };
 
-const ROLE_LABEL: Record<UserRole, string> = {
+const ROLE_LABEL: Record<CoarseRole, string> = {
   student: "Student",
   parent: "Parent",
   tutor: "Tutor",
@@ -106,8 +107,9 @@ export async function PortalShell({
       unread = 0;
     }
   }
-  const messagesHref = `/${role}/messages`;
-  const nav = NAV_BY_ROLE[role].map((item) =>
+  const cr = coarseRole(role);
+  const messagesHref = `/${cr}/messages`;
+  const nav = NAV_BY_ROLE[cr].map((item) =>
     item.href === messagesHref ? { ...item, badge: unread } : item,
   );
   return (
@@ -121,7 +123,7 @@ export async function PortalShell({
         </div>
 
         <div className="px-3 text-[10px] uppercase tracking-[0.2em] text-muted mb-3 font-medium">
-          {ROLE_LABEL[role]} portal
+          {ROLE_LABEL[cr]} portal
         </div>
 
         <div className="flex-1 overflow-y-auto -mr-2 pr-2">
@@ -137,7 +139,7 @@ export async function PortalShell({
             <div className="min-w-0 flex-1">
               <div className="text-sm text-ink truncate font-medium">{userName}</div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted">
-                {ROLE_LABEL[role]}
+                {ROLE_LABEL[cr]}
               </div>
             </div>
           </div>

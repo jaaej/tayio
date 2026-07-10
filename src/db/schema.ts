@@ -16,11 +16,19 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+// Tiered roles were added in migrations 0017/0018. The four original values
+// (student/parent/tutor/admin) are retained: every ACCOUNT is migrated to a
+// tiered role, but the coarse values still appear as announcement audience
+// targets and DM/discussion display prefixes. See src/lib/roles.ts.
 export const userRoleEnum = pgEnum("user_role", [
   "student",
   "parent",
   "tutor",
   "admin",
+  "admin_unrestricted",
+  "admin_restricted",
+  "student_unrestricted",
+  "student_restricted",
 ]);
 
 export const lessonStatusEnum = pgEnum("lesson_status", [

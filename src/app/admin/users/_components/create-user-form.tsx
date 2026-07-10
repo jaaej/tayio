@@ -5,12 +5,12 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
-
-const ROLES = ["student", "parent", "tutor", "admin"] as const;
+import type { UserRole } from "@/db/schema";
+import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
 
 export function CreateUserForm() {
   const [pending, start] = useTransition();
-  const [role, setRole] = useState<(typeof ROLES)[number]>("student");
+  const [role, setRole] = useState<UserRole>("student_restricted");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
@@ -71,11 +71,11 @@ export function CreateUserForm() {
           id="role"
           name="role"
           value={role}
-          onChange={(e) => setRole(e.target.value as (typeof ROLES)[number])}
+          onChange={(e) => setRole(e.target.value as UserRole)}
         >
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
+          {ROLE_OPTIONS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
             </option>
           ))}
         </Select>
@@ -84,7 +84,7 @@ export function CreateUserForm() {
         <Label htmlFor="phone">Phone (optional)</Label>
         <Input id="phone" name="phone" />
       </div>
-      {role === "student" && (
+      {coarseRole(role) === "student" && (
         <>
           <div className="space-y-1.5">
             <Label htmlFor="yearLevel">Year level</Label>

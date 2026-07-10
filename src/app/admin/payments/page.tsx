@@ -1,5 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { STUDENT_TIERS } from "@/lib/roles";
 import { Wallet, AlertTriangle, FileText } from "lucide-react";
 import { db } from "@/db/client";
 import { invoices, profiles } from "@/db/schema";
@@ -86,7 +87,7 @@ export default async function PaymentsPage() {
       lastName: profiles.lastName,
     })
     .from(profiles)
-    .where(eq(profiles.role, "student"))
+    .where(inArray(profiles.role, STUDENT_TIERS))
     .orderBy(profiles.firstName);
 
   const totals = rows.reduce(

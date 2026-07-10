@@ -19,16 +19,25 @@ const users = [
   {
     email: "admin@taiyo.com",
     password: "admin",
-    role: "admin",
+    role: "admin_unrestricted",
     first_name: "Admin",
     last_name: "Tayio",
   },
   {
     email: "student@taiyo.com",
     password: "student",
-    role: "student",
+    role: "student_restricted",
     first_name: "Sarah",
     last_name: "Student",
+  },
+  {
+    // Older / independently-enrolled student: self-manages billing + can DM
+    // the admin office + (later) reschedule. See the role-tiers spec.
+    email: "student.pro@taiyo.com",
+    password: "student",
+    role: "student_unrestricted",
+    first_name: "Uma",
+    last_name: "Unrestricted",
   },
   {
     email: "parent@taiyo.com",

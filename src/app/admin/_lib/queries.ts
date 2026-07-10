@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { STUDENT_TIERS } from "@/lib/roles";
 import {
   announcements,
   classes,
@@ -12,6 +13,7 @@ import {
   lessons,
   profiles,
   subjects,
+  type UserRole,
 } from "@/db/schema";
 
 function isoDate(d: Date) {
@@ -43,7 +45,7 @@ export async function getOpsStats(opts: {
   const [students] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(profiles)
-    .where(and(eq(profiles.role, "student"), eq(profiles.isActive, true)));
+    .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)));
 
   const [tutors] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -392,7 +394,7 @@ export type RecentAnnouncement = {
   title: string;
   body: string;
   publishedAt: Date;
-  audienceRole: "student" | "parent" | "tutor" | "admin" | null;
+  audienceRole: UserRole | null;
   className: string | null;
 };
 

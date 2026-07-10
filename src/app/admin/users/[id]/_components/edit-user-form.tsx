@@ -6,8 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/admin/ui";
 import { updateUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
-
-const ROLES: UserRole[] = ["student", "parent", "tutor", "admin"];
+import { ROLE_OPTIONS } from "@/lib/roles";
 
 export function EditUserForm(props: {
   id: string;
@@ -79,9 +78,9 @@ export function EditUserForm(props: {
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
         >
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
+          {ROLE_OPTIONS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
             </option>
           ))}
         </Select>

@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { homework, homeworkAssignments } from "@/db/schema";
+import { homework, homeworkAssignments, type UserRole } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { coarseRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { HOMEWORK_BUCKET } from "@/app/student/homework/_storage";
 
@@ -21,7 +22,7 @@ export async function POST(
 
   // app_metadata only — user_metadata is user-mutable and must not gate access.
   const role = user.app_metadata?.role as string | undefined;
-  if (role !== "student") {
+  if (!role || coarseRole(role as UserRole) !== "student") {
     return NextResponse.redirect(new URL("/login", request.url), 303);
   }
 
