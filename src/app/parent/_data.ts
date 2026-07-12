@@ -17,6 +17,7 @@ import {
   progressTopics,
   subjects,
 } from "@/db/schema";
+import { ADMIN_TIERS } from "@/lib/roles";
 
 export type ParentChild = {
   id: string;
@@ -777,7 +778,7 @@ export async function getAdminContact(): Promise<AdminContact | null> {
       phone: profiles.phone,
     })
     .from(profiles)
-    .where(eq(profiles.role, "admin"))
+    .where(inArray(profiles.role, ADMIN_TIERS))
     .orderBy(asc(profiles.createdAt))
     .limit(1);
   return rows[0] ?? null;

@@ -16,11 +16,19 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+// Tiered roles were added in migrations 0017/0018. The four original values
+// (student/parent/tutor/admin) are retained: every ACCOUNT is migrated to a
+// tiered role, but the coarse values still appear as announcement audience
+// targets and DM/discussion display prefixes. See src/lib/roles.ts.
 export const userRoleEnum = pgEnum("user_role", [
   "student",
   "parent",
   "tutor",
   "admin",
+  "admin_unrestricted",
+  "admin_restricted",
+  "student_unrestricted",
+  "student_restricted",
 ]);
 
 export const lessonStatusEnum = pgEnum("lesson_status", [
@@ -38,6 +46,15 @@ export const attendanceStatusEnum = pgEnum("attendance_status", [
   "late",
   "left_early",
   "makeup_attended",
+]);
+
+export const classTypeEnum = pgEnum("class_type", ["group", "one_on_one"]);
+
+export const rescheduleStatusEnum = pgEnum("reschedule_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
 ]);
 
 export const homeworkStatusEnum = pgEnum("homework_status", [
@@ -124,6 +141,7 @@ export const classes = pgTable("classes", {
     .notNull()
     .references(() => profiles.id),
   capacity: integer("capacity").notNull().default(8),
+  classType: classTypeEnum("class_type").notNull().default("group"),
   location: text("location"),
   onlineLink: text("online_link"),
   lessonPlan: text("lesson_plan"),
@@ -217,6 +235,48 @@ export const attendance = pgTable(
   (t) => [primaryKey({ columns: [t.lessonId, t.studentId] })],
 );
 
+// Self-serve reschedule requests (spec 2026-07-10). Group ≥24h reschedules
+// execute directly and never create a row here; 1-on-1 (always) and group <24h
+// create a pending row that a tutor or admin approves.
+export const rescheduleRequests = pgTable(
+  "reschedule_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    originalLessonId: uuid("original_lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    requestedById: uuid("requested_by_id")
+      .notNull()
+      .references(() => profiles.id),
+    reason: text("reason"),
+    status: rescheduleStatusEnum("status").notNull().default("pending"),
+    // 1-on-1 target: a new makeup slot with the same tutor.
+    targetTutorId: uuid("target_tutor_id").references(() => profiles.id),
+    targetDate: date("target_date"),
+    targetStartTime: time("target_start_time"),
+    targetEndTime: time("target_end_time"),
+    // group target: an existing lesson to join.
+    targetLessonId: uuid("target_lesson_id").references(() => lessons.id, {
+      onDelete: "cascade",
+    }),
+    decidedById: uuid("decided_by_id").references(() => profiles.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("reschedule_requests_status_idx").on(t.status),
+    index("reschedule_requests_student_idx").on(t.studentId),
+  ],
+);
+
+export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
+export type ClassType = (typeof classTypeEnum.enumValues)[number];
+
 export const homework = pgTable("homework", {
   id: uuid("id").primaryKey().defaultRandom(),
   classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),
@@ -298,6 +358,16 @@ export const announcements = pgTable("announcements", {
     onDelete: "cascade",
   }),
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const adminSettings = pgTable("admin_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pinHash: text("pin_hash"),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const notifications = pgTable(

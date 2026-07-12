@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { CalendarClock } from "lucide-react";
 import { db } from "@/db/client";
 import { familyLinks, profiles } from "@/db/schema";
+import { STUDENT_TIERS, coarseRole } from "@/lib/roles";
 import { alias } from "drizzle-orm/pg-core";
 import {
   Card,
@@ -36,7 +37,7 @@ export default async function UserDetailPage({
   if (!user) notFound();
 
   const upcomingLessons =
-    user.role === "student"
+    coarseRole(user.role) === "student"
       ? await getStudentUpcomingLessons(id, 21)
       : [];
 
@@ -48,7 +49,7 @@ export default async function UserDetailPage({
       email: profiles.email,
     })
     .from(profiles)
-    .where(eq(profiles.role, "student"));
+    .where(inArray(profiles.role, STUDENT_TIERS));
 
   const allParents = await db
     .select({
@@ -63,7 +64,7 @@ export default async function UserDetailPage({
   let parents: typeof allParents = [];
   let children: typeof allStudents = [];
 
-  if (user.role === "student") {
+  if (coarseRole(user.role) === "student") {
     const linkedParent = alias(profiles, "linked_parent");
     parents = await db
       .select({
@@ -152,7 +153,7 @@ export default async function UserDetailPage({
         </Card>
       )}
 
-      {user.role === "student" && (
+      {coarseRole(user.role) === "student" && (
         <section className="rise" style={{ animationDelay: "100ms" }}>
           <Card>
             <CardHead
@@ -205,7 +206,7 @@ export default async function UserDetailPage({
         </section>
       )}
 
-      {(user.role === "parent" || user.role === "student") && (
+      {(coarseRole(user.role) === "parent" || coarseRole(user.role) === "student") && (
         <section className="rise" style={{ animationDelay: "120ms" }}>
           <Card>
             <CardHead
@@ -213,7 +214,7 @@ export default async function UserDetailPage({
             />
             <CardBody>
               <FamilyLinksManager
-                viewer={user.role}
+                viewer={coarseRole(user.role) as "parent" | "student"}
                 userId={user.id}
                 existing={
                   user.role === "parent"

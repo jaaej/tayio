@@ -5,6 +5,7 @@ import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { enrollments, profiles } from "@/db/schema";
+import { coarseRole } from "@/lib/roles";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
 
@@ -21,7 +22,7 @@ export async function enrollStudent(input: z.infer<typeof pair>) {
     .select({ role: profiles.role })
     .from(profiles)
     .where(eq(profiles.id, data.studentId));
-  if (!student || student.role !== "student") {
+  if (!student || coarseRole(student.role) !== "student") {
     return { ok: false as const, error: "Student account not found" };
   }
 

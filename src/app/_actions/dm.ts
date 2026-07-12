@@ -66,12 +66,11 @@ export async function sendMessage(formData: FormData) {
 
   const otherRole = await getUserRole(otherId);
   if (!otherRole) throw new Error("Recipient not found");
-  const allowed = await canDM(
-    user.id,
-    parsed.rolePrefix,
-    otherId,
-    otherRole,
-  );
+  // Authorize on the sender's real role (tier-aware), not the client-supplied
+  // rolePrefix, which is only a display hint and loses the student tier.
+  const meRole = await getUserRole(user.id);
+  if (!meRole) throw new Error("Sender not found");
+  const allowed = await canDM(user.id, meRole, otherId, otherRole);
   if (!allowed) throw new Error("Forbidden");
 
   await db.transaction(async (tx) => {

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { canDM, getUserRole } from "@/lib/dm-permissions";
 import { getOrCreateThread } from "@/lib/dm-queries";
@@ -10,10 +11,12 @@ export default async function StudentDMWithPage({
 }) {
   const { userId } = await params;
   const user = await requireRole("student");
+  const myRole = user.app_metadata?.role as UserRole | undefined;
+  if (!myRole) notFound();
 
   const targetRole = await getUserRole(userId);
   if (!targetRole) notFound();
-  if (!(await canDM(user.id, "student", userId, targetRole))) notFound();
+  if (!(await canDM(user.id, myRole, userId, targetRole))) notFound();
 
   const threadId = await getOrCreateThread(user.id, userId);
   redirect(`/student/messages/${threadId}`);

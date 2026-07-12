@@ -3,6 +3,7 @@ import { desc } from "drizzle-orm";
 import { Users, GraduationCap, UserCog, Baby } from "lucide-react";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
+import { coarseRole } from "@/lib/roles";
 import {
   Card,
   CardHead,
@@ -41,10 +42,10 @@ export default async function UsersPage() {
     .orderBy(desc(profiles.createdAt));
 
   const grouped = {
-    student: rows.filter((r) => r.role === "student").length,
-    parent: rows.filter((r) => r.role === "parent").length,
-    tutor: rows.filter((r) => r.role === "tutor").length,
-    admin: rows.filter((r) => r.role === "admin").length,
+    student: rows.filter((r) => coarseRole(r.role) === "student").length,
+    parent: rows.filter((r) => coarseRole(r.role) === "parent").length,
+    tutor: rows.filter((r) => coarseRole(r.role) === "tutor").length,
+    admin: rows.filter((r) => coarseRole(r.role) === "admin").length,
   };
 
   return (
@@ -125,7 +126,7 @@ export default async function UsersPage() {
                       </Td>
                       <Td className="text-muted">{u.email}</Td>
                       <Td>
-                        <Pill tone={ROLE_TONE[u.role]}>{u.role}</Pill>
+                        <Pill tone={ROLE_TONE[coarseRole(u.role)]}>{u.role}</Pill>
                       </Td>
                       <Td className="text-muted">
                         {u.yearLevel ? `Yr ${u.yearLevel}` : "—"}

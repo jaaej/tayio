@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { STUDENT_TIERS } from "@/lib/roles";
 import {
   classes,
   enrollments,
@@ -93,7 +94,7 @@ export default async function EnrolmentsPage({
         email: profiles.email,
       })
       .from(profiles)
-      .where(and(eq(profiles.role, "student"), eq(profiles.isActive, true)))
+      .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)))
       .orderBy(profiles.firstName);
     candidates = allStudents.filter((s) => !activeIds.has(s.id));
   }

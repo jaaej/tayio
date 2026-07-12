@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notifications, profiles } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { ADMIN_TIERS } from "@/lib/roles";
 import { getRescheduleLessonForParent } from "./_data";
 import { formatDateLong, formatTime } from "@/lib/format";
 
@@ -77,7 +78,7 @@ export async function submitRescheduleRequest(formData: FormData) {
   const admins = await db
     .select({ id: profiles.id })
     .from(profiles)
-    .where(eq(profiles.role, "admin"));
+    .where(inArray(profiles.role, ADMIN_TIERS));
 
   if (admins.length > 0) {
     const body =

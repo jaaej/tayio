@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { STUDENT_TIERS } from "@/lib/roles";
 import {
   announcements,
   classes,
@@ -12,6 +13,7 @@ import {
   lessons,
   profiles,
   subjects,
+  type UserRole,
 } from "@/db/schema";
 
 function isoDate(d: Date) {
@@ -43,7 +45,7 @@ export async function getOpsStats(opts: {
   const [students] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(profiles)
-    .where(and(eq(profiles.role, "student"), eq(profiles.isActive, true)));
+    .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)));
 
   const [tutors] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -119,6 +121,93 @@ export async function getOpsStats(opts: {
     revenueMonth: Number(revMonth?.total ?? 0),
     revenueLastMonth: Number(revPrev?.total ?? 0),
   };
+}
+
+export type RevenueSummary = {
+  revenueMonth: number;
+  revenueLastMonth: number;
+  overdueTotal: number;
+  overdueCount: number;
+};
+
+/** Financial figures for the PIN-gated revenue page. */
+export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
+  // Bucket by paidAt (cash received in the month), not issuedAt — a "Revenue"
+  // figure means money collected. Both months are half-open [start, nextStart).
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const todayIso = isoDate(now);
+
+  const [revMonth] = await db
+    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.paidAt, monthStart),
+        lt(invoices.paidAt, nextMonthStart),
+      ),
+    );
+
+  const [revPrev] = await db
+    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.paidAt, prevMonthStart),
+        lt(invoices.paidAt, monthStart),
+      ),
+    );
+
+  const [overdue] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
+        lt(invoices.dueDate, todayIso),
+      ),
+    );
+
+  return {
+    revenueMonth: Number(revMonth?.total ?? 0),
+    revenueLastMonth: Number(revPrev?.total ?? 0),
+    overdueTotal: Number(overdue?.total ?? 0),
+    overdueCount: overdue?.count ?? 0,
+  };
+}
+
+export type RecentPayment = {
+  id: string;
+  at: Date | null;
+  amount: string;
+  currency: string;
+  parentFirst: string;
+  parentLast: string;
+};
+
+/** Most recent paid invoices, for the revenue page. */
+export async function getRecentPayments(limit = 8): Promise<RecentPayment[]> {
+  const parent = alias(profiles, "parent");
+  return db
+    .select({
+      id: invoices.id,
+      at: invoices.paidAt,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .where(and(eq(invoices.status, "paid"), sql`${invoices.paidAt} is not null`))
+    .orderBy(desc(invoices.paidAt))
+    .limit(limit);
 }
 
 export type TutorBacklog = {
@@ -392,7 +481,7 @@ export type RecentAnnouncement = {
   title: string;
   body: string;
   publishedAt: Date;
-  audienceRole: "student" | "parent" | "tutor" | "admin" | null;
+  audienceRole: UserRole | null;
   className: string | null;
 };
 

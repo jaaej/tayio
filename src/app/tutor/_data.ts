@@ -14,6 +14,7 @@ import {
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { STUDENT_TIERS } from "@/lib/roles";
 
 export async function requireTutor() {
   const user = await requireRole("tutor");
@@ -93,7 +94,7 @@ export async function getTutorStudents(tutorId: string) {
       and(
         inArray(enrollments.classId, classIds),
         isNull(enrollments.withdrawnAt),
-        eq(profiles.role, "student"),
+        inArray(profiles.role, STUDENT_TIERS),
       ),
     )
     .orderBy(asc(profiles.lastName), asc(profiles.firstName));
@@ -124,7 +125,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
   const [student] = await db
     .select()
     .from(profiles)
-    .where(and(eq(profiles.id, studentId), eq(profiles.role, "student")))
+    .where(and(eq(profiles.id, studentId), inArray(profiles.role, STUDENT_TIERS)))
     .limit(1);
   if (!student) notFound();
 

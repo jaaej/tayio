@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, isNull, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
+import { STUDENT_TIERS } from "@/lib/roles";
 import {
   Card,
   CardHead,
@@ -69,8 +70,8 @@ export default async function ClassEditPage({
     .from(profiles)
     .where(
       enrolledIds.length > 0
-        ? and(eq(profiles.role, "student"), notInArray(profiles.id, enrolledIds))
-        : eq(profiles.role, "student"),
+        ? and(inArray(profiles.role, STUDENT_TIERS), notInArray(profiles.id, enrolledIds))
+        : inArray(profiles.role, STUDENT_TIERS),
     )
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
   const availableStudents = await availableStudentsQuery;
@@ -119,6 +120,7 @@ export default async function ClassEditPage({
                 name: row.name,
                 subjectId: row.subjectId,
                 tutorId: row.tutorId,
+                classType: row.classType,
                 capacity: row.capacity,
                 location: row.location ?? "",
                 onlineLink: row.onlineLink ?? "",

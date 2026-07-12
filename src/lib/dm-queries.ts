@@ -9,6 +9,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { canonicalPair } from "@/lib/dm";
+import { coarseRole } from "@/lib/roles";
 
 export type ThreadInboxRow = {
   threadId: string;
@@ -205,7 +206,7 @@ export async function listDmDirectoryForAdmin(
     const entry = { id: r.id, firstName: r.firstName, lastName: r.lastName };
     if (r.role === "parent") directory.parents.push(entry);
     else if (r.role === "tutor") directory.tutors.push(entry);
-    else if (r.role === "student") directory.students.push(entry);
+    else if (coarseRole(r.role) === "student") directory.students.push(entry);
   }
   const byName = (a: DmDirectoryEntry, b: DmDirectoryEntry) =>
     a.firstName.localeCompare(b.firstName) ||

@@ -8,8 +8,20 @@ import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
+import { coarseRole } from "@/lib/roles";
 
-const roleEnum = z.enum(["student", "parent", "tutor", "admin"]);
+// Accepts tiered roles; legacy coarse values kept for safety on any un-migrated
+// caller. New/edited accounts should always use a tiered value.
+const roleEnum = z.enum([
+  "student_restricted",
+  "student_unrestricted",
+  "parent",
+  "tutor",
+  "admin_restricted",
+  "admin_unrestricted",
+  "student",
+  "admin",
+]);
 
 const createUserSchema = z.object({
   email: z.string().email().max(320),
@@ -162,7 +174,7 @@ export async function createFamilyLink(input: z.infer<typeof familyLinkSchema>) 
   if (!parent || parent.role !== "parent") {
     return { ok: false as const, error: "Parent account not found" };
   }
-  if (!student || student.role !== "student") {
+  if (!student || coarseRole(student.role) !== "student") {
     return { ok: false as const, error: "Student account not found" };
   }
 

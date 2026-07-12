@@ -4,12 +4,14 @@ import { StudentHero } from "@/components/student/student-hero";
 import { SubjectCard } from "@/components/student/subject-card";
 import { QuestRow } from "@/components/student/quest-row";
 import { TodayTimeline, type TimelineItem } from "@/components/student/today-timeline";
+import { StatTile } from "@/components/student/kpi";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
 import { requireRole } from "@/lib/auth";
 import {
+  formatMoney,
   formatTime,
   formatWeekday,
   isoDate,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/format";
 import {
   getNextLesson,
+  getOutstandingBalanceForStudent,
   getRelevantAnnouncements,
   getStudentHomework,
   getStudentLessons,
@@ -26,6 +29,11 @@ import {
 
 export default async function StudentDashboard() {
   const user = await requireRole("student");
+  const isUnrestricted =
+    (user.app_metadata?.role as string | undefined) === "student_unrestricted";
+  const outstanding = isUnrestricted
+    ? await getOutstandingBalanceForStudent(user.id)
+    : 0;
 
   const firstName =
     (user.user_metadata?.first_name as string | undefined) ??
@@ -191,6 +199,16 @@ export default async function StudentDashboard() {
 
         {/* RIGHT */}
         <div className="space-y-5 min-w-0">
+          {isUnrestricted && (
+            <StatTile
+              label="Outstanding balance"
+              value={formatMoney(outstanding)}
+              accent={outstanding > 0 ? "warn" : "success"}
+              sub={outstanding > 0 ? "View invoices →" : "All settled"}
+              href="/student/payments"
+            />
+          )}
+
           <Card accent="var(--sun-500)">
             <CardHead
               title="Today"

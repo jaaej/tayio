@@ -3,6 +3,7 @@ import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { getLessonReschedules } from "@/lib/reschedule";
 import { saveAttendance, saveLessonNote } from "../../_actions";
 import { getLessonForTutor, requireTutor } from "../../_data";
 
@@ -34,6 +35,10 @@ export default async function LessonDetailPage({
   const { lesson, roster, notes } = await getLessonForTutor(tutor.id, id);
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
 
+  // Reschedules — who moved out of this lesson (and where) and who's a make-up in.
+  const { movedOut, movedIn } = await getLessonReschedules(id);
+  const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
+
   return (
     <div className="space-y-5">
       <Link
@@ -59,11 +64,11 @@ export default async function LessonDetailPage({
 
       <Card className="overflow-hidden">
         <CardHead title="Attendance" action={`${roster.length} enrolled`} />
-        {roster.length === 0 ? (
+        {roster.length === 0 && movedIn.length === 0 ? (
           <div className="px-4 py-6 text-sm text-muted text-center">
             No students are enrolled in this class yet.
           </div>
-        ) : (
+        ) : roster.length === 0 ? null : (
           <form action={saveAttendance}>
             <input type="hidden" name="lessonId" value={lesson.id} />
             <ul className="divide-y divide-line">
@@ -85,6 +90,11 @@ export default async function LessonDetailPage({
                           </span>
                         )}
                       </div>
+                      {movedOutById.has(s.id) && (
+                        <span className="inline-flex items-center rounded-full border border-warn/40 bg-warn-bg px-2.5 py-1 text-[11px] font-bold text-warn">
+                          Rescheduled → {movedOutById.get(s.id)}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {ATTENDANCE_OPTIONS.map((opt) => (
@@ -121,6 +131,28 @@ export default async function LessonDetailPage({
               </button>
             </div>
           </form>
+        )}
+        {movedIn.length > 0 && (
+          <div className="border-t border-line">
+            <div className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-[0.12em] font-bold text-muted">
+              Make-up attendees
+            </div>
+            <ul className="divide-y divide-line">
+              {movedIn.map((m) => (
+                <li
+                  key={m.studentId}
+                  className="px-4 py-3 flex items-baseline justify-between gap-3"
+                >
+                  <div className="text-[13px] font-bold text-ink">
+                    {m.studentName}
+                  </div>
+                  <span className="inline-flex items-center rounded-full border border-good/40 bg-good-bg px-2.5 py-1 text-[11px] font-bold text-good">
+                    Make-up ← {m.fromLabel}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
 

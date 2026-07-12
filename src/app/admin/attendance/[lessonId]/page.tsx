@@ -23,6 +23,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { getLessonReschedules } from "@/lib/reschedule";
 import { adminSaveAttendance } from "@/app/admin/_lib/actions-attendance";
 
 const ATTENDANCE_OPTIONS = [
@@ -87,6 +88,10 @@ export default async function AdminLessonAttendancePage({
     )
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
+  // Reschedules — who left this lesson (and where to) and who's here as a make-up.
+  const { movedOut, movedIn } = await getLessonReschedules(lessonId);
+  const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
+
   return (
     <div className="space-y-6 max-w-[1100px]">
       <BackLink href="/admin/attendance">Back to attendance</BackLink>
@@ -115,9 +120,9 @@ export default async function AdminLessonAttendancePage({
           title="Attendance"
           action={<Pill tone="brand">{roster.length} enrolled</Pill>}
         />
-        {roster.length === 0 ? (
+        {roster.length === 0 && movedIn.length === 0 ? (
           <Empty>No students enrolled in this class.</Empty>
-        ) : (
+        ) : roster.length === 0 ? null : (
           <form action={adminSaveAttendance}>
             <input type="hidden" name="lessonId" value={lesson.id} />
             <ul className="divide-y divide-line">
@@ -129,6 +134,11 @@ export default async function AdminLessonAttendancePage({
                       <div className="text-[14px] font-bold text-ink">
                         {s.firstName} {s.lastName}
                       </div>
+                      {movedOutById.has(s.id) && (
+                        <Pill tone="warn">
+                          Rescheduled → {movedOutById.get(s.id)}
+                        </Pill>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {ATTENDANCE_OPTIONS.map((opt) => (
@@ -162,6 +172,26 @@ export default async function AdminLessonAttendancePage({
               </Button>
             </div>
           </form>
+        )}
+        {movedIn.length > 0 && (
+          <div className="border-t border-line">
+            <div className="px-5 pt-4 pb-2 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-soft">
+              Make-up attendees
+            </div>
+            <ul className="divide-y divide-line">
+              {movedIn.map((m) => (
+                <li
+                  key={m.studentId}
+                  className="px-5 py-4 flex items-baseline justify-between gap-3"
+                >
+                  <div className="text-[14px] font-bold text-ink">
+                    {m.studentName}
+                  </div>
+                  <Pill tone="mint">Make-up ← {m.fromLabel}</Pill>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
     </div>

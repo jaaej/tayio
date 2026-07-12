@@ -10,6 +10,7 @@ import {
 } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
+import { coarseRole } from "@/lib/roles";
 import { requireRole } from "@/lib/auth";
 import {
   expandAvailability,
@@ -43,7 +44,7 @@ export default async function AdminReschedulePage({
     .from(profiles)
     .where(eq(profiles.id, studentId))
     .limit(1);
-  if (!student || student.role !== "student") notFound();
+  if (!student || coarseRole(student.role) !== "student") notFound();
 
   const lesson = await getLessonContextForStudent(studentId, lessonId);
   if (!lesson) notFound();

@@ -7,11 +7,14 @@ import {
   ClipboardCheck,
   CreditCard,
   CalendarDays,
+  CalendarClock,
   Megaphone,
   MessagesSquare,
   MessageCircle,
   Bell,
   BarChart3,
+  Wallet,
+  Settings,
   LogOut,
   Search,
 } from "lucide-react";
@@ -31,6 +34,7 @@ const SECTIONS: NavSection[] = [
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
+      { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
     ],
   },
   {
@@ -53,6 +57,8 @@ const SECTIONS: NavSection[] = [
     heading: "Insight",
     items: [
       { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={IC} /> },
+      { label: "Revenue", href: "/admin/revenue", icon: <Wallet className={IC} /> },
+      { label: "Settings", href: "/admin/settings", icon: <Settings className={IC} /> },
     ],
   },
 ];
