@@ -619,8 +619,6 @@ export type LeaderboardRow = {
   isMe: boolean;
 };
 
-const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "genius"];
-
 function displayName(firstName: string | null, lastName: string | null): string {
   const first = (firstName ?? "").trim() || "Student";
   const initial = (lastName ?? "").trim().charAt(0);
@@ -676,7 +674,6 @@ export async function getMyBests(studentId: string): Promise<MyBests> {
 
   const bests: MyBests = { easy: 0, medium: 0, hard: 0, genius: 0 };
   for (const r of rows) bests[r.difficulty as Difficulty] = Number(r.best);
-  void DIFFICULTIES;
   return bests;
 }
 ```
