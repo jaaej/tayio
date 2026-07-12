@@ -5,6 +5,10 @@ import { BadgeCheck, Send } from "lucide-react";
 import type { AccentTokens } from "@/lib/subject-colors";
 import type { ThreadDetail } from "@/lib/discussions-queries";
 import { postReply } from "@/app/_actions/discussions";
+import {
+  AttachmentList,
+  AttachmentPicker,
+} from "@/components/discussions/attachments";
 import { initialOf, isStaffRole, relativeShort, roleColor } from "./role-tone";
 
 type Reply = ThreadDetail["replies"][number];
@@ -81,7 +85,7 @@ function ReplyRow({
       style={
         isStaff
           ? {
-              background: tokens.bgFrom,
+              background: `color-mix(in srgb, ${tokens.bgFrom} 42%, white)`,
               boxShadow: `inset 0 0 0 1.5px ${tokens.arrow}`,
             }
           : undefined
@@ -121,6 +125,9 @@ function ReplyRow({
           <p className="mt-2 text-[15px] leading-[1.65] text-ink whitespace-pre-wrap">
             {body}
           </p>
+          {reply.attachments.length > 0 && (
+            <AttachmentList attachments={reply.attachments} accent={tokens.arrow} />
+          )}
           {!reply.deletedAt && (
             <button
               type="button"
@@ -170,6 +177,7 @@ function ReplyRow({
             autoFocus
             className="w-full rounded-[12px] border border-line bg-surface px-3 py-2.5 text-[14px] leading-relaxed placeholder:text-muted focus:outline-none focus:border-line-strong transition-colors"
           />
+          <AttachmentPicker accent={tokens.arrow} />
           <div className="flex items-center gap-3">
             <button
               type="submit"
@@ -231,6 +239,9 @@ function NestedReply({
         <p className="mt-1.5 text-[14px] leading-[1.6] text-ink whitespace-pre-wrap">
           {body}
         </p>
+        {reply.attachments.length > 0 && (
+          <AttachmentList attachments={reply.attachments} accent={tokens.arrow} />
+        )}
       </div>
     </div>
   );

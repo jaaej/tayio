@@ -542,8 +542,48 @@ export async function removeTutorWeekAttachment(attachmentId: string, classId: s
     .where(eq(tutorWeekAttachments.id, attachmentId))
     .limit(1);
   if (!row || row.tutorId !== user.id) return { ok: false as const, error: "Not found" };
-  await removeCurriculumObject(row.path);
+  // Links have no storage object; only files need the bucket cleanup.
+  if (row.path) await removeCurriculumObject(row.path);
   await db.delete(tutorWeekAttachments).where(eq(tutorWeekAttachments.id, attachmentId));
   revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  return { ok: true as const };
+}
+
+const tutorLinkSchema = z.object({
+  classId: z.string().uuid(),
+  subjectWeekId: z.string().uuid(),
+  label: z.string().trim().min(1).max(200),
+  // Restrict to http(s): z.url() alone accepts javascript:/data: URLs, which
+  // become stored XSS when rendered into an <a href> students/parents click.
+  url: z
+    .string()
+    .trim()
+    .url()
+    .max(2000)
+    .refine((u) => {
+      try {
+        const p = new URL(u).protocol;
+        return p === "http:" || p === "https:";
+      } catch {
+        return false;
+      }
+    }, "Only http(s) links are allowed"),
+});
+
+export async function addTutorWeekLink(formData: FormData) {
+  const user = await requireRole("tutor");
+  const parsed = tutorLinkSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  if (!(await tutorTeachesSubjectWeek(user.id, parsed.data.subjectWeekId))) {
+    return { ok: false as const, error: "Not your subject" };
+  }
+  const sectionId = await ensureTutorSection(user.id, parsed.data.subjectWeekId);
+  await db.insert(tutorWeekAttachments).values({
+    sectionId,
+    kind: "link",
+    fileName: parsed.data.label,
+    url: parsed.data.url,
+  });
+  revalidatePath(`/tutor/classes/${parsed.data.classId}/curriculum`);
   return { ok: true as const };
 }

@@ -3,18 +3,13 @@ import {
   PlayCircle,
   BookOpen,
   FileText,
-  Clock,
   Check,
   AlertCircle,
+  Link2 as LinkIcon,
 } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import {
-  formatDateLong,
-  formatDueDate,
-  formatTime,
-  formatWeekday,
-  relativeTime,
-} from "@/lib/format";
+import { formatDueDate, relativeTime } from "@/lib/format";
+import { httpHref } from "@/lib/safe-url";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -80,11 +75,6 @@ export async function WeekContent({
             <h2 className="m-0 mt-0.5 text-[22px] lg:text-[26px] font-extrabold tracking-[-0.02em] leading-tight">
               {week.title}
             </h2>
-            {week.description && (
-              <p className="mt-1.5 text-[13px] leading-snug text-white/85 max-w-[560px] line-clamp-2">
-                {week.description}
-              </p>
-            )}
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <HeroChip
                 done={videoDone}
@@ -119,6 +109,16 @@ export async function WeekContent({
           </div>
         </div>
       </section>
+
+      {/* OVERVIEW — what this week covers */}
+      {week.description && (
+        <section>
+          <SectionHead title="Overview" />
+          <div className="rounded-[18px] border border-line bg-surface p-4 text-[14px] text-ink leading-relaxed whitespace-pre-wrap shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
+            {week.description}
+          </div>
+        </section>
+      )}
 
       {/* VIDEO + BOOKLET — side-by-side */}
       <div className="grid md:grid-cols-[1.6fr_1fr] gap-4">
@@ -236,11 +236,18 @@ export async function WeekContent({
         </div>
       </div>
 
-      {/* FROM YOUR TUTOR — only when tutor has added a note or attachments */}
+      {/* TUTOR NOTES — extra material the tutor added for this week */}
       {(week.tutorNote || week.tutorAttachments.length > 0) && (
         <section>
-          <SectionHead title="From your tutor" />
-          <div className="rounded-[18px] border border-line bg-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
+          <SectionHead title="Tutor notes" count={week.tutorAttachments.length} />
+          <div
+            className="relative overflow-hidden rounded-[18px] border border-line bg-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]"
+          >
+            <div
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-1"
+              style={{ background: tokens.arrow }}
+            />
             {week.tutorNote && (
               <div className="text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
                 {week.tutorNote}
@@ -248,16 +255,18 @@ export async function WeekContent({
             )}
             {week.tutorAttachments.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {week.tutorAttachments.map((att) =>
-                  att.url ? (
+                {week.tutorAttachments.map((att) => {
+                  const Icon = att.kind === "link" ? LinkIcon : FileText;
+                  const href = httpHref(att.url);
+                  return href ? (
                     <a
                       key={att.id}
-                      href={att.url}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-surface transition-colors"
                     >
-                      <FileText
+                      <Icon
                         className="h-3.5 w-3.5 shrink-0"
                         style={{ color: tokens.arrow }}
                       />
@@ -268,103 +277,16 @@ export async function WeekContent({
                       key={att.id}
                       className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-muted"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
                       {att.fileName}
                     </span>
-                  ),
-                )}
+                  );
+                })}
               </div>
             )}
           </div>
         </section>
       )}
-
-      {/* LESSONS TIMELINE — recaps inline */}
-      <section>
-        <SectionHead title="Lessons this week" count={week.recaps.length} />
-        {week.recaps.length === 0 ? (
-          <EmptyCard message="No lessons recorded for this week yet." />
-        ) : (
-          <ol className="relative pl-7 space-y-4">
-            {/* Timeline rail */}
-            <span
-              aria-hidden
-              className="absolute left-[10px] top-2 bottom-2 w-[2px] rounded-full"
-              style={{ background: tokens.bgFrom }}
-            />
-            {week.recaps.map((r) => {
-              const hasNote =
-                !!r.topicCovered ||
-                !!r.keyConcepts ||
-                !!r.parentVisibleComment ||
-                !!r.nextLessonFocus;
-              return (
-                <li key={r.lessonId} className="relative">
-                  {/* Timeline dot */}
-                  <span
-                    aria-hidden
-                    className="absolute -left-7 top-2 h-5 w-5 rounded-full border-[3px] border-surface grid place-items-center"
-                    style={{ background: tokens.arrow }}
-                  >
-                    <Clock className="h-2.5 w-2.5 text-white" strokeWidth={3} />
-                  </span>
-                  <div className="rounded-[18px] border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
-                    <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-bold">
-                          {formatWeekday(r.date, "long")}
-                        </div>
-                        <div className="mt-0.5 text-[15px] font-extrabold text-ink">
-                          {formatDateLong(r.date)} · {formatTime(r.startTime)}
-                        </div>
-                      </div>
-                      <div className="text-[12px] text-muted font-semibold">
-                        with {r.tutorName}
-                      </div>
-                    </div>
-                    {!hasNote ? (
-                      <div className="mt-3 text-[12px] text-muted italic">
-                        Recap not added yet.
-                      </div>
-                    ) : (
-                      <div className="mt-3 space-y-2.5">
-                        {r.topicCovered && (
-                          <RecapField
-                            label="Topic"
-                            body={r.topicCovered}
-                            color={tokens.arrow}
-                          />
-                        )}
-                        {r.keyConcepts && (
-                          <RecapField
-                            label="Key concepts"
-                            body={r.keyConcepts}
-                            color={tokens.arrow}
-                          />
-                        )}
-                        {r.parentVisibleComment && (
-                          <RecapField
-                            label="From your tutor"
-                            body={r.parentVisibleComment}
-                            color={tokens.arrow}
-                          />
-                        )}
-                        {r.nextLessonFocus && (
-                          <RecapField
-                            label="Next time"
-                            body={r.nextLessonFocus}
-                            color={tokens.arrow}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </section>
 
       {/* HOMEWORK — card grid */}
       <section>
@@ -502,33 +424,6 @@ function EmptyCard({ message }: { message: string }) {
   return (
     <div className="rounded-[18px] border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-[13px] text-muted">
       {message}
-    </div>
-  );
-}
-
-function RecapField({
-  label,
-  body,
-  color,
-}: {
-  label: string;
-  body: string;
-  color: string;
-}) {
-  return (
-    <div className="flex gap-3">
-      <div
-        className="w-[3px] rounded-full shrink-0"
-        style={{ background: color }}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
-          {label}
-        </div>
-        <div className="mt-0.5 text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
-          {body}
-        </div>
-      </div>
     </div>
   );
 }

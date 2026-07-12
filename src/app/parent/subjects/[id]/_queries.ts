@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -7,8 +7,6 @@ import {
   familyLinks,
   homework,
   homeworkAssignments,
-  lessonNotes,
-  lessons,
   profiles,
   studentWeekProgress,
   subjectTopics,
@@ -24,13 +22,6 @@ import {
 } from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 
-function isoLocal(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export type ParentCurriculumWeek = {
   subjectWeekId: string;
   weekNumber: number;
@@ -41,7 +32,12 @@ export type ParentCurriculumWeek = {
   topicId: string | null;
   topicName: string | null;
   tutorNote: string | null;
-  tutorAttachments: Array<{ id: string; fileName: string; url: string | null }>;
+  tutorAttachments: Array<{
+    id: string;
+    kind: "file" | "link";
+    fileName: string;
+    url: string | null;
+  }>;
   videoWatchedAt: Date | null;
   bookletOpenedAt: Date | null;
   homework: Array<{
@@ -50,16 +46,6 @@ export type ParentCurriculumWeek = {
     dueDate: Date;
     status: string;
     score: string | null;
-  }>;
-  recaps: Array<{
-    lessonId: string;
-    date: string;
-    startTime: string;
-    tutorName: string;
-    topicCovered: string | null;
-    keyConcepts: string | null;
-    parentVisibleComment: string | null;
-    nextLessonFocus: string | null;
   }>;
 };
 
@@ -221,62 +207,6 @@ export async function getParentCurriculum(
     hwByWeek.get(r.weekId)!.push(r);
   }
 
-  // Recaps: pull lessons for the child's class, bucket by week number
-  const termStart = new Date(`${term.startDate}T00:00:00`);
-  const termEndExclusive = new Date(`${term.endDate}T00:00:00`);
-  termEndExclusive.setDate(termEndExclusive.getDate() + 1);
-  const lessonRows = await db
-    .select({
-      lessonId: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      tutorFirst: profiles.firstName,
-      tutorLast: profiles.lastName,
-      topicCovered: lessonNotes.topicCovered,
-      keyConcepts: lessonNotes.keyConcepts,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      nextLessonFocus: lessonNotes.nextLessonFocus,
-    })
-    .from(lessons)
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .leftJoin(
-      lessonNotes,
-      and(
-        eq(lessonNotes.lessonId, lessons.id),
-        eq(lessonNotes.studentId, childId),
-      ),
-    )
-    .where(
-      and(
-        eq(lessons.classId, enr.classId),
-        gte(lessons.date, term.startDate),
-        lt(lessons.date, isoLocal(termEndExclusive)),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  const recapsByWeekNum = new Map<number, ParentCurriculumWeek["recaps"]>();
-  for (const r of lessonRows) {
-    const dt = new Date(`${r.date}T00:00:00`);
-    const diffDays = Math.floor(
-      (dt.getTime() - termStart.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    const weekNum = Math.floor(diffDays / 7) + 1;
-    if (weekNum < 1) continue;
-    const list = recapsByWeekNum.get(weekNum) ?? [];
-    list.push({
-      lessonId: r.lessonId,
-      date: r.date,
-      startTime: r.startTime,
-      tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-      topicCovered: r.topicCovered,
-      keyConcepts: r.keyConcepts,
-      parentVisibleComment: r.parentVisibleComment,
-      nextLessonFocus: r.nextLessonFocus,
-    });
-    recapsByWeekNum.set(weekNum, list);
-  }
-
   const weeks: ParentCurriculumWeek[] = await Promise.all(
     templates.map(async (tpl) => {
       const p = progressByWeek.get(tpl.id);
@@ -287,8 +217,9 @@ export async function getParentCurriculum(
       const tutorAttachments = await Promise.all(
         sectionAtts.map(async (a) => ({
           id: a.id,
+          kind: a.kind === "link" ? ("link" as const) : ("file" as const),
           fileName: a.fileName,
-          url: await signCurriculumUrl(a.storagePath),
+          url: a.kind === "link" ? a.url : await signCurriculumUrl(a.storagePath),
         })),
       );
       return {
@@ -311,7 +242,6 @@ export async function getParentCurriculum(
           status: h.status,
           score: h.score,
         })),
-        recaps: recapsByWeekNum.get(tpl.weekNumber) ?? [],
       };
     }),
   );

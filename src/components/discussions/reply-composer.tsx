@@ -3,6 +3,7 @@
 import { useRef, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { postReply } from "@/app/_actions/discussions";
+import { AttachmentPicker } from "@/components/discussions/attachments";
 
 export function ReplyComposer({
   threadId,
@@ -36,6 +37,7 @@ export function ReplyComposer({
           placeholder="Write a reply…"
           className="w-full rounded-lg border border-hairline/60 bg-card px-3 py-2.5 text-base focus:outline-none focus:border-brand-600"
         />
+        <AttachmentPicker />
         <div>
           <button
             type="submit"

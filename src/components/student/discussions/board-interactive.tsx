@@ -6,6 +6,7 @@ import { MessageSquareText, Pencil, Search, Send, X } from "lucide-react";
 import type { AccentTokens } from "@/lib/subject-colors";
 import type { ThreadSummary } from "@/lib/discussions-queries";
 import { createThread } from "@/app/_actions/discussions";
+import { AttachmentPicker } from "@/components/discussions/attachments";
 import { initialOf, relativeShort, roleColor } from "./role-tone";
 
 export function BoardInteractive({
@@ -187,6 +188,7 @@ function AskPrompt({
         placeholder="Add details — what you've tried, where you're stuck."
         className="w-full rounded-[14px] border border-line bg-surface-2 px-4 py-3 text-[14px] leading-relaxed placeholder:text-muted focus:outline-none focus:bg-surface focus:border-line-strong transition-colors"
       />
+      <AttachmentPicker accent={tokens.arrow} />
       <div className="flex items-center gap-3 pt-2 border-t border-line">
         <button
           type="submit"

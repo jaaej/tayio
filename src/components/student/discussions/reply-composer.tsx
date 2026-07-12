@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Send, X } from "lucide-react";
 import type { AccentTokens } from "@/lib/subject-colors";
 import { postReply } from "@/app/_actions/discussions";
+import { AttachmentPicker } from "@/components/discussions/attachments";
 import { initialOf } from "./role-tone";
 
 export function StudentReplyComposer({
@@ -93,6 +94,7 @@ export function StudentReplyComposer({
         placeholder="Share what you know — or where you got stuck too."
         className="w-full rounded-[14px] border border-line bg-surface-2 px-4 py-3 text-[15px] leading-relaxed placeholder:text-muted focus:outline-none focus:bg-surface focus:border-line-strong transition-colors"
       />
+      <AttachmentPicker accent={tokens.arrow} />
       <div className="flex items-center gap-3 pt-2 border-t border-line">
         <button
           type="submit"

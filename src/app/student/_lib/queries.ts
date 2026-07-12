@@ -787,10 +787,12 @@ export async function getHomeworkDetail(studentId: string, homeworkId: string) {
       score: homeworkAssignments.score,
       feedback: homeworkAssignments.feedback,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
     .leftJoin(classes, eq(classes.id, homework.classId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),

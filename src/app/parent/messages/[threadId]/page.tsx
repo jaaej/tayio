@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { Card, BackLink } from "@/components/parent/ui";
+import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { MessageList } from "@/components/dm/message-list";
 import { MessageComposer } from "@/components/dm/message-composer";
+import { ConversationHeader } from "@/components/dm/conversation-header";
 import { markThreadRead } from "@/app/_actions/dm";
 
 export default async function ParentThreadPage({
@@ -23,18 +24,19 @@ export default async function ParentThreadPage({
 
   return (
     <div className="space-y-4 flex flex-col h-[calc(100dvh-160px)]">
-      <BackLink href="/parent/messages">Messages</BackLink>
-      <Card className="shrink-0">
-        <div className="px-5 py-3 flex items-baseline gap-2">
-          <div className="text-lg font-bold text-ink">{thread.otherName}</div>
-          <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-medium">
-            {thread.otherRole}
-          </div>
-        </div>
-      </Card>
+      <ConversationHeader
+        otherName={thread.otherName}
+        otherRole={thread.otherRole}
+        backHref="/parent/messages"
+      />
       <Card className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto p-5">
-          <MessageList messages={thread.messages} meId={user.id} />
+          <MessageList
+            messages={thread.messages}
+            meId={user.id}
+            otherName={thread.otherName}
+            otherRole={thread.otherRole}
+          />
         </div>
         <MessageComposer threadId={thread.threadId} rolePrefix="parent" />
       </Card>

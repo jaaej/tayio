@@ -177,3 +177,16 @@ export const BOOKLET_POLICY: UploadPolicy = {
     "application/pdf": { family: "pdf", ext: "pdf", mime: "application/pdf" },
   },
 };
+
+/** Discussion board attachments: images + PDF only, up to 10 MB each. */
+export const DISCUSSION_POLICY: UploadPolicy = {
+  maxBytes: 10 * 1024 * 1024,
+  allowed: {
+    "application/pdf": { family: "pdf", ext: "pdf", mime: "application/pdf" },
+    "image/png": { family: "png", ext: "png", mime: "image/png" },
+    "image/jpeg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/jpg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/gif": { family: "gif", ext: "gif", mime: "image/gif" },
+    "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
+  },
+};

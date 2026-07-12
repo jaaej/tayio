@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import type { ThreadDetail } from "@/lib/discussions-queries";
 import { ReplyItem } from "@/components/discussions/reply-item";
+import { AttachmentList } from "@/components/discussions/attachments";
 
 export function QuestionBlock({ thread }: { thread: ThreadDetail }) {
   const title = thread.deletedAt ? "[removed by admin]" : thread.title;
@@ -36,6 +37,10 @@ export function QuestionBlock({ thread }: { thread: ThreadDetail }) {
         <p className="mt-5 text-lg whitespace-pre-wrap leading-relaxed text-ink">
           {body}
         </p>
+      )}
+
+      {thread.attachments.length > 0 && (
+        <AttachmentList attachments={thread.attachments} />
       )}
 
       <div className="mt-7 pt-5 border-t border-hairline/60 flex items-center justify-between text-sm text-ink-soft">
