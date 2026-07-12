@@ -88,6 +88,13 @@ export const notificationChannelEnum = pgEnum("notification_channel", [
   "email",
 ]);
 
+export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
+  "easy",
+  "medium",
+  "hard",
+  "genius",
+]);
+
 export const profiles = pgTable(
   "profiles",
   {
@@ -728,6 +735,25 @@ export const rateLimits = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.bucket, t.identifier] })],
+);
+
+export const mathGameScores = pgTable(
+  "math_game_scores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    difficulty: mathGameDifficultyEnum("difficulty").notNull(),
+    score: integer("score").notNull(),
+    playedAt: timestamp("played_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("math_game_scores_board_idx").on(t.difficulty, t.score.desc()),
+    index("math_game_scores_student_idx").on(t.studentId, t.difficulty),
+  ],
 );
 
 export type Profile = typeof profiles.$inferSelect;
