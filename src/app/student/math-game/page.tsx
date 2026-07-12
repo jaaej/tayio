@@ -4,7 +4,7 @@ import { DifficultyPicker } from "./_components/difficulty-picker";
 import { Leaderboard, type Boards } from "./_components/leaderboard";
 import type { Difficulty } from "./_components/question-generator";
 
-const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "genius"];
+const DIFFICULTIES: Difficulty[] = ["sprint", "easy", "medium", "hard", "genius"];
 
 export default async function MathGamePage() {
   const user = await requireRole("student");
@@ -30,7 +30,7 @@ export default async function MathGamePage() {
         <div className="absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <div className="text-[22px] font-extrabold tracking-tight">
-            Math Sprint 🧮
+            Math Blitz 🧮
           </div>
           <div className="text-[13px] text-white/85 mt-1">
             Solve as many as you can in 60 seconds. Pick a difficulty and go.

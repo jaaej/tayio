@@ -1,4 +1,4 @@
-export type Difficulty = "easy" | "medium" | "hard" | "genius";
+export type Difficulty = "sprint" | "easy" | "medium" | "hard" | "genius";
 export type Question = { text: string; answer: number };
 
 function randInt(min: number, max: number): number {
@@ -7,6 +7,12 @@ function randInt(min: number, max: number): number {
 
 function pick<T>(arr: T[]): T {
   return arr[randInt(0, arr.length - 1)];
+}
+
+function sprint(): Question {
+  const a = randInt(1, 20);
+  const b = randInt(1, 20);
+  return { text: `${a} + ${b}`, answer: a + b };
 }
 
 function easy(): Question {
@@ -114,6 +120,8 @@ function genius(): Question {
 
 export function generateQuestion(difficulty: Difficulty): Question {
   switch (difficulty) {
+    case "sprint":
+      return sprint();
     case "easy":
       return easy();
     case "medium":

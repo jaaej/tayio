@@ -5,6 +5,7 @@ import type { Difficulty } from "./question-generator";
 import type { LeaderboardRow } from "../_queries";
 
 const TABS: { key: Difficulty; label: string }[] = [
+  { key: "sprint", label: "Sprint" },
   { key: "easy", label: "Easy" },
   { key: "medium", label: "Medium" },
   { key: "hard", label: "Hard" },
@@ -33,7 +34,7 @@ function Row({ row }: { row: LeaderboardRow }) {
 }
 
 export function Leaderboard({ boards }: { boards: Boards }) {
-  const [tab, setTab] = useState<Difficulty>("easy");
+  const [tab, setTab] = useState<Difficulty>("sprint");
   const board = boards[tab];
 
   return (

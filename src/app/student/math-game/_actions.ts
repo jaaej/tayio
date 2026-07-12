@@ -9,7 +9,7 @@ import type { Difficulty } from "./_components/question-generator";
 import { isPlausibleScore } from "./_components/scoring";
 
 const submitSchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard", "genius"]),
+  difficulty: z.enum(["sprint", "easy", "medium", "hard", "genius"]),
   score: z.number().int().min(0),
 });
 

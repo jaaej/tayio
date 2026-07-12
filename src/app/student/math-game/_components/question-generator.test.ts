@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { generateQuestion, type Difficulty } from "./question-generator";
 
-const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "genius"];
+const DIFFICULTIES: Difficulty[] = ["sprint", "easy", "medium", "hard", "genius"];
 const N = 2000;
 
 describe("generateQuestion", () => {
@@ -15,6 +15,21 @@ describe("generateQuestion", () => {
     }
   });
 
+  it("sprint is addition with both operands 1..20 and a correct sum", () => {
+    for (let i = 0; i < N; i++) {
+      const q = generateQuestion("sprint");
+      const m = q.text.match(/^(\d+) \+ (\d+)$/);
+      expect(m).not.toBeNull();
+      const a = Number(m![1]);
+      const b = Number(m![2]);
+      expect(a).toBeGreaterThanOrEqual(1);
+      expect(a).toBeLessThanOrEqual(20);
+      expect(b).toBeGreaterThanOrEqual(1);
+      expect(b).toBeLessThanOrEqual(20);
+      expect(q.answer).toBe(a + b);
+    }
+  });
+
   it("easy is 2-operand addition with a correct sum", () => {
     for (let i = 0; i < N; i++) {
       const q = generateQuestion("easy");
@@ -24,8 +39,8 @@ describe("generateQuestion", () => {
     }
   });
 
-  it("easy/medium/hard never produce a negative answer", () => {
-    for (const d of ["easy", "medium", "hard"] as Difficulty[]) {
+  it("sprint/easy/medium/hard never produce a negative answer", () => {
+    for (const d of ["sprint", "easy", "medium", "hard"] as Difficulty[]) {
       for (let i = 0; i < N; i++) {
         expect(generateQuestion(d).answer).toBeGreaterThanOrEqual(0);
       }

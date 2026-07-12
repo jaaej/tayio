@@ -181,7 +181,7 @@ export async function StudentShell({
               <Gamepad2 className="h-5 w-5" />
             </div>
             <div className="leading-tight">
-              <div className="text-[13px] font-extrabold">Math Sprint</div>
+              <div className="text-[13px] font-extrabold">Math Blitz</div>
               <div className="text-[11px] text-white/80">Play &amp; climb the board</div>
             </div>
           </div>

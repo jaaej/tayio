@@ -89,6 +89,7 @@ export const notificationChannelEnum = pgEnum("notification_channel", [
 ]);
 
 export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
+  "sprint",
   "easy",
   "medium",
   "hard",

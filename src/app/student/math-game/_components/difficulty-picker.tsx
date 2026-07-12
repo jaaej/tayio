@@ -13,6 +13,7 @@ import type { Difficulty } from "./question-generator";
 import type { MyBests } from "../_queries";
 
 const TIERS: { key: Difficulty; label: string; blurb: string }[] = [
+  { key: "sprint", label: "Sprint", blurb: "addition up to 20" },
   { key: "easy", label: "Easy", blurb: "2-digit addition" },
   { key: "medium", label: "Medium", blurb: "+ − and times tables" },
   { key: "hard", label: "Hard", blurb: "all four operations" },

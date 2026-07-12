@@ -1,6 +1,7 @@
 import type { Difficulty } from "./question-generator";
 
 export const SCORE_CAPS: Record<Difficulty, number> = {
+  sprint: 200,
   easy: 150,
   medium: 120,
   hard: 100,

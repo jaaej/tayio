@@ -64,7 +64,7 @@ export async function getMyBests(studentId: string): Promise<MyBests> {
     .where(eq(mathGameScores.studentId, studentId))
     .groupBy(mathGameScores.difficulty);
 
-  const bests: MyBests = { easy: 0, medium: 0, hard: 0, genius: 0 };
+  const bests: MyBests = { sprint: 0, easy: 0, medium: 0, hard: 0, genius: 0 };
   for (const r of rows) bests[r.difficulty as Difficulty] = Number(r.best);
   return bests;
 }
