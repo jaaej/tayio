@@ -304,9 +304,14 @@ body > * {
   0%, 100% { box-shadow: 0 14px 32px -14px rgba(16, 185, 129, 0.55); }
   50% { box-shadow: 0 20px 44px -12px rgba(16, 185, 129, 0.85); }
 }
+@keyframes blitz-drift {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-22px) rotate(8deg); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .blitz-float, .blitz-pop, .blitz-glow { animation: none !important; }
+  .blitz-float, .blitz-pop, .blitz-glow, .blitz-drift { animation: none !important; }
 }
 .blitz-float { animation: blitz-float 7s ease-in-out infinite; }
 .blitz-pop { animation: blitz-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .blitz-glow { animation: blitz-glow 2.8s ease-in-out infinite; }
+.blitz-drift { animation: blitz-drift 9s ease-in-out infinite; }
