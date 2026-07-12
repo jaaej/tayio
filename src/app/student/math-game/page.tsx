@@ -3,23 +3,10 @@ import { requireRole } from "@/lib/auth";
 import { getLeaderboard, getMyBests } from "./_queries";
 import { DifficultyPicker } from "./_components/difficulty-picker";
 import { Leaderboard, type Boards } from "./_components/leaderboard";
+import { BlitzBackdrop } from "./_components/blitz-backdrop";
 import type { Difficulty } from "./_components/question-generator";
 
 const DIFFICULTIES: Difficulty[] = ["sprint", "easy", "medium", "hard", "genius"];
-
-// Ambient drifting math symbols behind the page (decorative, low opacity).
-const FLOATERS = [
-  { c: "+", top: "9%", left: "5%", size: 66, color: "#7b5bd6", delay: "0s" },
-  { c: "×", top: "16%", left: "86%", size: 54, color: "#2e8fd6", delay: "-2s" },
-  { c: "−", top: "44%", left: "11%", size: 74, color: "#1fa974", delay: "-4s" },
-  { c: "÷", top: "58%", left: "82%", size: 60, color: "#f58a07", delay: "-1.2s" },
-  { c: "=", top: "80%", left: "20%", size: 62, color: "#f2616b", delay: "-3s" },
-  { c: "+", top: "72%", left: "58%", size: 48, color: "#5b5bd6", delay: "-5s" },
-  { c: "×", top: "34%", left: "47%", size: 46, color: "#1fa974", delay: "-2.6s" },
-  { c: "÷", top: "24%", left: "64%", size: 52, color: "#f2616b", delay: "-4.4s" },
-  { c: "8", top: "87%", left: "70%", size: 56, color: "#2e8fd6", delay: "-1.8s" },
-  { c: "5", top: "50%", left: "92%", size: 50, color: "#7b5bd6", delay: "-3.6s" },
-];
 
 export default async function MathGamePage() {
   const user = await requireRole("student");
@@ -34,30 +21,8 @@ export default async function MathGamePage() {
   ) as Boards;
 
   return (
-    <div
-      className="relative -mx-5 lg:-mx-7 -my-6 lg:-mb-16 min-h-full overflow-hidden px-5 lg:px-7 pt-6 pb-6 lg:pb-16"
-      style={{
-        backgroundImage:
-          "linear-gradient(180deg, #f7f9ff 0%, #eef3fd 60%, #f4f7ff 100%)",
-      }}
-    >
-      {FLOATERS.map((f, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className="pointer-events-none absolute select-none font-extrabold blitz-drift"
-          style={{
-            top: f.top,
-            left: f.left,
-            fontSize: f.size,
-            color: f.color,
-            opacity: 0.12,
-            animationDelay: f.delay,
-          }}
-        >
-          {f.c}
-        </span>
-      ))}
+    <div className="relative">
+      <BlitzBackdrop />
       <div className="relative flex flex-col gap-6 w-full">
       <div
         className="relative overflow-hidden rounded-[28px] p-8 lg:p-10 text-white shadow-sm"
