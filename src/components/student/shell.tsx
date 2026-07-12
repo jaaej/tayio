@@ -11,6 +11,7 @@ import {
   CreditCard,
   LogOut,
   Search,
+  Gamepad2,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -167,6 +168,24 @@ export async function StudentShell({
         <div className="flex-1">
           <StudentNavLinks sections={sections} />
         </div>
+        <Link
+          href="/student/math-game"
+          className="group mt-3 block rounded-[18px] p-3.5 text-white shadow-sm transition-transform hover:-translate-y-[2px]"
+          style={{
+            backgroundImage:
+              "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 grid place-items-center rounded-[12px] bg-white/20">
+              <Gamepad2 className="h-5 w-5" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-[13px] font-extrabold">Math Sprint</div>
+              <div className="text-[11px] text-white/80">Play &amp; climb the board</div>
+            </div>
+          </div>
+        </Link>
         <div className="mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
           <div>Taiyo Tuition · v0.4 preview</div>
           <div>© 2026 Taiyo Pty Ltd</div>
