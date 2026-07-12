@@ -34,22 +34,22 @@ export function AdminPinPrompt({
     );
   }
 
+  const submit = () => {
+    setError(null);
+    start(async () => {
+      const res = await unlockAdmin(pin);
+      if (!res.ok) setError(res.error);
+      else {
+        setPin("");
+        router.refresh();
+      }
+    });
+  };
+
+  // Deliberately NOT a <form>: this renders inside the create/edit user forms,
+  // and a nested <form> is invalid HTML (hydration error). Unlock on click/Enter.
   return (
-    <form
-      className="flex items-center gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError(null);
-        start(async () => {
-          const res = await unlockAdmin(pin);
-          if (!res.ok) setError(res.error);
-          else {
-            setPin("");
-            router.refresh();
-          }
-        });
-      }}
-    >
+    <div className="flex items-center gap-2">
       <Input
         type="password"
         inputMode="numeric"
@@ -57,12 +57,24 @@ export function AdminPinPrompt({
         placeholder={label}
         value={pin}
         onChange={(e) => setPin(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!pending && pin.length >= 6) submit();
+          }
+        }}
         className="max-w-[220px]"
       />
-      <Button type="submit" variant="brand" size="sm" disabled={pending || pin.length < 6}>
+      <Button
+        type="button"
+        variant="brand"
+        size="sm"
+        disabled={pending || pin.length < 6}
+        onClick={submit}
+      >
         {pending ? "Unlocking…" : "Unlock"}
       </Button>
       {error && <span className="text-[12px] font-semibold text-bad">{error}</span>}
-    </form>
+    </div>
   );
 }
