@@ -93,6 +93,12 @@ export function GameClient({
   // The numeric keypad has no minus key on mobile, so sign is entered via the
   // ± button (Genius only); the field itself holds digits only.
   const onChange = (raw: string) => {
+    // Backspacing past the last digit leaves just "-"; clear the sign too.
+    if (raw === "-") {
+      setNeg(false);
+      setInput("");
+      return;
+    }
     const digits = raw.replace(/[^0-9]/g, "");
     setInput(digits);
     tryAnswer(digits, neg);
