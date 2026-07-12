@@ -28,8 +28,11 @@ export default async function MathGamePage() {
             "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
         }}
       >
-        <div className="absolute -right-12 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -left-10 -bottom-28 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
+        <div className="absolute -right-12 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl blitz-float" />
+        <div
+          className="absolute -left-10 -bottom-28 h-64 w-64 rounded-full bg-white/5 blur-2xl blitz-float"
+          style={{ animationDelay: "-3.5s" }}
+        />
         <div className="relative flex items-center gap-5">
           <div className="hidden sm:grid h-16 w-16 shrink-0 place-items-center rounded-[20px] bg-white/15">
             <Zap className="h-8 w-8" />
