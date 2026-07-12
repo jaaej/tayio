@@ -33,6 +33,7 @@ export function GameClient({
     generateQuestion(difficulty),
   );
   const [input, setInput] = useState("");
+  const [neg, setNeg] = useState(false);
   const [score, setScore] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,12 +77,32 @@ export function GameClient({
     playSound(sound);
     setQuestion(generateQuestion(difficulty));
     setInput("");
+    setNeg(false);
   }, [sound, difficulty]);
 
-  const onChange = (value: string) => {
-    setInput(value);
-    // Auto-advance the instant the typed integer equals the answer.
-    if (value.trim() !== "" && Number(value) === question.answer) advance();
+  // Auto-advance the instant the entered value (digits + sign) equals the answer.
+  const tryAnswer = useCallback(
+    (digits: string, negative: boolean) => {
+      if (digits === "") return;
+      const value = negative ? -Number(digits) : Number(digits);
+      if (value === question.answer) advance();
+    },
+    [question.answer, advance],
+  );
+
+  // The numeric keypad has no minus key on mobile, so sign is entered via the
+  // ± button (Genius only); the field itself holds digits only.
+  const onChange = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, "");
+    setInput(digits);
+    tryAnswer(digits, neg);
+  };
+
+  const toggleSign = () => {
+    const next = !neg;
+    setNeg(next);
+    tryAnswer(input, next);
+    inputRef.current?.focus();
   };
 
   const restart = () => {
@@ -89,6 +110,7 @@ export function GameClient({
     setScore(0);
     setTimeLeft(ROUND_SECONDS);
     setInput("");
+    setNeg(false);
     setQuestion(generateQuestion(difficulty));
     setCount(3);
     setPhase("countdown");
@@ -154,18 +176,35 @@ export function GameClient({
       <div className="text-[44px] font-extrabold text-ink tabular-nums text-center">
         {question.text}
       </div>
-      <input
-        ref={inputRef}
-        value={input}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && Number(input) === question.answer) advance();
-        }}
-        inputMode="numeric"
-        autoComplete="off"
-        aria-label="Your answer"
-        className="h-14 w-40 rounded-[14px] border border-line-strong bg-surface text-center text-[28px] font-bold text-ink outline-none focus:border-brand-500"
-      />
+      <div className="flex items-center gap-2">
+        {difficulty === "genius" && (
+          <button
+            type="button"
+            onClick={toggleSign}
+            aria-label="Toggle negative sign"
+            aria-pressed={neg}
+            className={`h-14 w-14 shrink-0 rounded-[14px] border text-[24px] font-bold transition-colors ${
+              neg
+                ? "border-brand-500 bg-brand-500 text-white"
+                : "border-line-strong bg-surface text-ink hover:bg-surface-2"
+            }`}
+          >
+            &minus;
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          value={neg ? `-${input}` : input}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") tryAnswer(input, neg);
+          }}
+          inputMode="numeric"
+          autoComplete="off"
+          aria-label="Your answer"
+          className="h-14 w-40 rounded-[14px] border border-line-strong bg-surface text-center text-[28px] font-bold text-ink outline-none focus:border-brand-500"
+        />
+      </div>
     </div>
   );
 }

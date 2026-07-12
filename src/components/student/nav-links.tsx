@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
@@ -81,6 +82,17 @@ export function StudentNavLinksMobile({ sections }: { sections: NavSection[] }) 
   const items = sections.flatMap((s) => s.items);
   return (
     <nav className="px-6 pb-3 flex items-center gap-1 overflow-x-auto">
+      <Link
+        href="/student/math-game"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap rounded-md font-semibold text-white shadow-sm shrink-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
+        }}
+      >
+        <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
+        Math Sprint
+      </Link>
       {items.map((item) => {
         const active = isActive(pathname, item.href);
         return (
