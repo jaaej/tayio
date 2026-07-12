@@ -7,8 +7,15 @@ import { Button } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
 import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
+import { AdminPinPrompt } from "@/components/admin/pin-gate";
 
-export function CreateUserForm() {
+export function CreateUserForm({
+  unlocked,
+  pinSet,
+}: {
+  unlocked: boolean;
+  pinSet: boolean;
+}) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>("student_restricted");
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +79,7 @@ export function CreateUserForm() {
           name="role"
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
+          disabled={!unlocked}
         >
           {ROLE_OPTIONS.map((r) => (
             <option key={r.value} value={r.value}>
@@ -79,6 +87,11 @@ export function CreateUserForm() {
             </option>
           ))}
         </Select>
+        {!unlocked && (
+          <div className="pt-1.5">
+            <AdminPinPrompt pinSet={pinSet} label="Unlock to set privileged roles" />
+          </div>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="phone">Phone (optional)</Label>

@@ -7,6 +7,7 @@ import { Button } from "@/components/admin/ui";
 import { updateUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
 import { ROLE_OPTIONS } from "@/lib/roles";
+import { AdminPinPrompt } from "@/components/admin/pin-gate";
 
 export function EditUserForm(props: {
   id: string;
@@ -16,6 +17,8 @@ export function EditUserForm(props: {
   yearLevel: string;
   school: string;
   role: UserRole;
+  unlocked: boolean;
+  pinSet: boolean;
 }) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>(props.role);
@@ -77,6 +80,7 @@ export function EditUserForm(props: {
           name="role"
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
+          disabled={!props.unlocked}
         >
           {ROLE_OPTIONS.map((r) => (
             <option key={r.value} value={r.value}>
@@ -84,6 +88,11 @@ export function EditUserForm(props: {
             </option>
           ))}
         </Select>
+        {!props.unlocked && (
+          <div className="pt-1.5">
+            <AdminPinPrompt pinSet={props.pinSet} label="Unlock to change role" />
+          </div>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="yearLevel">Year level</Label>

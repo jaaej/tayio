@@ -13,11 +13,13 @@ export function UserRowActions({
   email,
   isActive,
   name,
+  unlocked,
 }: {
   id: string;
   email: string;
   isActive: boolean;
   name: string;
+  unlocked: boolean;
 }) {
   const [pending, start] = useTransition();
 
@@ -45,7 +47,7 @@ export function UserRowActions({
       <Button
         size="sm"
         variant={isActive ? "outline" : "primary"}
-        disabled={pending}
+        disabled={pending || !unlocked}
         onClick={() => {
           const verb = isActive ? "Deactivate" : "Reactivate";
           if (

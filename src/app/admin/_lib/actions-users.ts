@@ -8,7 +8,8 @@ import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
-import { coarseRole } from "@/lib/roles";
+import { coarseRole, ADMIN_TIERS } from "@/lib/roles";
+import { assertAdminUnlocked } from "@/lib/admin-lock";
 
 // Accepts tiered roles; legacy coarse values kept for safety on any un-migrated
 // caller. New/edited accounts should always use a tiered value.
@@ -37,6 +38,11 @@ const createUserSchema = z.object({
 export async function createUser(input: z.infer<typeof createUserSchema>) {
   await requireAdmin();
   const data = createUserSchema.parse(input);
+
+  // Creating a privileged account (admin tier or tutor) is a walled action.
+  if (data.role === "tutor" || (ADMIN_TIERS as readonly string[]).includes(data.role)) {
+    await assertAdminUnlocked();
+  }
 
   const admin = createAdminClient();
   // Role goes into app_metadata (server-only). user_metadata is user-mutable
@@ -95,6 +101,15 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   const user = await requireAdmin();
   const data = updateUserSchema.parse(input);
 
+  // A role change is walled; a plain profile edit (no role change) stays open.
+  const [before] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, data.id));
+  if (before && before.role !== data.role) {
+    await assertAdminUnlocked();
+  }
+
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
       .update(profiles)
@@ -126,6 +141,7 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
 export async function setUserActive(id: string, isActive: boolean) {
   const user = await requireAdmin();
   z.string().uuid().parse(id);
+  await assertAdminUnlocked();
 
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
