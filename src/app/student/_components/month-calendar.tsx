@@ -33,6 +33,16 @@ export type MonthLesson = {
     | "missed";
   subjectName: string;
   className: string;
+  /** Per-student reschedule overlay (optional; defaults to a normal lesson). */
+  studentState?:
+    | "normal"
+    | "moved_out"
+    | "makeup_in"
+    | "pending_out"
+    | "pending_in";
+  moveLabel?: string | null;
+  /** When set, the chip is a link to reschedule this lesson. */
+  rescheduleHref?: string | null;
 };
 
 export type MonthHomework = {
@@ -480,26 +490,67 @@ function LessonChip({
   lesson: MonthLesson;
   dimmed: boolean;
 }) {
-  const tone = lessonTone(lesson.status, lesson.date, lesson.subjectName);
-  return (
-    <div
-      className={cn(
-        "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
-        dimmed && "opacity-50",
-      )}
-      style={{ backgroundColor: tone.bg, color: tone.text }}
-    >
+  const moved = lesson.studentState === "moved_out";
+  const makeup = lesson.studentState === "makeup_in";
+  const pending =
+    lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
+  const tone =
+    moved || makeup || pending
+      ? { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" }
+      : lessonTone(lesson.status, lesson.date, lesson.subjectName);
+
+  const inner = (
+    <>
       <span
         aria-hidden
         className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
         style={{ backgroundColor: tone.bar }}
       />
-      <div className="text-[10px] font-extrabold tabular-nums">
+      <div
+        className={cn(
+          "text-[10px] font-extrabold tabular-nums",
+          moved && "line-through opacity-70",
+        )}
+      >
         {formatTime(lesson.startTime)}
       </div>
-      <div className="mt-0.5 text-[11px] truncate font-bold">
+      <div
+        className={cn(
+          "mt-0.5 text-[11px] truncate font-bold",
+          moved && "line-through opacity-70",
+        )}
+      >
         {lesson.subjectName}
       </div>
+      {lesson.moveLabel && (
+        <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide truncate opacity-90">
+          {lesson.moveLabel}
+        </div>
+      )}
+    </>
+  );
+
+  const base = cn(
+    "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
+    dimmed && "opacity-50",
+  );
+  const style = { backgroundColor: tone.bg, color: tone.text };
+
+  if (lesson.rescheduleHref) {
+    return (
+      <Link
+        href={lesson.rescheduleHref}
+        className={cn(base, "transition-transform hover:-translate-y-[1px]")}
+        style={style}
+        title="Reschedule this lesson"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className={base} style={style}>
+      {inner}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from
 import { db } from "@/db/client";
 import {
   announcements,
+  attendance,
   classes,
   enrollments,
   homework,
@@ -12,6 +13,7 @@ import {
   lessons,
   profiles,
   progressTopics,
+  rescheduleRequests,
   subjects,
   type UserRole,
 } from "@/db/schema";
@@ -960,6 +962,193 @@ export async function getStudentLessonsWithNotes(
     .limit(30);
 
   return rows.map(({ noteId, ...r }) => ({ ...r, hasNote: noteId !== null }));
+}
+
+// --- Attendance-aware timetable (reschedule spec 2026-07-10) ---
+// Unlike getStudentLessons (pure enrolment), this overlays the student's own
+// attendance so a reschedule is visible: a lesson they moved away from is
+// "moved_out", and a make-up lesson they now attend (even in a class they're
+// not enrolled in) shows as "makeup_in".
+
+export type TimetableLesson = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: (typeof lessons.status.enumValues)[number];
+  subjectId: string;
+  subjectName: string;
+  className: string;
+  studentState:
+    | "normal"
+    | "moved_out"
+    | "makeup_in"
+    | "pending_out"
+    | "pending_in";
+  moveLabel: string | null;
+};
+
+export async function getStudentTimetableLessons(
+  studentId: string,
+  opts: { from?: Date; to?: Date } = {},
+): Promise<TimetableLesson[]> {
+  const enrolledClassIds = await getEnrolledClassIds(studentId);
+  const fromIso = opts.from ? opts.from.toISOString().slice(0, 10) : undefined;
+  const toIso = opts.to ? opts.to.toISOString().slice(0, 10) : undefined;
+  const range = () => {
+    const c = [];
+    if (fromIso) c.push(gte(lessons.date, fromIso));
+    if (toIso) c.push(lt(lessons.date, toIso));
+    return c;
+  };
+  const baseCols = {
+    id: lessons.id,
+    date: lessons.date,
+    startTime: lessons.startTime,
+    endTime: lessons.endTime,
+    status: lessons.status,
+    subjectId: classes.subjectId,
+    subjectName: subjects.name,
+    className: classes.name,
+  };
+
+  const enrolledLessons = enrolledClassIds.length
+    ? await db
+        .select(baseCols)
+        .from(lessons)
+        .innerJoin(classes, eq(classes.id, lessons.classId))
+        .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+        .where(and(inArray(lessons.classId, enrolledClassIds), ...range()))
+    : [];
+
+  const attRows = await db
+    .select({ lessonId: attendance.lessonId, status: attendance.status })
+    .from(attendance)
+    .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
+    .where(and(eq(attendance.studentId, studentId), ...range()));
+  const attByLesson = new Map(attRows.map((a) => [a.lessonId, a.status]));
+
+  const enrolledIds = new Set(enrolledLessons.map((l) => l.id));
+  const makeupIds = attRows
+    .filter((a) => a.status === "makeup_attended" && !enrolledIds.has(a.lessonId))
+    .map((a) => a.lessonId);
+  const makeupLessons = makeupIds.length
+    ? await db
+        .select(baseCols)
+        .from(lessons)
+        .innerJoin(classes, eq(classes.id, lessons.classId))
+        .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+        .where(inArray(lessons.id, makeupIds))
+    : [];
+
+  const resched = await db
+    .select({
+      originalLessonId: rescheduleRequests.originalLessonId,
+      targetLessonId: rescheduleRequests.targetLessonId,
+      targetDate: rescheduleRequests.targetDate,
+    })
+    .from(rescheduleRequests)
+    .where(
+      and(
+        eq(rescheduleRequests.studentId, studentId),
+        eq(rescheduleRequests.status, "approved"),
+      ),
+    );
+  const movedOut = new Map<string, { lessonId: string | null; date: string | null }>();
+  const movedInOrigin = new Map<string, string>();
+  for (const r of resched) {
+    movedOut.set(r.originalLessonId, { lessonId: r.targetLessonId, date: r.targetDate });
+    if (r.targetLessonId) movedInOrigin.set(r.targetLessonId, r.originalLessonId);
+  }
+
+  const refIds = new Set<string>();
+  for (const v of movedOut.values()) if (v.lessonId) refIds.add(v.lessonId);
+  for (const o of movedInOrigin.values()) refIds.add(o);
+  const refInfo = new Map<string, { className: string }>();
+  if (refIds.size) {
+    const rows = await db
+      .select({ id: lessons.id, className: classes.name })
+      .from(lessons)
+      .innerJoin(classes, eq(classes.id, lessons.classId))
+      .where(inArray(lessons.id, Array.from(refIds)));
+    for (const r of rows) refInfo.set(r.id, { className: r.className });
+  }
+
+  const seen = new Set<string>();
+  const out: TimetableLesson[] = [];
+  for (const l of [...enrolledLessons, ...makeupLessons]) {
+    if (seen.has(l.id)) continue;
+    seen.add(l.id);
+    const status = attByLesson.get(l.id);
+    let studentState: TimetableLesson["studentState"] = "normal";
+    let moveLabel: string | null = null;
+    if (status === "makeup_attended") {
+      studentState = "makeup_in";
+      const originId = movedInOrigin.get(l.id);
+      const info = originId ? refInfo.get(originId) : undefined;
+      moveLabel = info ? `Make-up · from ${info.className}` : "Make-up";
+    } else if (status === "absent" && movedOut.has(l.id)) {
+      studentState = "moved_out";
+      const tgt = movedOut.get(l.id)!;
+      const info = tgt.lessonId ? refInfo.get(tgt.lessonId) : undefined;
+      moveLabel = info
+        ? `Moved → ${info.className}`
+        : tgt.date
+          ? `Moved → ${tgt.date}`
+          : "Moved";
+    }
+    out.push({ ...l, studentState, moveLabel });
+  }
+
+  // Pending requests: tag the original "Move pending" and add a synthetic
+  // "Waiting for approval" chip at the requested slot.
+  const pendings = await db
+    .select({
+      id: rescheduleRequests.id,
+      originalLessonId: rescheduleRequests.originalLessonId,
+      targetDate: rescheduleRequests.targetDate,
+      targetStartTime: rescheduleRequests.targetStartTime,
+      targetEndTime: rescheduleRequests.targetEndTime,
+    })
+    .from(rescheduleRequests)
+    .where(
+      and(
+        eq(rescheduleRequests.studentId, studentId),
+        eq(rescheduleRequests.status, "pending"),
+      ),
+    );
+  const byId = new Map(out.map((l) => [l.id, l]));
+  for (const pr of pendings) {
+    const orig = byId.get(pr.originalLessonId);
+    if (orig && orig.studentState === "normal") {
+      orig.studentState = "pending_out";
+      orig.moveLabel = "Move pending";
+    }
+    if (
+      pr.targetDate &&
+      pr.targetStartTime &&
+      (!fromIso || pr.targetDate >= fromIso) &&
+      (!toIso || pr.targetDate < toIso)
+    ) {
+      out.push({
+        id: `pending-${pr.id}`,
+        date: pr.targetDate,
+        startTime: pr.targetStartTime,
+        endTime: pr.targetEndTime ?? pr.targetStartTime,
+        status: "upcoming",
+        subjectId: orig?.subjectId ?? "",
+        subjectName: orig?.subjectName ?? "Lesson",
+        className: orig?.className ?? "",
+        studentState: "pending_in",
+        moveLabel: "Waiting for approval",
+      });
+    }
+  }
+
+  out.sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime),
+  );
+  return out;
 }
 
 // --- Unrestricted-student features (role-tiers spec 2026-07-09) ---

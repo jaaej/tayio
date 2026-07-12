@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   CreditCard,
   CalendarDays,
+  CalendarClock,
   Megaphone,
   MessagesSquare,
   MessageCircle,
@@ -31,6 +32,7 @@ const SECTIONS: NavSection[] = [
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
+      { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
     ],
   },
   {

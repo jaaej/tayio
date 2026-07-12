@@ -120,6 +120,7 @@ export default async function ClassEditPage({
                 name: row.name,
                 subjectId: row.subjectId,
                 tutorId: row.tutorId,
+                classType: row.classType,
                 capacity: row.capacity,
                 location: row.location ?? "",
                 onlineLink: row.onlineLink ?? "",

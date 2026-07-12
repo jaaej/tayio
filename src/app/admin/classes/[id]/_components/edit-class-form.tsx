@@ -5,6 +5,7 @@ import { Button } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { updateClass } from "@/app/admin/_lib/actions-classes";
+import type { ClassType } from "@/db/schema";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -12,6 +13,7 @@ type Initial = {
   name: string;
   subjectId: string;
   tutorId: string;
+  classType: ClassType;
   capacity: number;
   location: string;
   onlineLink: string;
@@ -51,6 +53,7 @@ export function EditClassForm({
               name: String(fd.get("name") || ""),
               subjectId: String(fd.get("subjectId") || ""),
               tutorId: String(fd.get("tutorId") || ""),
+              classType: fd.get("classType") === "one_on_one" ? "one_on_one" : "group",
               capacity: Number(fd.get("capacity") || 8),
               location: String(fd.get("location") || "") || null,
               onlineLink: String(fd.get("onlineLink") || "") || null,
@@ -100,6 +103,17 @@ export function EditClassForm({
               {t.firstName} {t.lastName}
             </option>
           ))}
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="classType">Class type</Label>
+        <Select
+          id="classType"
+          name="classType"
+          defaultValue={initial.classType}
+        >
+          <option value="group">Group</option>
+          <option value="one_on_one">One-on-one</option>
         </Select>
       </div>
       <div className="space-y-1.5">

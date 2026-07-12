@@ -316,16 +316,18 @@ function LessonChip({
   mode: CalendarMode;
   isSelected: boolean;
 }) {
-  const params = new URLSearchParams();
-  params.set("reschedule", lesson.id);
-  params.set("month", monthKey(year, month));
-  if (childId) params.set("child", childId);
-  const href = `${basePath}?${params.toString()}`;
+  // Reschedule pages live only under /parent/classes, but this calendar renders
+  // on many parent routes (dashboard, attendance, …) with different basePaths —
+  // so the reschedule link is absolute, not basePath-relative.
+  const href = `/parent/classes/reschedule/${lesson.id}${
+    childId ? `?childId=${childId}` : ""
+  }`;
 
   const tone = toneFor(lesson.status, lesson.subjectName);
   const past = isPast(lesson.date);
 
-  const interactive = mode !== "pick-slot";
+  // Past lessons can't be rescheduled (the page guards them), so don't link them.
+  const interactive = mode !== "pick-slot" && !past;
   const baseClass = cn(
     "block rounded-md px-1.5 py-1 leading-tight overflow-hidden transition-transform",
     interactive && "hover:translate-y-[-1px]",
