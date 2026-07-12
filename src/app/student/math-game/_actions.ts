@@ -26,6 +26,10 @@ export async function submitScore(
     return { ok: false, error: "Implausible score" };
   }
 
+  // Don't record a scoreless run — it would put the player on the leaderboard
+  // with a best of 0.
+  if (parsed.data.score === 0) return { ok: true };
+
   await db.insert(mathGameScores).values({
     studentId: user.id,
     difficulty: parsed.data.difficulty,

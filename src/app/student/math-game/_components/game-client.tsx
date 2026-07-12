@@ -71,6 +71,8 @@ export function GameClient({
   useEffect(() => {
     if (phase !== "done" || submitted.current) return;
     submitted.current = true;
+    // A scoreless run isn't recorded, so there's nothing to submit or refresh.
+    if (score === 0) return;
     void submitScore(difficulty, score).then(() => router.refresh());
   }, [phase, difficulty, score, router]);
 

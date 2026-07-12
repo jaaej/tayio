@@ -20,7 +20,20 @@ export default async function MathGamePage() {
   ) as Boards;
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div
+      className="relative -mx-5 lg:-mx-7 -my-6 lg:-mb-16 min-h-full overflow-hidden px-5 lg:px-7 pt-6 pb-6 lg:pb-16"
+      style={{
+        backgroundImage:
+          "linear-gradient(180deg, #efe9ff 0%, #eaf1fe 45%, #f4f7ff 100%)",
+      }}
+    >
+      <div className="pointer-events-none absolute -left-16 -top-24 h-72 w-72 rounded-full bg-[#8b7cf0]/25 blur-3xl blitz-float" />
+      <div
+        className="pointer-events-none absolute -right-20 top-40 h-80 w-80 rounded-full bg-[#34d399]/20 blur-3xl blitz-float"
+        style={{ animationDelay: "-3s" }}
+      />
+      <div className="pointer-events-none absolute bottom-4 left-1/3 h-72 w-72 rounded-full bg-[#5b5bd6]/15 blur-3xl blitz-float" style={{ animationDelay: "-5s" }} />
+      <div className="relative flex flex-col gap-6 w-full">
       <div
         className="relative overflow-hidden rounded-[28px] p-8 lg:p-10 text-white shadow-sm"
         style={{
@@ -56,6 +69,7 @@ export default async function MathGamePage() {
 
       <DifficultyPicker myBests={myBests} />
       <Leaderboard boards={boards} />
+      </div>
     </div>
   );
 }
