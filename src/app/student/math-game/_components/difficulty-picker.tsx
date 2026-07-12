@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Rabbit,
+  Sparkles,
+  Flame,
+  Swords,
+  Brain,
+  type LucideIcon,
+} from "lucide-react";
 import { GameClient } from "./game-client";
 import {
   SOUND_OPTIONS,
@@ -12,12 +20,21 @@ import {
 import type { Difficulty } from "./question-generator";
 import type { MyBests } from "../_queries";
 
-const TIERS: { key: Difficulty; label: string; blurb: string }[] = [
-  { key: "sprint", label: "Sprint", blurb: "addition up to 20" },
-  { key: "easy", label: "Easy", blurb: "2-digit addition" },
-  { key: "medium", label: "Medium", blurb: "+ − and times tables" },
-  { key: "hard", label: "Hard", blurb: "all four operations" },
-  { key: "genius", label: "Genius", blurb: "3-digit, powers, order of ops" },
+type Tier = {
+  key: Difficulty;
+  label: string;
+  blurb: string;
+  accent: string; // bright — solid top stripe + tile tint
+  fg: string; // darker, readable — icon + "Best" text (≥4.5:1 on the light tint)
+  icon: LucideIcon;
+};
+
+const TIERS: Tier[] = [
+  { key: "sprint", label: "Sprint", blurb: "Addition up to 20", accent: "#1fa974", fg: "#0e7a4d", icon: Rabbit },
+  { key: "easy", label: "Easy", blurb: "2-digit addition", accent: "#2e8fd6", fg: "#1e6fb0", icon: Sparkles },
+  { key: "medium", label: "Medium", blurb: "Add, subtract, times tables", accent: "#f58a07", fg: "#b5610a", icon: Flame },
+  { key: "hard", label: "Hard", blurb: "All four operations", accent: "#f2616b", fg: "#cc3a45", icon: Swords },
+  { key: "genius", label: "Genius", blurb: "3-digit, powers, order of ops", accent: "#7b5bd6", fg: "#5b3fb0", icon: Brain },
 ];
 
 export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
@@ -33,8 +50,13 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
   };
 
   if (active) {
+    const tier = TIERS.find((t) => t.key === active)!;
     return (
-      <div className="rounded-[14px] border border-line bg-surface p-4">
+      <div className="relative overflow-hidden rounded-[22px] border border-line bg-surface p-6 shadow-sm">
+        <span
+          className="absolute inset-x-0 top-0 h-1.5"
+          style={{ backgroundColor: tier.accent }}
+        />
         <GameClient
           difficulty={active}
           sound={sound}
@@ -46,38 +68,65 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3">
-        {TIERS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActive(t.key)}
-            className="group text-left rounded-[14px] border border-line bg-surface p-4 hover:-translate-y-[3px] hover:shadow-md transition-all"
-          >
-            <div className="text-[15px] font-extrabold text-ink">{t.label}</div>
-            <div className="text-[12px] text-muted mt-0.5">{t.blurb}</div>
-            <div className="text-[12px] text-brand-600 font-semibold mt-2">
-              Best: <span className="tabular-nums">{myBests[t.key]}</span>
-            </div>
-          </button>
-        ))}
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-[16px] font-extrabold text-ink tracking-tight">
+          Choose your level
+        </h2>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mr-0.5">
+            Sound
+          </span>
+          {SOUND_OPTIONS.map((o) => (
+            <button
+              key={o.name}
+              onClick={() => chooseSound(o.name)}
+              className={`h-8 px-3 rounded-full text-[12px] font-semibold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                sound === o.name
+                  ? "bg-brand-500 text-white"
+                  : "text-muted border border-line hover:bg-surface-2"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[12px] font-semibold text-muted">Sound</span>
-        {SOUND_OPTIONS.map((o) => (
-          <button
-            key={o.name}
-            onClick={() => chooseSound(o.name)}
-            className={`h-8 px-3 rounded-full text-[12px] font-semibold transition-colors ${
-              sound === o.name
-                ? "bg-brand-500 text-white"
-                : "text-muted hover:bg-surface-2 border border-line"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {TIERS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActive(t.key)}
+              className="group relative overflow-hidden text-left rounded-[20px] border border-line bg-surface p-4 pt-5 cursor-pointer transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500"
+            >
+              <span
+                className="absolute inset-x-0 top-0 h-1.5"
+                style={{ backgroundColor: t.accent }}
+              />
+              <div
+                className="h-11 w-11 grid place-items-center rounded-[14px] transition-transform group-hover:scale-105"
+                style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
+              >
+                <Icon className="h-6 w-6" />
+              </div>
+              <div className="mt-3 text-[16px] font-extrabold text-ink">
+                {t.label}
+              </div>
+              <div className="text-[12px] text-muted mt-0.5 leading-snug">
+                {t.blurb}
+              </div>
+              <div
+                className="mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums"
+                style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
+              >
+                Best {myBests[t.key]}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

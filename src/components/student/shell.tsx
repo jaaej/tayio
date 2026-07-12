@@ -165,12 +165,9 @@ export async function StudentShell({
 
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col bg-surface border-r border-line overflow-y-auto p-3 pb-2">
-        <div className="flex-1">
-          <StudentNavLinks sections={sections} />
-        </div>
         <Link
           href="/student/math-game"
-          className="group mt-3 block rounded-[18px] p-3.5 text-white shadow-sm transition-transform hover:-translate-y-[2px]"
+          className="group mb-3 block rounded-[18px] p-3.5 text-white shadow-sm transition-transform hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7B6EF0]/60"
           style={{
             backgroundImage:
               "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
@@ -186,6 +183,9 @@ export async function StudentShell({
             </div>
           </div>
         </Link>
+        <div className="flex-1">
+          <StudentNavLinks sections={sections} />
+        </div>
         <div className="mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
           <div>Taiyo Tuition · v0.4 preview</div>
           <div>© 2026 Taiyo Pty Ltd</div>
