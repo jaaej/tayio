@@ -94,7 +94,7 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {TIERS.map((t) => {
           const Icon = t.icon;
           const special = t.key === "sprint";
