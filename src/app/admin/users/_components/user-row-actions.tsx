@@ -14,14 +14,18 @@ export function UserRowActions({
   isActive,
   name,
   unlocked,
+  pinSet,
 }: {
   id: string;
   email: string;
   isActive: boolean;
   name: string;
   unlocked: boolean;
+  pinSet: boolean;
 }) {
   const [pending, start] = useTransition();
+  // Deactivation is walled only once a PIN exists.
+  const locked = pinSet && !unlocked;
 
   return (
     <div className="inline-flex items-center gap-2 justify-end">
@@ -47,7 +51,7 @@ export function UserRowActions({
       <Button
         size="sm"
         variant={isActive ? "outline" : "primary"}
-        disabled={pending || !unlocked}
+        disabled={pending || locked}
         onClick={() => {
           const verb = isActive ? "Deactivate" : "Reactivate";
           if (

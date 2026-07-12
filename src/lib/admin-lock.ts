@@ -154,8 +154,14 @@ export async function isAdminUnlocked(): Promise<boolean> {
   return !!user && user.id === userId;
 }
 
-/** Throw unless the admin has unlocked. Walled server actions call this. */
+/**
+ * Throw unless the admin has unlocked. Walled server actions call this.
+ * The wall only engages once a PIN is configured — with no PIN set, actions
+ * stay open so a fresh admin can't be locked out of their own portal.
+ */
 export async function assertAdminUnlocked(): Promise<void> {
+  const pinHash = await getPinHash();
+  if (!pinHash) return;
   if (!(await isAdminUnlocked())) {
     throw new Error("Admin unlock required");
   }

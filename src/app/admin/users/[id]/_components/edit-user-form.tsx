@@ -25,6 +25,9 @@ export function EditUserForm(props: {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
+  // The wall only applies once a PIN exists; before that, role edits stay open.
+  const locked = props.pinSet && !props.unlocked;
+
   return (
     <form
       className="grid sm:grid-cols-2 gap-4"
@@ -80,7 +83,7 @@ export function EditUserForm(props: {
           name="role"
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
-          disabled={!props.unlocked}
+          disabled={locked}
         >
           {ROLE_OPTIONS.map((r) => (
             <option key={r.value} value={r.value}>
@@ -88,7 +91,7 @@ export function EditUserForm(props: {
             </option>
           ))}
         </Select>
-        {!props.unlocked && (
+        {locked && (
           <div className="pt-1.5">
             <AdminPinPrompt pinSet={props.pinSet} label="Unlock to change role" />
           </div>

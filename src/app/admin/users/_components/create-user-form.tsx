@@ -21,13 +21,15 @@ export function CreateUserForm({
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
-  // While locked, only student/parent roles are offered (the server allows
-  // creating those without an unlock); tutor/admin are hidden until unlocked.
+  // The wall only applies once a PIN exists. While locked, only student/parent
+  // roles are offered (the server allows those without an unlock); tutor/admin
+  // are hidden until unlocked.
+  const locked = pinSet && !unlocked;
   const isPrivilegedRole = (r: UserRole) =>
     r === "tutor" || (ADMIN_TIERS as readonly UserRole[]).includes(r);
-  const roleOptions = unlocked
-    ? ROLE_OPTIONS
-    : ROLE_OPTIONS.filter((o) => !isPrivilegedRole(o.value));
+  const roleOptions = locked
+    ? ROLE_OPTIONS.filter((o) => !isPrivilegedRole(o.value))
+    : ROLE_OPTIONS;
 
   return (
     <form
@@ -94,7 +96,7 @@ export function CreateUserForm({
             </option>
           ))}
         </Select>
-        {!unlocked && (
+        {locked && (
           <div className="pt-1.5">
             <AdminPinPrompt pinSet={pinSet} label="Unlock to assign tutor/admin roles" />
           </div>
