@@ -100,13 +100,21 @@ export async function isAdminUnlocked(): Promise<boolean> {
   const payload = raw.slice(0, lastDot);
   const mac = raw.slice(lastDot + 1);
 
-  const expectedMac = sign(payload);
+  let expectedMac: string;
+  try {
+    expectedMac = sign(payload);
+  } catch {
+    // Signing key missing/misconfigured — treat as not-unlocked rather than
+    // throwing, so a stale cookie can't 500 a page render.
+    return false;
+  }
   const macBuf = Buffer.from(mac, "hex");
   const expBuf = Buffer.from(expectedMac, "hex");
   if (macBuf.length !== expBuf.length || !timingSafeEqual(macBuf, expBuf)) {
     return false;
   }
 
+  // userId is a Supabase UUID (contains no dots), so this split is unambiguous.
   const [userId, expiryStr] = payload.split(".");
   const expiry = Number(expiryStr);
   if (!userId || !Number.isFinite(expiry) || Date.now() > expiry) return false;
