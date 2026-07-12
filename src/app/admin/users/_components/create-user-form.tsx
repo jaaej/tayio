@@ -6,7 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
-import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
+import { ROLE_OPTIONS, ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { AdminPinPrompt } from "@/components/admin/pin-gate";
 
 export function CreateUserForm({
@@ -20,6 +20,14 @@ export function CreateUserForm({
   const [role, setRole] = useState<UserRole>("student_restricted");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+
+  // While locked, only student/parent roles are offered (the server allows
+  // creating those without an unlock); tutor/admin are hidden until unlocked.
+  const isPrivilegedRole = (r: UserRole) =>
+    r === "tutor" || (ADMIN_TIERS as readonly UserRole[]).includes(r);
+  const roleOptions = unlocked
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter((o) => !isPrivilegedRole(o.value));
 
   return (
     <form
@@ -79,9 +87,8 @@ export function CreateUserForm({
           name="role"
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
-          disabled={!unlocked}
         >
-          {ROLE_OPTIONS.map((r) => (
+          {roleOptions.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
@@ -89,7 +96,7 @@ export function CreateUserForm({
         </Select>
         {!unlocked && (
           <div className="pt-1.5">
-            <AdminPinPrompt pinSet={pinSet} label="Unlock to set privileged roles" />
+            <AdminPinPrompt pinSet={pinSet} label="Unlock to assign tutor/admin roles" />
           </div>
         )}
       </div>

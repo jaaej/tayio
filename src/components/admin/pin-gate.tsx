@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/admin/ui";
@@ -65,17 +65,4 @@ export function AdminPinPrompt({
       {error && <span className="text-[12px] font-semibold text-bad">{error}</span>}
     </form>
   );
-}
-
-export function AdminPinGate({
-  unlocked,
-  pinSet,
-  children,
-}: {
-  unlocked: boolean;
-  pinSet: boolean;
-  children: ReactNode;
-}) {
-  if (unlocked) return <>{children}</>;
-  return <AdminPinPrompt pinSet={pinSet} />;
 }
