@@ -132,14 +132,23 @@ export type RevenueSummary = {
 
 /** Financial figures for the PIN-gated revenue page. */
 export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
+  // Bucket by paidAt (cash received in the month), not issuedAt — a "Revenue"
+  // figure means money collected. Both months are half-open [start, nextStart).
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const todayIso = isoDate(now);
 
   const [revMonth] = await db
     .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
     .from(invoices)
-    .where(and(eq(invoices.status, "paid"), gte(invoices.issuedAt, monthStart)));
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.paidAt, monthStart),
+        lt(invoices.paidAt, nextMonthStart),
+      ),
+    );
 
   const [revPrev] = await db
     .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
@@ -147,8 +156,8 @@ export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
     .where(
       and(
         eq(invoices.status, "paid"),
-        gte(invoices.issuedAt, prevMonthStart),
-        lt(invoices.issuedAt, monthStart),
+        gte(invoices.paidAt, prevMonthStart),
+        lt(invoices.paidAt, monthStart),
       ),
     );
 
