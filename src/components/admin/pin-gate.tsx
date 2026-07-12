@@ -59,7 +59,7 @@ export function AdminPinPrompt({
         onChange={(e) => setPin(e.target.value)}
         className="max-w-[220px]"
       />
-      <Button type="submit" variant="brand" size="sm" disabled={pending || pin.length < 4}>
+      <Button type="submit" variant="brand" size="sm" disabled={pending || pin.length < 6}>
         {pending ? "Unlocking…" : "Unlock"}
       </Button>
       {error && <span className="text-[12px] font-semibold text-bad">{error}</span>}

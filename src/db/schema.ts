@@ -363,6 +363,8 @@ export const announcements = pgTable("announcements", {
 export const adminSettings = pgTable("admin_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   pinHash: text("pin_hash"),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

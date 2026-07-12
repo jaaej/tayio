@@ -67,6 +67,37 @@ export async function upsertPinHash(hash: string): Promise<void> {
   }
 }
 
+/** Full singleton security row (or null if no row yet). */
+export async function getAdminSecurityRow(): Promise<{
+  id: string;
+  pinHash: string | null;
+  failedAttempts: number;
+  lockedUntil: Date | null;
+} | null> {
+  const [row] = await db
+    .select({
+      id: adminSettings.id,
+      pinHash: adminSettings.pinHash,
+      failedAttempts: adminSettings.failedAttempts,
+      lockedUntil: adminSettings.lockedUntil,
+    })
+    .from(adminSettings)
+    .limit(1);
+  return row ?? null;
+}
+
+/** Overwrite the lockout bookkeeping on the singleton row. */
+export async function setUnlockState(
+  id: string,
+  failedAttempts: number,
+  lockedUntil: Date | null,
+): Promise<void> {
+  await db
+    .update(adminSettings)
+    .set({ failedAttempts, lockedUntil, updatedAt: new Date() })
+    .where(eq(adminSettings.id, id));
+}
+
 function sign(payload: string): string {
   return createHmac("sha256", signingKey()).update(payload).digest("hex");
 }

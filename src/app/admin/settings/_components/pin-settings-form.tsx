@@ -48,7 +48,7 @@ export function PinSettingsForm({ pinSet }: { pinSet: boolean }) {
           name="next"
           type="password"
           inputMode="numeric"
-          placeholder="4–8 digits"
+          placeholder="6–8 digits"
           required
         />
       </div>
