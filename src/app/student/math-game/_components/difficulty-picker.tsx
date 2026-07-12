@@ -7,6 +7,7 @@ import {
   Flame,
   Swords,
   Brain,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { GameClient } from "./game-client";
@@ -93,34 +94,69 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {TIERS.map((t) => {
           const Icon = t.icon;
+          const special = t.key === "sprint";
           return (
             <button
               key={t.key}
               onClick={() => setActive(t.key)}
-              className="group relative overflow-hidden text-left rounded-[22px] border border-line bg-surface p-5 pt-6 cursor-pointer transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500"
+              className={`group relative overflow-hidden text-left rounded-[22px] p-5 pt-6 cursor-pointer transition-all duration-200 hover:-translate-y-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500 ${
+                special
+                  ? "text-ink shadow-lg hover:shadow-xl"
+                  : "border border-line bg-surface hover:shadow-lg"
+              }`}
+              style={
+                special
+                  ? {
+                      backgroundImage:
+                        "linear-gradient(135deg, #6ee7b7 0%, #34d399 45%, #10b981 100%)",
+                      boxShadow: "0 14px 32px -12px rgba(16,185,129,0.55)",
+                    }
+                  : undefined
+              }
             >
-              <span
-                className="absolute inset-x-0 top-0 h-1.5"
-                style={{ backgroundColor: t.accent }}
-              />
+              {special ? (
+                <>
+                  <span className="absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/40 blur-xl" />
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink">
+                    <Star className="h-3 w-3" /> Special
+                  </span>
+                </>
+              ) : (
+                <span
+                  className="absolute inset-x-0 top-0 h-1.5"
+                  style={{ backgroundColor: t.accent }}
+                />
+              )}
               <div
-                className="h-14 w-14 grid place-items-center rounded-[16px] transition-transform group-hover:scale-105"
-                style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
+                className="relative h-14 w-14 grid place-items-center rounded-[16px] transition-transform group-hover:scale-105"
+                style={
+                  special
+                    ? { backgroundColor: "rgba(255,255,255,0.5)", color: "#065f46" }
+                    : { backgroundColor: `${t.accent}1f`, color: t.fg }
+                }
               >
                 <Icon className="h-7 w-7" />
               </div>
-              <div className="mt-4 text-[18px] font-extrabold text-ink">
+              <div className="relative mt-4 text-[18px] font-extrabold text-ink">
                 {t.label}
               </div>
-              <div className="text-[13px] text-muted mt-1 leading-snug">
+              <div
+                className={`relative text-[13px] mt-1 leading-snug ${
+                  special ? "text-ink/75" : "text-muted"
+                }`}
+              >
                 {t.blurb}
               </div>
               <div
-                className="mt-4 inline-flex items-center rounded-full px-3 py-1.5 text-[12px] font-bold tabular-nums"
-                style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
+                className="relative mt-4 inline-flex items-center rounded-full px-3 py-1.5 text-[12px] font-bold tabular-nums"
+                style={
+                  special
+                    ? { backgroundColor: "rgba(255,255,255,0.5)", color: "#065f46" }
+                    : { backgroundColor: `${t.accent}1f`, color: t.fg }
+                }
               >
                 Best {myBests[t.key]}
               </div>

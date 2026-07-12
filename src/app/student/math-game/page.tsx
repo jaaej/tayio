@@ -20,7 +20,7 @@ export default async function MathGamePage() {
   ) as Boards;
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl">
+    <div className="flex flex-col gap-6 w-full">
       <div
         className="relative overflow-hidden rounded-[28px] p-8 lg:p-10 text-white shadow-sm"
         style={{
@@ -51,10 +51,8 @@ export default async function MathGamePage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
-        <DifficultyPicker myBests={myBests} />
-        <Leaderboard boards={boards} />
-      </div>
+      <DifficultyPicker myBests={myBests} />
+      <Leaderboard boards={boards} />
     </div>
   );
 }
