@@ -7,7 +7,7 @@ import {
   type Difficulty,
   type Question,
 } from "./question-generator";
-import { playSound, type SoundName } from "./sound";
+import { playSound, playError, type SoundName } from "./sound";
 import { submitScore } from "../_actions";
 
 const ROUND_SECONDS = 60;
@@ -34,7 +34,9 @@ export function GameClient({
   );
   const [input, setInput] = useState("");
   const [neg, setNeg] = useState(false);
+  const [wrong, setWrong] = useState(false);
   const [score, setScore] = useState(0);
+  const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Countdown 3 -> 2 -> 1 -> play
@@ -78,16 +80,35 @@ export function GameClient({
     setQuestion(generateQuestion(difficulty));
     setInput("");
     setNeg(false);
+    setWrong(false);
   }, [sound, difficulty]);
 
-  // Auto-advance the instant the entered value (digits + sign) equals the answer.
+  // Brief red flash + error buzz for a completed wrong answer (honors mute).
+  const flashWrong = useCallback(() => {
+    if (sound !== "mute") playError();
+    setWrong(true);
+    if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    wrongTimer.current = setTimeout(() => setWrong(false), 320);
+  }, [sound]);
+
+  useEffect(() => () => {
+    if (wrongTimer.current) clearTimeout(wrongTimer.current);
+  }, []);
+
+  // Auto-advance the instant the entered value (digits + sign) equals the
+  // answer; buzz once a wrong entry reaches the answer's digit length.
   const tryAnswer = useCallback(
     (digits: string, negative: boolean) => {
       if (digits === "") return;
       const value = negative ? -Number(digits) : Number(digits);
-      if (value === question.answer) advance();
+      if (value === question.answer) {
+        advance();
+        return;
+      }
+      const targetLen = String(Math.abs(question.answer)).length;
+      if (digits.length >= targetLen) flashWrong();
     },
-    [question.answer, advance],
+    [question.answer, advance, flashWrong],
   );
 
   // The numeric keypad has no minus key on mobile, so sign is entered via the
@@ -117,6 +138,7 @@ export function GameClient({
     setTimeLeft(ROUND_SECONDS);
     setInput("");
     setNeg(false);
+    setWrong(false);
     setQuestion(generateQuestion(difficulty));
     setCount(3);
     setPhase("countdown");
@@ -168,28 +190,32 @@ export function GameClient({
 
   // phase === "playing"
   return (
-    <div className="grid place-items-center gap-6 py-12">
-      <div className="flex w-full max-w-sm items-center justify-between text-[13px] font-semibold">
+    <div className="grid place-items-center gap-8 py-14">
+      <div className="flex w-full max-w-md items-center justify-between text-[15px] font-semibold">
         <span className="text-muted">
-          Score <span className="text-ink tabular-nums">{score}</span>
+          Score <span className="text-ink tabular-nums text-[17px]">{score}</span>
         </span>
         <span
-          className={timeLeft <= 10 ? "text-bad tabular-nums" : "text-muted tabular-nums"}
+          className={
+            timeLeft <= 10
+              ? "text-bad tabular-nums text-[17px]"
+              : "text-muted tabular-nums text-[17px]"
+          }
         >
           {timeLeft}s
         </span>
       </div>
-      <div className="text-[44px] font-extrabold text-ink tabular-nums text-center">
+      <div className="text-[60px] leading-none font-extrabold text-ink tabular-nums text-center">
         {question.text}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         {difficulty === "genius" && (
           <button
             type="button"
             onClick={toggleSign}
             aria-label="Toggle negative sign"
             aria-pressed={neg}
-            className={`h-14 w-14 shrink-0 rounded-[14px] border text-[24px] font-bold transition-colors ${
+            className={`h-[72px] w-[72px] shrink-0 rounded-[18px] border text-[30px] font-bold transition-colors ${
               neg
                 ? "border-brand-500 bg-brand-500 text-white"
                 : "border-line-strong bg-surface text-ink hover:bg-surface-2"
@@ -208,7 +234,11 @@ export function GameClient({
           inputMode="numeric"
           autoComplete="off"
           aria-label="Your answer"
-          className="h-14 w-40 rounded-[14px] border border-line-strong bg-surface text-center text-[28px] font-bold text-ink outline-none focus:border-brand-500"
+          className={`h-[72px] w-56 rounded-[18px] border-2 bg-surface text-center text-[36px] font-bold text-ink outline-none transition-colors ${
+            wrong
+              ? "border-bad ring-4 ring-bad/25"
+              : "border-line-strong focus:border-brand-500"
+          }`}
         />
       </div>
     </div>

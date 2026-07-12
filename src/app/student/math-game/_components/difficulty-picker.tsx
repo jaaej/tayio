@@ -93,33 +93,33 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
         {TIERS.map((t) => {
           const Icon = t.icon;
           return (
             <button
               key={t.key}
               onClick={() => setActive(t.key)}
-              className="group relative overflow-hidden text-left rounded-[20px] border border-line bg-surface p-4 pt-5 cursor-pointer transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500"
+              className="group relative overflow-hidden text-left rounded-[22px] border border-line bg-surface p-5 pt-6 cursor-pointer transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500"
             >
               <span
                 className="absolute inset-x-0 top-0 h-1.5"
                 style={{ backgroundColor: t.accent }}
               />
               <div
-                className="h-11 w-11 grid place-items-center rounded-[14px] transition-transform group-hover:scale-105"
+                className="h-14 w-14 grid place-items-center rounded-[16px] transition-transform group-hover:scale-105"
                 style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
               >
-                <Icon className="h-6 w-6" />
+                <Icon className="h-7 w-7" />
               </div>
-              <div className="mt-3 text-[16px] font-extrabold text-ink">
+              <div className="mt-4 text-[18px] font-extrabold text-ink">
                 {t.label}
               </div>
-              <div className="text-[12px] text-muted mt-0.5 leading-snug">
+              <div className="text-[13px] text-muted mt-1 leading-snug">
                 {t.blurb}
               </div>
               <div
-                className="mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums"
+                className="mt-4 inline-flex items-center rounded-full px-3 py-1.5 text-[12px] font-bold tabular-nums"
                 style={{ backgroundColor: `${t.accent}1f`, color: t.fg }}
               >
                 Best {myBests[t.key]}

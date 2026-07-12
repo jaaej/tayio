@@ -76,3 +76,9 @@ export function playSound(name: SoundName): void {
       return;
   }
 }
+
+// A single fixed low "wrong answer" buzz (two descending low tones). Not
+// user-pickable; callers should skip it when the preferred sound is "mute".
+export function playError(): void {
+  blip("sawtooth", [[196, 0], [147, 0.09]], 0.16);
+}
