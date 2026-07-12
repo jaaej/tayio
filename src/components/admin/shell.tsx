@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Bell,
   BarChart3,
+  Settings,
   LogOut,
   Search,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const SECTIONS: NavSection[] = [
     heading: "Insight",
     items: [
       { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={IC} /> },
+      { label: "Settings", href: "/admin/settings", icon: <Settings className={IC} /> },
     ],
   },
 ];
