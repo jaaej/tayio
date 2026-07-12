@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Bell,
   BarChart3,
+  Wallet,
   Settings,
   LogOut,
   Search,
@@ -56,6 +57,7 @@ const SECTIONS: NavSection[] = [
     heading: "Insight",
     items: [
       { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={IC} /> },
+      { label: "Revenue", href: "/admin/revenue", icon: <Wallet className={IC} /> },
       { label: "Settings", href: "/admin/settings", icon: <Settings className={IC} /> },
     ],
   },

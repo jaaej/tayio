@@ -6,30 +6,13 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
-import { ROLE_OPTIONS, ADMIN_TIERS, coarseRole } from "@/lib/roles";
-import { AdminPinPrompt } from "@/components/admin/pin-gate";
+import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
 
-export function CreateUserForm({
-  unlocked,
-  pinSet,
-}: {
-  unlocked: boolean;
-  pinSet: boolean;
-}) {
+export function CreateUserForm() {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>("student_restricted");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
-
-  // The wall only applies once a PIN exists. While locked, only student/parent
-  // roles are offered (the server allows those without an unlock); tutor/admin
-  // are hidden until unlocked.
-  const locked = pinSet && !unlocked;
-  const isPrivilegedRole = (r: UserRole) =>
-    r === "tutor" || (ADMIN_TIERS as readonly UserRole[]).includes(r);
-  const roleOptions = locked
-    ? ROLE_OPTIONS.filter((o) => !isPrivilegedRole(o.value))
-    : ROLE_OPTIONS;
 
   return (
     <form
@@ -90,17 +73,12 @@ export function CreateUserForm({
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
         >
-          {roleOptions.map((r) => (
+          {ROLE_OPTIONS.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
           ))}
         </Select>
-        {locked && (
-          <div className="pt-1.5">
-            <AdminPinPrompt pinSet={pinSet} label="Unlock to assign tutor/admin roles" />
-          </div>
-        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="phone">Phone (optional)</Label>

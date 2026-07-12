@@ -18,7 +18,6 @@ import {
 } from "@/components/admin/ui";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
-import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 
@@ -34,10 +33,7 @@ export default async function UserDetailPage({
   const { id } = await params;
   const { reschedule } = await searchParams;
 
-  const [[user], { unlocked, pinSet }] = await Promise.all([
-    db.select().from(profiles).where(eq(profiles.id, id)),
-    getAdminSecurityState(),
-  ]);
+  const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
   if (!user) notFound();
 
   const upcomingLessons =
@@ -136,8 +132,6 @@ export default async function UserDetailPage({
               yearLevel={user.yearLevel ?? ""}
               school={user.school ?? ""}
               role={user.role}
-              unlocked={unlocked}
-              pinSet={pinSet}
             />
           </CardBody>
         </Card>

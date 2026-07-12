@@ -18,8 +18,6 @@ import {
 } from "@/components/admin/ui";
 import { CreateUserForm } from "./_components/create-user-form";
 import { UserRowActions } from "./_components/user-row-actions";
-import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
-import { AdminPinPrompt } from "@/components/admin/pin-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +36,10 @@ const STAT_META = {
 } as const satisfies Record<string, { tone: StatTone; icon: React.ReactNode }>;
 
 export default async function UsersPage() {
-  const [rows, { unlocked, pinSet }] = await Promise.all([
-    db.select().from(profiles).orderBy(desc(profiles.createdAt)),
-    getAdminSecurityState(),
-  ]);
+  const rows = await db
+    .select()
+    .from(profiles)
+    .orderBy(desc(profiles.createdAt));
 
   const grouped = {
     student: rows.filter((r) => coarseRole(r.role) === "student").length,
@@ -86,21 +84,10 @@ export default async function UsersPage() {
         <Card accent="brand">
           <CardHead title="Create user" />
           <CardBody>
-            <CreateUserForm unlocked={unlocked} pinSet={pinSet} />
+            <CreateUserForm />
           </CardBody>
         </Card>
       </section>
-
-      {pinSet && !unlocked && (
-        <Card>
-          <div className="flex items-center justify-between gap-4 p-4">
-            <p className="text-[13px] text-muted">
-              Role changes and deactivation are locked.
-            </p>
-            <AdminPinPrompt pinSet={pinSet} label="Unlock admin actions" />
-          </div>
-        </Card>
-      )}
 
       <section className="rise" style={{ animationDelay: "120ms" }}>
         <Card>
@@ -156,8 +143,6 @@ export default async function UsersPage() {
                           email={u.email}
                           isActive={u.isActive}
                           name={`${u.firstName} ${u.lastName}`}
-                          unlocked={unlocked}
-                          pinSet={pinSet}
                         />
                       </Td>
                     </tr>

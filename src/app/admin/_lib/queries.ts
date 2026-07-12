@@ -123,6 +123,84 @@ export async function getOpsStats(opts: {
   };
 }
 
+export type RevenueSummary = {
+  revenueMonth: number;
+  revenueLastMonth: number;
+  overdueTotal: number;
+  overdueCount: number;
+};
+
+/** Financial figures for the PIN-gated revenue page. */
+export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const todayIso = isoDate(now);
+
+  const [revMonth] = await db
+    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
+    .from(invoices)
+    .where(and(eq(invoices.status, "paid"), gte(invoices.issuedAt, monthStart)));
+
+  const [revPrev] = await db
+    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.issuedAt, prevMonthStart),
+        lt(invoices.issuedAt, monthStart),
+      ),
+    );
+
+  const [overdue] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
+        lt(invoices.dueDate, todayIso),
+      ),
+    );
+
+  return {
+    revenueMonth: Number(revMonth?.total ?? 0),
+    revenueLastMonth: Number(revPrev?.total ?? 0),
+    overdueTotal: Number(overdue?.total ?? 0),
+    overdueCount: overdue?.count ?? 0,
+  };
+}
+
+export type RecentPayment = {
+  id: string;
+  at: Date | null;
+  amount: string;
+  currency: string;
+  parentFirst: string;
+  parentLast: string;
+};
+
+/** Most recent paid invoices, for the revenue page. */
+export async function getRecentPayments(limit = 8): Promise<RecentPayment[]> {
+  const parent = alias(profiles, "parent");
+  return db
+    .select({
+      id: invoices.id,
+      at: invoices.paidAt,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .where(and(eq(invoices.status, "paid"), sql`${invoices.paidAt} is not null`))
+    .orderBy(desc(invoices.paidAt))
+    .limit(limit);
+}
+
 export type TutorBacklog = {
   tutorId: string;
   firstName: string;
