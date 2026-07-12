@@ -110,7 +110,10 @@ export async function setUnlockCookie(userId: string): Promise<void> {
   const jar = await cookies();
   jar.set(COOKIE, value, {
     httpOnly: true,
-    secure: true,
+    // Only mark Secure in production — a Secure cookie is silently dropped
+    // over plain HTTP (dev server / LAN-IP device testing), which would leave
+    // the admin permanently "locked" after a correct PIN.
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/admin",
     maxAge: WINDOW_MS / 1000,
