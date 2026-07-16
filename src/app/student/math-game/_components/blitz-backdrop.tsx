@@ -1,41 +1,57 @@
 import type { CSSProperties } from "react";
 
-// Angular "shard" fragments scattered behind the content — same idea as the
-// discussion ThreadBackdrop, but with a playful multi-colour arcade palette
-// (one colour per shard) instead of a single subject accent.
+// Playful multi-colour angular shards. clip-path edges anti-alias cleanly, so
+// they read crisp (not pixely) at any size.
 const SHARDS: { style: CSSProperties; clip: string; color: string }[] = [
-  { style: { left: "2%", top: "7%", width: 140, height: 140, transform: "rotate(16deg)", opacity: 0.16 }, clip: "polygon(0 0, 100% 26%, 30% 100%)", color: "#7b6ef0" },
-  { style: { right: "5%", top: "11%", width: 100, height: 100, transform: "rotate(-12deg)", opacity: 0.15 }, clip: "polygon(0 20%, 100% 0, 76% 100%)", color: "#34d399" },
-  { style: { left: "13%", bottom: "9%", width: 116, height: 116, transform: "rotate(28deg)", opacity: 0.13 }, clip: "polygon(0 0, 100% 42%, 48% 100%)", color: "#2e8fd6" },
-  { style: { right: "9%", bottom: "13%", width: 158, height: 158, transform: "rotate(-20deg)", opacity: 0.11 }, clip: "polygon(14% 0, 100% 32%, 62% 100%, 0 68%)", color: "#f2616b" },
-  { style: { left: "45%", top: "40%", width: 88, height: 88, transform: "rotate(6deg)", opacity: 0.1 }, clip: "polygon(0 0, 100% 52%, 38% 100%)", color: "#f58a07" },
+  { style: { left: "3%", top: "8%", width: 150, height: 150, transform: "rotate(16deg)", opacity: 0.18 }, clip: "polygon(0 0, 100% 26%, 30% 100%)", color: "#7b6ef0" },
+  { style: { right: "6%", top: "10%", width: 104, height: 104, transform: "rotate(-12deg)", opacity: 0.16 }, clip: "polygon(0 20%, 100% 0, 76% 100%)", color: "#34d399" },
+  { style: { left: "16%", bottom: "10%", width: 122, height: 122, transform: "rotate(28deg)", opacity: 0.13 }, clip: "polygon(0 0, 100% 42%, 48% 100%)", color: "#2e8fd6" },
+  { style: { right: "11%", bottom: "15%", width: 166, height: 166, transform: "rotate(-20deg)", opacity: 0.1 }, clip: "polygon(14% 0, 100% 32%, 62% 100%, 0 68%)", color: "#f2616b" },
+  { style: { left: "42%", top: "20%", width: 94, height: 94, transform: "rotate(6deg)", opacity: 0.12 }, clip: "polygon(0 0, 100% 52%, 38% 100%)", color: "#f58a07" },
 ];
 
 /**
- * Decorative backdrop for the Math Blitz page: a light violet gradient wash
- * split by a diagonal divider (top-left tinted half + white lower half with a
- * crisp accent line), plus scattered multi-colour angular shards. Purely
- * decorative (aria-hidden), sits behind opaque content cards so it never
- * affects text contrast, and bleeds past the main padding to read full-page.
+ * Decorative full-cover backdrop for the Math Blitz page. An aurora mesh (soft
+ * multi-colour radial blends, slowly drifting) fills the tinted upper-left half;
+ * a white lower-right half is cut with an anti-aliased clip-path diagonal (not a
+ * gradient hard-stop, which stair-steps) with a soft accent line along the same
+ * edge. Scattered arcade-colour shards add playful geometry. Purely decorative
+ * (aria-hidden) and behind the opaque content, so text contrast is untouched.
+ * Fills its positioned parent (which is min-h-full), so it covers the screen.
  */
 export function BlitzBackdrop() {
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute -inset-x-5 lg:-inset-x-7 -top-6 -bottom-16 overflow-hidden"
-    >
-      {/* Light arcade gradient wash */}
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Aurora mesh — soft radial blends, slowly drifting (oversized so the
+          drift never reveals an edge) */}
       <div
-        className="absolute inset-0"
-        style={{ background: "linear-gradient(158deg, #efeafe 0%, #e7effe 100%)" }}
+        className="absolute -inset-[12%] blitz-aurora"
+        style={{
+          backgroundColor: "#ece9fe",
+          backgroundImage:
+            "radial-gradient(38% 46% at 12% 6%, rgba(123,110,240,0.55), transparent 60%)," +
+            "radial-gradient(34% 42% at 84% 4%, rgba(52,211,153,0.45), transparent 60%)," +
+            "radial-gradient(44% 48% at 28% 40%, rgba(46,143,214,0.34), transparent 62%)," +
+            "radial-gradient(38% 44% at 72% 26%, rgba(242,97,107,0.26), transparent 62%)",
+        }}
       />
 
-      {/* Diagonal half divider — crisp accent line, white lower half, same angle */}
+      {/* White lower-right half — anti-aliased clip-path diagonal */}
       <div
-        className="absolute inset-0 opacity-80"
+        className="absolute inset-0"
         style={{
-          background:
-            "linear-gradient(122deg, transparent calc(50% - 0.75px), #b4a7f7 calc(50% - 0.75px), #b4a7f7 calc(50% + 0.75px), transparent calc(50% + 0.75px)), linear-gradient(122deg, transparent 0 50%, var(--surface) 50% 100%)",
+          background: "var(--surface)",
+          clipPath: "polygon(100% 13%, 100% 100%, 0 100%, 0 63%)",
+        }}
+      />
+
+      {/* Soft accent line along the same diagonal (blurred, so it never pixels) */}
+      <div
+        className="absolute inset-0 blur-[1.5px]"
+        style={{
+          background: "#8b7cf0",
+          opacity: 0.4,
+          clipPath: "polygon(100% 13%, 100% 14.6%, 0 64.6%, 0 63%)",
         }}
       />
 

@@ -21,7 +21,7 @@ export default async function MathGamePage() {
   ) as Boards;
 
   return (
-    <div className="relative">
+    <div className="relative min-h-full -mx-5 lg:-mx-7 -my-6 lg:-mb-16 overflow-hidden px-5 lg:px-7 pt-6 pb-6 lg:pb-16">
       <BlitzBackdrop />
       <div className="relative flex flex-col gap-6 w-full">
       <div
