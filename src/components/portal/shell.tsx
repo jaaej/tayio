@@ -120,7 +120,7 @@ export async function PortalShell({
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col bg-card border-r border-hairline/60 sticky top-0 h-screen px-4 py-6">
         <div className="px-3 mb-8">
-          <Link href={`/${role}`}>
+          <Link href={`/${cr}`}>
             <Wordmark />
           </Link>
         </div>
@@ -161,7 +161,7 @@ export async function PortalShell({
       {/* Mobile top bar (sidebar replacement) */}
       <header className="lg:hidden bg-card/90 backdrop-blur-md border-b border-hairline/60 sticky top-0 z-40">
         <div className="px-6 h-16 flex items-center justify-between">
-          <Link href={`/${role}`}>
+          <Link href={`/${cr}`}>
             <Wordmark />
           </Link>
           <form action={signOutAction}>
