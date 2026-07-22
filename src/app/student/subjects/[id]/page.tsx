@@ -119,7 +119,7 @@ export default async function StudentSubjectPage({
       </div>
 
       {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
-      <div className="flex-1 grid lg:grid-cols-[220px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
+      <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
         <WeekStrip
           subjectId={subjectId}
           currentTermId={data.currentTerm.id}

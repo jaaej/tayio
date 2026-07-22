@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,23 +58,31 @@ export function WeekStrip({
       }}
     >
       {/* Term selector */}
-      <select
-        defaultValue={currentTermId}
-        onChange={(e) => {
-          window.location.href = `${base}?term=${e.target.value}`;
-        }}
-        className="w-full rounded-lg border bg-white/85 backdrop-blur px-2 py-1.5 text-[11px] font-bold focus:outline-none"
-        style={{
-          color: accent.title,
-          borderColor: accent.ring,
-        }}
-      >
-        {termsAvailable.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.year} · T{t.termNumber}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          defaultValue={currentTermId}
+          onChange={(e) => {
+            window.location.href = `${base}?term=${e.target.value}`;
+          }}
+          aria-label="Select term"
+          className="w-full appearance-none rounded-[10px] border bg-white/90 backdrop-blur pl-3 pr-8 py-2 text-[12px] font-bold cursor-pointer shadow-[0_1px_2px_rgba(15,17,30,0.05)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0"
+          style={{
+            color: accent.title,
+            borderColor: accent.ring,
+          }}
+        >
+          {termsAvailable.map((t) => (
+            <option key={t.id} value={t.id}>
+              Term {t.termNumber} · {t.year}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          aria-hidden
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4"
+          style={{ color: accent.arrow }}
+        />
+      </div>
 
       {/* Week list — grouped by topic */}
       {(() => {
@@ -93,12 +101,13 @@ export function WeekStrip({
               <div key={g.items[0].topicId ?? "other"}>
                 {showHeadings && (
                   <div
-                    className="px-2.5 pt-2 pb-0.5 text-[9px] uppercase tracking-[0.14em] font-extrabold"
+                    className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] font-extrabold"
                     style={{ color: accent.meta }}
                   >
                     {g.label}
                   </div>
                 )}
+                <div className="space-y-2">
                 {g.items.map((w) => {
                   const isActive = w.subjectWeekId === active;
                   const isCurrent = w.subjectWeekId === currentWeekIdHint;
@@ -114,7 +123,7 @@ export function WeekStrip({
                       key={w.subjectWeekId}
                       href={`${base}?term=${currentTermId}&week=${w.subjectWeekId}`}
                       className={cn(
-                        "block rounded-[12px] px-2.5 py-2 transition-all border",
+                        "block rounded-[13px] px-3 py-2.5 transition-all border",
                         isActive
                           ? "text-white shadow-[0_8px_18px_-12px_rgba(31,40,90,0.35)]"
                           : "bg-white/75 backdrop-blur hover:bg-white/95",
@@ -133,7 +142,7 @@ export function WeekStrip({
                       <div className="flex items-center justify-between gap-1.5">
                         <span
                           className={cn(
-                            "text-[9px] uppercase tracking-[0.12em] font-extrabold",
+                            "text-[10px] uppercase tracking-[0.12em] font-extrabold",
                           )}
                           style={{
                             color: isActive ? "rgba(255,255,255,0.85)" : accent.meta,
@@ -162,7 +171,7 @@ export function WeekStrip({
                       </div>
                       <div
                         className={cn(
-                          "mt-0.5 text-[12px] font-bold leading-tight line-clamp-2",
+                          "mt-0.5 text-[14px] font-bold leading-snug line-clamp-2",
                         )}
                         style={{
                           color: isActive ? "#fff" : accent.title,
@@ -198,6 +207,7 @@ export function WeekStrip({
                     </Link>
                   );
                 })}
+                </div>
               </div>
             ))}
           </div>

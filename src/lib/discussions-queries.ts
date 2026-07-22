@@ -1,8 +1,9 @@
 import "server-only";
-import { desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
+  discussionAttachments,
   discussionReplies,
   discussionThreads,
   enrollments,
@@ -10,6 +11,7 @@ import {
   subjects,
   type UserRole,
 } from "@/db/schema";
+import { signDiscussionAttachment } from "@/lib/discussions-storage";
 import {
   adminBoardLabel,
   subjectBoardLabel,
@@ -34,6 +36,14 @@ export type ThreadSummary = {
   deletedAt: Date | null;
 };
 
+export type DiscussionAttachmentView = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  isImage: boolean;
+  url: string | null;
+};
+
 export type ThreadDetail = {
   id: string;
   subjectId: string | null;
@@ -45,6 +55,7 @@ export type ThreadDetail = {
   authorRole: UserRole;
   createdAt: Date;
   deletedAt: Date | null;
+  attachments: DiscussionAttachmentView[];
   replies: Array<{
     id: string;
     parentReplyId: string | null;
@@ -54,6 +65,7 @@ export type ThreadDetail = {
     body: string;
     createdAt: Date;
     deletedAt: Date | null;
+    attachments: DiscussionAttachmentView[];
   }>;
 };
 
@@ -234,6 +246,52 @@ export async function getThreadWithReplies(
     .where(eq(discussionReplies.threadId, threadId))
     .orderBy(discussionReplies.createdAt);
 
+  const replyIds = replyRows.map((r) => r.id);
+  const attRows = await db
+    .select({
+      id: discussionAttachments.id,
+      threadId: discussionAttachments.threadId,
+      replyId: discussionAttachments.replyId,
+      fileName: discussionAttachments.fileName,
+      contentType: discussionAttachments.contentType,
+      storagePath: discussionAttachments.storagePath,
+    })
+    .from(discussionAttachments)
+    .where(
+      or(
+        eq(discussionAttachments.threadId, threadId),
+        replyIds.length > 0
+          ? inArray(discussionAttachments.replyId, replyIds)
+          : sql`false`,
+      ),
+    );
+
+  // Sign every attachment once (short-lived URLs); bucket by parent.
+  const signed = await Promise.all(
+    attRows.map(async (a) => ({
+      id: a.id,
+      threadId: a.threadId,
+      replyId: a.replyId,
+      view: {
+        id: a.id,
+        fileName: a.fileName,
+        contentType: a.contentType,
+        isImage: a.contentType.startsWith("image/"),
+        url: await signDiscussionAttachment(a.storagePath),
+      } satisfies DiscussionAttachmentView,
+    })),
+  );
+  const threadAttachments = signed
+    .filter((s) => s.threadId === threadId)
+    .map((s) => s.view);
+  const attachmentsByReply = new Map<string, DiscussionAttachmentView[]>();
+  for (const s of signed) {
+    if (!s.replyId) continue;
+    const list = attachmentsByReply.get(s.replyId) ?? [];
+    list.push(s.view);
+    attachmentsByReply.set(s.replyId, list);
+  }
+
   return {
     id: t.id,
     subjectId: t.subjectId,
@@ -245,6 +303,10 @@ export async function getThreadWithReplies(
     authorRole: t.authorRole,
     createdAt: t.createdAt,
     deletedAt: t.deletedAt,
-    replies: replyRows,
+    attachments: threadAttachments,
+    replies: replyRows.map((r) => ({
+      ...r,
+      attachments: attachmentsByReply.get(r.id) ?? [],
+    })),
   };
 }

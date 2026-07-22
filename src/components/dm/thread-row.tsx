@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import type { ThreadInboxRow } from "@/lib/dm-queries";
+import { initialOf, roleColor } from "./dm-visuals";
 
 export function ThreadRow({
   thread,
@@ -13,39 +13,62 @@ export function ThreadRow({
     day: "numeric",
     month: "short",
   });
+  const color = roleColor(thread.otherRole);
+
   return (
     <Link
       href={`${hrefPrefix}/${thread.threadId}`}
-      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-brand-50/40"
+      className="group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-surface-2"
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-ink line-clamp-1">
-            {thread.otherName}
-          </span>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-muted font-medium">
-            {thread.otherRole}
-          </span>
-          {thread.unread && (
-            <span
-              aria-label="Unread"
-              className="ml-1 inline-block h-2 w-2 rounded-full bg-brand-600"
-            />
-          )}
-        </div>
-        {thread.lastMessagePreview && (
-          <div className="mt-1 text-sm text-ink-soft line-clamp-1">
-            {thread.lastMessagePreview}
-          </div>
+      <div className="relative shrink-0">
+        <span
+          className="grid h-11 w-11 place-items-center rounded-full text-[15px] font-bold text-white shadow-[0_4px_12px_-5px_rgba(31,40,90,0.5)]"
+          style={{ background: color }}
+        >
+          {initialOf(thread.otherName)}
+        </span>
+        {thread.unread && (
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface bg-brand-600"
+          />
         )}
       </div>
-      <div className="text-[11px] uppercase tracking-[0.12em] tabular-nums text-muted shrink-0">
-        {stamp}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={
+              "truncate text-[15px] text-ink " +
+              (thread.unread ? "font-extrabold" : "font-semibold")
+            }
+          >
+            {thread.otherName}
+          </span>
+          <span
+            className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+            style={{ background: `${color}1a`, color }}
+          >
+            {thread.otherRole}
+          </span>
+          <span
+            className={
+              "ml-auto shrink-0 text-[11px] tabular-nums " +
+              (thread.unread ? "font-bold text-brand-700" : "text-muted")
+            }
+          >
+            {stamp}
+          </span>
+        </div>
+        <div
+          className={
+            "mt-0.5 truncate text-[13px] " +
+            (thread.unread ? "font-semibold text-ink-soft" : "text-muted")
+          }
+        >
+          {thread.lastMessagePreview ?? "No messages yet"}
+        </div>
       </div>
-      <ChevronRight
-        className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5 shrink-0"
-        aria-hidden
-      />
     </Link>
   );
 }

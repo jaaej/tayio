@@ -1,20 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { Button } from "@/components/student/button";
-import { Card, CardBody, CardLabel } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
-import { Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  ClipboardList,
+  Download,
+  FileText,
+  MessageSquareText,
+  PenLine,
+  Trophy,
+  Upload,
+} from "lucide-react";
 import { db } from "@/db/client";
 import { homeworkAssignments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { StatusBadge } from "../../_components/badge";
-import {
-  formatDueDate,
-  HOMEWORK_STATUS_LABEL,
-  HOMEWORK_STATUS_STYLE,
-} from "../../_lib/format";
+import { formatDueDate } from "@/lib/format";
+import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import {
   getHomeworkDetail,
   getStudentTestRank,
@@ -69,137 +74,209 @@ export default async function HomeworkDetailPage({
       ? await getStudentTestRank(user.id, id)
       : null;
 
+  const tokens = getAccentTokens(colorFamilyForSubject(hw.subjectName ?? ""));
+  const statusLabel = HOMEWORK_STATUS_LABEL[effectiveStatus] ?? effectiveStatus;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 max-w-[860px]">
       <Link
         href="/student/subjects"
-        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink"
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-muted hover:text-ink transition-colors"
       >
-        ← All homework
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        All homework
       </Link>
 
       {submitted && (
-        <Card className="border-good/40 bg-good-bg">
-          <CardBody>
-            <div className="text-sm text-good font-semibold">
-              Submission received. Your tutor will mark it soon.
-            </div>
-          </CardBody>
-        </Card>
+        <Banner
+          tone="good"
+          icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+          text="Submission received. Your tutor will mark it soon."
+        />
       )}
       {error && (
-        <Card className="border-bad/40 bg-bad-bg">
-          <CardBody>
-            <div className="text-sm text-bad font-semibold">
-              Couldn't upload: {decodeURIComponent(error)}
-            </div>
-          </CardBody>
-        </Card>
+        <Banner
+          tone="bad"
+          icon={<AlertCircle className="h-4 w-4" aria-hidden />}
+          text={`Couldn't upload: ${decodeURIComponent(error)}`}
+        />
       )}
 
-      <PageHead
-        eyebrow={hw.className ?? "Homework"}
-        title={hw.title}
-        sub={
-          <div className="flex flex-wrap items-center gap-3">
-            <span>Due {formatDueDate(hw.dueDate)}</span>
-            {isOverdue && (
-              <span className="text-warn text-[11px] uppercase tracking-wider font-bold">
-                Overdue
-              </span>
-            )}
-            <StatusBadge
-              label={HOMEWORK_STATUS_LABEL[effectiveStatus] ?? effectiveStatus}
-              className={HOMEWORK_STATUS_STYLE[effectiveStatus]}
-            />
+      {/* HERO — subject-coloured */}
+      <section
+        className="relative overflow-hidden rounded-[24px] px-6 py-6 text-white shadow-[0_16px_36px_-20px_rgba(31,40,90,0.5)]"
+        style={{
+          background: `radial-gradient(140% 160% at 0% 0%, ${withAlpha(tokens.bgFrom, 0.6)} 0%, transparent 46%), radial-gradient(120% 150% at 100% 0%, ${withAlpha(tokens.bgFrom, 0.36)} 0%, transparent 55%), linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
+        }}
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          className="absolute -right-8 -top-12 w-[210px] h-[210px] opacity-50 pointer-events-none"
+          fill="none"
+        >
+          <circle cx="70" cy="30" r="34" fill="rgba(255,255,255,0.12)" />
+          <circle cx="70" cy="30" r="22" fill="rgba(255,255,255,0.10)" />
+          <circle cx="70" cy="30" r="11" fill="rgba(255,255,255,0.14)" />
+        </svg>
+
+        <div className="relative z-10 flex items-start justify-between gap-5 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
+              {hw.className ?? "Homework"}
+            </div>
+            <h1 className="m-0 mt-1 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.02em] leading-tight">
+              {hw.title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <HeroChip icon={<Clock3 />}>Due {formatDueDate(hw.dueDate)}</HeroChip>
+              {isOverdue && <HeroChip strong>Overdue</HeroChip>}
+              <HeroChip>{statusLabel}</HeroChip>
+              {hw.isTest && <HeroChip icon={<Trophy className="h-3 w-3" />}>Test</HeroChip>}
+            </div>
           </div>
-        }
-      />
 
-      <Card className="space-y-7 p-5">
-
-        {hw.description && (
-          <section>
-            <CardLabel>Instructions</CardLabel>
-            <div className="mt-2 text-sm text-ink whitespace-pre-wrap leading-relaxed">
-              {hw.description}
-            </div>
-          </section>
-        )}
-
-        {attachmentHref && (
-          <section>
-            <CardLabel>Worksheet</CardLabel>
-            <div className="mt-2 flex items-center justify-between">
-              <div className="text-sm text-ink-soft">
-                Provided by your tutor.
+          {hw.score && (
+            <div className="shrink-0 rounded-[16px] bg-white/15 border border-white/25 px-5 py-3 text-center backdrop-blur-sm">
+              <div className="text-[10px] uppercase tracking-[0.16em] font-extrabold opacity-85">
+                Score
               </div>
-              <a
-                href={attachmentHref}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-brand-700 hover:underline"
-              >
-                Download →
-              </a>
-            </div>
-          </section>
-        )}
-
-        {(hw.feedback || hw.score) && (
-          <section className="space-y-3">
-            <CardLabel>Tutor feedback</CardLabel>
-            {hw.score && (
-              <div className="text-sm text-ink">
-                Score: <span className="font-medium">{hw.score}</span>
+              <div className="mt-0.5 text-[26px] font-extrabold tabular-nums leading-none">
+                {hw.score}
               </div>
-            )}
-            {testRank && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 border border-brand-200 px-3 py-1.5">
-                <Trophy
-                  className="h-4 w-4"
-                  style={{ color: "var(--brand-600)" }}
-                  aria-hidden
-                />
-                <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand-700">
-                  Test rank
-                </span>
-                <span className="text-[14px] font-bold text-brand-700 tabular-nums">
-                  #{testRank.rank}{" "}
-                  <span className="opacity-70 text-[12px]">
-                    / {testRank.total}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* INSTRUCTIONS */}
+      {hw.description && (
+        <SectionCard
+          tokens={tokens}
+          icon={<ClipboardList className="h-4 w-4" />}
+          title="Instructions"
+        >
+          <div className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed">
+            {hw.description}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* WORKSHEET */}
+      {attachmentHref && (
+        <SectionCard
+          tokens={tokens}
+          icon={<FileText className="h-4 w-4" />}
+          title="Worksheet"
+        >
+          <a
+            href={attachmentHref}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 transition-colors hover:bg-surface-2"
+          >
+            <span
+              className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
+              style={{ background: tokens.bgFrom, color: tokens.arrow }}
+            >
+              <FileText className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-bold text-ink">
+                Homework worksheet
+              </span>
+              <span className="block text-[12px] text-muted">
+                Provided by your tutor
+              </span>
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold text-white shrink-0"
+              style={{ background: tokens.arrow }}
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              Download
+            </span>
+          </a>
+        </SectionCard>
+      )}
+
+      {/* TUTOR FEEDBACK */}
+      {(hw.feedback || hw.score) && (
+        <SectionCard
+          tokens={tokens}
+          icon={<MessageSquareText className="h-4 w-4" />}
+          title="Tutor feedback"
+          accentTop
+        >
+          <div className="space-y-3">
+            {(hw.score || testRank) && (
+              <div className="flex flex-wrap items-center gap-2.5">
+                {hw.score && (
+                  <span
+                    className="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-bold tabular-nums"
+                    style={{ background: tokens.pillBg, color: tokens.pillText }}
+                  >
+                    Score <span className="text-[15px]">{hw.score}</span>
                   </span>
-                </span>
+                )}
+                {testRank && (
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full px-3 py-1.5"
+                    style={{ background: tokens.pillBg, color: tokens.pillText }}
+                  >
+                    <Trophy className="h-4 w-4" aria-hidden />
+                    <span className="text-[11px] font-bold uppercase tracking-[0.14em]">
+                      Test rank
+                    </span>
+                    <span className="text-[14px] font-bold tabular-nums">
+                      #{testRank.rank}
+                      <span className="opacity-70 text-[12px]"> / {testRank.total}</span>
+                    </span>
+                  </span>
+                )}
               </div>
             )}
             {hw.feedback && (
-              <div className="text-sm text-ink whitespace-pre-wrap leading-relaxed">
+              <div className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed">
                 {hw.feedback}
               </div>
             )}
-          </section>
-        )}
+          </div>
+        </SectionCard>
+      )}
 
-        <section className="space-y-5">
-          <CardLabel>Your submission</CardLabel>
+      {/* YOUR SUBMISSION */}
+      <SectionCard
+        tokens={tokens}
+        icon={<PenLine className="h-4 w-4" />}
+        title="Your submission"
+      >
+        <div className="space-y-4">
           {hw.submittedAt && (
-            <div className="text-sm text-ink-soft">
-              Submitted {hw.submittedAt.toLocaleString("en-AU")}.{" "}
+            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-good-bg text-good px-2.5 py-1 text-[11px] font-bold">
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                Submitted {hw.submittedAt.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+              </span>
               {submissionLink && (
                 <a
                   href={submissionLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-brand-700 hover:underline"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-background px-3 py-1 text-[12px] font-bold text-ink hover:bg-surface-2 transition-colors"
                 >
-                  View file →
+                  <FileText className="h-3.5 w-3.5" style={{ color: tokens.arrow }} aria-hidden />
+                  View file
                 </a>
               )}
             </div>
           )}
 
           {hw.submissionText && (
-            <div className="text-sm text-ink whitespace-pre-wrap leading-relaxed border-l-2 border-hairline pl-4">
+            <div
+              className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed rounded-[12px] bg-surface-2 px-4 py-3 border-l-[3px]"
+              style={{ borderLeftColor: tokens.arrow }}
+            >
               {hw.submissionText}
             </div>
           )}
@@ -211,25 +288,40 @@ export default async function HomeworkDetailPage({
               encType="multipart/form-data"
               className="space-y-4"
             >
-              <div className="space-y-2">
+              <div>
                 <label
                   htmlFor="submission-file"
-                  className="block text-xs uppercase tracking-[0.16em] text-muted"
+                  className="block text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2"
                 >
                   Upload your work
                 </label>
-                <input
-                  id="submission-file"
-                  name="file"
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.heic"
-                  className="block w-full text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-brand-100 file:px-4 file:py-2 file:text-sm file:font-bold file:text-brand-ink hover:file:bg-brand-200"
-                />
+                <div
+                  className="rounded-[14px] border-2 border-dashed p-4 flex items-center gap-3"
+                  style={{ borderColor: tokens.ring, background: tokens.bgTo }}
+                >
+                  <span
+                    className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
+                    style={{ background: tokens.bgFrom, color: tokens.arrow }}
+                  >
+                    <Upload className="h-5 w-5" aria-hidden />
+                  </span>
+                  <input
+                    id="submission-file"
+                    name="file"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.heic"
+                    className="block w-full text-[13px] text-ink file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface file:px-3.5 file:py-2 file:text-[13px] file:font-bold file:text-ink hover:file:bg-surface-2 file:cursor-pointer cursor-pointer"
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted">
+                  PDF, image, or document · 10 MB max
+                </p>
               </div>
-              <div className="space-y-2">
+
+              <div>
                 <label
                   htmlFor="submission-text"
-                  className="block text-xs uppercase tracking-[0.16em] text-muted"
+                  className="block text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2"
                 >
                   Or type your answer
                 </label>
@@ -237,27 +329,130 @@ export default async function HomeworkDetailPage({
                   id="submission-text"
                   name="text"
                   rows={5}
-                  className="w-full rounded-xl border border-hairline/70 bg-card px-4 py-3 text-sm text-ink focus:border-brand-600 focus:outline-none"
+                  className="w-full rounded-[14px] border border-line bg-surface px-4 py-3 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong transition-colors"
                   placeholder="Write your answer here…"
                 />
               </div>
-              <div className="pt-2">
-                <Button type="submit" variant="primary">
-                  {hw.submittedAt ? "Resubmit" : "Submit"}
-                </Button>
-              </div>
+
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-[1px] shadow-[0_10px_24px_-12px_rgba(31,40,90,0.5)]"
+                style={{ background: tokens.arrow }}
+              >
+                <Upload className="h-4 w-4" aria-hidden />
+                {hw.submittedAt ? "Resubmit" : "Submit homework"}
+              </button>
             </form>
           ) : (
-            <div className="text-sm text-ink-soft">
+            <div className="rounded-[12px] bg-surface-2 px-4 py-3 text-[13px] text-ink-soft">
               {effectiveStatus === "marked" || effectiveStatus === "returned"
                 ? "This homework has been marked — no further submissions needed."
                 : "Submissions are closed for this homework."}
             </div>
           )}
-        </section>
-      </Card>
+        </div>
+      </SectionCard>
     </div>
   );
+}
+
+function SectionCard({
+  tokens,
+  icon,
+  title,
+  accentTop,
+  children,
+}: {
+  tokens: ReturnType<typeof getAccentTokens>;
+  icon: React.ReactNode;
+  title: string;
+  accentTop?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-18px_rgba(31,40,90,0.16)]">
+      {accentTop && (
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: tokens.arrow }}
+        />
+      )}
+      <div className="flex items-center gap-2.5 mb-3">
+        <span
+          className="h-8 w-8 rounded-[10px] grid place-items-center shrink-0"
+          style={{ background: tokens.bgFrom, color: tokens.arrow }}
+        >
+          {icon}
+        </span>
+        <h2 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function HeroChip({
+  icon,
+  strong,
+  children,
+}: {
+  icon?: React.ReactNode;
+  strong?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border " +
+        (strong
+          ? "bg-white/95 border-white text-ink"
+          : "bg-white/15 border-white/30 text-white")
+      }
+    >
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+function Clock3() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function Banner({
+  tone,
+  icon,
+  text,
+}: {
+  tone: "good" | "bad";
+  icon: React.ReactNode;
+  text: string;
+}) {
+  const cls =
+    tone === "good"
+      ? "border-good/40 bg-good-bg text-good"
+      : "border-bad/40 bg-bad-bg text-bad";
+  return (
+    <div className={`flex items-center gap-2.5 rounded-[14px] border px-4 py-3 text-[13px] font-semibold ${cls}`}>
+      {icon}
+      {text}
+    </div>
+  );
+}
+
+function withAlpha(rgb: string, a: number): string {
+  // Input format is "rgb(r, g, b)" from AccentTokens.bgFrom etc.
+  const match = rgb.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+  if (!match) return rgb;
+  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${a})`;
 }
 
 async function signedSubmissionLink(

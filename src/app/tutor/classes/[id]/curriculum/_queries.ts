@@ -2,17 +2,25 @@ import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes, homework, subjectWeeks, subjects, terms,
+  classes, homework, subjectTopics, subjectWeeks, subjects, terms,
   tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
 
-export type TutorSectionAttachment = { id: string; fileName: string; storagePath: string };
+export type TutorSectionAttachment = {
+  id: string;
+  kind: "file" | "link";
+  fileName: string;
+  storagePath: string | null;
+  url: string | null;
+};
 export type TutorCurriculumWeek = {
   subjectWeekId: string;
   weekNumber: number;
   title: string;
   description: string | null;
+  topicId: string | null;
+  topicName: string | null;
   videoUrl: string | null;
   bookletUrl: string | null;
   note: string | null;               // the tutor's section note
@@ -76,6 +84,12 @@ export async function getTutorCurriculum(
     .orderBy(asc(subjectWeeks.weekNumber));
   const weekIds = templates.map((t) => t.id);
 
+  const topicRows = await db
+    .select({ id: subjectTopics.id, name: subjectTopics.name })
+    .from(subjectTopics)
+    .where(eq(subjectTopics.subjectId, cls.subjectId));
+  const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
+
   const sections = weekIds.length
     ? await db.select().from(tutorWeekSections).where(and(
         eq(tutorWeekSections.tutorId, tutorId),
@@ -88,14 +102,22 @@ export async function getTutorCurriculum(
     ? await db.select({
         id: tutorWeekAttachments.id,
         sectionId: tutorWeekAttachments.sectionId,
+        kind: tutorWeekAttachments.kind,
         fileName: tutorWeekAttachments.fileName,
         storagePath: tutorWeekAttachments.storagePath,
+        url: tutorWeekAttachments.url,
       }).from(tutorWeekAttachments).where(inArray(tutorWeekAttachments.sectionId, sectionIds))
     : [];
   const attBySection = new Map<string, TutorSectionAttachment[]>();
   for (const a of atts) {
     if (!attBySection.has(a.sectionId)) attBySection.set(a.sectionId, []);
-    attBySection.get(a.sectionId)!.push({ id: a.id, fileName: a.fileName, storagePath: a.storagePath });
+    attBySection.get(a.sectionId)!.push({
+      id: a.id,
+      kind: a.kind === "link" ? "link" : "file",
+      fileName: a.fileName,
+      storagePath: a.storagePath,
+      url: a.url,
+    });
   }
 
   const hwRows = weekIds.length
@@ -130,6 +152,8 @@ export async function getTutorCurriculum(
       weekNumber: tpl.weekNumber,
       title: tpl.title,
       description: tpl.description,
+      topicId: tpl.topicId,
+      topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
       videoUrl: tpl.videoUrl,
       bookletUrl: tpl.bookletUrl,
       note: s?.note ?? null,

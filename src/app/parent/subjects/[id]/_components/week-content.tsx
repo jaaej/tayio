@@ -1,6 +1,7 @@
-import { FileText } from "lucide-react";
+import { FileText, Link2 as LinkIcon } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import { formatDateLong, formatDueDate, formatTime, formatWeekday, relativeTime } from "@/lib/format";
+import { formatDueDate, relativeTime } from "@/lib/format";
+import { httpHref } from "@/lib/safe-url";
 import type { ParentCurriculumWeek } from "../_queries";
 
 export async function WeekContentParent({
@@ -28,12 +29,19 @@ export async function WeekContentParent({
         <h2 className="text-2xl font-extrabold tracking-[-0.01em] text-ink">
           {week.title}
         </h2>
-        {week.description && (
-          <p className="text-sm text-ink-soft leading-relaxed">
-            {week.description}
-          </p>
-        )}
       </header>
+
+      {/* OVERVIEW — what this week covers */}
+      {week.description && (
+        <section className="space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
+            Overview
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-4 text-sm text-ink leading-relaxed whitespace-pre-wrap">
+            {week.description}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
@@ -81,11 +89,11 @@ export async function WeekContentParent({
         </div>
       </section>
 
-      {/* FROM YOUR TUTOR — only when tutor has added a note or attachments */}
+      {/* TUTOR NOTES — extra material the tutor added for this week */}
       {(week.tutorNote || week.tutorAttachments.length > 0) && (
         <section className="space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-            From your child&apos;s tutor
+            Tutor notes
           </div>
           <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
             {week.tutorNote && (
@@ -95,16 +103,18 @@ export async function WeekContentParent({
             )}
             {week.tutorAttachments.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {week.tutorAttachments.map((att) =>
-                  att.url ? (
+                {week.tutorAttachments.map((att) => {
+                  const Icon = att.kind === "link" ? LinkIcon : FileText;
+                  const href = httpHref(att.url);
+                  return href ? (
                     <a
                       key={att.id}
-                      href={att.url}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-brand-50 transition-colors"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted" />
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-muted" />
                       {att.fileName}
                     </a>
                   ) : (
@@ -112,78 +122,16 @@ export async function WeekContentParent({
                       key={att.id}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-background px-3 py-2 text-[12px] font-semibold text-muted"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
                       {att.fileName}
                     </span>
-                  ),
-                )}
+                  );
+                })}
               </div>
             )}
           </div>
         </section>
       )}
-
-      {/* LESSONS — recaps for this week */}
-      <section className="space-y-2">
-        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-          Lessons this week
-        </div>
-        {week.recaps.length === 0 ? (
-          <div className="text-sm text-ink-soft italic">
-            No lessons recorded for this week yet.
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {week.recaps.map((r) => {
-              const hasNote =
-                !!r.topicCovered ||
-                !!r.keyConcepts ||
-                !!r.parentVisibleComment ||
-                !!r.nextLessonFocus;
-              return (
-                <li
-                  key={r.lessonId}
-                  className="rounded-xl border border-line bg-surface p-4"
-                >
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-bold">
-                        {formatWeekday(r.date, "long")}
-                      </div>
-                      <div className="mt-0.5 text-[15px] font-extrabold text-ink">
-                        {formatDateLong(r.date)} · {formatTime(r.startTime)}
-                      </div>
-                    </div>
-                    <div className="text-[12px] text-muted font-semibold">
-                      with {r.tutorName}
-                    </div>
-                  </div>
-                  {!hasNote ? (
-                    <div className="mt-3 text-[12px] text-muted italic">
-                      Recap not added yet.
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {r.topicCovered && (
-                        <RecapField label="Topic" body={r.topicCovered} />
-                      )}
-                      {r.keyConcepts && (
-                        <RecapField label="Key concepts" body={r.keyConcepts} />
-                      )}
-                      {r.parentVisibleComment && (
-                        <RecapField label="Tutor comment" body={r.parentVisibleComment} />
-                      )}
-                      {r.nextLessonFocus && (
-                        <RecapField label="Next time" body={r.nextLessonFocus} />
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
 
       <section className="space-y-2">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
@@ -223,18 +171,3 @@ export async function WeekContentParent({
   );
 }
 
-function RecapField({ label, body }: { label: string; body: string }) {
-  return (
-    <div className="flex gap-3">
-      <div className="w-[3px] rounded-full shrink-0 bg-line-strong" />
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-[0.14em] text-muted font-bold">
-          {label}
-        </div>
-        <div className="mt-0.5 text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
-          {body}
-        </div>
-      </div>
-    </div>
-  );
-}

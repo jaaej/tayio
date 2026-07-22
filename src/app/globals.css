@@ -290,3 +290,28 @@ body > * {
 .rise {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+
+/* Math Blitz game — engagement effects */
+@keyframes blitz-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes blitz-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes blitz-glow {
+  0%, 100% { box-shadow: 0 14px 32px -14px rgba(16, 185, 129, 0.55); }
+  50% { box-shadow: 0 20px 44px -12px rgba(16, 185, 129, 0.85); }
+}
+@keyframes blitz-aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
+  50% { transform: translate3d(1.5%, -2%, 0) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blitz-float, .blitz-pop, .blitz-glow, .blitz-aurora { animation: none !important; }
+}
+.blitz-float { animation: blitz-float 7s ease-in-out infinite; }
+.blitz-pop { animation: blitz-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.blitz-glow { animation: blitz-glow 2.8s ease-in-out infinite; }
+.blitz-aurora { animation: blitz-aurora 18s ease-in-out infinite; }

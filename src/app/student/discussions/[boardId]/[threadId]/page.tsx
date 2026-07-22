@@ -10,6 +10,7 @@ import { resolveBoardId } from "@/lib/discussions";
 import { StudentReplyList } from "@/components/student/discussions/reply-list";
 import { StudentReplyComposer } from "@/components/student/discussions/reply-composer";
 import { ThreadBackdrop } from "@/components/student/discussions/thread-backdrop";
+import { AttachmentList } from "@/components/discussions/attachments";
 import {
   initialOf,
   roleColor,
@@ -81,7 +82,7 @@ export default async function StudentThreadPage({
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-h-full">
       <ThreadBackdrop tokens={tokens} />
       <div className="relative z-10 space-y-6">
       <Link
@@ -142,6 +143,13 @@ export default async function StudentThreadPage({
                 <p className="mt-5 text-[15px] whitespace-pre-wrap leading-[1.7] text-ink">
                   {body}
                 </p>
+              )}
+
+              {thread.attachments.length > 0 && (
+                <AttachmentList
+                  attachments={thread.attachments}
+                  accent={tokens.arrow}
+                />
               )}
 
               <div className="mt-7 pt-5 border-t border-line flex items-center gap-3">

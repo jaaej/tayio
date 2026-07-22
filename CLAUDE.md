@@ -12,6 +12,18 @@
 
 **What the rules below enforce:** (1) recommendations driven by technical merit, not the direction of the user's last question; (2) a one-level-up premise check before drilling into A/B/C tradeoffs — especially important here, where role/permission decisions cascade across all four portals; (3) success claims tied to verified evidence (passing build, working dev server, an actual request against the route under the right role — not "the code looks right"); (4) destructive actions (dropping tables, `drizzle-kit push` against prod, deleting Supabase rows containing student/parent/payment data, `rm -rf`) gated behind explicit disclosure of what data is lost and whether it is recoverable.
 
+## Keep the implementation checklist current (non-negotiable)
+
+`docs/checklist.md` is the source of truth for what's built across all four portals. It drifts fast and a stale entry makes the next agent rebuild finished work or re-scope shipped work.
+
+**Updating it is part of finishing a task, not a follow-up.** When you complete (or partly complete) any feature:
+1. Find the matching row — or add one if it's new / an extra.
+2. Set the `FE` / `BE` ticks honestly (✅ done · 🔶 partial · ⬜ not built). Never ✅ before it's verified end-to-end with real data (see success-claim rule above).
+3. Rewrite the Notes cell to name the route/file + date; update any owning spec section's status line too.
+4. Do it **in the same change/commit** as the code (and in the PR, if you open one).
+
+The full protocol lives at the top of `docs/checklist.md`. The security items have their own file — `docs/security-checklist.md` — apply the same discipline there.
+
 ## Anti-patterns to avoid (from reasoning_anti_patterns.md)
 
 1. **Sycophancy** — Don't flip recommendations because you asked "what about X?" Only change on new technical evidence, and name it.

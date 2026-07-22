@@ -88,6 +88,14 @@ export const notificationChannelEnum = pgEnum("notification_channel", [
   "email",
 ]);
 
+export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
+  "sprint",
+  "easy",
+  "medium",
+  "hard",
+  "genius",
+]);
+
 export const profiles = pgTable(
   "profiles",
   {
@@ -473,8 +481,39 @@ export const auditLogs = pgTable(
   ],
 );
 
+export const discussionAttachments = pgTable(
+  "discussion_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Exactly one of threadId / replyId is set (enforced by a check
+    // constraint in migration 0016): the attachment hangs off the question
+    // or off a specific reply.
+    threadId: uuid("thread_id").references(() => discussionThreads.id, {
+      onDelete: "cascade",
+    }),
+    replyId: uuid("reply_id").references(() => discussionReplies.id, {
+      onDelete: "cascade",
+    }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("discussion_attachments_thread_idx").on(t.threadId),
+    index("discussion_attachments_reply_idx").on(t.replyId),
+  ],
+);
+
 export type DiscussionThread = typeof discussionThreads.$inferSelect;
 export type DiscussionReply = typeof discussionReplies.$inferSelect;
+export type DiscussionAttachment = typeof discussionAttachments.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export const dmThreads = pgTable(
@@ -625,7 +664,11 @@ export const tutorWeekAttachments = pgTable(
       .notNull()
       .references(() => tutorWeekSections.id, { onDelete: "cascade" }),
     fileName: text("file_name").notNull(),
-    storagePath: text("storage_path").notNull(),
+    // 'file' → uploaded file in storage (storagePath set); 'link' → external
+    // URL such as a video or resource link (url set). See migration 0015.
+    kind: text("kind").notNull().default("file"),
+    storagePath: text("storage_path"),
+    url: text("url"),
     contentType: text("content_type"),
     sizeBytes: integer("size_bytes"),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
@@ -693,6 +736,25 @@ export const rateLimits = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.bucket, t.identifier] })],
+);
+
+export const mathGameScores = pgTable(
+  "math_game_scores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    difficulty: mathGameDifficultyEnum("difficulty").notNull(),
+    score: integer("score").notNull(),
+    playedAt: timestamp("played_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("math_game_scores_board_idx").on(t.difficulty, t.score.desc()),
+    index("math_game_scores_student_idx").on(t.studentId, t.difficulty),
+  ],
 );
 
 export type Profile = typeof profiles.$inferSelect;

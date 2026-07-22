@@ -53,6 +53,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Discussion attachments (up to 3 × 10 MB) are submitted through Server
+  // Actions, so the default 1 MB body cap must be raised.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "32mb",
+    },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

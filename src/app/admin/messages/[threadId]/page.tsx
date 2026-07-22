@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { Card, BackLink, Pill } from "@/components/admin/ui";
+import { Card } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { MessageList } from "@/components/dm/message-list";
 import { MessageComposer } from "@/components/dm/message-composer";
+import { ConversationHeader } from "@/components/dm/conversation-header";
 import { markThreadRead } from "@/app/_actions/dm";
 
 export default async function AdminThreadPage({
@@ -23,16 +24,19 @@ export default async function AdminThreadPage({
 
   return (
     <div className="space-y-4 flex flex-col h-[calc(100dvh-160px)]">
-      <BackLink href="/admin/messages">Messages</BackLink>
-      <Card className="px-5 py-3.5 flex items-center gap-3 shrink-0">
-        <div className="text-[16px] font-extrabold tracking-[-0.01em] text-ink">
-          {thread.otherName}
-        </div>
-        <Pill tone="brand">{thread.otherRole}</Pill>
-      </Card>
+      <ConversationHeader
+        otherName={thread.otherName}
+        otherRole={thread.otherRole}
+        backHref="/admin/messages"
+      />
       <Card className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-5">
-          <MessageList messages={thread.messages} meId={user.id} />
+          <MessageList
+            messages={thread.messages}
+            meId={user.id}
+            otherName={thread.otherName}
+            otherRole={thread.otherRole}
+          />
         </div>
         <MessageComposer threadId={thread.threadId} rolePrefix="admin" />
       </Card>

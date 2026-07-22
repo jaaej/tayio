@@ -2,6 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { postReply } from "@/app/_actions/discussions";
+import type { DiscussionAttachmentView } from "@/lib/discussions-queries";
+import {
+  AttachmentList,
+  AttachmentPicker,
+} from "@/components/discussions/attachments";
 
 type Reply = {
   id: string;
@@ -11,6 +16,7 @@ type Reply = {
   authorRole: string;
   createdAt: Date;
   deletedAt: Date | null;
+  attachments: DiscussionAttachmentView[];
 };
 
 export function ReplyItem({
@@ -52,6 +58,9 @@ export function ReplyItem({
         <p className="mt-3 text-base text-ink whitespace-pre-wrap leading-relaxed">
           {body}
         </p>
+        {reply.attachments.length > 0 && (
+          <AttachmentList attachments={reply.attachments} />
+        )}
         {!reply.deletedAt && !isChild && (
           <div className="mt-3 flex items-center justify-end">
             <button
@@ -100,6 +109,7 @@ export function ReplyItem({
             className="w-full rounded-lg border border-hairline/60 bg-white px-3 py-2 text-base focus:outline-none focus:border-brand-600"
             autoFocus
           />
+          <AttachmentPicker />
           <div className="flex items-center gap-2">
             <button
               type="submit"
@@ -151,6 +161,9 @@ function NestedChildReply({ reply }: { reply: Reply }) {
       <p className="mt-1.5 text-sm text-ink whitespace-pre-wrap leading-relaxed">
         {body}
       </p>
+      {reply.attachments.length > 0 && (
+        <AttachmentList attachments={reply.attachments} />
+      )}
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { coarseRole } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 
@@ -42,10 +44,10 @@ export function ResetPasswordForm() {
     // Send them onward to their role home. The user's session is already
     // active from the recovery-token exchange in /auth/callback.
     const role =
-      (data.user?.app_metadata?.role as string | undefined) ??
-      (data.user?.user_metadata?.role as string | undefined);
+      (data.user?.app_metadata?.role as UserRole | undefined) ??
+      (data.user?.user_metadata?.role as UserRole | undefined);
     setTimeout(() => {
-      router.push(role ? `/${role}` : "/login");
+      router.push(role ? `/${coarseRole(role)}` : "/login");
       router.refresh();
     }, 1500);
   }

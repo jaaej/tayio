@@ -1,7 +1,27 @@
 # Implementation Checklist
 
 Cross-references the role spec against the actual codebase.
-Last audit: 2026-05-27.
+Last audit: 2026-07-22.
+
+> ## ⚠️ Maintenance protocol — READ BEFORE YOU CLOSE ANY TASK
+>
+> This checklist is only useful while it's true. A stale ✅ makes the next agent
+> rebuild finished work; a stale ⬜ makes them waste time re-scoping something
+> already shipped. **Updating this file is part of finishing a task, not a
+> follow-up.**
+>
+> When you complete (or partly complete) any feature:
+> 1. Find the matching row — or **add one** if it's new / an extra.
+> 2. Set the `FE` and `BE` ticks honestly: ✅ done · 🔶 partial · ⬜ not built.
+>    Don't mark ✅ before it's verified end-to-end with real data (see CLAUDE.md).
+> 3. Rewrite the **Notes** cell to name the route/file and the date.
+> 4. If the work belongs to a spec section (e.g. **Role Tiering**), update that
+>    section's status line too — not just the table row.
+> 5. Do all of this **in the same change/commit** as the code. If you're opening
+>    a PR, the checklist edit goes in the PR.
+>
+> Only bump **"Last audit"** above when you've re-verified rows against the
+> codebase wholesale — not for a single-row edit.
 
 **Tick legend** (the `FE` and `BE` columns):
 
@@ -17,7 +37,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 
 | Feature | Function | FE | BE | Notes |
 |---|---|---|---|---|
-| Attendance marking | UI to mark presence/late/absent | ⬜ | ✅ | Admin has no attendance UI. Tutors mark attendance (`/tutor/lessons/[id]`). Admin can only see it in reports — and reports is a stub. |
+| Attendance marking | UI to mark presence/late/absent | ✅ | ✅ | **Built since last audit** — `/admin/attendance` + `/admin/attendance/[lessonId]`. Tutors also mark at `/tutor/lessons/[id]`. |
 | Class management | Create class slots | ✅ | ✅ | `/admin/classes` + `/admin/classes/[id]` |
 | Enrolment management | Onboard students | ✅ | ✅ | `/admin/enrolments` |
 | Payment management | Manage payments | ✅ | ✅ | `/admin/payments` (manual mark-as-paid; no Stripe yet) |
@@ -27,12 +47,15 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Create accounts | Role-specific account creation | ✅ | ✅ | `/admin/users` + `/admin/users/[id]` |
 | Tutor management — availability | View / coordinate tutor availability | 🔶 | ✅ | Tutors set their own availability at `/tutor/timetable` ("Manage availability" toggle on the monthly grid). Backend: `tutor_weekly_availability` table + `getAvailableSlots` query, already consumed by the parent reschedule flow + admin one-off reschedule UI. **Gap:** admin has no UI to view/edit *other* tutors' availability across the roster — needs a `/admin/tutors/availability` board so reception can spot gaps + coordinate cover. |
 | Tutor management — auto-find replacements | Auto-message + replacement on tutor leave | ⬜ | ⬜ | Not built. Would need messaging layer + matching logic. |
-| `admin_restricted` (reception) | Lower-tier admin with no access to sensitive financials | ⬜ | ⬜ | `userRoleEnum` has only one `admin` value. See [Role Tiering](#role-tiering-student--admin) for full permission matrix. |
-| `admin_unrestricted` (owner) | Full admin with all access | ⬜ | ⬜ | Same — current single `admin` role is effectively "full" by default. See [Role Tiering](#role-tiering-student--admin). |
+| `admin_restricted` (reception) | Lower-tier admin with no access to sensitive financials | 🔶 | 🔶 | Enum values exist (migrations 0017/0018), but **both admin tiers can currently reach every admin action.** Financial exposure was descoped to a PIN wall on `/admin/revenue` only (migrations 0020/0021 — 6–8 digit PIN, 5-miss/15-min lockout, managed at `/admin/settings`). The full per-feature matrix below is **not** implemented. |
+| `admin_unrestricted` (owner) | Full admin with all access | 🔶 | 🔶 | Same enum; no per-feature tier gating beyond the revenue PIN wall. See [Role Tiering](#role-tiering-student--admin). |
 | **(extra) Operations dashboard** | Stat tiles, alerts, recent activity | ✅ | ✅ | `/admin` |
 | **(extra) Family links UI** | Parent ↔ child relationship editor | ✅ | ✅ | On user detail page |
 | **(extra) Direct messaging** | 1:1 DMs with anyone via directory | ✅ | ✅ | `/admin/messages` — categorized directory (parents/tutors/students) + "Message" button on `/admin/users/[id]` (shipped 2026-05-27) |
 | **(extra) Discussions oversight** | View + soft-delete on every subject board | ✅ | ✅ | `/admin/discussions` (shipped 2026-05-27) |
+| **(extra) Term management** | Define terms / term dates | ✅ | ✅ | `/admin/terms` (built since last audit) |
+| **(extra) Reschedule approvals** | Approve / reject parent + student reschedule requests | ✅ | ✅ | `/admin/reschedules`; one-off from `/admin/users/[id]/reschedule/[lessonId]` |
+| **(extra) Notifications inbox** | Read in-app notifications | ✅ | ✅ | `/admin/notifications` |
 
 ---
 
@@ -64,14 +87,15 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Upcoming classes | Timetable view | ✅ | ✅ | `/student/timetable` + dashboard "This week" calendar |
 | Homework upload | Submit due homework | ✅ | ✅ | `/student/homework`, `/student/homework/[id]` with file submission to Supabase Storage |
 | Grade page | Track score, compare between students | ✅ | ✅ | `/student/progress` shows mastery + per-subject + per-topic. Clickable subject → `/student/progress/[id]` detail page lists **every submitted task's grade + tutor feedback** + submitted/pending/average-score stats. **Ranking (shipped 2026-06-03):** anonymous per-test rank on `/student/homework/[id]` (when flagged `is_test` + marked) and overall per-subject rank on the progress detail hero — rank only, no peer scores/names exposed. Backed by `RANK()` window queries (`getStudentTestRank`, `getStudentOverallSubjectRank`) + `homework.is_test` column (migration 0008, applied to live DB). Tutors have no UI yet to flag a homework as a test — currently set via SQL. |
-| Resources page | Booklets, recorded videos, past papers | 🔶 | ⬜ | `/student/resources` exists with **hardcoded** category cards. No `resources` table; nothing to populate the page with real material. |
+| Resources page | Booklets, recorded videos, past papers | 🔶 | ⬜ | `/student/resources` now lists **recorded lessons** from real lesson data (no longer hardcoded cards). Still no `resources` **library** table for booklets / past papers / uploaded videos — that core gap remains. |
 | Discussion page | Ask homework questions | ✅ | ✅ | `/student/discussions` — per-subject + general help board (shipped 2026-05-27) |
-| `student_restricted` (parent-dependent) | Younger students — parent owns payments, reschedules, admin contact | ⬜ | ⬜ | One `student` role. No tiering. See [Role Tiering](#role-tiering-student--admin) for full permission matrix. |
-| `student_unrestricted` (self-managed) | Older / independently enrolled — gets parent-style features on own account | ⬜ | ⬜ | Same — single student role. Currently independent students still can't see payments. See [Role Tiering](#role-tiering-student--admin). |
+| `student_restricted` (parent-dependent) | Younger students — parent owns payments, reschedules, admin contact | ✅ | ✅ | **Built (Spec 1, migrations 0017/0018).** Restricted is the safe default; no payments / reschedule / admin-DM. Gating via `studentTier` + `requireUnrestrictedStudent` (`src/lib/roles.ts`, `src/lib/auth.ts`). |
+| `student_unrestricted` (self-managed) | Older / independently enrolled — gets parent-style features on own account | ✅ | ✅ | **Built.** Gets `/student/payments` (own invoices, gated to this tier), self-serve reschedule (interactive timetable → `submitReschedule`), and DM. Online payment still ⬜ (no processor wired). |
 | **(extra) Student dashboard** | Next class, due homework, mastery, recent grades, announcements | ✅ | ✅ | `/student` |
 | **(extra) Lesson recap viewer** | Read parent-visible tutor note for a past lesson | ✅ | ✅ | `/student/lessons/[id]` |
 | **(extra) Subject deep-dive** | Per-subject mastery + topic list | ✅ | ✅ | `/student/subjects/[id]` |
 | **(extra) Direct messaging** | 1:1 DMs with tutors + admin | 🔶 | ✅ | `/student/messages` (shipped 2026-05-27). Inbox + thread view work; **no entry point on student dashboard yet** to initiate from (memory: project_pending_student_dm_entry). |
+| **(extra) Math game** | Arcade math-drill game with per-difficulty leaderboard | ✅ | ✅ | `/student/math-game` (`math_game_scores` table, migrations 0022/0023). Not in the original role spec. |
  
 ---
 
@@ -84,8 +108,8 @@ You didn't include a parent table — adding it so the picture is complete.
 | Dashboard overview | Child's attendance, homework, latest feedback, payment status | ✅ | ✅ | `/parent` |
 | Child switcher | Switch between multiple linked children | ✅ | ✅ | Uses `family_links` |
 | Classes view | Calendar + attendance log + reschedule entry point | ✅ | ✅ | `/parent/classes` (combined attendance + bookings on 2026-05-26) |
-| Reschedule a class | In-calendar flow: pick lesson → pick slot from same-subject tutors → optional reason | ✅ | ✅ | Submits to admin as in-app notification. No actual lesson-swap automation. Admin can also action a one-off reschedule from `/admin/users/[id]/reschedule/[lessonId]` (shipped 2026-06-03, shared `getAvailableSlots`). |
-| Class token (makeup credit) | Auto-grant 1 free makeup class when a ≥24h-ahead reschedule has no same-subject slot that week OR the parent declines the offered tutor; redeem self-serve as an extra class in a later week; expires end of term | ⬜ | ⬜ | **Planned (spec'd 2026-06-03).** New `class_tokens` table (status active/spent/expired, grantedFromLessonId, spentOnLessonId, expiresAt). Self-serve booking joins an existing same-subject class with capacity, creates a makeup lesson (reuse `lessons.status='makeup'` + `attendance.status='makeup_attended'`). 24h gate on grant only; tokens stack. **Money implication → admin must see grants + redemptions.** Routed to parent worktree (migration 0010). |
+| Reschedule a class | In-calendar flow: pick lesson → pick slot from same-subject tutors → optional reason | ✅ | ✅ | Submits to admin as in-app notification. No actual lesson-swap automation. Admin can also action a one-off reschedule from `/admin/users/[id]/reschedule/[lessonId]` (shipped 2026-06-03, shared `getAvailableSlots`) and approve/reject requests at `/admin/reschedules`. Student self-serve reschedule now shares this flow (gated to `student_unrestricted`). |
+| Class token (makeup credit) | Auto-grant 1 free makeup class when a ≥24h-ahead reschedule has no same-subject slot that week OR the parent declines the offered tutor; redeem self-serve as an extra class in a later week; expires end of term | ⬜ | ⬜ | **Planned (spec'd 2026-06-03).** New `class_tokens` table (status active/spent/expired, grantedFromLessonId, spentOnLessonId, expiresAt). Self-serve booking joins an existing same-subject class with capacity, creates a makeup lesson (reuse `lessons.status='makeup'` + `attendance.status='makeup_attended'`). 24h gate on grant only; tokens stack. **Money implication → admin must see grants + redemptions.** Still unbuilt; the earlier "migration 0010" estimate is stale — 0010 is now `tutor_week_sections_rls`, so this needs a fresh migration number. |
 | Homework view (read-only) | Track child's homework completion | ✅ | ✅ | `/parent/homework` |
 | Tutor feedback feed | Parent-visible comments only; localStorage read/unread | ✅ | ✅ | `/parent/feedback` + "From the tutor" block on dashboard |
 | Progress page | Per-subject mastery + topics + attendance + homework | ✅ | ✅ | `/parent/progress` (added 2026-05-26) |
@@ -102,10 +126,10 @@ You didn't include a parent table — adding it so the picture is complete.
 |---|---|---|---|
 | Auth (Supabase) | ✅ | ✅ | Login, password reset, role-gated middleware |
 | Role-based routing | ✅ | ✅ | `middleware.ts` + `requireRole` per layout |
-| Notifications inbox | ⬜ | 🔶 | `notifications` table exists, write helpers exist (reschedule fires one). No in-app inbox UI to read them. |
+| Notifications inbox | ✅ | ✅ | In-app inbox built for all four roles: `/{student,parent,tutor,admin}/notifications` (`NotificationsInbox` component). |
 | Email delivery | ⬜ | ⬜ | No Resend/SES wired. Notifications stay in-app only. |
-| RLS policies | ⬜ | ⬜ | Every table is currently readable by anon JWT. Brief exists at `docs/briefs/security-rls-brief.md` but unbuilt. **Security risk** until built. |
-| Audit logs | ⬜ | ⬜ | No `audit_log` table. Admin destructive actions are untracked. |
+| RLS policies | — | ✅ | **Built.** RLS enabled on every public table (migrations 0004/0005/0012) + policies through 0016. See `docs/security-checklist.md` A1 (✓) and `docs/SECURITY.md`. ⚠️ `db:push` wipes all of this — re-apply migrations after any push. |
+| Audit logs | — | ✅ | **Built.** `audit_logs` + triggers on the six watched tables (migration 0006); actor capture via `withActor` (`src/lib/with-actor.ts`). See security-checklist G1. |
 
 ---
 
@@ -115,9 +139,9 @@ These are operational admin gaps where the admin still relies on the spreadsheet
 
 | Gap | FE | BE | Notes |
 |---|---|---|---|
-| Per-enrolment admin notes (`T3INV`, `MOVE CLASS BY NW`, `HOLS 03/07 - 10/07`) | ⬜ | ⬜ | **P0.** Single-column add to `enrollments` + admin edit UI replaces ~80% of Excel daily use. |
-| `school` field on student profiles | ⬜ | ⬜ | **P0.** Excel tracks Wesley, Mount Waverly Secondary, Glen Waverly Secondary, etc. |
-| Students Leaving admin view | ⬜ | 🔶 | `enrollments.withdrawnAt` exists; no admin list view + follow-up note flow. |
+| Per-enrolment admin notes (`T3INV`, `MOVE CLASS BY NW`, `HOLS 03/07 - 10/07`) | ✅ | ✅ | **Built.** `enrollments.adminNotes` column + editable in the class enrolments manager (`src/app/admin/classes/[id]/_components/enrollments-manager.tsx`). |
+| `school` field on student profiles | ✅ | ✅ | **Built.** `profiles.school` column + create / edit-user forms + surfaced in `/admin/users` list. |
+| Students Leaving admin view | ✅ | ✅ | `/admin/leaving` list view built. |
 | Primary-contact toggle on `family_links` | ⬜ | ⬜ | VCE student vs younger student — who's the main contact differs by age. |
 | Per-student delivery mode within shared class (online/in-person) | ⬜ | ⬜ | One student joins online while others same lesson are in-person — currently not expressible. |
 | Per-student leave/holiday tracking | ⬜ | ⬜ | Excel encodes as `HOLS 03/07 - 10/07 + 10/08`. Without it tutors mark absent every day during a known holiday. |
@@ -126,7 +150,7 @@ These are operational admin gaps where the admin still relies on the spreadsheet
 
 ## Role Tiering (student & admin)
 
-Drafted 2026-05-27. The current `userRoleEnum` has flat values: `admin | tutor | parent | student`. This section specs splitting `admin` and `student` into two tiers each. **Not yet implemented.** Tutor and parent are unchanged.
+Drafted 2026-05-27. **Implementation status (updated 2026-07-22):** the `userRoleEnum` now carries all six tiered values (migrations 0017/0018) alongside the legacy coarse values. **Student tiers are fully built** per the matrix below (Spec 1 — payments / reschedule / DM gated to `student_unrestricted`). **Admin tiers are only partially built:** the enum values exist but there is *no* per-feature permission gating — financial exposure was descoped to a single PIN wall on `/admin/revenue` (migrations 0020/0021). The **admin** matrix below therefore remains a *target spec*, not current behaviour. Tutor and parent are unchanged.
 
 Target enum: `admin_unrestricted | admin_restricted | tutor | parent | student_unrestricted | student_restricted`.
 
@@ -197,7 +221,7 @@ If no parent is linked, the student is the de facto primary contact.
 - **Withdraw student** is split: reception can initiate (flag the student as leaving), `admin_unrestricted` finalizes (which is what releases any refund). Avoids reception being blocked on common ops while keeping money decisions gated.
 - **Payment list view (read-only)** is allowed for reception so they can answer "is this family up to date?" without seeing revenue aggregates.
 
-### Implementation notes (not yet coded)
+### Implementation notes (student tiers coded; admin tiers only partially)
 
 - Enum migration: `userRoleEnum` grows to six values. Existing `admin` rows migrate to `admin_unrestricted` (safe default — preserves current capabilities); existing `student` rows migrate to `student_restricted` (safe default — most students are still parent-dependent).
 - `requireRole` helper should accept a *set* of acceptable tiers so route guards can express "either admin tier" without enumerating.
