@@ -17,6 +17,7 @@ import {
   Settings,
   LogOut,
   Search,
+  FolderOpen,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -49,6 +50,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Announcements", href: "/admin/announcements", icon: <Megaphone className={IC} /> },
       { label: "Discussions", href: "/admin/discussions", icon: <MessagesSquare className={IC} /> },
+      { label: "Resources", href: "/admin/resources", icon: <FolderOpen className={IC} /> },
       { label: "Messages", href: "/admin/messages", icon: <MessageCircle className={IC} /> },
       { label: "Notifications", href: "/admin/notifications", icon: <Bell className={IC} /> },
     ],
