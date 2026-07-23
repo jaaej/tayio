@@ -32,6 +32,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | A9 | Column-level UPDATE restriction on `homework_assignments.{score,feedback,marked_at,marked_by}` | ✓ | P0 | Migration 0007 — BEFORE UPDATE trigger silently reverts these columns unless caller is admin or homework's authoring tutor. Verified 2026-05-27 |
 | A10 | New-table RLS discipline (every `pgTable` addition gets a migration entry) | ☐ | P0 | Process, not code — keep `SECURITY.md` updated |
 | A11 | Periodic re-run of Supabase Advisor | ☐ | P1 | Catches RLS-disabled-in-public regressions |
+| A12 | RLS enabled on `resources` table | ✓ | P0 | Migration 0024. Subject-scoped: students/parents see only enrolled subjects; tutors see taught subjects (incl. unpublished); admins all. Audit trigger on insert/update/delete via `handle_audit_log()`. `resource-library` storage bucket + policies tracked at E8 (Task 3). |
 
 ## B. Authentication (Supabase Auth)
 
@@ -83,6 +84,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | E5 | Signed URL expiry for private downloads | ✓ | P0 | Signed URLs are short-lived (1 hr): curriculum `SIGNED_URL_TTL_SECONDS = 3600`, homework attachments + submissions `3600`. No long-lived/persisted URLs stored after E4 code change |
 | E6 | Virus / malware scanning on uploads | ☐ | P2 | Real concern once external parents upload; defer |
 | E7 | `discussion-attachments` private bucket exists | ⚠ | P1 | **Created in dev Supabase 2026-07-22.** Was missing → discussion/DM file uploads failed at runtime (`"Bucket not found"`, 500). Private; access gated at app layer (`requireRole` + `canSeeBoard`), upload + signing via service-role (`src/lib/discussions-storage.ts`). **Prod: must be created at deploy** — same manual step as the homework-attachments bucket (E4). |
+| E8 | `resource-library` private bucket exists + storage policies | ☐ | P1 | **Must be created at deploy (Task 3 creates it).** Private bucket; paths `${subjectId}/${randomUUID}.${ext}`. Signing via service-role only, after re-authorizing "can caller see this resource?" (`storage_bucket` + `storage_path` columns). Promoted resources reference the existing `curriculum` bucket path — no second upload. |
 
 ## F. Network / Headers
 

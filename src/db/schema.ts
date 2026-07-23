@@ -96,6 +96,19 @@ export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
   "genius",
 ]);
 
+export const resourceTypeEnum = pgEnum("resource_type", [
+  "past_paper",
+  "worksheet",
+  "answer_sheet",
+  "notes",
+  "formula_sheet",
+  "writing_template",
+  "exam_guide",
+  "video",
+]);
+
+export const resourceKindEnum = pgEnum("resource_kind", ["file", "link"]);
+
 export const profiles = pgTable(
   "profiles",
   {
@@ -676,6 +689,51 @@ export const tutorWeekAttachments = pgTable(
   (t) => [index("tutor_week_attachments_section_idx").on(t.sectionId)],
 );
 
+
+export const resources = pgTable(
+  "resources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id").references(() => subjectTopics.id, {
+      onDelete: "set null",
+    }),
+    type: resourceTypeEnum("type").notNull(),
+    kind: resourceKindEnum("kind").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    storageBucket: text("storage_bucket"),
+    storagePath: text("storage_path"),
+    contentType: text("content_type"),
+    sizeBytes: integer("size_bytes"),
+    externalUrl: text("external_url"),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    sourceAttachmentId: uuid("source_attachment_id").references(
+      () => tutorWeekAttachments.id,
+      { onDelete: "cascade" },
+    ),
+    isPublished: boolean("is_published").notNull().default(true),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    removedBy: uuid("removed_by").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    removedReason: text("removed_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("resources_subject_published_idx").on(t.subjectId, t.isPublished),
+    index("resources_subject_type_idx").on(t.subjectId, t.type),
+    index("resources_topic_idx").on(t.topicId),
+  ],
+);
+
+export type Resource = typeof resources.$inferSelect;
 
 export const studentWeekProgress = pgTable(
   "student_week_progress",
