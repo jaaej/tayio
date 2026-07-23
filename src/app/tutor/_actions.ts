@@ -15,6 +15,7 @@ import {
   homeworkStatusEnum,
   lessonNotes,
   lessons,
+  resources,
   subjectWeeks,
   tutorAvailability,
   tutorWeekAttachments,
@@ -542,6 +543,17 @@ export async function removeTutorWeekAttachment(attachmentId: string, classId: s
     .where(eq(tutorWeekAttachments.id, attachmentId))
     .limit(1);
   if (!row || row.tutorId !== user.id) return { ok: false as const, error: "Not found" };
+  const [promoted] = await db
+    .select({ id: resources.id })
+    .from(resources)
+    .where(and(eq(resources.sourceAttachmentId, attachmentId), isNull(resources.removedAt)))
+    .limit(1);
+  if (promoted) {
+    return {
+      ok: false as const,
+      error: "This file is published to the subject resource library. Remove it from the library first.",
+    };
+  }
   // Links have no storage object; only files need the bucket cleanup.
   if (row.path) await removeCurriculumObject(row.path);
   await db.delete(tutorWeekAttachments).where(eq(tutorWeekAttachments.id, attachmentId));
