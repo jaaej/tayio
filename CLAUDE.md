@@ -8,7 +8,7 @@
 
 **Cross-cutting non-negotiables from the PRDs:** role-based permissions are strict (students see only their own data, parents only their children's, tutors only assigned students, admins everything with audit logs); parent-child account linking is a first-class concept; payment statuses are a fixed enum (unpaid/paid/overdue/partially paid/refunded/cancelled); lesson notes split parent-visible vs. internal; notifications must route to the correct role per the matrices in each PRD.
 
-**About the user:** solo builder shipping the portal as a personal/startup product. Prioritizes MVP function over polish, wants honest engineering judgment over agreeable hedging, and wants to understand WHY something works or fails — not just the fix. Gets frustrated by recommendation flip-flops, repeated failed approaches, padded tradeoff tables, claims of "it works" before real testing, and destructive suggestions made without first naming what gets lost.
+**About the user:** solo builder shipping the portal as a personal/startup product. **Building toward the FINAL, deploy-ready product — not a throwaway MVP. Every change must be production-quality and shippable** (proper error handling, security, edge cases, no stubs/placeholders left behind). Still values function over decorative polish, but "it's just an MVP" is no longer an acceptable reason to cut corners. Wants honest engineering judgment over agreeable hedging, and wants to understand WHY something works or fails — not just the fix. Gets frustrated by recommendation flip-flops, repeated failed approaches, padded tradeoff tables, claims of "it works" before real testing, and destructive suggestions made without first naming what gets lost.
 
 **What the rules below enforce:** (1) recommendations driven by technical merit, not the direction of the user's last question; (2) a one-level-up premise check before drilling into A/B/C tradeoffs — especially important here, where role/permission decisions cascade across all four portals; (3) success claims tied to verified evidence (passing build, working dev server, an actual request against the route under the right role — not "the code looks right"); (4) destructive actions (dropping tables, `drizzle-kit push` against prod, deleting Supabase rows containing student/parent/payment data, `rm -rf`) gated behind explicit disclosure of what data is lost and whether it is recoverable.
 
@@ -36,7 +36,7 @@ The full protocol lives at the top of `docs/checklist.md`. The security items ha
 - Honest > optimistic.
 - No "it works" before device test.
 - No repeating failed approaches.
-- MVP function > polish.
+- **Deploy-ready quality — every change production-grade and shippable, not throwaway MVP.** Function over decorative polish, but no cut corners hidden behind "it's just an MVP."
 - Explain WHY.
 
 ## Also active
