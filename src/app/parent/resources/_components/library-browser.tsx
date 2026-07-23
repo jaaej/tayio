@@ -2,9 +2,9 @@ import { asc, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subjects, subjectTopics } from "@/db/schema";
 import { Card } from "@/components/ui/card";
-import { enrolledSubjectIds, listResourcesForSubjects } from "@/lib/resources";
+import { childSubjectIds, listResourcesForSubjects } from "@/lib/resources";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
-import { openResource } from "@/app/_actions/resources";
+import { openResourceForParent } from "@/app/_actions/resources";
 import {
   LibraryBrowserClient,
   type LibrarySubjectGroup,
@@ -12,18 +12,22 @@ import {
 } from "@/components/resources/library-browser-client";
 
 /**
- * Server-loaded subject-scoped resource library for the logged-in student.
- * Loads enrolled subjects, their topics, and their published resources, then
- * hands the flattened (client-safe) data to the client filter component.
+ * Server-loaded resource library for the logged-in parent, scoped to the
+ * union of all their children's actively-enrolled subjects (via
+ * `childSubjectIds`). Mirrors the student `LibraryBrowser` — same subject
+ * grouping and read-only filter UI — but resources aggregate across every
+ * child at once rather than a single student, since resources are
+ * subject-scoped (not per-child) and the subject grouping already makes the
+ * origin clear without a child switcher.
  */
-export async function LibraryBrowser({ studentId }: { studentId: string }) {
-  const subjectIds = await enrolledSubjectIds(studentId);
+export async function ParentLibraryBrowser({ parentId }: { parentId: string }) {
+  const subjectIds = await childSubjectIds(parentId);
 
   if (subjectIds.length === 0) {
     return (
       <Card>
         <div className="py-6 text-sm text-ink-soft">
-          You aren't enrolled in any subjects yet.
+          No resources yet — your children aren't enrolled in any subjects.
         </div>
       </Card>
     );
@@ -78,7 +82,7 @@ export async function LibraryBrowser({ studentId }: { studentId: string }) {
     <LibraryBrowserClient
       groups={groups}
       topicOptions={topicOptions}
-      openAction={openResource}
+      openAction={openResourceForParent}
     />
   );
 }

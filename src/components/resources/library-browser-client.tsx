@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
 import type { AccentTokens } from "@/lib/subject-colors";
-import { openResource } from "@/app/_actions/resources";
 
 export type LibraryResourceItem = {
   id: string;
@@ -29,12 +28,26 @@ export type LibrarySubjectGroup = {
 
 export type LibraryTopicOption = { id: string; name: string; subjectName: string };
 
+export type OpenResourceAction = (
+  id: string,
+) => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
+
+/**
+ * Subject-scoped resource library browser: type/topic/title filters + grouped
+ * resource lists. Shared between the student and parent Library tabs (both
+ * are read-only browse UIs over the same `resources` data) — the caller
+ * supplies the pre-scoped `groups`/`topicOptions` and the server action used
+ * to open a resource, since student and parent authorize via different
+ * subject sets (`enrolledSubjectIds` vs `childSubjectIds`).
+ */
 export function LibraryBrowserClient({
   groups,
   topicOptions,
+  openAction,
 }: {
   groups: LibrarySubjectGroup[];
   topicOptions: LibraryTopicOption[];
+  openAction: OpenResourceAction;
 }) {
   const [type, setType] = useState<ResourceTypeValue | null>(null);
   const [topicId, setTopicId] = useState<string>("");
@@ -144,7 +157,7 @@ export function LibraryBrowserClient({
             ) : (
               <ul className="divide-y divide-hairline/60">
                 {g.resources.map((r) => (
-                  <ResourceRow key={r.id} resource={r} />
+                  <ResourceRow key={r.id} resource={r} openAction={openAction} />
                 ))}
               </ul>
             )}
@@ -180,13 +193,19 @@ function FilterChip({
   );
 }
 
-function ResourceRow({ resource }: { resource: LibraryResourceItem }) {
+function ResourceRow({
+  resource,
+  openAction,
+}: {
+  resource: LibraryResourceItem;
+  openAction: OpenResourceAction;
+}) {
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const Icon = resource.kind === "link" ? LinkIcon : FileText;
 
   async function handleOpen() {
     setState("loading");
-    const res = await openResource(resource.id);
+    const res = await openAction(resource.id);
     if (res.ok) {
       window.open(res.url, "_blank", "noopener,noreferrer");
       setState("idle");

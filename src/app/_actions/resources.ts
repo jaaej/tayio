@@ -6,7 +6,12 @@ import { db } from "@/db/client";
 import { resources, tutorWeekAttachments, tutorWeekSections, subjectWeeks } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
-import { taughtSubjectIds, enrolledSubjectIds, getResourceForViewer } from "@/lib/resources";
+import {
+  taughtSubjectIds,
+  enrolledSubjectIds,
+  childSubjectIds,
+  getResourceForViewer,
+} from "@/lib/resources";
 import { uploadResourceFile, signResourceAttachment } from "@/lib/resources-storage";
 import { httpHref } from "@/lib/safe-url";
 import { withActor } from "@/lib/with-actor";
@@ -278,6 +283,22 @@ export async function openResource(
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const user = await requireRole("student");
   const allowed = await enrolledSubjectIds(user.id);
+  const row = await getResourceForViewer(id, allowed);
+  if (!row) return { ok: false, error: "Not found" };
+  if (row.kind === "link") return { ok: true, url: row.externalUrl! };
+  const url = await signResourceAttachment(row.storageBucket!, row.storagePath!);
+  return url ? { ok: true, url } : { ok: false, error: "Could not open" };
+}
+
+// ---------------------------------------------------------------------------
+// openResourceForParent  (parent browse — re-authorizes before signing)
+// ---------------------------------------------------------------------------
+
+export async function openResourceForParent(
+  id: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const user = await requireRole("parent");
+  const allowed = await childSubjectIds(user.id);
   const row = await getResourceForViewer(id, allowed);
   if (!row) return { ok: false, error: "Not found" };
   if (row.kind === "link") return { ok: true, url: row.externalUrl! };
