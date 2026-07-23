@@ -7,6 +7,7 @@ import {
   ClipboardList,
   MessageSquareText,
   TrendingUp,
+  Library,
   CreditCard,
   MessageCircle,
   Bell,
@@ -31,6 +32,7 @@ const SECTIONS: NavSection[] = [
       { label: "Homework",   href: "/parent/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Feedback",   href: "/parent/feedback",   icon: <MessageSquareText className={IC} /> },
       { label: "Progress",   href: "/parent/progress",   icon: <TrendingUp className={IC} /> },
+      { label: "Resources",  href: "/parent/resources",  icon: <Library className={IC} /> },
     ],
   },
   {

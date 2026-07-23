@@ -38,6 +38,12 @@ type AllowEntry = { family: Family; ext: string; mime: string };
 
 export type UploadPolicy = {
   maxBytes: number;
+  /**
+   * Optional per-family size cap in bytes. When set, a file whose resolved
+   * family exceeds the cap is rejected even if it is under `maxBytes`.
+   * Keyed by Family value (e.g. "pdf", "zip", "mp4").
+   */
+  perFamilyMax?: Record<string, number>;
   /** Keyed by lowercased declared MIME. */
   allowed: Record<string, AllowEntry>;
 };
@@ -101,6 +107,14 @@ export async function validateUpload(
   const entry = policy.allowed[declared];
   if (!entry) {
     return { ok: false, error: `Unsupported file type: ${file.type || "unknown"}` };
+  }
+
+  const familyCap = policy.perFamilyMax?.[entry.family];
+  if (familyCap !== undefined && file.size > familyCap) {
+    return {
+      ok: false,
+      error: `File exceeds the ${entry.ext.toUpperCase()} size limit (${Math.round(familyCap / (1024 * 1024))} MB)`,
+    };
   }
 
   if (entry.family === "text") {
@@ -188,5 +202,51 @@ export const DISCUSSION_POLICY: UploadPolicy = {
     "image/jpg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
     "image/gif": { family: "gif", ext: "gif", mime: "image/gif" },
     "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
+  },
+};
+
+/**
+ * Resource library uploads: study docs, images, and video.
+ * SVG is intentionally excluded — it executes script and is an XSS vector.
+ * maxBytes is the overall ceiling (500 MB); perFamilyMax tightens document and
+ * image families to 25 MB so a large video limit does not silently apply to PDFs.
+ */
+export const RESOURCE_POLICY: UploadPolicy = {
+  maxBytes: 500 * 1024 * 1024, // 500 MB (video ceiling)
+  perFamilyMax: {
+    pdf: 25 * 1024 * 1024,
+    png: 25 * 1024 * 1024,
+    jpeg: 25 * 1024 * 1024,
+    gif: 25 * 1024 * 1024,
+    webp: 25 * 1024 * 1024,
+    zip: 25 * 1024 * 1024, // OOXML: docx, pptx, xlsx
+    mp4: 500 * 1024 * 1024, // mp4 and mov both resolve to "mp4" family
+    webm: 500 * 1024 * 1024,
+  },
+  allowed: {
+    "application/pdf": { family: "pdf", ext: "pdf", mime: "application/pdf" },
+    "image/png": { family: "png", ext: "png", mime: "image/png" },
+    "image/jpeg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/jpg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/gif": { family: "gif", ext: "gif", mime: "image/gif" },
+    "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+      family: "zip",
+      ext: "docx",
+      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+      family: "zip",
+      ext: "pptx",
+      mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+      family: "zip",
+      ext: "xlsx",
+      mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
+    "video/mp4": { family: "mp4", ext: "mp4", mime: "video/mp4" },
+    "video/quicktime": { family: "mp4", ext: "mov", mime: "video/quicktime" },
+    "video/webm": { family: "webm", ext: "webm", mime: "video/webm" },
   },
 };

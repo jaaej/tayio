@@ -61,6 +61,11 @@ Conventions referenced throughout:
 2. **How it works** — `/student/resources`, `/student/resources/[id]`. Sources recorded-lesson data from curriculum (`subjectWeeks.videoUrl`).
 3. **Rationale:** `Rationale: not documented.` (This is a partial feature — there is no `resources` library table for booklets/past papers/uploaded videos; see "Planned / not yet built".)
 
+### Resource Library
+1. **What it is** — A **Library** tab (alongside the preserved **Recorded lessons** tab) of booklets, past papers, worksheets, and videos scoped to the student's enrolled subjects, with filter by type/topic/title.
+2. **How it works** — `/student/resources` (Library tab), `resources` table + `resourceTypeEnum` (migration `0024_resources.sql`). Reads via `listResourcesForSubjects` scoped to `enrolledSubjectIds(studentId)` (`src/lib/resources.ts`); only `isPublished` and non-`removedAt` rows are visible. Opening a file mints a short-lived signed URL (`openResource`, `src/app/_actions/resources.ts`); a link resource opens the validated `externalUrl` directly. Guard: `requireRole("student")` + subject-scope filter, backstopped by RLS on `resources` (migration 0024).
+3. **Rationale:** Every read is filtered to subjects the student is actually enrolled in/paying for — both at the app layer and via RLS — to prevent cross-cohort resource leakage (a student never sees another cohort's past papers) (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Security). App-layer scoping is primary, RLS is defense-in-depth, consistent with the rest of the portal (security-checklist C6).
+
 ### Discussions
 1. **What it is** — Per-subject and general "Admin/Tech" Q&A boards where students ask homework questions and read tutor/peer answers.
 2. **How it works** — `/student/discussions`, `/student/discussions/[boardId]`, `/student/discussions/[boardId]/[threadId]`. Tables: `discussionThreads`, `discussionReplies`, `discussionAttachments`. Shared actions in `src/app/_actions/discussions.ts` (`createThread`, `postReply`). Board visibility scoped via `enrollments → classes → subjects`. Guard: `requireRole` + board-membership check (`canSeeBoard`).
@@ -92,7 +97,6 @@ Conventions referenced throughout:
 3. **Rationale:** In-app only; no email transport is wired (per `docs/checklist.md` Cross-cutting "Email delivery").
 
 ### Planned / not yet built (student)
-- **Resources library** (booklets / past papers / uploaded videos) — no `resources` table (checklist ⬜).
 - **Online payment** — no processor wired (checklist ⬜).
 - **DM entry point on the student dashboard** — inbox works but no dashboard contact card to *initiate* from (memory `project_pending_student_dm_entry`).
 
@@ -154,6 +158,11 @@ Conventions referenced throughout:
 1. **What it is** — In-app notification inbox.
 2. **How it works** — `/parent/notifications` (`NotificationsInbox`). Table `notifications`. Guard: `requireRole("parent")`.
 3. **Rationale:** In-app only (no email transport wired).
+
+### Resource Library (read-only mirror)
+1. **What it is** — Read-only mirror of the student resource library, scoped to the selected child's enrolled subjects.
+2. **How it works** — `/parent/resources`. Reads via `listResourcesForSubjects` scoped to `childSubjectIds(parentId)` (`src/lib/resources.ts`). Opening a file mints a short-lived signed URL via `openResourceForParent` (`src/app/_actions/resources.ts`); links open the validated `externalUrl` directly. Guard: `requireRole("parent")` + child-enrolment scope, backstopped by RLS on `resources`.
+3. **Rationale:** Same subject-scoping rationale as the student view — a parent only ever sees resources for subjects their linked child is actually enrolled in, never another family's materials (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Security, and PRD cross-cutting non-negotiable that parents see only their children's data).
 
 ### Planned / not yet built (parent)
 - **Class token / make-up credit** — spec'd 2026-06-03 (new `class_tokens` table) but unbuilt; needs a fresh migration number (checklist ⬜).
@@ -219,9 +228,14 @@ Conventions referenced throughout:
 2. **How it works** — `/tutor/notifications` (`NotificationsInbox`). Table `notifications`.
 3. **Rationale:** In-app only.
 
+### Resource Library (author + promote)
+1. **What it is** — Add a resource (booklet, past paper, worksheet, video) to the subject-wide library by direct file upload or link, plus a "promote" toggle that publishes an existing weekly curriculum attachment straight into the library.
+2. **How it works** — `/tutor/resources`; promote toggle lives on the weekly curriculum section editor (`/tutor/classes/[id]/curriculum`). `addResource` uploads to the private `resource-library` bucket (`uploadResourceFile`, `src/lib/resources-storage.ts`, validated by `RESOURCE_POLICY` in `src/lib/upload-validation.ts`) or validates a link via `httpHref` (`src/lib/safe-url.ts`); `promoteAttachment` creates a `resources` row referencing the existing `tutorWeekAttachments` object (`sourceAttachmentId`) rather than re-uploading it. Both actions are in `src/app/_actions/resources.ts`, scoped to `taughtSubjectIds(tutorId)` via `assertCanAuthor`. Guard: `requireRole(["tutor","admin"])` + taught-subject check for tutors (admins pass unconditionally).
+3. **Rationale:** Promoted resources reference the source attachment instead of copying it, so `removeTutorWeekAttachment` (`src/app/tutor/_actions.ts`) blocks deleting a weekly attachment that's been promoted to the library — otherwise the published resource would silently 404 (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Add / promote flow, "File-lifecycle rule"). Instant-publish (no pre-approval queue) was chosen over gating every tutor upload behind admin sign-off, trading a moderation step for tutor velocity — admin oversight happens after the fact via unpublish/remove (same spec §Decisions).
+
 ### Planned / not yet built (tutor)
 - **Forward-looking lesson plan** — only retroactive `lesson_notes.nextLessonFocus` exists (checklist ⬜).
-- **Resource / video upload** — no resource-library schema, no video pipeline (checklist ⬜).
+- **Class-recording auto-upload pipeline** — no upload pipeline or Storage bucket for automatically capturing class recordings; resource library video entries are added manually (checklist ⬜ "Upload videos").
 - **`is_test` checkbox in homework create/edit** — flag exists but no tutor UI (checklist 🔶).
 - **Tutor → student mass announcements** — only admins post announcements (checklist ⬜).
 
@@ -314,8 +328,12 @@ Conventions referenced throughout:
 2. **How it works** — `/admin/reports` — currently a "Coming in Phase 3" stub; underlying `attendance`/`invoices` data is queryable but nothing aggregates it. Guard: `requireAdmin()`.
 3. **Rationale:** Deferred to Phase 3 per the build-order phasing (checklist 🔶 / CLAUDE.md build order).
 
+### Resource Library (moderation)
+1. **What it is** — Admin-wide moderation view of every resource across every subject, including unpublished and removed ones, with unpublish/republish/remove(with reason)/restore.
+2. **How it works** — `/admin/resources`. Reads via `listAllResourcesForAdmin` (`src/lib/resources.ts`), unfiltered by subject scope. Actions `setResourcePublished`, `removeResource`, `restoreResource` (`src/app/_actions/resources.ts`) — all wrapped in `withActor` so mutations land in `audit_logs`. Guard: `requireAdmin()`.
+3. **Rationale:** The model is **instant-publish + admin moderation**, not a pre-approval queue — tutors publish immediately and admin reviews/acts after the fact (unpublish, remove with a reason, restore), trading a moderation step for tutor velocity while keeping oversight (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Decisions). Every moderation action is audited via `withActor`, consistent with the portal's audit-log non-negotiable (security-checklist G1).
+
 ### Planned / not yet built (admin)
-- **Resource control / approval workflow** — no `resources` table, no upload pipeline, no approval queue (checklist ⬜).
 - **Admin board to view other tutors' availability** — `/admin/tutors/availability` not built; admin can't coordinate cover across the roster (checklist 🔶).
 - **Auto-find replacements on tutor leave** — needs matching logic (checklist ⬜).
 - **Per-feature `admin_restricted` vs `admin_unrestricted` gating** — enum values exist but the only enforced financial gate is the revenue PIN wall; the full reception/owner matrix is a *target spec*, not current behaviour (checklist 🔶, admin-pin spec).
