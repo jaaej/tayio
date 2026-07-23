@@ -417,23 +417,9 @@ git commit -m "feat(resources): storage helper + private resource-library bucket
   - `listResourcesForSubjects(subjectIds: string[], filter?): Promise<Resource[]>` (published, not removed, ordered by createdAt desc)
   - `getResourceForViewer(id: string, allowedSubjectIds: string[]): Promise<Resource | null>` (authorization gate for signing)
 
-- [ ] **Step 1: Write failing test** `src/lib/__tests__/resources-scope.test.ts` — assert `listResourcesForSubjects([])` returns `[]` (empty scope → nothing; the leakage guard).
+> **No unit test for this module.** `resources.ts` is `import "server-only"` + DB-bound, so it cannot be imported in the node vitest environment (server-only throws; db needs a live connection). The empty-scope guard (`subjectIds.length === 0 → []`) and full subject-scoping are verified at **runtime** in Task 11, Step 1 (the cross-subject-leak test) — the real security check. Do not add a vitest file here.
 
-```ts
-import { describe, it, expect } from "vitest";
-import { listResourcesForSubjects } from "../resources";
-
-describe("resource scoping", () => {
-  it("returns nothing for an empty subject scope", async () => {
-    const rows = await listResourcesForSubjects([]);
-    expect(rows).toEqual([]);
-  });
-});
-```
-
-- [ ] **Step 2: Run to verify failure** — `npx vitest run src/lib/__tests__/resources-scope.test.ts` → FAIL (module missing).
-
-- [ ] **Step 3: Implement `src/lib/resources.ts`**
+- [ ] **Step 1: Implement `src/lib/resources.ts`**
 
 ```ts
 import "server-only";
@@ -523,12 +509,12 @@ export async function getResourceForViewer(
 
 > Fix imports (`isNull`) and align the enrolment/teaches joins with the exact relations the existing queries use (grep `src/app/student/_lib/queries.ts` and `src/app/tutor/**/_lib`). Do not invent column names — verify `classes.subjectId`, `classes.tutorId`, `enrollments.studentId/classId/withdrawnAt`, `familyLinks.parentId/childId` against `schema.ts`.
 
-- [ ] **Step 4: Run tests to verify pass** — `npx vitest run src/lib/__tests__/resources-scope.test.ts` → PASS.
+- [ ] **Step 2: Typecheck** — `npx tsc --noEmit` → no errors in `resources.ts` (fix any join/column/import mismatches against `schema.ts`).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/lib/resources.ts src/lib/__tests__/resources-scope.test.ts
+git add src/lib/resources.ts
 git commit -m "feat(resources): subject-scoping helpers + read queries"
 ```
 
