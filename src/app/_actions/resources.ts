@@ -6,8 +6,8 @@ import { db } from "@/db/client";
 import { resources, tutorWeekAttachments, tutorWeekSections, subjectWeeks } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
-import { taughtSubjectIds } from "@/lib/resources";
-import { uploadResourceFile } from "@/lib/resources-storage";
+import { taughtSubjectIds, enrolledSubjectIds, getResourceForViewer } from "@/lib/resources";
+import { uploadResourceFile, signResourceAttachment } from "@/lib/resources-storage";
 import { httpHref } from "@/lib/safe-url";
 import { withActor } from "@/lib/with-actor";
 import type { UserRole } from "@/db/schema";
@@ -267,4 +267,20 @@ export async function restoreResource(formData: FormData) {
   );
   revalidatePath("/admin/resources");
   return { ok: true as const };
+}
+
+// ---------------------------------------------------------------------------
+// openResource  (student browse — re-authorizes before signing)
+// ---------------------------------------------------------------------------
+
+export async function openResource(
+  id: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const user = await requireRole("student");
+  const allowed = await enrolledSubjectIds(user.id);
+  const row = await getResourceForViewer(id, allowed);
+  if (!row) return { ok: false, error: "Not found" };
+  if (row.kind === "link") return { ok: true, url: row.externalUrl! };
+  const url = await signResourceAttachment(row.storageBucket!, row.storagePath!);
+  return url ? { ok: true, url } : { ok: false, error: "Could not open" };
 }
