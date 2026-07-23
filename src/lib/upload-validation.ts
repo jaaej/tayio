@@ -190,3 +190,39 @@ export const DISCUSSION_POLICY: UploadPolicy = {
     "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
   },
 };
+
+/**
+ * Resource library uploads: study docs, images, and video.
+ * SVG is intentionally excluded — it executes script and is an XSS vector.
+ * maxBytes is set to the video ceiling (500 MB); the validated MIME allowlist
+ * is the actual gate that prevents arbitrary uploads.
+ */
+export const RESOURCE_POLICY: UploadPolicy = {
+  maxBytes: 500 * 1024 * 1024, // 500 MB (video ceiling)
+  allowed: {
+    "application/pdf": { family: "pdf", ext: "pdf", mime: "application/pdf" },
+    "image/png": { family: "png", ext: "png", mime: "image/png" },
+    "image/jpeg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/jpg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/gif": { family: "gif", ext: "gif", mime: "image/gif" },
+    "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+      family: "zip",
+      ext: "docx",
+      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+      family: "zip",
+      ext: "pptx",
+      mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+      family: "zip",
+      ext: "xlsx",
+      mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
+    "video/mp4": { family: "mp4", ext: "mp4", mime: "video/mp4" },
+    "video/quicktime": { family: "mp4", ext: "mov", mime: "video/quicktime" },
+    "video/webm": { family: "webm", ext: "webm", mime: "video/webm" },
+  },
+};
