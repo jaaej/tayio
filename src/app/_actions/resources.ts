@@ -117,6 +117,9 @@ export async function promoteAttachment(formData: FormData) {
     topicId: formData.get("topicId") || undefined,
   });
 
+  // Auth before DB read — rejects unauthenticated/wrong-role callers before any probe.
+  await requireRole(["tutor", "admin"]);
+
   // tutorWeekAttachments has no subjectId column; derive via:
   //   tutorWeekAttachments.sectionId → tutorWeekSections.id
   //   tutorWeekSections.subjectWeekId → subjectWeeks.id
@@ -125,8 +128,10 @@ export async function promoteAttachment(formData: FormData) {
     .select({
       id: tutorWeekAttachments.id,
       fileName: tutorWeekAttachments.fileName,
+      kind: tutorWeekAttachments.kind,
       storagePath: tutorWeekAttachments.storagePath,
       contentType: tutorWeekAttachments.contentType,
+      url: tutorWeekAttachments.url,
       subjectId: subjectWeeks.subjectId,
     })
     .from(tutorWeekAttachments)
@@ -148,18 +153,35 @@ export async function promoteAttachment(formData: FormData) {
     .limit(1);
   if (existing) return { ok: true as const };
 
+  let kindCols:
+    | { kind: "file"; storageBucket: string; storagePath: string; contentType: string | null }
+    | { kind: "link"; externalUrl: string };
+  if (att.kind === "file") {
+    if (!att.storagePath) return { ok: false as const, error: "Attachment has no file to promote" };
+    kindCols = {
+      kind: "file" as const,
+      storageBucket: "curriculum",
+      storagePath: att.storagePath,
+      contentType: att.contentType ?? null,
+    };
+  } else {
+    // link (or any future non-file kind)
+    if (!att.url) return { ok: false as const, error: "Attachment has no link to promote" };
+    kindCols = {
+      kind: "link" as const,
+      externalUrl: att.url,
+    };
+  }
+
   await withActor(actor, (tx) =>
     tx.insert(resources).values({
       subjectId: att.subjectId,
       type: parsed.type,
       topicId: parsed.topicId ?? null,
-      kind: "file",
       title: att.fileName,
-      storageBucket: "curriculum",
-      storagePath: att.storagePath,
-      contentType: att.contentType ?? null,
       uploadedBy: user.id,
       sourceAttachmentId: att.id,
+      ...kindCols,
     }),
   );
   revalidatePath("/tutor/resources");
@@ -175,6 +197,9 @@ const idSchema = z.object({ id: z.string().uuid() });
 export async function setResourcePublished(formData: FormData) {
   const { id } = idSchema.parse({ id: formData.get("id") });
   const published = formData.get("published") === "true";
+
+  // Auth before DB read — rejects unauthenticated/wrong-role callers before any probe.
+  await requireRole(["tutor", "admin"]);
 
   const [row] = await db
     .select({ subjectId: resources.subjectId })
