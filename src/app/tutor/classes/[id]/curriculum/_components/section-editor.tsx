@@ -6,6 +6,7 @@ import {
   BookOpen,
   Check,
   FileText,
+  Library,
   Link2 as LinkIcon,
   Pencil,
   PlayCircle,
@@ -13,6 +14,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { promoteAttachment } from "@/app/_actions/resources";
 import {
   addTutorWeekAttachment,
   addTutorWeekLink,
@@ -21,8 +23,13 @@ import {
   upsertTutorWeekNote,
 } from "@/app/tutor/_actions";
 import { formatDueDate } from "@/lib/format";
+import { RESOURCE_TYPES } from "@/lib/resource-types";
 import { httpHref } from "@/lib/safe-url";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import {
+  colorFamilyForSubject,
+  getAccentTokens,
+  type AccentTokens,
+} from "@/lib/subject-colors";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -31,6 +38,7 @@ export function SectionEditor({
   classId,
   week,
   subjectName,
+  topics,
   videoSignedUrl,
   bookletSignedUrl,
   attachmentsWithUrls,
@@ -38,6 +46,7 @@ export function SectionEditor({
   classId: string;
   week: TutorCurriculumWeek;
   subjectName: string;
+  topics: Array<{ id: string; name: string }>;
   videoSignedUrl: string | null;
   bookletSignedUrl: string | null;
   attachmentsWithUrls: AttachmentWithUrl[];
@@ -271,31 +280,39 @@ export function SectionEditor({
                   {attachmentsWithUrls.map((att) => (
                     <li
                       key={att.id}
-                      className="flex items-center gap-2 rounded-[12px] border border-line bg-background px-3 py-2"
+                      className="space-y-2 rounded-[12px] border border-line bg-background px-3 py-2"
                     >
-                      {att.kind === "link" ? (
-                        <LinkIcon
-                          className="h-4 w-4 shrink-0"
-                          style={{ color: tokens.arrow }}
-                        />
-                      ) : (
-                        <FileText
-                          className="h-4 w-4 shrink-0"
-                          style={{ color: tokens.arrow }}
-                        />
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
-                        {att.fileName}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => handleRemove(att.id)}
-                        aria-label={`Remove ${att.fileName}`}
-                        className="shrink-0 inline-flex items-center gap-1 rounded-md border border-bad/40 text-bad px-2 py-1 text-[11px] font-bold hover:bg-bad-bg disabled:opacity-50 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Remove
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {att.kind === "link" ? (
+                          <LinkIcon
+                            className="h-4 w-4 shrink-0"
+                            style={{ color: tokens.arrow }}
+                          />
+                        ) : (
+                          <FileText
+                            className="h-4 w-4 shrink-0"
+                            style={{ color: tokens.arrow }}
+                          />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                          {att.fileName}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => handleRemove(att.id)}
+                          aria-label={`Remove ${att.fileName}`}
+                          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-bad/40 text-bad px-2 py-1 text-[11px] font-bold hover:bg-bad-bg disabled:opacity-50 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remove
+                        </button>
+                      </div>
+                      <PromoteControl
+                        attachmentId={att.id}
+                        promoted={att.promoted}
+                        topics={topics}
+                        tokens={tokens}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -468,6 +485,111 @@ export function SectionEditor({
         </form>
       </section>
     </div>
+  );
+}
+
+function PromoteControl({
+  attachmentId,
+  promoted,
+  topics,
+  tokens,
+}: {
+  attachmentId: string;
+  promoted: boolean;
+  topics: Array<{ id: string; name: string }>;
+  tokens: AccentTokens;
+}) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(promoted);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (done) {
+    return (
+      <div
+        className="inline-flex items-center gap-1.5 text-[11px] font-bold"
+        style={{ color: tokens.arrow }}
+      >
+        <Check className="h-3.5 w-3.5" /> In library
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
+        style={{ borderColor: tokens.ring, color: tokens.arrow }}
+      >
+        <Library className="h-3 w-3" /> Also publish to library
+      </button>
+    );
+  }
+
+  function submit(formData: FormData) {
+    formData.set("attachmentId", attachmentId);
+    setError(null);
+    startTransition(async () => {
+      const res = await promoteAttachment(formData);
+      if (!res.ok) {
+        setError(res.error);
+      } else {
+        setDone(true);
+        setOpen(false);
+      }
+    });
+  }
+
+  return (
+    <form action={submit} className="flex flex-wrap items-center gap-2">
+      <select
+        name="type"
+        required
+        defaultValue=""
+        className="rounded-[8px] border border-line bg-surface px-2 py-1.5 text-[12px] text-ink focus:outline-none focus:border-line-strong"
+      >
+        <option value="" disabled>
+          Type…
+        </option>
+        {RESOURCE_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+      <select
+        name="topicId"
+        defaultValue=""
+        className="rounded-[8px] border border-line bg-surface px-2 py-1.5 text-[12px] text-ink focus:outline-none focus:border-line-strong"
+      >
+        <option value="">No topic</option>
+        {topics.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+        style={{ background: tokens.arrow }}
+      >
+        {pending ? "Publishing…" : "Publish"}
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-[11px] font-bold text-muted hover:text-ink"
+      >
+        Cancel
+      </button>
+      {error && (
+        <div className="w-full text-[12px] font-semibold text-bad">{error}</div>
+      )}
+    </form>
   );
 }
 

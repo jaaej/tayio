@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CalendarClock,
   ClipboardCheck,
+  Library,
   MessagesSquare,
   MessageCircle,
   Bell,
@@ -33,6 +34,7 @@ const SECTIONS: NavSection[] = [
       { label: "Attendance", href: "/tutor/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Marking",    href: "/tutor/homework",   icon: <SquarePen className={IC} /> },
       { label: "Notes",      href: "/tutor/notes",      icon: <FileText className={IC} /> },
+      { label: "Resources",  href: "/tutor/resources",  icon: <Library className={IC} /> },
     ],
   },
   {

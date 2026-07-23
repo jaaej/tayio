@@ -105,6 +105,7 @@ export default async function TutorClassCurriculumPage({
               classId={classId}
               week={selected}
               subjectName={data.subjectName}
+              topics={data.topics}
               videoSignedUrl={videoSignedUrl}
               bookletSignedUrl={bookletSignedUrl}
               attachmentsWithUrls={attachmentsWithUrls}

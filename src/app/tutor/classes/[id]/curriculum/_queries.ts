@@ -1,8 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes, homework, subjectTopics, subjectWeeks, subjects, terms,
+  classes, homework, resources, subjectTopics, subjectWeeks, subjects, terms,
   tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
@@ -13,6 +13,8 @@ export type TutorSectionAttachment = {
   fileName: string;
   storagePath: string | null;
   url: string | null;
+  /** true if a live (non-removed) `resources` row already sources from this attachment */
+  promoted: boolean;
 };
 export type TutorCurriculumWeek = {
   subjectWeekId: string;
@@ -36,6 +38,8 @@ export type TutorCurriculumData = {
   currentTerm: { id: string; year: number; termNumber: number };
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: TutorCurriculumWeek[];
+  /** subject topics, for the "Also publish to library" promote form's topic select */
+  topics: Array<{ id: string; name: string }>;
 };
 
 export async function getTutorCurriculum(
@@ -108,6 +112,23 @@ export async function getTutorCurriculum(
         url: tutorWeekAttachments.url,
       }).from(tutorWeekAttachments).where(inArray(tutorWeekAttachments.sectionId, sectionIds))
     : [];
+
+  const attIds = atts.map((a) => a.id);
+  const promotedRows = attIds.length
+    ? await db
+        .select({ sourceAttachmentId: resources.sourceAttachmentId })
+        .from(resources)
+        .where(
+          and(
+            inArray(resources.sourceAttachmentId, attIds),
+            isNull(resources.removedAt),
+          ),
+        )
+    : [];
+  const promotedAttachmentIds = new Set(
+    promotedRows.map((r) => r.sourceAttachmentId),
+  );
+
   const attBySection = new Map<string, TutorSectionAttachment[]>();
   for (const a of atts) {
     if (!attBySection.has(a.sectionId)) attBySection.set(a.sectionId, []);
@@ -117,6 +138,7 @@ export async function getTutorCurriculum(
       fileName: a.fileName,
       storagePath: a.storagePath,
       url: a.url,
+      promoted: promotedAttachmentIds.has(a.id),
     });
   }
 
@@ -174,5 +196,6 @@ export async function getTutorCurriculum(
     },
     termsAvailable: allTerms,
     weeks,
+    topics: topicRows,
   };
 }
