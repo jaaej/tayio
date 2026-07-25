@@ -48,6 +48,9 @@ export async function getCurrentTermId(todayIso: string): Promise<string | null>
   return rows[0]?.id ?? null;
 }
 
+// Term boundaries are anchored at UTC midnight. This assumes the app runtime
+// timezone is UTC, matching how createHomework parses datetime-local due dates
+// (new Date(...) in the process TZ). Pin TZ=UTC in deployment config.
 /** Exclusive upper bound: the day after `endDate`, so timestamp dueDates on the
  *  last day of term are included. */
 function dayAfter(isoDate: string): string {
