@@ -11,8 +11,15 @@ const HEADER = [
 ];
 
 function escape(field: string): string {
-  if (/[",\n]/.test(field)) return `"${field.replace(/"/g, '""')}"`;
-  return field;
+  // Neutralize CSV formula injection: a leading =, +, -, @, tab, or CR makes
+  // spreadsheet apps interpret the cell as a formula. Prefix a single quote so
+  // it is treated as text. RFC 4180 quoting alone does NOT prevent this.
+  let value = field;
+  if (/^[=+\-@\t\r]/.test(value)) {
+    value = `'${value}`;
+  }
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
 }
 
 function num(value: number | null): string {

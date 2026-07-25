@@ -37,4 +37,15 @@ describe("classReportToCsv", () => {
     ]);
     expect(csv.split("\n")[1]).toBe('"Maths, Yr10","A ""B""",80,75,78.5,6,8');
   });
+  it("neutralizes CSV formula injection by prefixing risky leading chars", () => {
+    expect(classReportToCsv([r({ className: "=1+1" })]).split("\n")[1]).toBe(
+      "'=1+1,Chen,80,75,78.5,6,8",
+    );
+    expect(classReportToCsv([r({ tutorName: "-2+3" })]).split("\n")[1]).toBe(
+      "Maths,'-2+3,80,75,78.5,6,8",
+    );
+    expect(classReportToCsv([r({ tutorName: "@cmd" })]).split("\n")[1]).toBe(
+      "Maths,'@cmd,80,75,78.5,6,8",
+    );
+  });
 });
