@@ -1,5 +1,26 @@
 # Project Rules
 
+## General Guidelines (read first)
+
+These apply to every agent working in this repo, ahead of everything below.
+
+- Never use the em dash "—" in any output or file. Use a plain dash "-" instead.
+- When writing commit messages, NEVER auto-add your agent name as co-author.
+- Never manually modify CHANGELOG.md files or any files that are marked as auto-generated.
+- When writing or substantially editing long Markdown files, put each full sentence on its own line.
+  Preserve normal Markdown structure, but avoid wrapping multiple sentences onto one physical line.
+- When making technical decisions, do not give much weight to development cost.
+  Instead, prefer quality, simplicity, robustness, scalability, and long-term maintainability.
+- When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned with how an end user hits it as possible.
+  This makes sure you find the real problem so your fix will actually solve it.
+- When end-to-end testing a product, be picky about the UI you see and be obsessed with pixel perfection.
+  If something clearly looks off, even if it is not directly related to what you are doing, try to get it fixed along the way.
+- Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
+  If you see one, even if it is not caused by what you are working on right now, still get it fixed.
+- For any frontend or UI work, always load and follow the `ui-ux-pro-max:ui-ux-pro-max` skill before writing or changing UI.
+  Run the requested change through its ruleset first, and push back when the change violates a rule.
+  See the "UI/UX review mode (ui-ux-pro-max)" section below for how to apply it.
+
 ## Context
 
 **Project:** `tayio_portal` — a web portal for a tutoring company, scoped across four PRDs in `docs/`: **Student** (homework, timetable, lesson recaps, resources, quizzes, progress), **Parent** (child progress, attendance, tutor feedback, invoices, make-up requests), **Tutor** (class list, student profiles, attendance marking, lesson notes with parent-visible vs. internal split, homework marking), and **Admin** (user management, class/enrolment management, payments, announcements, reporting, resource approval). Built on Next.js 16 (App Router) + React 19, Supabase auth (`@supabase/ssr`), Drizzle ORM over Postgres, Tailwind v4, Zod. Source under `src/` (`app/`, `components/`, `db/`, `lib/`, `middleware.ts`).

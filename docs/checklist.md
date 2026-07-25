@@ -33,6 +33,40 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 
 ---
 
+## Pending manual verification (2026-07-25 session)
+
+Everything below is code-complete with typecheck + unit tests green, but NOT yet clicked through in a browser with real data. Per the success-claim rule, these stay 🔶 (not ✅) until the browser checks are ticked. Run the dev server and tick each box as you confirm it.
+
+**Operational reports** — `/admin/reports`
+- [x] Typecheck clean
+- [x] Unit tests pass (metrics + CSV serializer, 28/28)
+- [x] Whole-branch code review: ready to merge
+- [ ] Opens as admin, defaults to current term, 3 tiles + per-class table render
+- [ ] One class's attendance % matches its marked lessons by hand
+- [ ] A class with no marked lessons / no homework / no tests shows "—", not 0% or a crash
+- [ ] Switching term updates figures + the `?term=` URL, while "Class fill (now)" stays constant
+- [ ] Download CSV opens with the same numbers as the table
+
+**Tutor "Mark as test" checkbox** — homework create form
+- [x] Typecheck clean
+- [ ] Create a homework with "Mark as test" checked, then confirm it appears in a student's per-test ranking
+
+**Student DM entry** — dashboard + `/student/messages`
+- [x] Typecheck clean
+- [ ] Restricted student sees tutors only (no admin office); "Message" opens/creates a thread
+- [ ] Unrestricted student sees tutors + admin office
+- [ ] Contact block renders cleanly at 375px mobile width
+
+**Primary-contact toggle** — `/admin/users/[id]`
+- [x] Typecheck clean
+- [ ] Mark a parent primary → badge moves; a second parent for the same student cannot also be primary
+
+**Per-student delivery mode** — `/admin/classes/[id]`
+- [x] Typecheck clean
+- [ ] Set one student to Online → persists on reload; classmates unaffected
+
+---
+
 ## Admin
 
 | Feature | Function | FE | BE | Notes |
@@ -42,7 +76,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Enrolment management | Onboard students | ✅ | ✅ | `/admin/enrolments` |
 | Payment management | Manage payments | ✅ | ✅ | `/admin/payments` (manual mark-as-paid; no Stripe yet) |
 | Announcements | Portal-wide announcements with audience scoping | ✅ | ✅ | `/admin/announcements` |
-| Reporting to parents/tutors | Attendance + payment reports | 🔶 | 🔶 | `/admin/reports` is a stub ("Coming in Phase 3"). Underlying data (attendance, invoices) is queryable; nothing aggregates it yet. |
+| Reporting to parents/tutors | Attendance + payment reports | 🔶 | 🔶 | **Operational reports SHIPPED 2026-07-25** (branch feat/operational-reports): `/admin/reports` now renders live term-scoped attendance %, homework completion %, class fill %, and per-class avg test result, with a term selector and CSV export. Pure metrics + CSV serializer unit-tested (vitest, 28 pass); queries + page + `export/route.ts` typecheck clean; CSV is formula-injection-safe. Files: `reports-metrics.ts`, `reports-csv.ts`, `reports-queries.ts`, `reports/page.tsx` + `_components/term-select.tsx`, `reports/export/route.ts`. **Pending runtime click-through** (dev-server verify). **Still unbuilt:** (2) **Financial** (revenue/overdue) - must reuse the `/admin/revenue` PIN gate (`getAdminSecurityState`); (3) **Student reports** - automated term-based per-student from **quiz + test scores**, BLOCKED (quizzes do not exist + metrics TBD). Deploy follow-up: pin `TZ=UTC` so read-path term bounds agree with `createHomework` due-date parsing. Overall stays 🔶 until all three land + runtime-verified. |
 | Resource control | Manage uploaded resources, approval workflow | ✅ | ✅ | **Built + runtime-verified (2026-07-23).** `/admin/resources` — lists ALL resources (incl. unpublished/removed) across every subject; unpublish/republish/remove(with reason)/restore via `setResourcePublished`/`removeResource`/`restoreResource` (`src/app/_actions/resources.ts`), all audited via `withActor`. Model is instant-publish + admin moderation, not a pre-approval queue. |
 | Create accounts | Role-specific account creation | ✅ | ✅ | `/admin/users` + `/admin/users/[id]` |
 | Tutor management — availability | View / coordinate tutor availability | 🔶 | ✅ | Tutors set their own availability at `/tutor/timetable` ("Manage availability" toggle on the monthly grid). Backend: `tutor_weekly_availability` table + `getAvailableSlots` query, already consumed by the parent reschedule flow + admin one-off reschedule UI. **Gap:** admin has no UI to view/edit *other* tutors' availability across the roster — needs a `/admin/tutors/availability` board so reception can spot gaps + coordinate cover. |
@@ -66,7 +100,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | Class timetable | Show enrolled class times | ✅ | ✅ | `/tutor` dashboard + `/tutor/classes` (weekly snapshot) + `/tutor/timetable` (monthly grid: classes as amber pills, availability as green pills, "Manage availability" toggle for edit mode). Consolidated 2026-06-03 — previously split across `/tutor/schedule` + `/tutor/availability`. |
 | Student discussion page | Answer post-class questions | ✅ | ✅ | `/tutor/discussions` — per-subject Q&A boards (shipped 2026-05-27) |
 | Lesson plan | Update what's *going* to be covered | ⬜ | ⬜ | `lesson_notes.nextLessonFocus` exists (per-lesson, *retroactive* — "what to focus on next time"). No forward-looking class-level plan field. |
-| Class test / booklet mark | Update marks for parents/students to see | 🔶 | ✅ | Homework marking (with `score`, `feedback`) covers most of this. A homework can now be flagged `is_test` (migration 0008) to drive student ranking. **Gap:** no tutor-facing UI to set that flag yet — tests are flagged via SQL. Tutor needs an "is test" checkbox in homework create/edit. |
+| Class test / booklet mark | Update marks for parents/students to see | 🔶 | ✅ | Homework marking (with `score`, `feedback`) covers most of this. A homework can now be flagged `is_test` (migration 0008) to drive student ranking. **is_test UI added 2026-07-25** - "Mark as test" checkbox on the homework create form (`section-editor.tsx`); `createHomework` (`src/app/tutor/_actions.ts`) reads it. Typecheck + pattern-parity verified, runtime click-through still pending. No edit toggle for existing homework (there is no homework-edit flow in the app). |
 | Resource page | Upload booklets for students/parents | ✅ | ✅ | **Built + runtime-verified (2026-07-23).** `/tutor/resources` — add a resource by direct file upload or link (`addResource`, `src/app/_actions/resources.ts`), scoped to taught subjects. Plus a "promote" toggle on the weekly curriculum section editor to publish an existing weekly attachment straight into the subject-wide library (`promoteAttachment`) — file attachments are referenced, not copied, so deleting a promoted attachment is blocked. |
 | Homework marking | Mark submissions, leave feedback, request resubmission | ✅ | ✅ | `/tutor/homework`, `/tutor/homework/[id]` |
 | Upload videos | Class recordings auto-uploaded | ⬜ | ⬜ | No upload pipeline, no Storage bucket for videos. |
@@ -86,7 +120,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 |---|---|---|---|---|
 | Upcoming classes | Timetable view | ✅ | ✅ | `/student/timetable` + dashboard "This week" calendar |
 | Homework upload | Submit due homework | ✅ | ✅ | `/student/homework`, `/student/homework/[id]` with file submission to Supabase Storage |
-| Grade page | Track score, compare between students | ✅ | ✅ | `/student/progress` shows mastery + per-subject + per-topic. Clickable subject → `/student/progress/[id]` detail page lists **every submitted task's grade + tutor feedback** + submitted/pending/average-score stats. **Ranking (shipped 2026-06-03):** anonymous per-test rank on `/student/homework/[id]` (when flagged `is_test` + marked) and overall per-subject rank on the progress detail hero — rank only, no peer scores/names exposed. Backed by `RANK()` window queries (`getStudentTestRank`, `getStudentOverallSubjectRank`) + `homework.is_test` column (migration 0008, applied to live DB). Tutors have no UI yet to flag a homework as a test — currently set via SQL. |
+| Grade page | Track score, compare between students | ✅ | ✅ | `/student/progress` shows mastery + per-subject + per-topic. Clickable subject → `/student/progress/[id]` detail page lists **every submitted task's grade + tutor feedback** + submitted/pending/average-score stats. **Ranking (shipped 2026-06-03):** anonymous per-test rank on `/student/homework/[id]` (when flagged `is_test` + marked) and overall per-subject rank on the progress detail hero — rank only, no peer scores/names exposed. Backed by `RANK()` window queries (`getStudentTestRank`, `getStudentOverallSubjectRank`) + `homework.is_test` column (migration 0008, applied to live DB). Tutors flag a homework as a test via the "Mark as test" checkbox on the homework create form (added 2026-07-25). |
 | Resources page | Booklets, recorded videos, past papers | ✅ | ✅ | **Built + runtime-verified (2026-07-23).** `/student/resources` now has a **Library** tab (real `resources` table, subject-scoped to enrolled subjects, filter by type/topic/title, open via short-lived signed URL for files or direct link) alongside the preserved **Recorded lessons** tab. |
 | Discussion page | Ask homework questions | ✅ | ✅ | `/student/discussions` — per-subject + general help board (shipped 2026-05-27) |
 | `student_restricted` (parent-dependent) | Younger students — parent owns payments, reschedules, admin contact | ✅ | ✅ | **Built (Spec 1, migrations 0017/0018).** Restricted is the safe default; no payments / reschedule / admin-DM. Gating via `studentTier` + `requireUnrestrictedStudent` (`src/lib/roles.ts`, `src/lib/auth.ts`). |
@@ -94,7 +128,7 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 | **(extra) Student dashboard** | Next class, due homework, mastery, recent grades, announcements | ✅ | ✅ | `/student` |
 | **(extra) Lesson recap viewer** | Read parent-visible tutor note for a past lesson | ✅ | ✅ | `/student/lessons/[id]` |
 | **(extra) Subject deep-dive** | Per-subject mastery + topic list | ✅ | ✅ | `/student/subjects/[id]` |
-| **(extra) Direct messaging** | 1:1 DMs with tutors + admin | 🔶 | ✅ | `/student/messages` (shipped 2026-05-27). Inbox + thread view work; **no entry point on student dashboard yet** to initiate from (memory: project_pending_student_dm_entry). |
+| **(extra) Direct messaging** | 1:1 DMs with tutors + admin | 🔶 | ✅ | `/student/messages` (shipped 2026-05-27). **Entry point added 2026-07-25:** reusable `StudentContacts` (`src/components/student/contacts.tsx`) lists the student's tutors (+ admin office for `student_unrestricted`, per the `canDM` safeguarding rule) with a "Message" action opening `/student/messages/with/[id]`. Mounted on the dashboard right rail AND on the messages inbox (which previously dead-ended with a "start from a contact card" hint but no card). New `getStudentTutors` query. Typecheck-verified; runtime click-through still pending. |
 | **(extra) Math game** | Arcade math-drill game with per-difficulty leaderboard | ✅ | ✅ | `/student/math-game` (`math_game_scores` table, migrations 0022/0023). Not in the original role spec. |
  
 ---
@@ -140,11 +174,11 @@ These are operational admin gaps where the admin still relies on the spreadsheet
 
 | Gap | FE | BE | Notes |
 |---|---|---|---|
-| Per-enrolment admin notes (`T3INV`, `MOVE CLASS BY NW`, `HOLS 03/07 - 10/07`) | ✅ | ✅ | **Built.** `enrollments.adminNotes` column + editable in the class enrolments manager (`src/app/admin/classes/[id]/_components/enrollments-manager.tsx`). |
+| Per-enrolment admin notes (`T3INV`, `MOVE CLASS BY NW`, `HOLS 03/07 - 10/07`) | ⬜ | 🔶 | **Correction 2026-07-25: previously marked Built, but it was not.** `enrollments.admin_notes` column exists (`src/db/schema.ts:193`) but is used NOWHERE - no UI, no action, no query. Same per-enrolment editing plumbing as delivery mode (now built), so a notes field in `enrollments-manager.tsx` + a `setAdminNotes` action is a ~15 min follow-up. |
 | `school` field on student profiles | ✅ | ✅ | **Built.** `profiles.school` column + create / edit-user forms + surfaced in `/admin/users` list. |
 | Students Leaving admin view | ✅ | ✅ | `/admin/leaving` list view built. |
-| Primary-contact toggle on `family_links` | ⬜ | ⬜ | VCE student vs younger student — who's the main contact differs by age. |
-| Per-student delivery mode within shared class (online/in-person) | ⬜ | ⬜ | One student joins online while others same lesson are in-person — currently not expressible. |
+| Primary-contact toggle on `family_links` | 🔶 | 🔶 | **Built 2026-07-25, pending runtime verify.** "Make primary" button + "Primary" text badge on each row of the family-links editor (`family-links-manager.tsx`); `setPrimaryContact` action (`actions-users.ts`) enforces one primary per student (clears others in the same txn) and audits via `withActor`. `is_primary_contact` threaded through `/admin/users/[id]`. **Not yet consumed** by billing / notification routing - that read is a separate follow-up. |
+| Per-student delivery mode within shared class (online/in-person) | 🔶 | 🔶 | **Built 2026-07-25, pending runtime verify.** Per-row Default / In person / Online select in the enrolments manager (`enrollments-manager.tsx`) with optimistic feedback; `setDeliveryMode` action (`actions-enrollments.ts`, audited). `delivery_mode` threaded through `/admin/classes/[id]`. **Not yet surfaced to tutors** on attendance / lesson views - follow-up. |
 | Per-student leave/holiday tracking | ⬜ | ⬜ | Excel encodes as `HOLS 03/07 - 10/07 + 10/08`. Without it tutors mark absent every day during a known holiday. |
 
 ---
