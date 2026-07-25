@@ -1225,3 +1225,49 @@ export async function getAdminContactForStudent(): Promise<StudentAdminContact> 
     .limit(1);
   return rows[0] ?? null;
 }
+
+export type StudentTutorContact = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  subjects: string[];
+};
+
+/** Tutors teaching the student's active classes, with the subjects they teach them. */
+export async function getStudentTutors(
+  studentId: string,
+): Promise<StudentTutorContact[]> {
+  const rows = await db
+    .select({
+      tutorId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      subjectName: subjects.name,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(profiles, eq(profiles.id, classes.tutorId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
+        eq(profiles.isActive, true),
+      ),
+    );
+
+  const byTutor = new Map<string, StudentTutorContact>();
+  for (const r of rows) {
+    const cur = byTutor.get(r.tutorId) ?? {
+      id: r.tutorId,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      subjects: [],
+    };
+    if (!cur.subjects.includes(r.subjectName)) cur.subjects.push(r.subjectName);
+    byTutor.set(r.tutorId, cur);
+  }
+  return Array.from(byTutor.values()).sort((a, b) =>
+    a.firstName.localeCompare(b.firstName),
+  );
+}

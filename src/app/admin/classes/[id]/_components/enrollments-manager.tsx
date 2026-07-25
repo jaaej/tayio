@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import { Pill, Button } from "@/components/admin/ui";
 import {
   enrollStudent,
+  setDeliveryMode,
   withdrawStudent,
 } from "@/app/admin/_lib/actions-enrollments";
+
+type DeliveryMode = "in_person" | "online";
 
 type Student = {
   id: string;
@@ -13,6 +16,7 @@ type Student = {
   lastName: string;
   email: string;
   school?: string | null;
+  deliveryMode?: DeliveryMode | null;
 };
 
 export function EnrollmentsManager({
@@ -28,7 +32,17 @@ export function EnrollmentsManager({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>("");
+  const [modeOverride, setModeOverride] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
+
+  function handleDelivery(studentId: string, value: string) {
+    setModeOverride((prev) => ({ ...prev, [studentId]: value }));
+    setError(null);
+    const mode = value === "" ? null : (value as DeliveryMode);
+    startTransition(async () => {
+      await setDeliveryMode({ classId, studentId, mode });
+    });
+  }
 
   function handleAdd() {
     if (!selected) return;
@@ -81,14 +95,27 @@ export function EnrollmentsManager({
                   {s.school ? `${s.school} · ${s.email}` : s.email}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleRemove(s.id)}
-                disabled={pending}
-                className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
-              >
-                Remove
-              </button>
+              <div className="flex shrink-0 items-center gap-3">
+                <select
+                  aria-label={`Delivery mode for ${s.firstName} ${s.lastName}`}
+                  value={modeOverride[s.id] ?? s.deliveryMode ?? ""}
+                  onChange={(e) => handleDelivery(s.id, e.target.value)}
+                  disabled={pending}
+                  className="rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink disabled:opacity-50"
+                >
+                  <option value="">Default</option>
+                  <option value="in_person">In person</option>
+                  <option value="online">Online</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(s.id)}
+                  disabled={pending}
+                  className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ul>

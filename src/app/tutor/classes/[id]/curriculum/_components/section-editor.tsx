@@ -463,6 +463,15 @@ export function SectionEditor({
               Allow resubmission
             </label>
           </div>
+          <div>
+            <label className="flex items-center gap-2 text-[13px] text-ink-soft">
+              <input type="checkbox" name="isTest" className="accent-ink" />
+              Mark as test
+            </label>
+            <p className="mt-1 pl-6 text-[12px] text-muted">
+              Counts toward anonymous student rankings for this subject.
+            </p>
+          </div>
           <textarea
             name="description"
             rows={2}

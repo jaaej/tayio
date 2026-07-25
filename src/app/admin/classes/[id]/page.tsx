@@ -51,6 +51,7 @@ export default async function ClassEditPage({
       lastName: profiles.lastName,
       email: profiles.email,
       school: profiles.school,
+      deliveryMode: enrollments.deliveryMode,
     })
     .from(enrollments)
     .innerJoin(profiles, eq(profiles.id, enrollments.studentId))

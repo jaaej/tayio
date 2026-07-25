@@ -61,8 +61,15 @@ export default async function UserDetailPage({
     .from(profiles)
     .where(eq(profiles.role, "parent"));
 
-  let parents: typeof allParents = [];
-  let children: typeof allStudents = [];
+  type LinkedPerson = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    isPrimaryContact: boolean;
+  };
+  let parents: LinkedPerson[] = [];
+  let children: LinkedPerson[] = [];
 
   if (coarseRole(user.role) === "student") {
     const linkedParent = alias(profiles, "linked_parent");
@@ -72,6 +79,7 @@ export default async function UserDetailPage({
         firstName: linkedParent.firstName,
         lastName: linkedParent.lastName,
         email: linkedParent.email,
+        isPrimaryContact: familyLinks.isPrimaryContact,
       })
       .from(familyLinks)
       .innerJoin(linkedParent, eq(linkedParent.id, familyLinks.parentId))
@@ -86,6 +94,7 @@ export default async function UserDetailPage({
         firstName: linkedStudent.firstName,
         lastName: linkedStudent.lastName,
         email: linkedStudent.email,
+        isPrimaryContact: familyLinks.isPrimaryContact,
       })
       .from(familyLinks)
       .innerJoin(linkedStudent, eq(linkedStudent.id, familyLinks.studentId))
@@ -222,11 +231,13 @@ export default async function UserDetailPage({
                         id: c.id,
                         name: `${c.firstName} ${c.lastName}`,
                         email: c.email,
+                        isPrimaryContact: c.isPrimaryContact,
                       }))
                     : parents.map((p) => ({
                         id: p.id,
                         name: `${p.firstName} ${p.lastName}`,
                         email: p.email,
+                        isPrimaryContact: p.isPrimaryContact,
                       }))
                 }
                 options={

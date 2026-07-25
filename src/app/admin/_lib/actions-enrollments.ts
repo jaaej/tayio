@@ -82,6 +82,35 @@ export async function withdrawStudent(input: z.infer<typeof pair>) {
   return { ok: true as const };
 }
 
+const deliverySchema = z.object({
+  classId: z.string().uuid(),
+  studentId: z.string().uuid(),
+  mode: z.enum(["in_person", "online"]).nullable(),
+});
+
+/**
+ * Set a single student's delivery mode within a class (online vs in-person), so
+ * one student can attend online while classmates attend in person. `null` clears
+ * the override (falls back to the class default).
+ */
+export async function setDeliveryMode(input: z.infer<typeof deliverySchema>) {
+  const user = await requireAdmin();
+  const data = deliverySchema.parse(input);
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(enrollments)
+      .set({ deliveryMode: data.mode })
+      .where(
+        and(
+          eq(enrollments.classId, data.classId),
+          eq(enrollments.studentId, data.studentId),
+        ),
+      ),
+  );
+  revalidatePath(`/admin/classes/${data.classId}`);
+  return { ok: true as const };
+}
+
 export async function removeEnrollment(input: z.infer<typeof pair>) {
   const user = await requireAdmin();
   const data = pair.parse(input);

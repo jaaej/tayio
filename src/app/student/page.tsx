@@ -19,13 +19,16 @@ import {
   startOfMondayWeek,
 } from "@/lib/format";
 import {
+  getAdminContactForStudent,
   getNextLesson,
   getOutstandingBalanceForStudent,
   getRelevantAnnouncements,
   getStudentHomework,
   getStudentLessons,
   getStudentSubjects,
+  getStudentTutors,
 } from "./_lib/queries";
+import { StudentContacts } from "@/components/student/contacts";
 
 export default async function StudentDashboard() {
   const user = await requireRole("student");
@@ -51,13 +54,15 @@ export default async function StudentDashboard() {
   weekEnd.setDate(weekStart.getDate() + 7);
   const todayIso = isoDate(now);
 
-  const [subjects, nextLesson, allHomework, weekLessons, notices] =
+  const [subjects, nextLesson, allHomework, weekLessons, notices, tutors, adminContact] =
     await Promise.all([
       getStudentSubjects(user.id),
       getNextLesson(user.id),
       getStudentHomework(user.id),
       getStudentLessons(user.id, { from: weekStart }),
       getRelevantAnnouncements(user.id, 4),
+      getStudentTutors(user.id),
+      isUnrestricted ? getAdminContactForStudent() : Promise.resolve(null),
     ]);
 
   const openHomework = allHomework
@@ -218,6 +223,8 @@ export default async function StudentDashboard() {
               <TodayTimeline items={todayItems} />
             </CardBody>
           </Card>
+
+          <StudentContacts tutors={tutors} admin={adminContact} />
 
           <Card accent="var(--coral)">
             <CardHead title="Announcements" />

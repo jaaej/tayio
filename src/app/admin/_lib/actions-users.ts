@@ -209,3 +209,42 @@ export async function removeFamilyLink(parentId: string, studentId: string) {
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
+
+/**
+ * Mark (or unmark) a parent as the primary contact for a student. A student has
+ * at most one primary contact, so setting one clears any other primary link for
+ * that student in the same transaction. Unsetting leaves the student with no
+ * explicit primary (the student is then the de-facto primary contact).
+ */
+export async function setPrimaryContact(
+  parentId: string,
+  studentId: string,
+  isPrimary: boolean,
+) {
+  const user = await requireAdmin();
+  z.string().uuid().parse(parentId);
+  z.string().uuid().parse(studentId);
+
+  await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    if (isPrimary) {
+      await tx
+        .update(familyLinks)
+        .set({ isPrimaryContact: false })
+        .where(eq(familyLinks.studentId, studentId));
+    }
+    await tx
+      .update(familyLinks)
+      .set({ isPrimaryContact: isPrimary })
+      .where(
+        and(
+          eq(familyLinks.parentId, parentId),
+          eq(familyLinks.studentId, studentId),
+        ),
+      );
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${parentId}`);
+  revalidatePath(`/admin/users/${studentId}`);
+  return { ok: true as const };
+}
