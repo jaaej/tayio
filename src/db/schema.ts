@@ -815,6 +815,76 @@ export const mathGameScores = pgTable(
   ],
 );
 
+export const quizStatusEnum = pgEnum("quiz_status", [
+  "draft",
+  "requested",
+  "pending_review",
+  "changes_requested",
+  "approved",
+]);
+
+export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [
+  "multiple_choice",
+  "true_false",
+]);
+
+export const quizzes = pgTable(
+  "quizzes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    subjectWeekId: uuid("subject_week_id")
+      .notNull()
+      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: quizStatusEnum("status").notNull().default("draft"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    assignedTutorId: uuid("assigned_tutor_id").references(() => profiles.id),
+    note: text("note"),
+    approvedBy: uuid("approved_by").references(() => profiles.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("quizzes_subject_week_idx").on(t.subjectWeekId),
+    index("quizzes_assigned_tutor_idx").on(t.assignedTutorId),
+  ],
+);
+
+export const quizQuestions = pgTable(
+  "quiz_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quizId: uuid("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    type: quizQuestionTypeEnum("type").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("quiz_questions_quiz_idx").on(t.quizId)],
+);
+
+export const quizOptions = pgTable(
+  "quiz_options",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => quizQuestions.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    isCorrect: boolean("is_correct").notNull().default(false),
+    position: integer("position").notNull(),
+  },
+  (t) => [index("quiz_options_question_idx").on(t.questionId)],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Homework = typeof homework.$inferSelect;
