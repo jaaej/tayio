@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -96,6 +96,42 @@ export async function listQuizzesForTutor(tutorId: string): Promise<QuizListRow[
     .where(eq(quizzes.assignedTutorId, tutorId))
     .orderBy(desc(quizzes.updatedAt));
   return rows.map(toListRow);
+}
+
+export async function listQuizTargets(): Promise<{
+  tutors: { id: string; name: string }[];
+  weeks: { id: string; label: string }[];
+}> {
+  const tutorRows = await db
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    })
+    .from(profiles)
+    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
+    .orderBy(asc(profiles.firstName));
+
+  const weekRows = await db
+    .select({
+      id: subjectWeeks.id,
+      weekNumber: subjectWeeks.weekNumber,
+      subjectName: subjects.name,
+    })
+    .from(subjectWeeks)
+    .innerJoin(subjects, eq(subjects.id, subjectWeeks.subjectId))
+    .orderBy(asc(subjects.name), asc(subjectWeeks.weekNumber));
+
+  return {
+    tutors: tutorRows.map((t) => ({
+      id: t.id,
+      name: `${t.firstName} ${t.lastName ?? ""}`.trim(),
+    })),
+    weeks: weekRows.map((w) => ({
+      id: w.id,
+      label: `${w.subjectName} - Week ${w.weekNumber}`,
+    })),
+  };
 }
 
 export async function getQuizWithContent(
