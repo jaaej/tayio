@@ -784,6 +784,52 @@ export async function getAdminContact(): Promise<AdminContact | null> {
   return rows[0] ?? null;
 }
 
+export type ParentDmContacts = {
+  tutors: { id: string; name: string; meta: string }[];
+  admin: { id: string; name: string } | null;
+};
+
+/** Contacts a parent can DM: distinct tutors across all their children, + admin. */
+export async function getParentDmContacts(
+  parentId: string,
+): Promise<ParentDmContacts> {
+  const kids = await db
+    .select({ studentId: familyLinks.studentId })
+    .from(familyLinks)
+    .where(eq(familyLinks.parentId, parentId));
+
+  const byTutor = new Map<
+    string,
+    { id: string; name: string; subjects: Set<string> }
+  >();
+  for (const k of kids) {
+    const ts = await getChildTutors(k.studentId);
+    for (const t of ts) {
+      const cur = byTutor.get(t.id) ?? {
+        id: t.id,
+        name: `${t.firstName} ${t.lastName}`.trim(),
+        subjects: new Set<string>(),
+      };
+      t.subjects.forEach((s) => cur.subjects.add(s));
+      byTutor.set(t.id, cur);
+    }
+  }
+  const tutors = Array.from(byTutor.values())
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      meta: Array.from(t.subjects).join(" · "),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const adminRow = await getAdminContact();
+  const admin = adminRow
+    ? { id: adminRow.id, name: `${adminRow.firstName} ${adminRow.lastName}`.trim() }
+    : null;
+
+  return { tutors, admin };
+}
+
 export type ParentAnnouncement = {
   id: string;
   title: string;

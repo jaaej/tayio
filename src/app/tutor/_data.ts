@@ -10,11 +10,12 @@ import {
   attendance,
   homework,
   homeworkAssignments,
+  familyLinks,
   profiles,
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { STUDENT_TIERS } from "@/lib/roles";
+import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
 
 export async function requireTutor() {
   const user = await requireRole("tutor");
@@ -98,6 +99,60 @@ export async function getTutorStudents(tutorId: string) {
       ),
     )
     .orderBy(asc(profiles.lastName), asc(profiles.firstName));
+}
+
+export type TutorDmContacts = {
+  students: { id: string; name: string; meta?: string }[];
+  parents: { id: string; name: string }[];
+  admin: { id: string; name: string } | null;
+};
+
+/** Contacts a tutor can DM: their students, those students' parents, + admin. */
+export async function getTutorDmContacts(
+  tutorId: string,
+): Promise<TutorDmContacts> {
+  const studentRows = await getTutorStudents(tutorId);
+  const students = studentRows.map((s) => ({
+    id: s.id,
+    name: `${s.firstName} ${s.lastName}`.trim(),
+    meta: s.yearLevel ? `Year ${s.yearLevel}` : undefined,
+  }));
+
+  const studentIds = studentRows.map((s) => s.id);
+  let parents: { id: string; name: string }[] = [];
+  if (studentIds.length > 0) {
+    const prows = await db
+      .selectDistinct({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+      })
+      .from(familyLinks)
+      .innerJoin(profiles, eq(profiles.id, familyLinks.parentId))
+      .where(inArray(familyLinks.studentId, studentIds));
+    parents = prows
+      .map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const adminRows = await db
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    })
+    .from(profiles)
+    .where(and(inArray(profiles.role, ADMIN_TIERS), eq(profiles.isActive, true)))
+    .orderBy(asc(profiles.firstName))
+    .limit(1);
+  const admin = adminRows[0]
+    ? {
+        id: adminRows[0].id,
+        name: `${adminRows[0].firstName} ${adminRows[0].lastName}`.trim(),
+      }
+    : null;
+
+  return { students, parents, admin };
 }
 
 export async function assertTutorTeachesStudent(
