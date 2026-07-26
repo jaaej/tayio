@@ -33,6 +33,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | A10 | New-table RLS discipline (every `pgTable` addition gets a migration entry) | ☐ | P0 | Process, not code — keep `SECURITY.md` updated |
 | A11 | Periodic re-run of Supabase Advisor | ☐ | P1 | Catches RLS-disabled-in-public regressions |
 | A12 | RLS enabled on `resources` table | ✓ | P0 | Migration 0024. Subject-scoped: students/parents see only enrolled subjects; tutors see taught subjects (incl. unpublished); admins all. Audit trigger on insert/update/delete via `handle_audit_log()`. `resource-library` storage bucket + policies tracked at E8 (Task 3). |
+| A13 | RLS enabled on quizzes tables | 🔶 | P0 | Migration 0025. `quizzes`, `quiz_questions`, `quiz_options` tables. Admin-full access via `public.is_admin()`; tutor-scoped via `assigned_tutor_id = auth.uid()`, questions/options scoped via parent quiz; no student policy (students default-denied). App-layer role guards in `src/app/_actions/quizzes.ts` are the primary control. **Pending runtime verification.** |
 
 ## B. Authentication (Supabase Auth)
 
