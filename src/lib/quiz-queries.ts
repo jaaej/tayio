@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -9,6 +9,7 @@ import {
   subjects,
   subjectWeeks,
   profiles,
+  quizStatusEnum,
 } from "@/db/schema";
 
 export type QuizListRow = {
@@ -82,10 +83,10 @@ function toListRow(r: {
 }
 
 export async function listQuizzesForAdmin(filter?: {
-  status?: string;
+  status?: (typeof quizStatusEnum.enumValues)[number];
 }): Promise<QuizListRow[]> {
   const rows = await baseListSelect()
-    .where(filter?.status ? eq(quizzes.status, filter.status as never) : undefined)
+    .where(filter?.status ? eq(quizzes.status, filter.status) : undefined)
     .orderBy(desc(quizzes.updatedAt));
   return rows.map(toListRow);
 }
@@ -132,6 +133,7 @@ export async function getQuizWithContent(
     ? await db
         .select()
         .from(quizOptions)
+        .where(inArray(quizOptions.questionId, questionIds))
         .orderBy(asc(quizOptions.position))
     : [];
 
