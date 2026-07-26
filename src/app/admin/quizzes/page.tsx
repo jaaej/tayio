@@ -2,26 +2,11 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { listQuizzesForAdmin, listQuizTargets } from "@/lib/quiz-queries";
 import { Card, CardHead, CardBody, PageHeader, Pill, Empty, type PillTone } from "@/components/admin/ui";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { NewQuizForm } from "./_components/new-quiz-form";
 import { RequestQuizForm } from "./_components/request-quiz-form";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  requested: "Requested",
-  pending_review: "Pending review",
-  changes_requested: "Changes requested",
-  approved: "Approved",
-};
-
-const STATUS_TONE: Record<string, PillTone> = {
-  draft: "default",
-  requested: "info",
-  pending_review: "warn",
-  changes_requested: "bad",
-  approved: "good",
-};
 
 const dateFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
@@ -95,8 +80,8 @@ export default async function AdminQuizzesPage() {
                       {r.subjectName} - Week {r.weekNumber}
                     </td>
                     <td className="px-5 py-3">
-                      <Pill tone={STATUS_TONE[r.status] ?? "default"} dot>
-                        {STATUS_LABEL[r.status] ?? r.status}
+                      <Pill tone={(QUIZ_STATUS_TONE[r.status] ?? "default") as PillTone} dot>
+                        {QUIZ_STATUS_LABEL[r.status] ?? r.status}
                       </Pill>
                     </td>
                     <td className="px-5 py-3 text-[13px] text-ink-soft">

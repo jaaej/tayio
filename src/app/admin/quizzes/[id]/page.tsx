@@ -3,25 +3,10 @@ import { requireRole } from "@/lib/auth";
 import { getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
 import { Pill, type PillTone } from "@/components/admin/ui";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { ReviewControls } from "./_components/review-controls";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  requested: "Requested",
-  pending_review: "Pending review",
-  changes_requested: "Changes requested",
-  approved: "Approved",
-};
-
-const STATUS_TONE: Record<string, PillTone> = {
-  draft: "default",
-  requested: "info",
-  pending_review: "warn",
-  changes_requested: "bad",
-  approved: "good",
-};
 
 export default async function AdminQuizDetailPage({
   params,
@@ -41,8 +26,8 @@ export default async function AdminQuizDetailPage({
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {quiz.subjectName} - Week {quiz.weekNumber}
         </div>
-        <Pill tone={STATUS_TONE[quiz.status] ?? "default"} dot>
-          {STATUS_LABEL[quiz.status] ?? quiz.status}
+        <Pill tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone} dot>
+          {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
         </Pill>
       </div>
 
