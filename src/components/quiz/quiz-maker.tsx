@@ -25,6 +25,25 @@ const QUESTION_TYPE_LABEL: Record<string, string> = {
 };
 
 /**
+ * Shared pending/error state + runner for a single server action, used by
+ * every editable row so one slow save never locks the rest of the form.
+ */
+function useActionRunner() {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function run(action: () => Promise<ActionResult>) {
+    setError(null);
+    startTransition(async () => {
+      const result = await action();
+      if (!result.ok) setError(result.error);
+    });
+  }
+
+  return { error, pending, run };
+}
+
+/**
  * Shared question + option editor for both the admin and tutor quiz pages.
  * When `editable` is false, every control is read-only except the back link.
  * Each row manages its own pending/error state so one slow save never locks
@@ -37,16 +56,7 @@ export function QuizMaker({
   canSubmit,
   hrefBack,
 }: QuizWithContent & { editable: boolean; canSubmit: boolean; hrefBack: string }) {
-  const [footerError, setFooterError] = useState<string | null>(null);
-  const [footerPending, startFooter] = useTransition();
-
-  function runFooter(action: () => Promise<ActionResult>) {
-    setFooterError(null);
-    startFooter(async () => {
-      const result = await action();
-      if (!result.ok) setFooterError(result.error);
-    });
-  }
+  const { error: footerError, pending: footerPending, run: runFooter } = useActionRunner();
 
   return (
     <div className="space-y-5">
@@ -126,18 +136,9 @@ function QuestionCard({
   index: number;
   editable: boolean;
 }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { error, pending, run } = useActionRunner();
   const isTrueFalse = question.type === "true_false";
   const promptId = `quiz-prompt-${question.id}`;
-
-  function run(action: () => Promise<ActionResult>) {
-    setError(null);
-    startTransition(async () => {
-      const result = await action();
-      if (!result.ok) setError(result.error);
-    });
-  }
 
   return (
     <div className="rounded-[14px] border border-line bg-surface p-4">
@@ -215,21 +216,14 @@ function QuestionCard({
 }
 
 function AddOptionButton({ questionId }: { questionId: string }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { error, pending, run } = useActionRunner();
 
   return (
     <div>
       <button
         type="button"
         disabled={pending}
-        onClick={() => {
-          setError(null);
-          startTransition(async () => {
-            const result = await addOption({ questionId });
-            if (!result.ok) setError(result.error);
-          });
-        }}
+        onClick={() => run(() => addOption({ questionId }))}
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-line px-3.5 text-[13px] font-bold text-brand-700 transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Plus className="h-4 w-4" /> Add option
@@ -258,37 +252,37 @@ function OptionRow({
   locked: boolean;
   canDelete: boolean;
 }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { error, pending, run } = useActionRunner();
   const showTextInput = editable && !locked;
-
-  function run(action: () => Promise<ActionResult>) {
-    setError(null);
-    startTransition(async () => {
-      const result = await action();
-      if (!result.ok) setError(result.error);
-    });
-  }
 
   return (
     <div>
       <div className="flex items-center gap-2.5">
-        <label
-          className={
-            "grid h-11 w-11 shrink-0 place-items-center rounded-full " +
-            (editable ? "cursor-pointer" : "cursor-default")
-          }
-        >
-          <input
-            type="radio"
-            name={`quiz-correct-${questionId}`}
-            checked={option.isCorrect}
-            disabled={!editable || pending}
-            onChange={() => run(() => setCorrectOption({ questionId, optionId: option.id }))}
-            aria-label={`Mark option ${index + 1} as the correct answer`}
-            className="h-5 w-5 accent-brand-600 disabled:cursor-not-allowed"
-          />
-        </label>
+        {editable ? (
+          <label className="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full">
+            <input
+              type="radio"
+              name={`quiz-correct-${questionId}`}
+              checked={option.isCorrect}
+              disabled={pending}
+              onChange={() => run(() => setCorrectOption({ questionId, optionId: option.id }))}
+              aria-label={`Mark option ${index + 1} as the correct answer`}
+              className="h-5 w-5 accent-brand-600 disabled:cursor-not-allowed"
+            />
+          </label>
+        ) : (
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center"
+            aria-hidden="true"
+          >
+            <span
+              className={
+                "h-5 w-5 rounded-full border-2 " +
+                (option.isCorrect ? "border-brand-600 bg-brand-600" : "border-line bg-transparent")
+              }
+            />
+          </span>
+        )}
         {showTextInput ? (
           <input
             defaultValue={option.text}
@@ -317,7 +311,10 @@ function OptionRow({
             type="button"
             disabled={pending}
             aria-label={`Delete option ${index + 1}`}
-            onClick={() => run(() => deleteOption({ optionId: option.id }))}
+            onClick={() => {
+              if (!confirm(`Remove option ${index + 1}?`)) return;
+              run(() => deleteOption({ optionId: option.id }));
+            }}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bad transition-colors hover:bg-bad-bg disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
