@@ -69,7 +69,7 @@ export default async function TutorQuizzesPage() {
                             {r.title}
                           </div>
                           <div className="mt-0.5 truncate text-[11px] text-muted">
-                            {r.subjectName} - Week {r.weekNumber}
+                            {r.subjectName} - Term {r.termNumber}, Week {r.weekNumber}
                           </div>
                         </div>
                         <Pill tone={toneFor(r.status)} dot>

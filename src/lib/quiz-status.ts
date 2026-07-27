@@ -20,3 +20,12 @@ export const QUIZ_STATUS_TONE: Record<string, string> = {
   changes_requested: "bad",
   approved: "good",
 };
+
+export function formatQuizWeekLabel(input: {
+  subjectName: string;
+  year: number;
+  termNumber: number;
+  weekNumber: number;
+}): string {
+  return `${input.subjectName} - ${input.year} Term ${input.termNumber}, Week ${input.weekNumber}`;
+}

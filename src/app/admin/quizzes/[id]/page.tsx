@@ -21,10 +21,11 @@ export default async function AdminQuizDetailPage({
   const { quiz, questions } = content;
 
   return (
-    <div className="space-y-5 max-w-[900px]">
+    <div className="max-w-[1400px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-          {quiz.subjectName} - Week {quiz.weekNumber}
+          {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
+          {quiz.weekNumber}
         </div>
         <Pill tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone} dot>
           {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
@@ -38,15 +39,20 @@ export default async function AdminQuizDetailPage({
         </div>
       )}
 
-      {(quiz.status === "pending_review" || quiz.status === "draft") && (
+      {quiz.status === "pending_review" && (
         <ReviewControls quizId={quiz.id} status={quiz.status} />
       )}
 
       <QuizMaker
         quiz={quiz}
         questions={questions}
+        attachments={content.attachments}
         editable={quiz.status !== "approved"}
+        canEditTitle
         canSubmit={false}
+        canApprove={
+          quiz.status === "draft" || quiz.status === "pending_review"
+        }
         hrefBack="/admin/quizzes"
       />
     </div>

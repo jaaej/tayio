@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   quizzes,
+  quizAttachments,
   quizQuestions,
   quizOptions,
   notifications,
@@ -16,8 +17,21 @@ import {
 import { requireRole } from "@/lib/auth";
 import { requireAdmin } from "@/app/admin/_lib/guard";
 import { coarseRole } from "@/lib/roles";
-import { validateQuizForSubmit, type QuizQuestionInput } from "@/lib/quiz-validation";
-import { getQuizWithContent } from "@/lib/quiz-queries";
+import {
+  gradeQuizAnswers,
+  validateQuizForSubmit,
+  type QuizQuestionInput,
+} from "@/lib/quiz-validation";
+import {
+  canStudentAccessApprovedQuiz,
+  getQuizWithContent,
+} from "@/lib/quiz-queries";
+import {
+  QUIZ_ATTACHMENT_LIMIT,
+  QUIZ_UPLOAD_BATCH_LIMIT,
+  removeQuizAttachmentFile,
+  uploadQuizAttachmentFile,
+} from "@/lib/quiz-storage";
 
 type Result = { ok: true } | { ok: false; error: string };
 type CreateResult = { ok: true; id: string } | { ok: false; error: string };
@@ -27,6 +41,9 @@ function revalidate(quizId: string) {
   revalidatePath(`/admin/quizzes/${quizId}`);
   revalidatePath("/tutor/quizzes");
   revalidatePath(`/tutor/quizzes/${quizId}`);
+  revalidatePath(`/student/quizzes/${quizId}`);
+  revalidatePath("/student/subjects/[id]", "page");
+  revalidatePath("/tutor/classes/[id]/curriculum", "page");
 }
 
 type EditRole = "admin" | "tutor";
@@ -69,6 +86,24 @@ async function assertCanEdit(
 
 async function touchQuiz(quizId: string) {
   await db.update(quizzes).set({ updatedAt: new Date() }).where(eq(quizzes.id, quizId));
+}
+
+async function quizAlreadyExists(subjectWeekId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: quizzes.id })
+    .from(quizzes)
+    .where(eq(quizzes.subjectWeekId, subjectWeekId))
+    .limit(1);
+  return Boolean(row);
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }
 
 async function quizIdForQuestion(questionId: string): Promise<string | null> {
@@ -118,17 +153,29 @@ export async function createQuizDirect(input: {
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
   if (!week) return { ok: false, error: "Subject week not found." };
+  if (await quizAlreadyExists(subjectWeekId)) {
+    return { ok: false, error: "This subject week already has a quiz." };
+  }
 
-  const [row] = await db
-    .insert(quizzes)
-    .values({
-      subjectId: week.subjectId,
-      subjectWeekId,
-      title,
-      status: "draft",
-      createdBy: user.id,
-    })
-    .returning({ id: quizzes.id });
+  let row: { id: string } | undefined;
+  try {
+    [row] = await db
+      .insert(quizzes)
+      .values({
+        subjectId: week.subjectId,
+        subjectWeekId,
+        title,
+        status: "draft",
+        createdBy: user.id,
+      })
+      .returning({ id: quizzes.id });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, error: "This subject week already has a quiz." };
+    }
+    throw error;
+  }
+  if (!row) return { ok: false, error: "Quiz could not be created." };
 
   revalidate(row.id);
   return { ok: true, id: row.id };
@@ -158,6 +205,9 @@ export async function requestQuiz(input: {
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
   if (!week) return { ok: false, error: "Subject week not found." };
+  if (await quizAlreadyExists(subjectWeekId)) {
+    return { ok: false, error: "This subject week already has a quiz." };
+  }
 
   const [tutor] = await db
     .select({ role: profiles.role })
@@ -168,18 +218,27 @@ export async function requestQuiz(input: {
     return { ok: false, error: "Selected user is not a tutor." };
   }
 
-  const [row] = await db
-    .insert(quizzes)
-    .values({
-      subjectId: week.subjectId,
-      subjectWeekId,
-      title,
-      status: "requested",
-      createdBy: user.id,
-      assignedTutorId: tutorId,
-      note: note && note.length > 0 ? note : null,
-    })
-    .returning({ id: quizzes.id });
+  let row: { id: string } | undefined;
+  try {
+    [row] = await db
+      .insert(quizzes)
+      .values({
+        subjectId: week.subjectId,
+        subjectWeekId,
+        title,
+        status: "requested",
+        createdBy: user.id,
+        assignedTutorId: tutorId,
+        note: note && note.length > 0 ? note : null,
+      })
+      .returning({ id: quizzes.id });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, error: "This subject week already has a quiz." };
+    }
+    throw error;
+  }
+  if (!row) return { ok: false, error: "Quiz request could not be created." };
 
   await db.insert(notifications).values({
     userId: tutorId,
@@ -195,6 +254,41 @@ export async function requestQuiz(input: {
 
 // --- Shared editing (admin or assigned tutor) ---------------------------
 
+export async function updateQuizTitle(input: {
+  quizId: string;
+  title: string;
+}): Promise<Result> {
+  const parsed = z
+    .object({
+      quizId: z.string().uuid(),
+      title: z.string().trim().min(1).max(200),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Enter a quiz name between 1 and 200 characters." };
+  }
+
+  const editor = await currentEditor();
+  const [row] = await db
+    .select()
+    .from(quizzes)
+    .where(eq(quizzes.id, parsed.data.quizId))
+    .limit(1);
+  if (!row) return { ok: false, error: "Quiz not found." };
+
+  if (editor.role === "tutor") {
+    const editable = await loadEditable(row.id, editor.id, editor.role);
+    if (!editable.ok) return editable;
+  }
+
+  await db
+    .update(quizzes)
+    .set({ title: parsed.data.title, updatedAt: new Date() })
+    .where(eq(quizzes.id, row.id));
+  revalidate(row.id);
+  return { ok: true };
+}
+
 export async function addQuestion(input: {
   quizId: string;
   type: "multiple_choice" | "true_false";
@@ -208,7 +302,8 @@ export async function addQuestion(input: {
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const { quizId, type } = parsed.data;
 
-  const editable = await assertCanEdit(quizId);
+  const editor = await currentEditor();
+  const editable = await loadEditable(quizId, editor.id, editor.role);
   if (!editable.ok) return editable;
 
   const [{ nextPosition }] = await db
@@ -380,6 +475,124 @@ export async function setCorrectOption(input: {
   return { ok: true };
 }
 
+export async function uploadQuizAttachments(formData: FormData): Promise<Result> {
+  const parsed = z
+    .object({ quizId: z.string().uuid() })
+    .safeParse({ quizId: formData.get("quizId") });
+  if (!parsed.success) return { ok: false, error: "Invalid quiz." };
+  const { quizId } = parsed.data;
+
+  const editor = await currentEditor();
+  const editable = await loadEditable(quizId, editor.id, editor.role);
+  if (!editable.ok) return editable;
+
+  const files = formData
+    .getAll("files")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  if (files.length === 0) return { ok: false, error: "Choose at least one file." };
+  if (files.length > QUIZ_UPLOAD_BATCH_LIMIT) {
+    return {
+      ok: false,
+      error: `Upload no more than ${QUIZ_UPLOAD_BATCH_LIMIT} files at once.`,
+    };
+  }
+
+  const [{ count }] = await db
+    .select({
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(quizAttachments)
+    .where(eq(quizAttachments.quizId, quizId));
+  if (count + files.length > QUIZ_ATTACHMENT_LIMIT) {
+    return {
+      ok: false,
+      error: `A quiz can have up to ${QUIZ_ATTACHMENT_LIMIT} attachments.`,
+    };
+  }
+
+  const staged: Array<{
+    fileName: string;
+    storageBucket: string;
+    storagePath: string;
+    contentType: string;
+    sizeBytes: number;
+  }> = [];
+
+  for (const file of files) {
+    const uploaded = await uploadQuizAttachmentFile(quizId, file);
+    if (!uploaded.ok) {
+      await Promise.all(
+        staged.map((item) =>
+          removeQuizAttachmentFile(item.storageBucket, item.storagePath),
+        ),
+      );
+      return { ok: false, error: uploaded.error };
+    }
+    staged.push({
+      fileName: file.name.trim().slice(0, 255) || "Attachment",
+      ...uploaded.value,
+    });
+  }
+
+  try {
+    await db.insert(quizAttachments).values(
+      staged.map((item) => ({
+        quizId,
+        uploadedBy: editor.id,
+        ...item,
+      })),
+    );
+  } catch {
+    await Promise.all(
+      staged.map((item) =>
+        removeQuizAttachmentFile(item.storageBucket, item.storagePath),
+      ),
+    );
+    return {
+      ok: false,
+      error: "The attachments could not be saved. Please try again.",
+    };
+  }
+
+  await touchQuiz(quizId);
+  revalidate(quizId);
+  return { ok: true };
+}
+
+export async function deleteQuizAttachment(input: {
+  attachmentId: string;
+}): Promise<Result> {
+  const parsed = z
+    .object({ attachmentId: z.string().uuid() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid attachment." };
+
+  const [attachment] = await db
+    .select()
+    .from(quizAttachments)
+    .where(eq(quizAttachments.id, parsed.data.attachmentId))
+    .limit(1);
+  if (!attachment) return { ok: false, error: "Attachment not found." };
+
+  const editable = await assertCanEdit(attachment.quizId);
+  if (!editable.ok) return editable;
+
+  const removed = await removeQuizAttachmentFile(
+    attachment.storageBucket,
+    attachment.storagePath,
+  );
+  if (!removed.ok) {
+    return { ok: false, error: `File could not be removed: ${removed.error}` };
+  }
+
+  await db
+    .delete(quizAttachments)
+    .where(eq(quizAttachments.id, attachment.id));
+  await touchQuiz(attachment.quizId);
+  revalidate(attachment.quizId);
+  return { ok: true };
+}
+
 // --- Submission / review lifecycle --------------------------------------
 
 function toValidationInput(
@@ -435,7 +648,12 @@ export async function approveQuiz(input: { quizId: string }): Promise<Result> {
 
   const [row] = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
   if (!row) return { ok: false, error: "Quiz not found." };
-  if (row.status === "approved") return { ok: false, error: "Quiz is already approved." };
+  if (row.status !== "draft" && row.status !== "pending_review") {
+    return {
+      ok: false,
+      error: "Only a draft or a quiz pending review can be approved.",
+    };
+  }
 
   const content = await getQuizWithContent(quizId);
   if (!content) return { ok: false, error: "Quiz not found." };
@@ -497,4 +715,84 @@ export async function requestChanges(input: { quizId: string; note: string }): P
 
   revalidate(quizId);
   return { ok: true };
+}
+
+export async function gradePracticeQuiz(input: {
+  quizId: string;
+  answers: Array<{ questionId: string; optionId: string }>;
+}): Promise<
+  | {
+      ok: true;
+      grade: {
+        correctCount: number;
+        total: number;
+        results: Array<{
+          questionId: string;
+          selectedOptionId: string;
+          correctOptionId: string;
+          isCorrect: boolean;
+        }>;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  const user = await requireRole("student");
+  const parsed = z
+    .object({
+      quizId: z.string().uuid(),
+      answers: z
+        .array(
+          z.object({
+            questionId: z.string().uuid(),
+            optionId: z.string().uuid(),
+          }),
+        )
+        .max(100),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid quiz answers." };
+
+  if (!(await canStudentAccessApprovedQuiz(user.id, parsed.data.quizId))) {
+    return { ok: false, error: "Quiz not found." };
+  }
+
+  const questions = await db
+    .select({ id: quizQuestions.id })
+    .from(quizQuestions)
+    .where(eq(quizQuestions.quizId, parsed.data.quizId));
+  if (questions.length === 0) {
+    return { ok: false, error: "This quiz has no questions." };
+  }
+
+  const options = await db
+    .select({
+      id: quizOptions.id,
+      questionId: quizOptions.questionId,
+      isCorrect: quizOptions.isCorrect,
+    })
+    .from(quizOptions)
+    .where(
+      inArray(
+        quizOptions.questionId,
+        questions.map((question) => question.id),
+      ),
+    );
+
+  const answerKeys = questions.map((question) => {
+    const questionOptions = options.filter(
+      (option) => option.questionId === question.id,
+    );
+    const correct = questionOptions.find((option) => option.isCorrect);
+    return {
+      questionId: question.id,
+      optionIds: questionOptions.map((option) => option.id),
+      correctOptionId: correct?.id ?? "",
+    };
+  });
+  if (answerKeys.some((key) => key.correctOptionId.length === 0)) {
+    return { ok: false, error: "This quiz is missing a correct answer." };
+  }
+
+  const result = gradeQuizAnswers(answerKeys, parsed.data.answers);
+  return result.ok ? { ok: true, grade: result.grade } : result;
 }

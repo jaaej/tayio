@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { validateQuizForSubmit, type QuizQuestionInput } from "./quiz-validation";
+import {
+  gradeQuizAnswers,
+  validateQuizForSubmit,
+  type QuizQuestionInput,
+} from "./quiz-validation";
 
 const mc = (over: Partial<QuizQuestionInput> = {}): QuizQuestionInput => ({
   type: "multiple_choice",
@@ -48,5 +52,65 @@ describe("validateQuizForSubmit", () => {
       mc({ options: [{ text: "  ", isCorrect: true }, { text: "4", isCorrect: false }] }),
     ]);
     expect(out.some((m) => m.includes("empty option"))).toBe(true);
+  });
+});
+
+describe("gradeQuizAnswers", () => {
+  const keys = [
+    {
+      questionId: "q1",
+      optionIds: ["q1-a", "q1-b"],
+      correctOptionId: "q1-b",
+    },
+    {
+      questionId: "q2",
+      optionIds: ["q2-a", "q2-b"],
+      correctOptionId: "q2-a",
+    },
+  ];
+
+  it("grades a complete practice attempt", () => {
+    const result = gradeQuizAnswers(keys, [
+      { questionId: "q1", optionId: "q1-b" },
+      { questionId: "q2", optionId: "q2-b" },
+    ]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.grade.correctCount).toBe(1);
+      expect(result.grade.total).toBe(2);
+    }
+  });
+
+  it("requires every question to be answered", () => {
+    expect(
+      gradeQuizAnswers(keys, [{ questionId: "q1", optionId: "q1-b" }]),
+    ).toEqual({
+      ok: false,
+      error: "Answer every question before checking your quiz.",
+    });
+  });
+
+  it("rejects an option from another question", () => {
+    expect(
+      gradeQuizAnswers(keys, [
+        { questionId: "q1", optionId: "q2-a" },
+        { questionId: "q2", optionId: "q2-b" },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: "One or more answers do not belong to this quiz.",
+    });
+  });
+
+  it("rejects duplicate answers for one question", () => {
+    expect(
+      gradeQuizAnswers(keys, [
+        { questionId: "q1", optionId: "q1-a" },
+        { questionId: "q1", optionId: "q1-b" },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: "Each question can only have one answer.",
+    });
   });
 });

@@ -2,26 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/admin/ui";
-import { approveQuiz, requestChanges } from "@/app/_actions/quizzes";
+import { requestChanges } from "@/app/_actions/quizzes";
 
 /**
- * Admin review actions for a quiz: Approve (draft or pending_review) and, for
- * pending_review only, "Send back" - which reveals a required note textarea
- * before calling requestChanges.
+ * Secondary admin review action.
+ * The primary Approve action lives in the quiz maker's fixed action position.
  */
 export function ReviewControls({ quizId, status }: { quizId: string; status: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState("");
-
-  function approve() {
-    setError(null);
-    start(async () => {
-      const res = await approveQuiz({ quizId });
-      if (!res.ok) setError(res.error);
-    });
-  }
 
   function sendBack() {
     setError(null);
@@ -38,9 +29,6 @@ export function ReviewControls({ quizId, status }: { quizId: string; status: str
   return (
     <div className="rounded-[14px] border border-line bg-surface p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2.5">
-        <Button type="button" variant="brand" disabled={pending} onClick={approve}>
-          {pending ? "Approving…" : "Approve"}
-        </Button>
         {status === "pending_review" && !showNote && (
           <Button
             type="button"

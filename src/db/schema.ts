@@ -851,7 +851,7 @@ export const quizzes = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("quizzes_subject_week_idx").on(t.subjectWeekId),
+    uniqueIndex("quizzes_subject_week_unique_idx").on(t.subjectWeekId),
     index("quizzes_assigned_tutor_idx").on(t.assignedTutorId),
   ],
 );
@@ -885,6 +885,26 @@ export const quizOptions = pgTable(
   (t) => [index("quiz_options_question_idx").on(t.questionId)],
 );
 
+export const quizAttachments = pgTable(
+  "quiz_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quizId: uuid("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    fileName: text("file_name").notNull(),
+    storageBucket: text("storage_bucket").notNull(),
+    storagePath: text("storage_path").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("quiz_attachments_quiz_idx").on(t.quizId)],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Homework = typeof homework.$inferSelect;
@@ -892,4 +912,5 @@ export type HomeworkAssignment = typeof homeworkAssignments.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type QuizAttachment = typeof quizAttachments.$inferSelect;
 export type UserRole = (typeof userRoleEnum.enumValues)[number];

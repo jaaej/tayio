@@ -77,7 +77,7 @@ export default async function AdminQuizzesPage() {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-[13px] text-ink-soft">
-                      {r.subjectName} - Week {r.weekNumber}
+                      {r.subjectName} - Term {r.termNumber}, Week {r.weekNumber}
                     </td>
                     <td className="px-5 py-3">
                       <Pill tone={(QUIZ_STATUS_TONE[r.status] ?? "default") as PillTone} dot>

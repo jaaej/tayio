@@ -23,7 +23,7 @@ export function RequestQuizForm({
       <p className="text-[13px] text-muted">
         {tutors.length === 0
           ? "Add an active tutor account before requesting a quiz."
-          : "Add a subject week in Classes before requesting a quiz."}
+          : "No unused subject weeks are available. Add a curriculum week or edit its existing quiz."}
       </p>
     );
   }

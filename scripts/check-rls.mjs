@@ -16,9 +16,14 @@ if (!url) {
   process.exit(1);
 }
 
-// Tables intentionally left without RLS. Empty today — every public table is
-// protected. Add a name here (with a comment justifying it) only on purpose.
-const ALLOW_NO_RLS = new Set([]);
+// These server-only tables intentionally have RLS enabled with zero policies.
+// In Postgres that is deny-by-default for anon/authenticated, not unprotected.
+// App access uses the server-side postgres connection after role checks.
+const ALLOW_NO_RLS = new Set([
+  "admin_settings", // PIN hash + lockout state, migration 0020
+  "math_game_scores", // app-validated score writes, migration 0022
+  "reschedule_requests", // role-guarded workflow, migration 0019
+]);
 
 const sql = postgres(url, { prepare: false, max: 1 });
 const rows = await sql`
@@ -38,7 +43,7 @@ const bad = rows.filter(
 
 for (const r of rows) {
   const status = ALLOW_NO_RLS.has(r.relname)
-    ? "skip"
+    ? "deny"
     : !r.rls || r.pol === 0
       ? "FAIL"
       : "ok";
@@ -64,5 +69,5 @@ if (bad.length) {
 }
 
 console.log(
-  `\n✅ All ${rows.length} public tables have RLS enabled with ≥1 policy.`,
+  `\n✅ All ${rows.length} public tables have RLS enabled with policies or an intentional deny-all configuration.`,
 );

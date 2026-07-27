@@ -13,6 +13,8 @@ import {
   Plus,
   Trash2,
   Upload,
+  ListChecks,
+  ArrowRight,
 } from "lucide-react";
 import { promoteAttachment } from "@/app/_actions/resources";
 import {
@@ -175,6 +177,42 @@ export function SectionEditor({
           </div>
         )}
       </section>
+
+      {week.quiz && (
+        <Link
+          href={`/tutor/quizzes/${week.quiz.id}`}
+          className="group relative flex min-h-28 items-center gap-4 overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-20px_rgba(31,40,90,0.28)] transition-all duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-22px_rgba(31,40,90,0.38)] motion-reduce:hover:translate-y-0"
+        >
+          <span
+            aria-hidden
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px]"
+            style={{ background: tokens.bgFrom, color: tokens.arrow }}
+          >
+            <ListChecks className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span
+              className="block text-[10px] font-extrabold uppercase tracking-[0.16em]"
+              style={{ color: tokens.meta }}
+            >
+              Approved weekly quiz
+            </span>
+            <span className="mt-1 block text-[16px] font-extrabold tracking-[-0.01em] text-ink">
+              {week.quiz.title}
+            </span>
+            <span className="mt-1 block text-[12px] font-semibold text-muted">
+              {week.quiz.questionCount}{" "}
+              {week.quiz.questionCount === 1 ? "question" : "questions"}
+            </span>
+          </span>
+          <span
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[12px] font-bold transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+            style={{ borderColor: tokens.ring, color: tokens.arrow }}
+          >
+            Preview <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
+      )}
 
       {/* TUTOR NOTES — edit-locked */}
       <section className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">

@@ -15,7 +15,8 @@ export function NewQuizForm({ weeks }: { weeks: { id: string; label: string }[] 
   if (weeks.length === 0) {
     return (
       <p className="text-[13px] text-muted">
-        Add a subject week in Classes before creating a quiz.
+        No unused subject weeks are available. Add a curriculum week or edit
+        its existing quiz.
       </p>
     );
   }
