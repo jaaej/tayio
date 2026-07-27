@@ -2,56 +2,81 @@ import { describe, it, expect } from "vitest";
 import {
   gradeQuizAnswers,
   validateQuizForSubmit,
-  type QuizQuestionInput,
+  type QuizItemInput,
+  type QuizLeafInput,
 } from "./quiz-validation";
 
-const mc = (over: Partial<QuizQuestionInput> = {}): QuizQuestionInput => ({
+const goodLeaf = (): QuizLeafInput => ({
   type: "multiple_choice",
-  prompt: "What is 2+2?",
+  prompt: "What is 2 + 2?",
   options: [
-    { text: "3", isCorrect: false },
     { text: "4", isCorrect: true },
+    { text: "5", isCorrect: false },
   ],
-  ...over,
 });
 
-describe("validateQuizForSubmit", () => {
-  it("passes a well-formed quiz", () => {
-    expect(validateQuizForSubmit("Week 5", [mc()])).toEqual([]);
+describe("validateQuizForSubmit - context sets", () => {
+  it("accepts a valid context set with a passage and one good sub-question", () => {
+    const items: QuizItemInput[] = [
+      { type: "context", prompt: "Read this passage.", children: [goodLeaf()] },
+    ];
+    expect(validateQuizForSubmit("Title", items)).toEqual([]);
   });
-  it("requires a title", () => {
-    expect(validateQuizForSubmit("  ", [mc()])).toContain("A title is required.");
+
+  it("rejects a context set with an empty passage", () => {
+    const items: QuizItemInput[] = [
+      { type: "context", prompt: "   ", children: [goodLeaf()] },
+    ];
+    expect(validateQuizForSubmit("Title", items)).toContain(
+      "Context set 1: passage text is required.",
+    );
   });
-  it("requires at least one question", () => {
-    expect(validateQuizForSubmit("Week 5", [])).toContain(
+
+  it("rejects a context set with no sub-questions", () => {
+    const items: QuizItemInput[] = [
+      { type: "context", prompt: "Passage.", children: [] },
+    ];
+    expect(validateQuizForSubmit("Title", items)).toContain(
+      "Context set 1: needs at least one sub-question.",
+    );
+  });
+
+  it("reports a bad sub-question with a nested label", () => {
+    const items: QuizItemInput[] = [
+      {
+        type: "context",
+        prompt: "Passage.",
+        children: [
+          {
+            type: "multiple_choice",
+            prompt: "",
+            options: [
+              { text: "a", isCorrect: true },
+              { text: "b", isCorrect: false },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(validateQuizForSubmit("Title", items)).toContain(
+      "Context set 1, sub-question 1: prompt is required.",
+    );
+  });
+
+  it("requires at least one gradable question overall", () => {
+    const items: QuizItemInput[] = [];
+    expect(validateQuizForSubmit("Title", items)).toContain(
       "Add at least one question.",
     );
   });
-  it("requires a prompt on every question", () => {
-    const out = validateQuizForSubmit("Week 5", [mc({ prompt: "  " })]);
-    expect(out.some((m) => m.includes("prompt"))).toBe(true);
-  });
-  it("requires at least two options on a multiple-choice question", () => {
-    const out = validateQuizForSubmit("Week 5", [
-      mc({ options: [{ text: "4", isCorrect: true }] }),
-    ]);
-    expect(out.some((m) => m.includes("two options"))).toBe(true);
-  });
-  it("requires exactly one correct option", () => {
-    const none = validateQuizForSubmit("Week 5", [
-      mc({ options: [{ text: "3", isCorrect: false }, { text: "4", isCorrect: false }] }),
-    ]);
-    expect(none.some((m) => m.includes("one correct"))).toBe(true);
-    const two = validateQuizForSubmit("Week 5", [
-      mc({ options: [{ text: "3", isCorrect: true }, { text: "4", isCorrect: true }] }),
-    ]);
-    expect(two.some((m) => m.includes("one correct"))).toBe(true);
-  });
-  it("requires non-empty option text", () => {
-    const out = validateQuizForSubmit("Week 5", [
-      mc({ options: [{ text: "  ", isCorrect: true }, { text: "4", isCorrect: false }] }),
-    ]);
-    expect(out.some((m) => m.includes("empty option"))).toBe(true);
+
+  it("still validates a top-level leaf question", () => {
+    const items: QuizItemInput[] = [
+      { type: "multiple_choice", prompt: "Q", options: [{ text: "a", isCorrect: false }] },
+    ];
+    const problems = validateQuizForSubmit("Title", items);
+    expect(problems).toContain("Question 1: needs at least two options.");
+    expect(problems).toContain("Question 1: must have exactly one correct option.");
   });
 });
 

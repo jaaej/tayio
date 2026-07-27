@@ -1,8 +1,19 @@
-export type QuizQuestionInput = {
+export type QuizLeafInput = {
   type: "multiple_choice" | "true_false";
   prompt: string;
   options: { text: string; isCorrect: boolean }[];
 };
+
+export type QuizContextInput = {
+  type: "context";
+  prompt: string;
+  children: QuizLeafInput[];
+};
+
+export type QuizItemInput = QuizLeafInput | QuizContextInput;
+
+/** Back-compat alias; a leaf question is the old QuizQuestionInput. */
+export type QuizQuestionInput = QuizLeafInput;
 
 export type QuizAnswerKey = {
   questionId: string;
@@ -26,30 +37,48 @@ export type QuizGrade = {
   }>;
 };
 
+function checkLeaf(leaf: QuizLeafInput, label: string): string[] {
+  const problems: string[] = [];
+  if (!leaf.prompt.trim()) problems.push(`${label}: prompt is required.`);
+  if (leaf.options.length < 2) problems.push(`${label}: needs at least two options.`);
+  if (leaf.options.some((o) => !o.text.trim())) problems.push(`${label}: has an empty option.`);
+  if (leaf.options.filter((o) => o.isCorrect).length !== 1) {
+    problems.push(`${label}: must have exactly one correct option.`);
+  }
+  return problems;
+}
+
 /**
  * Returns a list of human-readable problems that block submitting a quiz for
  * review. An empty array means the quiz is ready. Pure - no I/O.
+ * Context sets are containers: their passage is required and they must hold at
+ * least one sub-question. Only leaf questions carry options and are gradable.
  */
 export function validateQuizForSubmit(
   title: string,
-  questions: QuizQuestionInput[],
+  items: QuizItemInput[],
 ): string[] {
   const problems: string[] = [];
   if (!title.trim()) problems.push("A title is required.");
-  if (questions.length === 0) problems.push("Add at least one question.");
 
-  questions.forEach((q, i) => {
-    const label = `Question ${i + 1}`;
-    if (!q.prompt.trim()) problems.push(`${label}: prompt is required.`);
-    if (q.options.length < 2) {
-      problems.push(`${label}: needs at least two options.`);
-    }
-    if (q.options.some((o) => !o.text.trim())) {
-      problems.push(`${label}: has an empty option.`);
-    }
-    const correct = q.options.filter((o) => o.isCorrect).length;
-    if (correct !== 1) {
-      problems.push(`${label}: must have exactly one correct option.`);
+  const gradableCount = items.reduce(
+    (sum, item) => sum + (item.type === "context" ? item.children.length : 1),
+    0,
+  );
+  if (gradableCount === 0) problems.push("Add at least one question.");
+
+  items.forEach((item, i) => {
+    if (item.type === "context") {
+      const label = `Context set ${i + 1}`;
+      if (!item.prompt.trim()) problems.push(`${label}: passage text is required.`);
+      if (item.children.length === 0) {
+        problems.push(`${label}: needs at least one sub-question.`);
+      }
+      item.children.forEach((child, j) => {
+        problems.push(...checkLeaf(child, `${label}, sub-question ${j + 1}`));
+      });
+    } else {
+      problems.push(...checkLeaf(item, `Question ${i + 1}`));
     }
   });
 
