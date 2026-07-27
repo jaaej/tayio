@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
+import { QuizInstructionStrip } from "@/components/quiz/quiz-instruction-strip";
 import { Pill, type PillTone } from "@/components/admin/ui";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { ReviewControls } from "./_components/review-controls";
@@ -21,7 +22,7 @@ export default async function AdminQuizDetailPage({
   const { quiz, questions } = content;
 
   return (
-    <div className="max-w-[1400px] space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
@@ -31,13 +32,6 @@ export default async function AdminQuizDetailPage({
           {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
         </Pill>
       </div>
-
-      {quiz.note && (
-        <div className="rounded-[14px] border border-line bg-surface px-4 py-3.5">
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Note</div>
-          <p className="mt-1 text-[13px] text-ink-soft whitespace-pre-wrap">{quiz.note}</p>
-        </div>
-      )}
 
       {quiz.status === "pending_review" && (
         <ReviewControls quizId={quiz.id} status={quiz.status} />
@@ -55,6 +49,8 @@ export default async function AdminQuizDetailPage({
         }
         hrefBack="/admin/quizzes"
       />
+
+      {quiz.note && <QuizInstructionStrip label="Note" note={quiz.note} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { ComponentProps } from "react";
 import { requireRole } from "@/lib/auth";
 import { canTutorViewQuiz, getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
+import { QuizInstructionStrip } from "@/components/quiz/quiz-instruction-strip";
 import { Pill } from "@/components/student/pill";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 
@@ -24,7 +25,7 @@ export default async function TutorQuizDetailPage({
   const editable = quiz.status === "requested" || quiz.status === "changes_requested";
 
   return (
-    <div className="max-w-[1400px] space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
@@ -34,15 +35,6 @@ export default async function TutorQuizDetailPage({
           {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
         </Pill>
       </div>
-
-      {quiz.note && (
-        <div className="rounded-[14px] border border-line bg-surface-2 px-4 py-3.5">
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-            {quiz.status === "changes_requested" ? "Changes requested" : "Instructions from admin"}
-          </div>
-          <p className="mt-1 whitespace-pre-wrap text-[13px] text-ink-soft">{quiz.note}</p>
-        </div>
-      )}
 
       <QuizMaker
         quiz={quiz}
@@ -54,6 +46,13 @@ export default async function TutorQuizDetailPage({
         canApprove={false}
         hrefBack="/tutor/quizzes"
       />
+
+      {quiz.note && (
+        <QuizInstructionStrip
+          label={quiz.status === "changes_requested" ? "Changes requested" : "Instructions from admin"}
+          note={quiz.note}
+        />
+      )}
     </div>
   );
 }
