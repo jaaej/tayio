@@ -15,6 +15,31 @@ function toneFor(status: string): Tone {
   return (QUIZ_STATUS_TONE[status] ?? "neutral") as Tone;
 }
 
+function QuizRows({ rows }: { rows: QuizListRow[] }) {
+  return (
+    <ul className="divide-y divide-line">
+      {rows.map((r) => (
+        <li key={r.id}>
+          <Link
+            href={`/tutor/quizzes/${r.id}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-bold text-ink truncate">{r.title}</div>
+              <div className="mt-0.5 truncate text-[11px] text-muted">
+                {r.subjectName} - Term {r.termNumber}, Week {r.weekNumber}
+              </div>
+            </div>
+            <Pill tone={toneFor(r.status)} dot>
+              {QUIZ_STATUS_LABEL[r.status] ?? r.status}
+            </Pill>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const GROUPS: { key: string; heading: string; statuses: string[] }[] = [
   { key: "todo", heading: "To do", statuses: ["requested", "changes_requested"] },
   { key: "submitted", heading: "Submitted", statuses: ["pending_review"] },
@@ -52,37 +77,35 @@ export default async function TutorQuizzesPage() {
           </CardBody>
         </Card>
       ) : (
-        groups.map((g) =>
-          g.rows.length === 0 ? null : (
-            <Card key={g.key}>
-              <CardHead title={`${g.heading} (${g.rows.length})`} />
-              <CardBody tight>
-                <ul className="divide-y divide-line">
-                  {g.rows.map((r: QuizListRow) => (
-                    <li key={r.id}>
-                      <Link
-                        href={`/tutor/quizzes/${r.id}`}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-bold text-ink truncate">
-                            {r.title}
-                          </div>
-                          <div className="mt-0.5 truncate text-[11px] text-muted">
-                            {r.subjectName} - Term {r.termNumber}, Week {r.weekNumber}
-                          </div>
-                        </div>
-                        <Pill tone={toneFor(r.status)} dot>
-                          {QUIZ_STATUS_LABEL[r.status] ?? r.status}
-                        </Pill>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-          ),
-        )
+        groups.map((g) => {
+          if (g.rows.length === 0) return null;
+          if (g.key !== "done") {
+            return (
+              <Card key={g.key}>
+                <CardHead title={`${g.heading} (${g.rows.length})`} />
+                <CardBody tight>
+                  <QuizRows rows={g.rows} />
+                </CardBody>
+              </Card>
+            );
+          }
+          const bySubject = new Map<string, QuizListRow[]>();
+          for (const r of g.rows) {
+            const list = bySubject.get(r.subjectName) ?? [];
+            list.push(r);
+            bySubject.set(r.subjectName, list);
+          }
+          return Array.from(bySubject.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([subjectName, rows]) => (
+              <Card key={`done-${subjectName}`}>
+                <CardHead title={`Done - ${subjectName} (${rows.length})`} />
+                <CardBody tight>
+                  <QuizRows rows={rows} />
+                </CardBody>
+              </Card>
+            ));
+        })
       )}
     </div>
   );
