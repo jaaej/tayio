@@ -4,6 +4,24 @@ Date: 2026-07-26
 Status: Approved (owner approved the design; proceeding to plan + build)
 Supersedes: the ranked-exam direction in `2026-07-26-interactive-quizzes-draft.md`. That draft explored a ranked, student-taking exam model; the owner narrowed scope to unranked common weekly quizzes, creation side first.
 
+## 2026-07-27 delivery addendum
+
+The owner expanded the approved implementation beyond the original creation-only boundary.
+This addendum supersedes the conflicting v1 non-goals below while preserving the decision that weekly quizzes are unranked.
+
+- A concrete `subject_weeks` row now has at most one quiz, enforced by a unique database index.
+- Week selectors show subject, year, term, and week because Week 1 legitimately repeats across terms.
+- Existing quiz weeks are excluded from create/request selectors.
+- Quiz titles can be changed while editing, and admins can rename an approved quiz without unlocking its questions.
+- Quiz attachments support validated documents and images in the existing private `resource-library` bucket.
+- Tutors can view approved common quizzes for subjects they teach, whether or not they were the assigned author.
+- Students can discover approved quizzes for actively enrolled subjects and complete an unranked practice attempt.
+- Student answer keys are removed from the initial payload and practice answers are graded on the server.
+- Practice attempts and scores are not persisted, so history, ranking, and analytics remain later work.
+- The maker now uses a full-width two-column workspace with a question canvas, sticky tools, attachment management, readiness feedback, responsive controls, and reduced-motion support.
+- Admins see Approve in the maker's primary action slot and never see Submit for review.
+- Migration `0026_quiz_delivery.sql` implements the schema and RLS changes.
+
 ## Context
 
 The portal has no quiz feature.
