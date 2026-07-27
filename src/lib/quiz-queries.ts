@@ -45,6 +45,7 @@ export type QuizAttachmentView = {
   fileName: string;
   contentType: string;
   sizeBytes: number;
+  questionId: string | null;
   url: string | null;
 };
 
@@ -69,6 +70,7 @@ export type QuizWithContent = {
     prompt: string;
     type: string;
     position: number;
+    parentId: string | null;
     options: Array<{ id: string; text: string; isCorrect: boolean; position: number }>;
   }>;
   attachments: QuizAttachmentView[];
@@ -251,6 +253,7 @@ export async function getQuizWithContent(
       fileName: attachment.fileName,
       contentType: attachment.contentType,
       sizeBytes: attachment.sizeBytes,
+      questionId: attachment.questionId,
       url: await signQuizAttachment(
         attachment.storageBucket,
         attachment.storagePath,
@@ -265,6 +268,7 @@ export async function getQuizWithContent(
       prompt: q.prompt,
       type: q.type,
       position: q.position,
+      parentId: q.parentId,
       options: opts
         .filter((o) => o.questionId === q.id)
         .map((o) => ({ id: o.id, text: o.text, isCorrect: o.isCorrect, position: o.position })),
@@ -292,7 +296,13 @@ export async function listApprovedQuizSummariesForWeeks(
       questionCount: sql<number>`count(${quizQuestions.id})`.mapWith(Number),
     })
     .from(quizzes)
-    .leftJoin(quizQuestions, eq(quizQuestions.quizId, quizzes.id))
+    .leftJoin(
+      quizQuestions,
+      and(
+        eq(quizQuestions.quizId, quizzes.id),
+        sql`${quizQuestions.type} <> 'context'`,
+      ),
+    )
     .where(
       and(
         eq(quizzes.status, "approved"),
@@ -362,6 +372,7 @@ export type StudentQuiz = {
     prompt: string;
     type: string;
     position: number;
+    parentId: string | null;
     options: Array<{ id: string; text: string; position: number }>;
   }>;
   attachments: QuizAttachmentView[];
@@ -403,6 +414,7 @@ export async function getStudentQuiz(
       prompt: quizQuestions.prompt,
       type: quizQuestions.type,
       position: quizQuestions.position,
+      parentId: quizQuestions.parentId,
     })
     .from(quizQuestions)
     .where(eq(quizQuestions.quizId, quizId))
@@ -432,6 +444,7 @@ export async function getStudentQuiz(
       fileName: attachment.fileName,
       contentType: attachment.contentType,
       sizeBytes: attachment.sizeBytes,
+      questionId: attachment.questionId,
       url: await signQuizAttachment(
         attachment.storageBucket,
         attachment.storagePath,
