@@ -13,6 +13,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -826,6 +827,7 @@ export const quizStatusEnum = pgEnum("quiz_status", [
 export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [
   "multiple_choice",
   "true_false",
+  "context",
 ]);
 
 export const quizzes = pgTable(
@@ -866,9 +868,15 @@ export const quizQuestions = pgTable(
     prompt: text("prompt").notNull(),
     type: quizQuestionTypeEnum("type").notNull(),
     position: integer("position").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => quizQuestions.id, {
+      onDelete: "cascade",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("quiz_questions_quiz_idx").on(t.quizId)],
+  (t) => [
+    index("quiz_questions_quiz_idx").on(t.quizId),
+    index("quiz_questions_parent_idx").on(t.parentId),
+  ],
 );
 
 export const quizOptions = pgTable(
@@ -892,6 +900,9 @@ export const quizAttachments = pgTable(
     quizId: uuid("quiz_id")
       .notNull()
       .references(() => quizzes.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id").references(() => quizQuestions.id, {
+      onDelete: "cascade",
+    }),
     uploadedBy: uuid("uploaded_by")
       .notNull()
       .references(() => profiles.id, { onDelete: "restrict" }),
@@ -902,7 +913,10 @@ export const quizAttachments = pgTable(
     sizeBytes: integer("size_bytes").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("quiz_attachments_quiz_idx").on(t.quizId)],
+  (t) => [
+    index("quiz_attachments_quiz_idx").on(t.quizId),
+    index("quiz_attachments_question_idx").on(t.questionId),
+  ],
 );
 
 export type Profile = typeof profiles.$inferSelect;

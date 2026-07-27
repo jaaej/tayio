@@ -117,7 +117,11 @@ async function quizIdForQuestion(questionId: string): Promise<string | null> {
 
 async function quizIdAndTypeForOption(
   optionId: string,
-): Promise<{ quizId: string; questionId: string; type: "multiple_choice" | "true_false" } | null> {
+): Promise<{
+  quizId: string;
+  questionId: string;
+  type: "multiple_choice" | "true_false" | "context";
+} | null> {
   const [row] = await db
     .select({
       quizId: quizQuestions.quizId,
