@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   quizzes,
@@ -20,7 +20,7 @@ import { coarseRole } from "@/lib/roles";
 import {
   gradeQuizAnswers,
   validateQuizForSubmit,
-  type QuizQuestionInput,
+  type QuizItemInput,
 } from "@/lib/quiz-validation";
 import {
   canStudentAccessApprovedQuiz,
@@ -295,31 +295,52 @@ export async function updateQuizTitle(input: {
 
 export async function addQuestion(input: {
   quizId: string;
-  type: "multiple_choice" | "true_false";
+  type: "multiple_choice" | "true_false" | "context";
+  parentId?: string;
 }): Promise<Result> {
   const parsed = z
     .object({
       quizId: z.string().uuid(),
-      type: z.enum(["multiple_choice", "true_false"]),
+      type: z.enum(["multiple_choice", "true_false", "context"]),
+      parentId: z.string().uuid().optional(),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { quizId, type } = parsed.data;
+  const { quizId, type, parentId } = parsed.data;
+
+  if (type === "context" && parentId) {
+    return { ok: false, error: "A context set cannot be nested inside another." };
+  }
 
   const editor = await currentEditor();
   const editable = await loadEditable(quizId, editor.id, editor.role);
   if (!editable.ok) return editable;
 
+  if (parentId) {
+    const [parent] = await db
+      .select({ id: quizQuestions.id, type: quizQuestions.type, quizId: quizQuestions.quizId })
+      .from(quizQuestions)
+      .where(eq(quizQuestions.id, parentId))
+      .limit(1);
+    if (!parent || parent.quizId !== quizId || parent.type !== "context") {
+      return { ok: false, error: "Sub-questions must attach to a context set." };
+    }
+  }
+
+  const positionScope = parentId
+    ? eq(quizQuestions.parentId, parentId)
+    : and(eq(quizQuestions.quizId, quizId), isNull(quizQuestions.parentId));
+
   const [{ nextPosition }] = await db
     .select({
-      nextPosition: sql<number>`coalesce(max(${quizQuestions.position}), 0) + 1`.mapWith(Number),
+      nextPosition: sql<number>`coalesce(max(${quizQuestions.position}), -1) + 1`.mapWith(Number),
     })
     .from(quizQuestions)
-    .where(eq(quizQuestions.quizId, quizId));
+    .where(positionScope);
 
   const [question] = await db
     .insert(quizQuestions)
-    .values({ quizId, prompt: "", type, position: nextPosition })
+    .values({ quizId, prompt: "", type, position: nextPosition, parentId: parentId ?? null })
     .returning({ id: quizQuestions.id });
 
   if (type === "true_false") {
@@ -371,6 +392,55 @@ export async function deleteQuestion(input: { questionId: string }): Promise<Res
   return { ok: true };
 }
 
+export async function reorderQuestions(input: {
+  quizId: string;
+  parentId: string | null;
+  orderedIds: string[];
+}): Promise<Result> {
+  const parsed = z
+    .object({
+      quizId: z.string().uuid(),
+      parentId: z.string().uuid().nullable(),
+      orderedIds: z.array(z.string().uuid()).min(1).max(200),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const { quizId, parentId, orderedIds } = parsed.data;
+
+  const editable = await assertCanEdit(quizId);
+  if (!editable.ok) return editable;
+
+  const scope = parentId
+    ? and(eq(quizQuestions.quizId, quizId), eq(quizQuestions.parentId, parentId))
+    : and(eq(quizQuestions.quizId, quizId), isNull(quizQuestions.parentId));
+  const siblings = await db
+    .select({ id: quizQuestions.id })
+    .from(quizQuestions)
+    .where(scope);
+  const siblingIds = new Set(siblings.map((s) => s.id));
+
+  if (
+    orderedIds.length !== siblingIds.size ||
+    orderedIds.some((id) => !siblingIds.has(id)) ||
+    new Set(orderedIds).size !== orderedIds.length
+  ) {
+    return { ok: false, error: "The reordered list does not match this quiz." };
+  }
+
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await tx
+        .update(quizQuestions)
+        .set({ position: i })
+        .where(eq(quizQuestions.id, orderedIds[i]));
+    }
+  });
+
+  await touchQuiz(quizId);
+  revalidate(quizId);
+  return { ok: true };
+}
+
 export async function addOption(input: { questionId: string }): Promise<Result> {
   const parsed = z.object({ questionId: z.string().uuid() }).safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
@@ -388,6 +458,9 @@ export async function addOption(input: { questionId: string }): Promise<Result> 
     .limit(1);
   if (question?.type === "true_false") {
     return { ok: false, error: "True/false questions can't have extra options." };
+  }
+  if (question?.type === "context") {
+    return { ok: false, error: "Context sets don't have options." };
   }
 
   const [{ nextPosition }] = await db
@@ -481,14 +554,29 @@ export async function setCorrectOption(input: {
 
 export async function uploadQuizAttachments(formData: FormData): Promise<Result> {
   const parsed = z
-    .object({ quizId: z.string().uuid() })
-    .safeParse({ quizId: formData.get("quizId") });
+    .object({
+      quizId: z.string().uuid(),
+      questionId: z.string().uuid().optional(),
+    })
+    .safeParse({
+      quizId: formData.get("quizId"),
+      questionId: formData.get("questionId") ?? undefined,
+    });
   if (!parsed.success) return { ok: false, error: "Invalid quiz." };
-  const { quizId } = parsed.data;
+  const { quizId, questionId } = parsed.data;
 
   const editor = await currentEditor();
   const editable = await loadEditable(quizId, editor.id, editor.role);
   if (!editable.ok) return editable;
+
+  if (questionId) {
+    const [owner] = await db
+      .select({ id: quizQuestions.id })
+      .from(quizQuestions)
+      .where(and(eq(quizQuestions.id, questionId), eq(quizQuestions.quizId, quizId)))
+      .limit(1);
+    if (!owner) return { ok: false, error: "Question not found on this quiz." };
+  }
 
   const files = formData
     .getAll("files")
@@ -542,6 +630,7 @@ export async function uploadQuizAttachments(formData: FormData): Promise<Result>
     await db.insert(quizAttachments).values(
       staged.map((item) => ({
         quizId,
+        questionId: questionId ?? null,
         uploadedBy: editor.id,
         ...item,
       })),
@@ -601,12 +690,26 @@ export async function deleteQuizAttachment(input: {
 
 function toValidationInput(
   content: NonNullable<Awaited<ReturnType<typeof getQuizWithContent>>>,
-): QuizQuestionInput[] {
-  return content.questions.map((q) => ({
-    type: q.type as "multiple_choice" | "true_false",
-    prompt: q.prompt,
-    options: q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect })),
-  }));
+): QuizItemInput[] {
+  const top = content.questions.filter((q) => q.parentId === null);
+  return top.map((q) => {
+    if (q.type === "context") {
+      const children = content.questions
+        .filter((c) => c.parentId === q.id)
+        .sort((a, b) => a.position - b.position)
+        .map((c) => ({
+          type: c.type as "multiple_choice" | "true_false",
+          prompt: c.prompt,
+          options: c.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect })),
+        }));
+      return { type: "context" as const, prompt: q.prompt, children };
+    }
+    return {
+      type: q.type as "multiple_choice" | "true_false",
+      prompt: q.prompt,
+      options: q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect })),
+    };
+  });
 }
 
 export async function submitQuiz(input: { quizId: string }): Promise<Result> {
@@ -763,7 +866,12 @@ export async function gradePracticeQuiz(input: {
   const questions = await db
     .select({ id: quizQuestions.id })
     .from(quizQuestions)
-    .where(eq(quizQuestions.quizId, parsed.data.quizId));
+    .where(
+      and(
+        eq(quizQuestions.quizId, parsed.data.quizId),
+        sql`${quizQuestions.type} <> 'context'`,
+      ),
+    );
   if (questions.length === 0) {
     return { ok: false, error: "This quiz has no questions." };
   }
