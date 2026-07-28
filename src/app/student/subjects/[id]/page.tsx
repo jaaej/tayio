@@ -11,7 +11,7 @@ import {
   getAccentTokens,
 } from "@/lib/subject-colors";
 import { getStudentCurriculum } from "./_queries";
-import { WeekStrip } from "./_components/week-strip";
+import { CurriculumShell } from "./_components/curriculum-shell";
 import { WeekContent } from "./_components/week-content";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
@@ -66,7 +66,7 @@ export default async function StudentSubjectPage({
     data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
     data.weeks[0];
 
-  const weekStripItems = data.weeks.map((w) => ({
+  const railItems = data.weeks.map((w) => ({
     subjectWeekId: w.subjectWeekId,
     weekNumber: w.weekNumber,
     title: w.title,
@@ -85,6 +85,20 @@ export default async function StudentSubjectPage({
 
   const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
   const initial = data.subjectName.charAt(0).toUpperCase();
+
+  // Every week's content is pre-rendered here, server-side, once - not just
+  // the selected week. CurriculumShell (client) only selects which
+  // already-rendered node to show, so week switching is an instant client
+  // swap with no per-week fetch. See curriculum-shell.tsx for why this can't
+  // instead be "pass raw week data, let the client component render
+  // <WeekContent/>" - WeekContent is an async Server Component that calls a
+  // server-only Supabase client, which a Client Component cannot import.
+  const weekContents = data.weeks.map((w) => ({
+    subjectWeekId: w.subjectWeekId,
+    content: (
+      <WeekContent key={w.subjectWeekId} week={w} subjectName={data.subjectName} />
+    ),
+  }));
 
   // Bleed the entire page past the global shell's px-5/lg:px-7 padding and
   // re-add a smaller inner padding so the subject view takes the whole main
@@ -118,22 +132,16 @@ export default async function StudentSubjectPage({
         </div>
       </div>
 
-      {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
-      <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
-        <WeekStrip
-          subjectId={subjectId}
-          currentTermId={data.currentTerm.id}
-          termsAvailable={data.termsAvailable}
-          weeks={weekStripItems}
-          selectedWeekId={data.selectedWeekId}
-          currentWeekIdHint={currentWeekHint}
-          accent={tokens}
-        />
-        <WeekContent
-          week={selectedWeek}
-          subjectName={data.subjectName}
-        />
-      </div>
+      <CurriculumShell
+        subjectId={subjectId}
+        currentTermId={data.currentTerm.id}
+        termsAvailable={data.termsAvailable}
+        railItems={railItems}
+        weekContents={weekContents}
+        initialWeekId={selectedWeek.subjectWeekId}
+        currentWeekIdHint={currentWeekHint}
+        accent={tokens}
+      />
     </div>
   );
 }
