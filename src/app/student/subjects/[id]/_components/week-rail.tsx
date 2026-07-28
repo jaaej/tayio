@@ -89,14 +89,23 @@ export function WeekRail({
   const asideRef = useRef<HTMLElement>(null);
   const weekRefs = useRef(new Map<string, HTMLButtonElement>());
   const [focusedWeekId, setFocusedWeekId] = useState<string | null>(null);
-  const [contentEntering, setContentEntering] = useState(false);
+  // Starts entered/visible so the initial week list shows immediately on
+  // first paint (SSR, slow hydration, or JS disabled) - the fade-out/in only
+  // applies to subsequent collapsed<->expanded swaps, guarded by mountedRef.
+  const [contentEntering, setContentEntering] = useState(true);
+  const mountedRef = useRef(false);
 
   // Cross-fade the swapped list content (collapsed <-> expanded) on every
   // toggle instead of letting it pop in with the width/box-shadow change.
   // useLayoutEffect (not useEffect) so the opacity-0 reset happens before the
   // browser paints - otherwise the new list flashes at opacity-100 first,
-  // then snaps to 0, then fades back in.
+  // then snaps to 0, then fades back in. Skip the very first run (initial
+  // mount) - the initial list is already shown at full opacity above.
   useLayoutEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
     setContentEntering(false);
     const raf = requestAnimationFrame(() => setContentEntering(true));
     return () => cancelAnimationFrame(raf);
@@ -138,10 +147,9 @@ export function WeekRail({
         "flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border transition-colors motion-reduce:transition-none",
         FOCUS_RING,
         pinned
-          ? "border-transparent"
+          ? "border-transparent bg-brand-50 text-brand-700"
           : "border-line bg-surface text-muted hover:bg-surface-2 hover:text-ink",
       )}
-      style={pinned ? { background: accent.pillBg, color: accent.pillText } : undefined}
     >
       {pinned ? (
         <PinOff className="h-4 w-4" aria-hidden />
