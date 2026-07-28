@@ -198,6 +198,78 @@ These are operational admin gaps where the admin still relies on the spreadsheet
 
 ---
 
+## Backlog - 2026-07-28 owner braindump
+
+Captured from the owner so nothing is lost.
+All items are ⬜ not built unless a real partial already exists.
+Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a scheduling/automation mechanism the app lacks today (Next.js has no cron - time-based jobs need Supabase scheduled functions or an external scheduler); [PII] introduces sensitive fields that need an access decision.
+
+### Reports (refines the Admin "Reporting" row)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| Operational report - on-page, term-searchable | 🔶 | 🔶 | Already built at `/admin/reports` (attendance %, class average, homework completion %, class fill). Owner confirms it stays an on-page report you can search across terms, NOT a download. Verify the term switch/search UX matches this intent. |
+| Financial report - PDF download | ⬜ | ⬜ | Revenue/overdue as a downloadable PDF (not CSV). Must sit behind the `/admin/revenue` PIN gate. |
+| Student report - PDF + notification | ⬜ | ⬜ | Automated per-student term report (e.g. "Term 4 report") delivered as a PDF with an in-app notification. [DECISION] letter-grade scheme is undefined ("B+ means ..."). [DECISION] the AI helper that drafts the report notes from the tutor's rough notes needs its input source, model, and guardrails defined. |
+| Student report visibility gate | ⬜ | ⬜ | `student_restricted` cannot view student reports; only `student_unrestricted` (and parents) can. |
+| Download format decision | - | - | PDF for financial + student reports; operational stays on-page. Supersedes the earlier CSV-export direction for these two. |
+
+### Assessments (refines the quiz/exam direction)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| Weekly quiz | 🔶 | ✅ | Built as unranked practice. |
+| End-of-term term test + separate leaderboard | ⬜ | ⬜ | A ranked term test whose leaderboard is SEPARATE from the weekly quizzes. |
+| Half-term major-topic exam (sat outside portal) | ⬜ | ⬜ | Big mid-semester-style exam sat outside the portal; no leaderboard; portal may only record the result. |
+
+### Payments (Admin + Parent)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| In-portal payment linked to admin | ⬜ | ⬜ | [DECISION] processor: owner asked "use third party?" - Stripe vs manual-only needs deciding; this gates the whole cluster. |
+| Per-term / per-month payment model | ⬜ | ⬜ | Support both billing cadences. |
+| Cash option + admin-editable status | ⬜ | 🔶 | Parent contacts admin to pay cash; admin edits the payment status. Manual mark-as-paid already exists at `/admin/payments`; still needs the cash/contact flow + per-term/month structure. |
+
+### Enrolment, trials, and class visibility (Admin + Tutor + Parent)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| No cancel-with-refund after term starts | ⬜ | ⬜ | Once a term begins, a class cannot be quit for a refund. Enforced in the cancel/refund flow, which itself is not built. |
+| Hide other-term classes from enrolled parents | ⬜ | ⬜ | Parents only see the current term's classes; previous/next term classes are hidden while enrolled. |
+| Free-trial tracking | ⬜ | ⬜ | Record a trial start + end date. Tutor can see if a student is on a free trial. [INFRA] automated notification if a free-trial student misses a class. When a trial ends, a notification prompts the admin to manually send the follow-up (the message itself is not automated). |
+| Discontinued-students tab (admin users) | ⬜ | 🔶 | A separate tab on the admin users view for discontinued students. `/admin/leaving` already lists leaving students; this may be a tab/filter on `/admin/users`. |
+
+### Reschedule and class credits (Parent + Admin)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| Cancellation -> class credit | ⬜ | ⬜ | Cancelling a class grants a class credit. |
+| Reschedule -> class credit when no slot | ⬜ | ⬜ | If there is no class to reschedule into, grant a class credit instead. |
+| Reschedule/cancellation limits | ⬜ | ⬜ | Cancellation: 24h prior, max 3 per term. Reschedule: 1 week prior, max 3 per term (counted separately from cancellations). Group classes: reschedule 7 days prior. Makeup/reschedule only within a 7-day window. [DECISION] confirm exact window interpretation at planning time. |
+| "Contact admin" routes to messages -> admin | ⬜ | 🔶 | When no reschedule slot works in the parent's favour, a "contact admin" option ALWAYS routes to the messages page addressed to admin, never a separate contact page. Reschedule flow + messaging both exist; this is the routing rule. |
+
+### Notifications (cross-cutting)
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| Unread red badge + count | ⬜ | 🔶 | Red badge next to the notifications icon showing the number of new/unread items. Notifications backend exists; needs an unread-count query + badge UI. |
+| Term-end automated message | ⬜ | ⬜ | [INFRA] ~2 weeks before a term ends, automatically notify parents + `student_unrestricted`. Needs a scheduled job. |
+
+### Admin - tutor management
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| All-tutors admin tab | ⬜ | ⬜ | A dedicated admin tab listing every tutor with BSB/account number, account details, subjects they can tutor, and class schedule. [PII] tutor bank details need a schema + access decision (likely `admin_unrestricted` only). Overlaps the existing "view others' availability" gap. |
+
+### Cross-cutting UI
+
+| Item | FE | BE | Notes |
+|---|---|---|---|
+| Login page wave effect | ⬜ | - | Animated wave visual on the login page. [DECISION] style reference (SVG wave, gradient, motion) to match the portal. |
+| Light / dark mode | ⬜ | - | Full light/dark theming across all four portals. Large cross-cutting effort. The codebase already uses CSS vars + `theme-*` scopes, so this is a semantic-token audit + a toggle, not per-component hardcoding. |
+
+---
+
 ## Role Tiering (student & admin)
 
 Drafted 2026-05-27. **Implementation status (updated 2026-07-22):** the `userRoleEnum` now carries all six tiered values (migrations 0017/0018) alongside the legacy coarse values. **Student tiers are fully built** per the matrix below (Spec 1 — payments / reschedule / DM gated to `student_unrestricted`). **Admin tiers are only partially built:** the enum values exist but there is *no* per-feature permission gating — financial exposure was descoped to a single PIN wall on `/admin/revenue` (migrations 0020/0021). The **admin** matrix below therefore remains a *target spec*, not current behaviour. Tutor and parent are unchanged.
