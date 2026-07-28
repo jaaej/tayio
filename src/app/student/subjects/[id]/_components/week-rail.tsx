@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FocusEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent } from "react";
 import { Check, ChevronDown, Pin, PinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAccentTokens } from "@/lib/subject-colors";
@@ -55,7 +55,7 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 /**
- * WeekRail — the slim collapsible week rail for the student curriculum page.
+ * WeekRail - the slim collapsible week rail for the student curriculum page.
  *
  * Collapsed (default, not pinned): a ~56px strip of 44px week-number buttons,
  * a pin button, and a compact term selector. Hovering/focusing expands it to
@@ -63,7 +63,7 @@ const FOCUS_RING =
  * content without reflowing it. Pinning locks the expanded layout in normal
  * flow (the parent shell gives it a real 248px grid column).
  *
- * Presentation + callbacks only — no data fetching, no URL/window logic
+ * Presentation + callbacks only - no data fetching, no URL/window logic
  * beyond the term-selector's server navigation, no localStorage. The parent
  * shell owns active-week state, pin persistence, and layout.
  */
@@ -86,10 +86,43 @@ export function WeekRail({
   const showTopicHeadings = groups.length > 1;
   const base = `/student/subjects/${subjectId}`;
 
+  const asideRef = useRef<HTMLElement>(null);
+  const weekRefs = useRef(new Map<string, HTMLButtonElement>());
+  const [focusedWeekId, setFocusedWeekId] = useState<string | null>(null);
+  const [contentEntering, setContentEntering] = useState(false);
+
+  // Cross-fade the swapped list content (collapsed <-> expanded) on every
+  // toggle instead of letting it pop in with the width/box-shadow change.
+  useEffect(() => {
+    setContentEntering(false);
+    const raf = requestAnimationFrame(() => setContentEntering(true));
+    return () => cancelAnimationFrame(raf);
+  }, [expanded]);
+
+  // Collapsed and expanded weeks are separate DOM subtrees (different button
+  // markup), so swapping between them unmounts whichever one currently has
+  // focus. Track which week last held focus and, once the swap commits,
+  // refocus the same week's button in the freshly-mounted list so keyboard
+  // focus never drops to <body>.
+  useLayoutEffect(() => {
+    if (!focusedWeekId) return;
+    const el = weekRefs.current.get(focusedWeekId);
+    if (el && document.activeElement !== el) {
+      el.focus();
+    }
+  }, [expanded, focusedWeekId]);
+
   const collapseOnBlur = (e: FocusEvent<HTMLElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
       setHoverExpanded(false);
     }
+  };
+
+  const handleMouseLeave = () => {
+    // Don't collapse while focus is still inside the rail - e.g. a keyboard
+    // user tabbing through week rows while the mouse happens to leave.
+    if (asideRef.current?.contains(document.activeElement)) return;
+    setHoverExpanded(false);
   };
 
   const pinButton = (
@@ -151,8 +184,16 @@ export function WeekRail({
     return (
       <button
         key={w.subjectWeekId}
+        ref={(el) => {
+          if (el) weekRefs.current.set(w.subjectWeekId, el);
+          else weekRefs.current.delete(w.subjectWeekId);
+        }}
         type="button"
         onClick={() => onSelectWeek(w.subjectWeekId)}
+        onFocus={() => setFocusedWeekId(w.subjectWeekId)}
+        onBlur={() =>
+          setFocusedWeekId((cur) => (cur === w.subjectWeekId ? null : cur))
+        }
         aria-current={isActive ? "true" : undefined}
         aria-label={`Week ${w.weekNumber}${complete ? ", completed" : ""}`}
         className={cn(
@@ -163,6 +204,9 @@ export function WeekRail({
         style={isActive ? { background: accent.arrow } : undefined}
       >
         {w.weekNumber}
+        {/* A completed AND active week shows no check here - the accent fill
+            already marks it; adding a check would be redundant on the active
+            state, so this is intentionally collapsed && !isActive only. */}
         {complete && !isActive && (
           <Check
             aria-hidden
@@ -181,8 +225,16 @@ export function WeekRail({
     return (
       <button
         key={w.subjectWeekId}
+        ref={(el) => {
+          if (el) weekRefs.current.set(w.subjectWeekId, el);
+          else weekRefs.current.delete(w.subjectWeekId);
+        }}
         type="button"
         onClick={() => onSelectWeek(w.subjectWeekId)}
+        onFocus={() => setFocusedWeekId(w.subjectWeekId)}
+        onBlur={() =>
+          setFocusedWeekId((cur) => (cur === w.subjectWeekId ? null : cur))
+        }
         aria-current={isActive ? "true" : undefined}
         className={cn(
           "block w-full rounded-[14px] border px-3 py-2.5 text-left transition-colors motion-reduce:transition-none",
@@ -205,18 +257,23 @@ export function WeekRail({
           <span className="flex items-center gap-1">
             {isCurrent && !isActive && (
               <span
-                className="rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.1em] text-white"
-                style={{ background: accent.arrow }}
+                className={cn(
+                  "rounded-full border px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.1em]",
+                  "border-line-strong text-muted",
+                )}
               >
                 Now
               </span>
             )}
             {complete && (
-              <Check
-                aria-hidden
-                strokeWidth={3}
-                className={cn("h-3.5 w-3.5", isActive ? "text-white" : "text-good")}
-              />
+              <>
+                <Check
+                  aria-hidden
+                  strokeWidth={3}
+                  className={cn("h-3.5 w-3.5", isActive ? "text-white" : "text-good")}
+                />
+                <span className="sr-only">Completed</span>
+              </>
             )}
           </span>
         </div>
@@ -269,9 +326,10 @@ export function WeekRail({
   return (
     <div className="relative h-full">
       <aside
+        ref={asideRef}
         aria-label="Week navigation"
         onMouseEnter={!pinned ? () => setHoverExpanded(true) : undefined}
-        onMouseLeave={!pinned ? () => setHoverExpanded(false) : undefined}
+        onMouseLeave={!pinned ? handleMouseLeave : undefined}
         onFocus={!pinned ? () => setHoverExpanded(true) : undefined}
         onBlur={!pinned ? collapseOnBlur : undefined}
         className={cn(
@@ -291,7 +349,14 @@ export function WeekRail({
           {pinButton}
           {termSelect(!expanded)}
         </div>
-        {expanded ? expandedList : collapsedList}
+        <div
+          className={cn(
+            "min-h-0 flex-1 transition-opacity duration-200 ease-out motion-reduce:transition-none",
+            contentEntering ? "opacity-100" : "opacity-0",
+          )}
+        >
+          {expanded ? expandedList : collapsedList}
+        </div>
       </aside>
     </div>
   );
