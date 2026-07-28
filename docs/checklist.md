@@ -234,6 +234,7 @@ Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a
 
 | Item | FE | BE | Notes |
 |---|---|---|---|
+| Signups stay manual (admin step) | ✅ | ✅ | Owner confirmed: no automated/self-serve signup. Admin creates accounts at `/admin/users` (already built - see the "Create accounts" row). Recorded so self-signup is not built later. |
 | No cancel-with-refund after term starts | ⬜ | ⬜ | Once a term begins, a class cannot be quit for a refund. Enforced in the cancel/refund flow, which itself is not built. |
 | Hide other-term classes from enrolled parents | ⬜ | ⬜ | Parents only see the current term's classes; previous/next term classes are hidden while enrolled. |
 | Free-trial tracking | ⬜ | ⬜ | Record a trial start + end date. Tutor can see if a student is on a free trial. [INFRA] automated notification if a free-trial student misses a class. When a trial ends, a notification prompts the admin to manually send the follow-up (the message itself is not automated). |
