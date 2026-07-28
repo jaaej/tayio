@@ -1,7 +1,7 @@
 # Student Curriculum Restyle - Design Spec
 
 Date: 2026-07-28
-Status: Approved (owner approved the design direction; proceeding to plan + build)
+Status: Implementation complete (all four tasks built, typecheck + build green); owner browser verification pending as of 2026-07-28
 Target branch: `feat/curriculum-restyle` (off main)
 Scope: student `/student/subjects/[id]` only. Translate to tutor + parent after owner browser approval.
 
