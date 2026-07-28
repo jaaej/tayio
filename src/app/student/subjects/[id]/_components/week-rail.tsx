@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FocusEvent } from "react";
 import { Check, ChevronDown, Pin, PinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAccentTokens } from "@/lib/subject-colors";
@@ -93,7 +93,10 @@ export function WeekRail({
 
   // Cross-fade the swapped list content (collapsed <-> expanded) on every
   // toggle instead of letting it pop in with the width/box-shadow change.
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the opacity-0 reset happens before the
+  // browser paints - otherwise the new list flashes at opacity-100 first,
+  // then snaps to 0, then fades back in.
+  useLayoutEffect(() => {
     setContentEntering(false);
     const raf = requestAnimationFrame(() => setContentEntering(true));
     return () => cancelAnimationFrame(raf);
