@@ -221,22 +221,36 @@ export function WeekRail({
     );
   };
 
-  const expandedWeekRow = (w: WeekRailItem) => {
+  // `trackFocus` registers the button into `weekRefs`/`focusedWeekId` so the
+  // collapse<->expand swap (Task 1's hover-overlay) can restore keyboard
+  // focus across the DOM-subtree swap. The mobile rail below `lg` renders
+  // the same row markup but is always mounted (never swapped away), so it
+  // passes `trackFocus: false` to avoid two simultaneously-mounted buttons
+  // (mobile + the lg+ aside, e.g. when `pinned` was persisted from a wider
+  // viewport) fighting over the same `subjectWeekId` key in that shared map.
+  const expandedWeekRow = (w: WeekRailItem, trackFocus = true) => {
     const isActive = w.subjectWeekId === active;
     const isCurrent = w.subjectWeekId === currentWeekIdHint;
     const complete = isWeekComplete(w);
     return (
       <button
         key={w.subjectWeekId}
-        ref={(el) => {
-          if (el) weekRefs.current.set(w.subjectWeekId, el);
-          else weekRefs.current.delete(w.subjectWeekId);
-        }}
+        ref={
+          trackFocus
+            ? (el) => {
+                if (el) weekRefs.current.set(w.subjectWeekId, el);
+                else weekRefs.current.delete(w.subjectWeekId);
+              }
+            : undefined
+        }
         type="button"
         onClick={() => onSelectWeek(w.subjectWeekId)}
-        onFocus={() => setFocusedWeekId(w.subjectWeekId)}
-        onBlur={() =>
-          setFocusedWeekId((cur) => (cur === w.subjectWeekId ? null : cur))
+        onFocus={trackFocus ? () => setFocusedWeekId(w.subjectWeekId) : undefined}
+        onBlur={
+          trackFocus
+            ? () =>
+                setFocusedWeekId((cur) => (cur === w.subjectWeekId ? null : cur))
+            : undefined
         }
         aria-current={isActive ? "true" : undefined}
         className={cn(
@@ -326,41 +340,77 @@ export function WeekRail({
     </div>
   );
 
-  return (
-    <div className="relative h-full">
-      <aside
-        ref={asideRef}
-        aria-label="Week navigation"
-        onMouseEnter={!pinned ? () => setHoverExpanded(true) : undefined}
-        onMouseLeave={!pinned ? handleMouseLeave : undefined}
-        onFocus={!pinned ? () => setHoverExpanded(true) : undefined}
-        onBlur={!pinned ? collapseOnBlur : undefined}
-        className={cn(
-          "flex h-full flex-col gap-2 rounded-[18px] border border-line bg-surface p-2",
-          "transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none",
-          pinned
-            ? "static w-full"
-            : cn(
-                "absolute inset-y-0 left-0 z-20 overflow-hidden",
-                expanded
-                  ? "w-[248px] shadow-[0_12px_28px_-14px_rgba(15,17,30,0.3)]"
-                  : "w-14 shadow-none",
-              ),
-        )}
-      >
-        <div className={cn("flex items-center gap-1.5", expanded ? "px-0.5" : "flex-col")}>
-          {pinButton}
-          {termSelect(!expanded)}
+  // Mobile (< lg) rail content: same row markup, `trackFocus: false` (see
+  // `expandedWeekRow` above) since this list is always mounted alongside the
+  // lg+ aside, not swapped in/out of the DOM the way the hover-overlay is.
+  const mobileWeekList = (
+    <div className="flex flex-col gap-2 px-1 py-1">
+      {groups.map((g) => (
+        <div key={g.items[0]?.topicId ?? g.label}>
+          {showTopicHeadings && (
+            <div className="px-1 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              {g.label}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {g.items.map((w) => expandedWeekRow(w, false))}
+          </div>
         </div>
-        <div
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="lg:h-full">
+      {/* Mobile (< lg): the rail is a simple, always-visible, in-flow
+          control - full-width term selector + full week list, stacked
+          above the content by the shell's grid. There is no hover-overlay
+          and no pin here: those exist only so the lg+ rail can collapse to
+          a slim strip without reflowing the content beside it; below lg
+          the rail is already always in flow and full width, so there is
+          nothing to pin or hover-expand. */}
+      <div className="rounded-[18px] border border-line bg-surface p-2 lg:hidden">
+        <div className="px-0.5">{termSelect(false)}</div>
+        <div className="mt-2">{mobileWeekList}</div>
+      </div>
+
+      {/* Desktop (lg+): the collapsible / hover-expand / pinnable overlay
+          rail - unchanged behaviour. */}
+      <div className="relative hidden lg:block lg:h-full">
+        <aside
+          ref={asideRef}
+          aria-label="Week navigation"
+          onMouseEnter={!pinned ? () => setHoverExpanded(true) : undefined}
+          onMouseLeave={!pinned ? handleMouseLeave : undefined}
+          onFocus={!pinned ? () => setHoverExpanded(true) : undefined}
+          onBlur={!pinned ? collapseOnBlur : undefined}
           className={cn(
-            "min-h-0 flex-1 transition-opacity duration-200 ease-out motion-reduce:transition-none",
-            contentEntering ? "opacity-100" : "opacity-0",
+            "flex h-full flex-col gap-2 rounded-[18px] border border-line bg-surface p-2",
+            "transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none",
+            pinned
+              ? "static w-full"
+              : cn(
+                  "absolute inset-y-0 left-0 z-20 overflow-hidden",
+                  expanded
+                    ? "w-[248px] shadow-[0_12px_28px_-14px_rgba(15,17,30,0.3)]"
+                    : "w-14 shadow-none",
+                ),
           )}
         >
-          {expanded ? expandedList : collapsedList}
-        </div>
-      </aside>
+          <div className={cn("flex items-center gap-1.5", expanded ? "px-0.5" : "flex-col")}>
+            {pinButton}
+            {termSelect(!expanded)}
+          </div>
+          <div
+            className={cn(
+              "min-h-0 flex-1 transition-opacity duration-200 ease-out motion-reduce:transition-none",
+              contentEntering ? "opacity-100" : "opacity-0",
+            )}
+          >
+            {expanded ? expandedList : collapsedList}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

@@ -105,7 +105,7 @@ export default async function StudentSubjectPage({
   // area (next to the nav sidebar) instead of being inset like other pages.
   return (
     <div className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col">
-      {/* Header bar — neutral chrome. Subject identity carried by the
+      {/* Header bar - neutral chrome. Subject identity carried by the
           tinted initial tile + h1, not by tinting the whole bar
           (avoids breaking visual hierarchy with the rail + hero). */}
       <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line bg-background">

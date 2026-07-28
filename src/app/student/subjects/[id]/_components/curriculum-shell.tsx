@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 import { getAccentTokens } from "@/lib/subject-colors";
 import { WeekRail, type WeekRailProps } from "./week-rail";
@@ -55,7 +61,11 @@ export function CurriculumShell({
 }: CurriculumShellProps) {
   const [activeWeekId, setActiveWeekId] = useState(initialWeekId);
   const [pinned, setPinned] = useState(false);
-  const [entered, setEntered] = useState(false);
+  // Starts entered/visible so the initial content shows immediately on first
+  // paint (SSR, slow hydration, or JS disabled) - the fade-out/in only
+  // applies to subsequent client-side week switches, guarded by mountedRef.
+  const [entered, setEntered] = useState(true);
+  const mountedRef = useRef(false);
 
   // Pin preference is a browser affordance only - read after mount so SSR
   // output always matches the unpinned default (avoids a hydration mismatch).
@@ -66,7 +76,13 @@ export function CurriculumShell({
 
   // Cross-fade the content swap. Reset opacity before paint (useLayoutEffect,
   // not useEffect) so the incoming week never flashes at full opacity first.
+  // Skip the very first run (initial mount) - the initial week is already
+  // shown at full opacity, nothing to fade in.
   useLayoutEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
     setEntered(false);
     const raf = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(raf);
