@@ -5,6 +5,11 @@ import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { coarseRole } from "@/lib/roles";
 import {
+  getDiscontinuedStudents,
+  type DiscontinuedStudent,
+} from "@/app/admin/_lib/queries";
+import { formatDateLong } from "@/lib/format";
+import {
   Card,
   CardHead,
   CardBody,
@@ -35,18 +40,13 @@ const STAT_META = {
   admin: { tone: "coral", icon: <UserCog className="h-5 w-5" /> },
 } as const satisfies Record<string, { tone: StatTone; icon: React.ReactNode }>;
 
-export default async function UsersPage() {
-  const rows = await db
-    .select()
-    .from(profiles)
-    .orderBy(desc(profiles.createdAt));
-
-  const grouped = {
-    student: rows.filter((r) => coarseRole(r.role) === "student").length,
-    parent: rows.filter((r) => coarseRole(r.role) === "parent").length,
-    tutor: rows.filter((r) => coarseRole(r.role) === "tutor").length,
-    admin: rows.filter((r) => coarseRole(r.role) === "admin").length,
-  };
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab: tabParam } = await searchParams;
+  const tab = tabParam === "discontinued" ? "discontinued" : "all";
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -64,6 +64,63 @@ export default async function UsersPage() {
         }
       />
 
+      <div className="flex items-center gap-1 border-b border-line rise" role="tablist">
+        <TabLink href="/admin/users" label="All accounts" active={tab === "all"} />
+        <TabLink
+          href="/admin/users?tab=discontinued"
+          label="Discontinued"
+          active={tab === "discontinued"}
+        />
+      </div>
+
+      {tab === "discontinued" ? (
+        <DiscontinuedTab students={await getDiscontinuedStudents()} />
+      ) : (
+        <AllAccountsTab />
+      )}
+    </div>
+  );
+}
+
+function TabLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`inline-flex items-center min-h-11 px-4 -mb-px text-[13px] font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded-t-[4px] ${
+        active
+          ? "border-brand-500 text-ink"
+          : "border-transparent text-muted hover:text-ink"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+async function AllAccountsTab() {
+  const rows = await db
+    .select()
+    .from(profiles)
+    .orderBy(desc(profiles.createdAt));
+
+  const grouped = {
+    student: rows.filter((r) => coarseRole(r.role) === "student").length,
+    parent: rows.filter((r) => coarseRole(r.role) === "parent").length,
+    tutor: rows.filter((r) => coarseRole(r.role) === "tutor").length,
+    admin: rows.filter((r) => coarseRole(r.role) === "admin").length,
+  };
+
+  return (
+    <>
       <section
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
         style={{ animationDelay: "40ms" }}
@@ -153,7 +210,66 @@ export default async function UsersPage() {
           )}
         </Card>
       </section>
-    </div>
+    </>
+  );
+}
+
+function DiscontinuedTab({ students }: { students: DiscontinuedStudent[] }) {
+  return (
+    <section className="rise" style={{ animationDelay: "40ms" }}>
+      <Card>
+        <CardHead
+          title="Discontinued students"
+          action={
+            <Pill tone="default">
+              {students.length} student{students.length === 1 ? "" : "s"}
+            </Pill>
+          }
+        />
+        {students.length === 0 ? (
+          <Empty>No withdrawn enrolments on record.</Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {students.map((s) => (
+              <li key={s.studentId} className="px-5 py-4 hover:bg-surface-2 transition-colors">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/admin/users/${s.studentId}`}
+                      className="text-[14px] font-bold text-ink hover:text-brand-700 truncate"
+                    >
+                      {s.firstName} {s.lastName}
+                    </Link>
+                    <div className="text-[12px] text-muted truncate">{s.email}</div>
+                  </div>
+                  <div className="text-[12px] text-ink-soft tabular-nums shrink-0">
+                    Last withdrew {formatDateLong(s.mostRecentWithdraw)}
+                  </div>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {s.classes.map((c) => (
+                    <li
+                      key={c.classId}
+                      className="flex items-center justify-between gap-3 text-[13px] text-ink-soft"
+                    >
+                      <Link
+                        href={`/admin/classes/${c.classId}`}
+                        className="hover:text-brand-700 truncate"
+                      >
+                        {c.subjectName} · {c.className}
+                      </Link>
+                      <span className="text-[12px] text-muted tabular-nums shrink-0">
+                        {formatDateLong(c.withdrawnAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </section>
   );
 }
 

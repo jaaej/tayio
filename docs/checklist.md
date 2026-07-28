@@ -237,7 +237,7 @@ Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a
 | No cancel-with-refund after term starts | ⬜ | ⬜ | Once a term begins, a class cannot be quit for a refund. Enforced in the cancel/refund flow, which itself is not built. |
 | Hide other-term classes from enrolled parents | ⬜ | ⬜ | Parents only see the current term's classes; previous/next term classes are hidden while enrolled. |
 | Free-trial tracking | ⬜ | ⬜ | Record a trial start + end date. Tutor can see if a student is on a free trial. [INFRA] automated notification if a free-trial student misses a class. When a trial ends, a notification prompts the admin to manually send the follow-up (the message itself is not automated). |
-| Discontinued-students tab (admin users) | ⬜ | 🔶 | A separate tab on the admin users view for discontinued students. `/admin/leaving` already lists leaving students; this may be a tab/filter on `/admin/users`. |
+| Discontinued-students tab (admin users) | 🔶 | ✅ | `/admin/users` now has an "All accounts" / "Discontinued" tab bar (`?tab=discontinued`). Query extracted to `getDiscontinuedStudents()` in `src/app/admin/_lib/queries.ts` (grouped by student, mirrors `admin/leaving/page.tsx`); rendered in `src/app/admin/users/page.tsx`. typecheck + build pass (2026-07-28); browser verification owner-pending. |
 
 ### Reschedule and class credits (Parent + Admin)
 

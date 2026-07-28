@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { STUDENT_TIERS } from "@/lib/roles";
@@ -603,4 +603,83 @@ export async function getLessonContextForStudent(
     )
     .limit(1);
   return rows[0] ?? null;
+}
+
+export type DiscontinuedClass = {
+  classId: string;
+  className: string;
+  subjectName: string;
+  withdrawnAt: Date;
+};
+
+export type DiscontinuedStudent = {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  mostRecentWithdraw: Date;
+  classes: DiscontinuedClass[];
+};
+
+/**
+ * Students with at least one withdrawn enrolment, grouped so a student
+ * withdrawn from N classes appears once with all N classes listed. Mirrors
+ * the query in `src/app/admin/leaving/page.tsx` - used by the "Discontinued"
+ * tab on `/admin/users`.
+ */
+export async function getDiscontinuedStudents(
+  limit = 200,
+): Promise<DiscontinuedStudent[]> {
+  const rows = await db
+    .select({
+      studentId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      email: profiles.email,
+      phone: profiles.phone,
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+      withdrawnAt: enrollments.withdrawnAt,
+    })
+    .from(enrollments)
+    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(isNotNull(enrollments.withdrawnAt))
+    .orderBy(desc(enrollments.withdrawnAt))
+    .limit(limit);
+
+  const byStudent = new Map<string, DiscontinuedStudent>();
+  for (const r of rows) {
+    if (!r.withdrawnAt) continue;
+    const classRecord: DiscontinuedClass = {
+      classId: r.classId,
+      className: r.className,
+      subjectName: r.subjectName,
+      withdrawnAt: r.withdrawnAt,
+    };
+    const existing = byStudent.get(r.studentId);
+    if (existing) {
+      existing.classes.push(classRecord);
+      if (r.withdrawnAt > existing.mostRecentWithdraw) {
+        existing.mostRecentWithdraw = r.withdrawnAt;
+      }
+    } else {
+      byStudent.set(r.studentId, {
+        studentId: r.studentId,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        email: r.email,
+        phone: r.phone,
+        mostRecentWithdraw: r.withdrawnAt,
+        classes: [classRecord],
+      });
+    }
+  }
+
+  return Array.from(byStudent.values()).sort(
+    (a, b) => b.mostRecentWithdraw.getTime() - a.mostRecentWithdraw.getTime(),
+  );
 }
