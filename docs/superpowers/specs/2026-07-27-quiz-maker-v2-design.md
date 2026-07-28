@@ -1,7 +1,8 @@
 # Quiz Maker v2 - Design Spec
 
 Date: 2026-07-27
-Status: Approved (owner approved the design; proceeding to plan + build)
+Status: Implementation complete. Code, migration, automated tests, production build, and RLS audit pass.
+Manual browser verification remains pending because the in-app browser runtime was unavailable in this session.
 Branch: `feat/quiz-maker`
 Builds on: `2026-07-26-quiz-maker-design.md` and its 2026-07-27 delivery addendum.
 
