@@ -1,11 +1,33 @@
-import { Card, PageHeader, Empty } from "@/components/parent/ui";
+import { PageHeader } from "@/components/parent/ui";
+import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
 import { requireRole } from "@/lib/auth";
 import { listMyThreads } from "@/lib/dm-queries";
-import { ThreadRow } from "@/components/dm/thread-row";
+import { getParentDmContacts } from "../_data";
 
 export default async function ParentMessagesPage() {
   const user = await requireRole("parent");
-  const threads = await listMyThreads(user.id);
+  const [threads, contacts] = await Promise.all([
+    listMyThreads(user.id),
+    getParentDmContacts(user.id),
+  ]);
+
+  const groups: DmGroup[] = [];
+  if (contacts.tutors.length > 0) {
+    groups.push({ label: "Tutors", contacts: contacts.tutors });
+  }
+  if (contacts.admin) {
+    groups.push({
+      label: "Admin office",
+      contacts: [
+        {
+          id: contacts.admin.id,
+          name: contacts.admin.name,
+          meta: "Billing, enrolment & general questions",
+          office: true,
+        },
+      ],
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -13,21 +35,11 @@ export default async function ParentMessagesPage() {
         title="Messages"
         sub="Conversations with your child's tutors and the admin office."
       />
-      {threads.length === 0 ? (
-        <Card>
-          <Empty>No conversations yet. Start one from a contact card.</Empty>
-        </Card>
-      ) : (
-        <Card>
-          <ul className="divide-y divide-line/70">
-            {threads.map((t) => (
-              <li key={t.threadId}>
-                <ThreadRow thread={t} hrefPrefix="/parent/messages" />
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      <InboxCompose
+        threads={threads}
+        hrefPrefix="/parent/messages"
+        groups={groups}
+      />
     </div>
   );
 }

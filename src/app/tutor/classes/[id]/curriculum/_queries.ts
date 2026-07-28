@@ -6,6 +6,7 @@ import {
   tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
+import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
 
 export type TutorSectionAttachment = {
   id: string;
@@ -29,6 +30,11 @@ export type TutorCurriculumWeek = {
   attachments: TutorSectionAttachment[];
   hasSection: boolean;               // note or ≥1 attachment
   homework: Array<{ id: string; title: string; dueDate: Date }>;
+  quiz: {
+    id: string;
+    title: string;
+    questionCount: number;
+  } | null;
 };
 
 export type TutorCurriculumData = {
@@ -87,6 +93,10 @@ export async function getTutorCurriculum(
     )
     .orderBy(asc(subjectWeeks.weekNumber));
   const weekIds = templates.map((t) => t.id);
+  const quizRows = await listApprovedQuizSummariesForWeeks(weekIds);
+  const quizByWeek = new Map(
+    quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
+  );
 
   const topicRows = await db
     .select({ id: subjectTopics.id, name: subjectTopics.name })
@@ -182,6 +192,7 @@ export async function getTutorCurriculum(
       attachments,
       hasSection: Boolean(s?.note) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
+      quiz: quizByWeek.get(tpl.id) ?? null,
     };
   });
 

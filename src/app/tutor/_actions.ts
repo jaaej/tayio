@@ -180,6 +180,7 @@ export async function createHomework(formData: FormData) {
   const classId = String(formData.get("classId") ?? "") || null;
   const weekId = String(formData.get("weekId") ?? "") || null;
   const allowResubmission = formData.get("allowResubmission") === "on";
+  const isTest = formData.get("isTest") === "on";
 
   if (!dueDateRaw) throw new Error("Due date required");
   const dueDate = new Date(dueDateRaw);
@@ -241,6 +242,7 @@ export async function createHomework(formData: FormData) {
       dueDate,
       attachmentUrl,
       allowResubmission,
+      isTest,
       weekId,
     })
     .returning({ id: homework.id });

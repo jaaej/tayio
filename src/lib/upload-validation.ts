@@ -173,6 +173,15 @@ export const ATTACHMENT_POLICY: UploadPolicy = {
   allowed: DOC_IMAGE_ALLOWED,
 };
 
+/**
+ * Quiz uploads travel through a 32 MB Server Action body.
+ * Three files per batch at 10 MB each stay below that hard request cap.
+ */
+export const QUIZ_ATTACHMENT_POLICY: UploadPolicy = {
+  maxBytes: 10 * 1024 * 1024,
+  allowed: DOC_IMAGE_ALLOWED,
+};
+
 /** Homework attachments use the same allowlist as tutor attachments. */
 export const HOMEWORK_POLICY: UploadPolicy = ATTACHMENT_POLICY;
 

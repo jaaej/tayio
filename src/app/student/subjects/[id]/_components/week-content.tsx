@@ -6,6 +6,8 @@ import {
   Check,
   AlertCircle,
   Link2 as LinkIcon,
+  ListChecks,
+  ArrowRight,
 } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { formatDueDate, relativeTime } from "@/lib/format";
@@ -91,6 +93,13 @@ export async function WeekContent({
                   done={homeworkDone >= week.homework.length}
                   icon={<FileText className="h-3 w-3" />}
                   label={`HW ${homeworkDone}/${week.homework.length}`}
+                />
+              )}
+              {week.quiz && (
+                <HeroChip
+                  done={false}
+                  icon={<ListChecks className="h-3 w-3" />}
+                  label="Quiz ready"
                 />
               )}
             </div>
@@ -285,6 +294,45 @@ export async function WeekContent({
               </div>
             )}
           </div>
+        </section>
+      )}
+
+      {week.quiz && (
+        <section>
+          <SectionHead title="Weekly quiz" />
+          <Link
+            href={`/student/quizzes/${week.quiz.id}`}
+            className="group relative flex min-h-32 items-center gap-4 overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-20px_rgba(31,40,90,0.28)] transition-all duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-22px_rgba(31,40,90,0.38)] motion-reduce:hover:translate-y-0"
+          >
+            <span
+              aria-hidden
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px]"
+              style={{ background: tokens.bgFrom, color: tokens.arrow }}
+            >
+              <ListChecks className="h-6 w-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span
+                className="block text-[10px] font-extrabold uppercase tracking-[0.16em]"
+                style={{ color: tokens.meta }}
+              >
+                Approved practice quiz
+              </span>
+              <span className="mt-1 block text-[17px] font-extrabold tracking-[-0.01em] text-ink">
+                {week.quiz.title}
+              </span>
+              <span className="mt-1 block text-[12px] font-semibold text-muted">
+                {week.quiz.questionCount}{" "}
+                {week.quiz.questionCount === 1 ? "question" : "questions"}
+              </span>
+            </span>
+            <span
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-[12px] font-bold text-white transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+              style={{ background: tokens.arrow }}
+            >
+              Start quiz <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
         </section>
       )}
 

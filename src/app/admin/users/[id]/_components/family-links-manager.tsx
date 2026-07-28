@@ -6,9 +6,11 @@ import { Button } from "@/components/admin/ui";
 import {
   createFamilyLink,
   removeFamilyLink,
+  setPrimaryContact,
 } from "@/app/admin/_lib/actions-users";
 
 type Person = { id: string; name: string; email: string };
+type LinkedPerson = Person & { isPrimaryContact: boolean };
 
 export function FamilyLinksManager({
   viewer,
@@ -18,7 +20,7 @@ export function FamilyLinksManager({
 }: {
   viewer: "parent" | "student";
   userId: string;
-  existing: Person[];
+  existing: LinkedPerson[];
   options: Person[];
 }) {
   const [pending, start] = useTransition();
@@ -38,35 +40,63 @@ export function FamilyLinksManager({
       )}
 
       <ul className="divide-y divide-line">
-        {existing.map((p) => (
-          <li
-            key={p.id}
-            className="py-2.5 flex items-center justify-between gap-4"
-          >
-            <div>
-              <div className="text-[14px] font-bold text-ink">{p.name}</div>
-              <div className="text-[12px] text-muted">{p.email}</div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => {
-                if (!confirm(`Remove link to ${p.name}?`)) return;
-                start(async () => {
-                  setError(null);
-                  const args =
-                    viewer === "parent"
-                      ? { parentId: userId, studentId: p.id }
-                      : { parentId: p.id, studentId: userId };
-                  await removeFamilyLink(args.parentId, args.studentId);
-                });
-              }}
+        {existing.map((p) => {
+          const parentId = viewer === "parent" ? userId : p.id;
+          const studentId = viewer === "parent" ? p.id : userId;
+          return (
+            <li
+              key={p.id}
+              className="py-2.5 flex items-center justify-between gap-4"
             >
-              Remove
-            </Button>
-          </li>
-        ))}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-bold text-ink truncate">
+                    {p.name}
+                  </span>
+                  {p.isPrimaryContact && (
+                    <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-700">
+                      Primary
+                    </span>
+                  )}
+                </div>
+                <div className="text-[12px] text-muted truncate">{p.email}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={p.isPrimaryContact ? "brand" : "outline"}
+                  disabled={pending}
+                  onClick={() => {
+                    setError(null);
+                    start(async () => {
+                      await setPrimaryContact(
+                        parentId,
+                        studentId,
+                        !p.isPrimaryContact,
+                      );
+                    });
+                  }}
+                >
+                  {p.isPrimaryContact ? "Primary ✓" : "Make primary"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    if (!confirm(`Remove link to ${p.name}?`)) return;
+                    start(async () => {
+                      setError(null);
+                      await removeFamilyLink(parentId, studentId);
+                    });
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {available.length > 0 ? (

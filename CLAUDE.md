@@ -1,5 +1,26 @@
 # Project Rules
 
+## General Guidelines (read first)
+
+These apply to every agent working in this repo, ahead of everything below.
+
+- Never use the em dash "—" in any output or file. Use a plain dash "-" instead.
+- When writing commit messages, NEVER auto-add your agent name as co-author.
+- Never manually modify CHANGELOG.md files or any files that are marked as auto-generated.
+- When writing or substantially editing long Markdown files, put each full sentence on its own line.
+  Preserve normal Markdown structure, but avoid wrapping multiple sentences onto one physical line.
+- When making technical decisions, do not give much weight to development cost.
+  Instead, prefer quality, simplicity, robustness, scalability, and long-term maintainability.
+- When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned with how an end user hits it as possible.
+  This makes sure you find the real problem so your fix will actually solve it.
+- When end-to-end testing a product, be picky about the UI you see and be obsessed with pixel perfection.
+  If something clearly looks off, even if it is not directly related to what you are doing, try to get it fixed along the way.
+- Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
+  If you see one, even if it is not caused by what you are working on right now, still get it fixed.
+- For any frontend or UI work, always load and follow the `ui-ux-pro-max:ui-ux-pro-max` skill before writing or changing UI.
+  Run the requested change through its ruleset first, and push back when the change violates a rule.
+  See the "UI/UX review mode (ui-ux-pro-max)" section below for how to apply it.
+
 ## Context
 
 **Project:** `tayio_portal` — a web portal for a tutoring company, scoped across four PRDs in `docs/`: **Student** (homework, timetable, lesson recaps, resources, quizzes, progress), **Parent** (child progress, attendance, tutor feedback, invoices, make-up requests), **Tutor** (class list, student profiles, attendance marking, lesson notes with parent-visible vs. internal split, homework marking), and **Admin** (user management, class/enrolment management, payments, announcements, reporting, resource approval). Built on Next.js 16 (App Router) + React 19, Supabase auth (`@supabase/ssr`), Drizzle ORM over Postgres, Tailwind v4, Zod. Source under `src/` (`app/`, `components/`, `db/`, `lib/`, `middleware.ts`).
@@ -7,6 +28,14 @@
 **Build order (from Admin PRD §15):** Phase 1 foundation (login, roles, four dashboards, schedule, user management) → Phase 2 learning workflow (homework, lesson notes, feedback, attendance, parent visibility) → Phase 3 admin ops (enrolments, classes, announcements, invoices, make-ups) → Phase 4 value-add (resources, quizzes, progress, reports) → Phase 5 advanced (AI summaries, mobile, payroll, calendar sync). P0 features should ship before any P1/P2 work.
 
 **Cross-cutting non-negotiables from the PRDs:** role-based permissions are strict (students see only their own data, parents only their children's, tutors only assigned students, admins everything with audit logs); parent-child account linking is a first-class concept; payment statuses are a fixed enum (unpaid/paid/overdue/partially paid/refunded/cancelled); lesson notes split parent-visible vs. internal; notifications must route to the correct role per the matrices in each PRD.
+
+## Notification experience consistency (non-negotiable)
+
+- All four roles must use the shared notification inbox at `src/components/notifications/inbox-page.tsx`.
+- Do not create or restore role-specific notification inbox layouts.
+- Direct messages and action-needed notifications must have their own labelled dividers and must appear before announcements and general updates.
+- New notification types must be classified in `src/lib/notification-groups.ts` and covered by its unit tests.
+- A notification UI change is incomplete until its behaviour and styling are checked across admin, tutor, student, and parent routes.
 
 **About the user:** solo builder shipping the portal as a personal/startup product. **Building toward the FINAL, deploy-ready product — not a throwaway MVP. Every change must be production-quality and shippable** (proper error handling, security, edge cases, no stubs/placeholders left behind). Still values function over decorative polish, but "it's just an MVP" is no longer an acceptable reason to cut corners. Wants honest engineering judgment over agreeable hedging, and wants to understand WHY something works or fails — not just the fix. Gets frustrated by recommendation flip-flops, repeated failed approaches, padded tradeoff tables, claims of "it works" before real testing, and destructive suggestions made without first naming what gets lost.
 
