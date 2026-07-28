@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { markVideoWatched } from "../_actions";
 
 export function VideoPlayer({
@@ -12,17 +13,21 @@ export function VideoPlayer({
   subjectWeekId: string;
   alreadyWatched: boolean;
 }) {
+  const router = useRouter();
   const sent = useRef(alreadyWatched);
   const [, setTick] = useState(0);
 
   return (
     <video
       controls
-      className="w-full rounded-xl bg-black"
+      className="w-full rounded-[14px] bg-black"
       onPlay={() => {
         if (sent.current) return;
         sent.current = true;
-        markVideoWatched(subjectWeekId).then(() => setTick((n) => n + 1));
+        markVideoWatched(subjectWeekId).then(() => {
+          setTick((n) => n + 1);
+          router.refresh();
+        });
       }}
     >
       <source src={src} />
