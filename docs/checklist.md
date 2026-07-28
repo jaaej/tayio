@@ -252,7 +252,7 @@ Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a
 
 | Item | FE | BE | Notes |
 |---|---|---|---|
-| Unread red badge + count | ⬜ | 🔶 | Red badge next to the notifications icon showing the number of new/unread items. Notifications backend exists; needs an unread-count query + badge UI. |
+| Unread red badge + count | 🔶 | ✅ | **Built 2026-07-28.** All four shells (`src/components/admin/shell.tsx`, `src/components/tutor/shell.tsx`, `src/components/student/shell.tsx`, `src/components/parent/shell.tsx`) call `getUnreadCount(user.id)` from `src/lib/notifications.ts` and apply it as `badge` on the Notifications nav item (mirrors the existing Messages badge, flows to both desktop sidebar and mobile nav via `NavRow`) plus a red dot on the top-bar Bell icon. Typecheck and production build pass. Browser visual verification across all four roles is owner-pending. |
 | Term-end automated message | ⬜ | ⬜ | [INFRA] ~2 weeks before a term ends, automatically notify parents + `student_unrestricted`. Needs a scheduled job. |
 
 ### Admin - tutor management
