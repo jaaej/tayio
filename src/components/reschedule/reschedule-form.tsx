@@ -68,6 +68,9 @@ export function RescheduleForm(props: {
   slots?: SlotOption[];
   targets?: TargetOption[];
   backHref: string;
+  /** Admin office profile id to message when no slot is available. Null if
+   *  no admin contact is available (empty state falls back to plain text). */
+  adminId?: string | null;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -219,6 +222,14 @@ export function RescheduleForm(props: {
             ? "Your tutor has no open slots in the next few weeks. Please contact the office."
             : "No other sessions are available this week. Please contact the office."}
         </div>
+        {props.adminId && (
+          <Link
+            href={`/parent/messages/with/${props.adminId}`}
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+          >
+            Message the office
+          </Link>
+        )}
       </div>
     );
   }

@@ -66,11 +66,16 @@ export function InteractiveTimetable({
   initialMonth,
   lessons,
   homework,
+  adminId,
 }: {
   initialYear: number;
   initialMonth: number;
   lessons: TimetableChip[];
   homework: TimetableHw[];
+  /** Admin office profile id to message when no reschedule slot is
+   *  available. Null if no admin contact is available (empty state
+   *  falls back to plain text with no link). */
+  adminId: string | null;
 }) {
   const router = useRouter();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
@@ -195,6 +200,23 @@ export function InteractiveTimetable({
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {picking && picking.opts.slots.length === 0 && (
+        <div className="rounded-[12px] border border-line bg-surface px-4 py-3">
+          <div className="text-[13px] text-muted">
+            Your tutor has no open slots in the next few weeks. Please contact
+            the office.
+          </div>
+          {adminId && (
+            <Link
+              href={`/student/messages/with/${adminId}`}
+              className="mt-3 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+            >
+              Message the office
+            </Link>
+          )}
         </div>
       )}
 
