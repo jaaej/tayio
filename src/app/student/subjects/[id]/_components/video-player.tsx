@@ -24,9 +24,11 @@ export function VideoPlayer({
       onPlay={() => {
         if (sent.current) return;
         sent.current = true;
-        markVideoWatched(subjectWeekId).then(() => {
-          setTick((n) => n + 1);
-          router.refresh();
+        markVideoWatched(subjectWeekId).then((res) => {
+          if (res.ok) {
+            setTick((n) => n + 1);
+            router.refresh();
+          }
         });
       }}
     >
