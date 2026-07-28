@@ -22,7 +22,7 @@ export default async function AdminQuizDetailPage({
   const { quiz, questions } = content;
 
   return (
-    <div className="space-y-5">
+    <div className={quiz.note ? "space-y-5 pb-28" : "space-y-5"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}

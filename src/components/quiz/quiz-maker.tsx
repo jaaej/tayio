@@ -322,7 +322,7 @@ export function QuizMaker({
                   context={question}
                   index={index}
                   editable={editable}
-                  children={childrenByParent.get(question.id) ?? []}
+                  subQuestions={childrenByParent.get(question.id) ?? []}
                   attachmentsByQuestion={attachmentsByQuestion}
                   contextAttachments={attachmentsByQuestion.get(question.id) ?? []}
                   totalAttachmentCount={attachments.length}
@@ -591,13 +591,25 @@ function BuilderTools({
 
 // Drag affordance for pointer users. Kept out of the tab order (aria-hidden)
 // because the up/down buttons are the accessible reorder path.
-function DragHandle({ handle }: { handle: ReorderHandlers["dragHandle"] }) {
+function DragHandle({
+  handle,
+  disabled,
+}: {
+  handle: ReorderHandlers["dragHandle"];
+  disabled: boolean;
+}) {
   return (
     <span
       {...handle}
+      draggable={!disabled}
       aria-hidden
       title="Drag to reorder"
-      className="grid h-11 w-5 shrink-0 cursor-grab touch-none place-items-center self-start text-muted transition-colors hover:text-ink active:cursor-grabbing motion-reduce:transition-none"
+      className={
+        "grid h-11 w-5 shrink-0 touch-none place-items-center self-start transition-colors motion-reduce:transition-none " +
+        (disabled
+          ? "cursor-not-allowed text-muted opacity-30"
+          : "cursor-grab text-muted hover:text-ink active:cursor-grabbing")
+      }
     >
       <GripVertical className="h-4 w-4" />
     </span>
@@ -851,7 +863,9 @@ function QuestionCard({
     >
       <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
       <div className="flex items-start gap-3">
-        {reorder && <DragHandle handle={reorder.dragHandle} />}
+        {reorder && (
+          <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
+        )}
         <span className="grid h-10 min-w-10 shrink-0 place-items-center rounded-[12px] bg-brand-100 px-1 text-[13px] font-extrabold text-brand-ink">
           {displayLabel}
         </span>
@@ -955,12 +969,19 @@ function QuestionCard({
   );
 }
 
+// Sub-question labels stay letter-based (1a, 1b, ...) for the first 26
+// entries, then fall back to a numeric suffix so labels never spill past "z".
+function subQuestionLabel(childIndex: number): string {
+  if (childIndex < 26) return String.fromCharCode(97 + childIndex);
+  return `.${childIndex + 1}`;
+}
+
 function ContextCard({
   quizId,
   context,
   index,
   editable,
-  children,
+  subQuestions,
   attachmentsByQuestion,
   contextAttachments,
   totalAttachmentCount,
@@ -970,7 +991,7 @@ function ContextCard({
   context: Question;
   index: number;
   editable: boolean;
-  children: Question[];
+  subQuestions: Question[];
   attachmentsByQuestion: Map<string, QuizAttachmentView[]>;
   contextAttachments: QuizAttachmentView[];
   totalAttachmentCount: number;
@@ -980,7 +1001,7 @@ function ContextCard({
   const passageId = `quiz-passage-${context.id}`;
   const contextNumber = index + 1;
 
-  const childIds = children.map((child) => child.id);
+  const childIds = subQuestions.map((child) => child.id);
   const childReorder = useReorder(quizId, context.id, childIds);
 
   return (
@@ -993,7 +1014,9 @@ function ContextCard({
     >
       <div className="border-b border-line bg-brand-50/40 p-5 sm:p-6">
         <div className="flex items-start gap-3">
-          {reorder && <DragHandle handle={reorder.dragHandle} />}
+          {reorder && (
+            <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
+          )}
           <span className="grid h-10 min-w-10 shrink-0 place-items-center rounded-[12px] bg-brand-600 px-1 text-[13px] font-extrabold text-white">
             {contextNumber}
           </span>
@@ -1049,7 +1072,7 @@ function ContextCard({
                 onClick={() => {
                   if (
                     !confirm(
-                      `Delete context set ${contextNumber} and its ${children.length} sub-question(s)? This cannot be undone.`,
+                      `Delete context set ${contextNumber} and its ${subQuestions.length} sub-question(s)? This cannot be undone.`,
                     )
                   ) {
                     return;
@@ -1079,18 +1102,18 @@ function ContextCard({
       </div>
 
       <div className="space-y-4 p-5 sm:p-6">
-        {children.length === 0 ? (
+        {subQuestions.length === 0 ? (
           <p className="rounded-[14px] border border-dashed border-brand-200 bg-brand-50/40 px-4 py-5 text-center text-[12px] font-semibold text-muted">
             No sub-questions yet. Add one below so students have something to
             answer for this passage.
           </p>
         ) : (
-          children.map((child, childIndex) => (
+          subQuestions.map((child, childIndex) => (
             <QuestionCard
               key={child.id}
               quizId={quizId}
               index={childIndex}
-              displayLabel={`${contextNumber}${String.fromCharCode(97 + childIndex)}`}
+              displayLabel={`${contextNumber}${subQuestionLabel(childIndex)}`}
               question={child}
               editable={editable}
               attachments={attachmentsByQuestion.get(child.id) ?? []}
