@@ -13,7 +13,11 @@ import {
   type TimetableChip,
   type TimetableHw,
 } from "../_components/interactive-timetable";
-import { getStudentHomework, getStudentTimetableLessons } from "../_lib/queries";
+import {
+  getAdminContactForStudent,
+  getStudentHomework,
+  getStudentTimetableLessons,
+} from "../_lib/queries";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -54,9 +58,10 @@ export default async function TimetablePage({
   if (isUnrestricted) {
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month + 3, 1);
-    const [lessonRows, homeworkRows] = await Promise.all([
+    const [lessonRows, homeworkRows, adminContact] = await Promise.all([
       getStudentTimetableLessons(user.id, { from, to }),
       getStudentHomework(user.id),
+      getAdminContactForStudent(),
     ]);
     const chips: TimetableChip[] = lessonRows.map((l) => ({
       id: l.id,
@@ -104,6 +109,7 @@ export default async function TimetablePage({
               initialMonth={month}
               lessons={chips}
               homework={hw}
+              adminId={adminContact?.id ?? null}
             />
           </div>
         </Card>

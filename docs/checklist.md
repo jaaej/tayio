@@ -237,7 +237,7 @@ Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a
 | No cancel-with-refund after term starts | ⬜ | ⬜ | Once a term begins, a class cannot be quit for a refund. Enforced in the cancel/refund flow, which itself is not built. |
 | Hide other-term classes from enrolled parents | ⬜ | ⬜ | Parents only see the current term's classes; previous/next term classes are hidden while enrolled. |
 | Free-trial tracking | ⬜ | ⬜ | Record a trial start + end date. Tutor can see if a student is on a free trial. [INFRA] automated notification if a free-trial student misses a class. When a trial ends, a notification prompts the admin to manually send the follow-up (the message itself is not automated). |
-| Discontinued-students tab (admin users) | ⬜ | 🔶 | A separate tab on the admin users view for discontinued students. `/admin/leaving` already lists leaving students; this may be a tab/filter on `/admin/users`. |
+| Discontinued-students tab (admin users) | 🔶 | ✅ | `/admin/users` now has an "All accounts" / "Discontinued" tab bar (`?tab=discontinued`). Query extracted to `getDiscontinuedStudents()` in `src/app/admin/_lib/queries.ts` (grouped by student, mirrors `admin/leaving/page.tsx`); rendered in `src/app/admin/users/page.tsx`. typecheck + build pass (2026-07-28); browser verification owner-pending. |
 
 ### Reschedule and class credits (Parent + Admin)
 
@@ -246,13 +246,13 @@ Tags: [DECISION] needs an owner answer before it can be planned; [INFRA] needs a
 | Cancellation -> class credit | ⬜ | ⬜ | Cancelling a class grants a class credit. |
 | Reschedule -> class credit when no slot | ⬜ | ⬜ | If there is no class to reschedule into, grant a class credit instead. |
 | Reschedule/cancellation limits | ⬜ | ⬜ | Cancellation: 24h prior, max 3 per term. Reschedule: 1 week prior, max 3 per term (counted separately from cancellations). Group classes: reschedule 7 days prior. Makeup/reschedule only within a 7-day window. [DECISION] confirm exact window interpretation at planning time. |
-| "Contact admin" routes to messages -> admin | ⬜ | 🔶 | When no reschedule slot works in the parent's favour, a "contact admin" option ALWAYS routes to the messages page addressed to admin, never a separate contact page. Reschedule flow + messaging both exist; this is the routing rule. |
+| "Contact admin" routes to messages -> admin | 🔶 | 🔶 | When no reschedule slot works in the parent's/unrestricted-student's favour, a "Message the office" action routes to `/parent/messages/with/[adminId]` or `/student/messages/with/[adminId]`, never a separate contact page. Parent: `src/app/parent/classes/reschedule/[lessonId]/page.tsx` passes `getAdminContact()` into `src/components/reschedule/reschedule-form.tsx` (empty-state branch). Student (unrestricted only): `src/app/student/timetable/page.tsx` passes `getAdminContactForStudent()` into `src/app/student/_components/interactive-timetable.tsx`, new empty-state branch when `picking.opts.slots.length === 0`; restricted students never mount this component so the link never renders for them. Action hidden when the admin-contact query returns null. Typecheck + build pass (2026-07-28); browser verification owner-pending. |
 
 ### Notifications (cross-cutting)
 
 | Item | FE | BE | Notes |
 |---|---|---|---|
-| Unread red badge + count | ⬜ | 🔶 | Red badge next to the notifications icon showing the number of new/unread items. Notifications backend exists; needs an unread-count query + badge UI. |
+| Unread red badge + count | 🔶 | ✅ | **Built 2026-07-28.** All four shells (`src/components/admin/shell.tsx`, `src/components/tutor/shell.tsx`, `src/components/student/shell.tsx`, `src/components/parent/shell.tsx`) call `getUnreadCount(user.id)` from `src/lib/notifications.ts` and apply it as `badge` on the Notifications nav item (mirrors the existing Messages badge, flows to both desktop sidebar and mobile nav via `NavRow`) plus a red dot on the top-bar Bell icon. Typecheck and production build pass. Browser visual verification across all four roles is owner-pending. |
 | Term-end automated message | ⬜ | ⬜ | [INFRA] ~2 weeks before a term ends, automatically notify parents + `student_unrestricted`. Needs a scheduled job. |
 
 ### Admin - tutor management

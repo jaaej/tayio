@@ -15,7 +15,7 @@ import {
   studentOwnsLesson,
 } from "@/lib/reschedule";
 import { RescheduleForm } from "@/components/reschedule/reschedule-form";
-import { resolveSelectedChild } from "../../../_data";
+import { getAdminContact, resolveSelectedChild } from "../../../_data";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +48,7 @@ export default async function ParentReschedulePage({
   // availability (the lesson becomes a make-up at that time).
   const approvalRequired = reschedulePath(lesson, now) === "approval";
   const slots = await getOneOnOneSlots(lesson, now);
+  const admin = await getAdminContact();
 
   return (
     <div className="space-y-6 max-w-[820px]">
@@ -97,6 +98,7 @@ export default async function ParentReschedulePage({
                 approvalRequired={approvalRequired}
                 slots={slots}
                 backHref={backHref}
+                adminId={admin?.id ?? null}
               />
             )}
           </CardBody>

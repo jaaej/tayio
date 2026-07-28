@@ -18,6 +18,7 @@ import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
+import { getUnreadCount } from "@/lib/notifications";
 import { ParentNavLinks, ParentNavLinksMobile, type NavSection } from "./nav-links";
 
 const IC = "h-[18px] w-[18px]";
@@ -92,11 +93,22 @@ export async function ParentShell({
       unread = 0;
     }
   }
+  let notifUnread = 0;
+  if (user) {
+    try {
+      notifUnread = await getUnreadCount(user.id);
+    } catch (err) {
+      console.error("[parent-shell] getUnreadCount failed:", err);
+      notifUnread = 0;
+    }
+  }
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
-    items: s.items.map((item) =>
-      item.href === "/parent/messages" ? { ...item, badge: unread } : item,
-    ),
+    items: s.items.map((item) => {
+      if (item.href === "/parent/messages") return { ...item, badge: unread };
+      if (item.href === "/parent/notifications") return { ...item, badge: notifUnread };
+      return item;
+    }),
   }));
   const initial = userName.charAt(0).toUpperCase();
 
@@ -125,6 +137,9 @@ export async function ParentShell({
             aria-label="Notifications"
           >
             <Bell className="h-[18px] w-[18px]" />
+            {notifUnread > 0 && (
+              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
+            )}
           </Link>
           <Link
             href="/parent/messages"
