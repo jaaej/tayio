@@ -105,7 +105,10 @@ The missed-class alert has no substitute yet and remains fully unbuilt.
 
 - `docs/checklist.md`
 - `docs/superpowers/specs/2026-07-29-free-trials-design.md`
+- `docs/superpowers/plans/2026-07-29-free-trials.md`
 - `docs/changes/2026-07-29-free-trials.md`
+
+This list covers the code, schema, and record files for the feature; it is not a byte-for-byte reproduction of `git diff --stat`.
 
 ## Migration and data impact
 
@@ -122,7 +125,9 @@ No RLS policy was added, removed, or changed; `enrollments` keeps its existing 4
 - `npm test` passed, including the 9 new tests in `src/lib/trials.test.ts`.
 - `npm run build` completed with exit code 0; `/admin/trials` compiled as a dynamic route alongside the modified admin and tutor routes.
 - `git diff --stat` across the whole branch confirms no file under `src/app/student/` or `src/app/parent/` was touched.
-- Every changed file was grepped for the em dash character; the only pre-existing instances found (in `src/components/admin/shell.tsx` and one placeholder string in `enrollments-manager.tsx`) were either left alone as out of scope or fixed in the same task's fix pass when the file was already in that task's diff.
+- The new free-trial code (every line this feature added, across all touched files) was grepped for the em dash character and contains none.
+- Several pre-existing em dashes remain in files this branch touched, predating this branch: `src/app/admin/_lib/queries.ts`, `src/app/tutor/_data.ts`, `src/app/tutor/lessons/[id]/page.tsx`, `src/app/tutor/students/[id]/page.tsx`, `src/app/tutor/classes/[id]/students/page.tsx`, `src/components/admin/shell.tsx`, and `src/db/schema.ts`.
+- One pre-existing em dash inside `enrollments-manager.tsx` (an "Add a student" placeholder string, not something this feature introduced) was fixed in the Task 4 fix pass because that file was already in that task's diff; the rest were left alone as out of scope for this feature and are flagged here for a separate cleanup pass.
 
 ## Manual verification still required
 
