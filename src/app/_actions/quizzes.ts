@@ -97,7 +97,7 @@ async function quizAlreadyExists(subjectWeekId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -860,6 +860,15 @@ export async function gradePracticeQuiz(input: {
   if (!parsed.success) return { ok: false, error: "Invalid quiz answers." };
 
   if (!(await canStudentAccessApprovedQuiz(user.id, parsed.data.quizId))) {
+    return { ok: false, error: "Quiz not found." };
+  }
+
+  const [quizRow] = await db
+    .select({ kind: quizzes.kind })
+    .from(quizzes)
+    .where(eq(quizzes.id, parsed.data.quizId))
+    .limit(1);
+  if (!quizRow || quizRow.kind !== "weekly") {
     return { ok: false, error: "Quiz not found." };
   }
 

@@ -2,11 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { quizzes, terms, subjects, notifications, profiles } from "@/db/schema";
+import {
+  quizzes,
+  terms,
+  subjects,
+  notifications,
+  profiles,
+  quizQuestions,
+  quizOptions,
+  termTestAttempts,
+  termTestAnswers,
+} from "@/db/schema";
 import { requireAdmin } from "@/app/admin/_lib/guard";
+import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
+import { canStudentAccessApprovedQuiz } from "@/lib/quiz-queries";
+import { gradeTermTest } from "@/lib/term-test";
+import { isUniqueViolation } from "@/app/_actions/quizzes";
 
 type Result = { ok: true } | { ok: false; error: string };
 type CreateResult = { ok: true; id: string } | { ok: false; error: string };
@@ -16,15 +30,6 @@ function revalidate(quizId: string) {
   revalidatePath(`/admin/quizzes/${quizId}`);
   revalidatePath("/tutor/quizzes");
   revalidatePath(`/tutor/quizzes/${quizId}`);
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  );
 }
 
 async function termTestAlreadyExists(
@@ -170,5 +175,75 @@ export async function setTermTestReleaseDate(input: {
     .where(eq(quizzes.id, quizId));
 
   revalidate(quizId);
+  return { ok: true };
+}
+
+export async function submitTermTest(input: {
+  quizId: string;
+  answers: Array<{ questionId: string; optionId: string }>;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireRole("student");
+  const parsed = z.object({
+    quizId: z.string().uuid(),
+    answers: z.array(z.object({
+      questionId: z.string().uuid(),
+      optionId: z.string().uuid(),
+    })).max(200),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid submission." };
+  const { quizId, answers } = parsed.data;
+
+  // Access + kind + open-window checks.
+  const [quiz] = await db.select({
+      id: quizzes.id, kind: quizzes.kind, status: quizzes.status,
+      resultsReleaseAt: quizzes.resultsReleaseAt,
+    }).from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
+  if (!quiz || quiz.kind !== "term_test" || quiz.status !== "approved") {
+    return { ok: false, error: "Term test not found." };
+  }
+  if (!(await canStudentAccessApprovedQuiz(user.id, quizId))) {
+    return { ok: false, error: "Term test not found." };
+  }
+  if (!quiz.resultsReleaseAt || Date.now() >= quiz.resultsReleaseAt.getTime()) {
+    return { ok: false, error: "This term test is closed." };
+  }
+
+  // Build the answer key server-side (leaf, gradable questions only).
+  const questions = await db.select({ id: quizQuestions.id })
+    .from(quizQuestions)
+    .where(and(eq(quizQuestions.quizId, quizId), sql`${quizQuestions.type} <> 'context'`));
+  if (questions.length === 0) return { ok: false, error: "This term test has no questions." };
+  const options = await db.select({
+      id: quizOptions.id, questionId: quizOptions.questionId, isCorrect: quizOptions.isCorrect,
+    }).from(quizOptions).where(inArray(quizOptions.questionId, questions.map((q) => q.id)));
+  const answerKeys = questions.map((q) => {
+    const qo = options.filter((o) => o.questionId === q.id);
+    return { questionId: q.id, optionIds: qo.map((o) => o.id), correctOptionId: qo.find((o) => o.isCorrect)?.id ?? "" };
+  });
+  if (answerKeys.some((k) => k.correctOptionId === "")) {
+    return { ok: false, error: "This term test is missing a correct answer." };
+  }
+
+  const graded = gradeTermTest(answerKeys, answers);
+  if (!graded.ok) return graded;
+
+  // One attempt: insert attempt + answers transactionally; unique violation = already taken.
+  try {
+    await db.transaction(async (tx) => {
+      const [attempt] = await tx.insert(termTestAttempts).values({
+        quizId, studentId: user.id, score: graded.score, total: graded.total,
+      }).returning({ id: termTestAttempts.id });
+      await tx.insert(termTestAnswers).values(
+        graded.graded.map((g) => ({
+          attemptId: attempt.id, questionId: g.questionId, selectedOptionId: g.selectedOptionId,
+        })),
+      );
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return { ok: false, error: "You have already taken this term test." };
+    throw error;
+  }
+
+  revalidatePath(`/student/term-tests/${quizId}`);
   return { ok: true };
 }

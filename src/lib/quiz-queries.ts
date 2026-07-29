@@ -21,6 +21,7 @@ import {
   subjects,
   subjectWeeks,
   terms,
+  termTestAttempts,
   profiles,
   quizStatusEnum,
 } from "@/db/schema";
@@ -479,7 +480,13 @@ export async function getStudentQuiz(
     .leftJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
     .leftJoin(weekTerm, eq(weekTerm.id, subjectWeeks.termId))
     .leftJoin(directTerm, eq(directTerm.id, quizzes.termId))
-    .where(and(eq(quizzes.id, quizId), eq(quizzes.status, "approved")))
+    .where(
+      and(
+        eq(quizzes.id, quizId),
+        eq(quizzes.status, "approved"),
+        eq(quizzes.kind, "weekly"),
+      ),
+    )
     .limit(1);
   if (!quiz) return null;
 
@@ -536,5 +543,132 @@ export async function getStudentQuiz(
         .map(({ id, text, position }) => ({ id, text, position })),
     })),
     attachments,
+  };
+}
+
+export type StudentTermTest = {
+  quiz: {
+    id: string;
+    title: string;
+    subjectId: string;
+    subjectName: string;
+    termId: string;
+    termYear: number;
+    termNumber: number;
+    resultsReleaseAt: Date;
+  };
+  questions: Array<{
+    id: string;
+    prompt: string;
+    type: string;
+    position: number;
+    parentId: string | null;
+    options: Array<{ id: string; text: string; position: number }>;
+  }>;
+  attachments: QuizAttachmentView[];
+  hasAttempt: boolean;
+};
+
+/**
+ * Student delivery of an approved term test. Like getStudentQuiz, this
+ * deliberately omits quiz_options.is_correct - the student sees the test
+ * before submitting, so the correct-answer key must never reach the client.
+ * The enrolment check runs before questions or options are loaded.
+ */
+export async function getStudentTermTest(
+  studentId: string,
+  quizId: string,
+): Promise<StudentTermTest | null> {
+  if (!(await canStudentAccessApprovedQuiz(studentId, quizId))) return null;
+
+  const [quiz] = await db
+    .select({
+      id: quizzes.id,
+      title: quizzes.title,
+      subjectId: quizzes.subjectId,
+      subjectName: subjects.name,
+      termId: terms.id,
+      termYear: terms.year,
+      termNumber: terms.termNumber,
+      resultsReleaseAt: quizzes.resultsReleaseAt,
+    })
+    .from(quizzes)
+    .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
+    .innerJoin(terms, eq(terms.id, quizzes.termId))
+    .where(
+      and(
+        eq(quizzes.id, quizId),
+        eq(quizzes.status, "approved"),
+        eq(quizzes.kind, "term_test"),
+      ),
+    )
+    .limit(1);
+  if (!quiz || !quiz.resultsReleaseAt) return null;
+
+  const questions = await db
+    .select({
+      id: quizQuestions.id,
+      prompt: quizQuestions.prompt,
+      type: quizQuestions.type,
+      position: quizQuestions.position,
+      parentId: quizQuestions.parentId,
+    })
+    .from(quizQuestions)
+    .where(eq(quizQuestions.quizId, quizId))
+    .orderBy(asc(quizQuestions.position));
+  const questionIds = questions.map((question) => question.id);
+  const options = questionIds.length
+    ? await db
+        .select({
+          id: quizOptions.id,
+          questionId: quizOptions.questionId,
+          text: quizOptions.text,
+          position: quizOptions.position,
+        })
+        .from(quizOptions)
+        .where(inArray(quizOptions.questionId, questionIds))
+        .orderBy(asc(quizOptions.position))
+    : [];
+
+  const attachmentRows = await db
+    .select()
+    .from(quizAttachments)
+    .where(eq(quizAttachments.quizId, quizId))
+    .orderBy(asc(quizAttachments.createdAt));
+  const attachments = await Promise.all(
+    attachmentRows.map(async (attachment) => ({
+      id: attachment.id,
+      fileName: attachment.fileName,
+      contentType: attachment.contentType,
+      sizeBytes: attachment.sizeBytes,
+      questionId: attachment.questionId,
+      url: await signQuizAttachment(
+        attachment.storageBucket,
+        attachment.storagePath,
+      ),
+    })),
+  );
+
+  const [attempt] = await db
+    .select({ id: termTestAttempts.id })
+    .from(termTestAttempts)
+    .where(
+      and(
+        eq(termTestAttempts.quizId, quizId),
+        eq(termTestAttempts.studentId, studentId),
+      ),
+    )
+    .limit(1);
+
+  return {
+    quiz: { ...quiz, resultsReleaseAt: quiz.resultsReleaseAt },
+    questions: questions.map((question) => ({
+      ...question,
+      options: options
+        .filter((option) => option.questionId === question.id)
+        .map(({ id, text, position }) => ({ id, text, position })),
+    })),
+    attachments,
+    hasAttempt: Boolean(attempt),
   };
 }
