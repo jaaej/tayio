@@ -20,7 +20,7 @@ export function ParentTermTestCard({
   return (
     <Link
       href={`/parent/term-tests/${termTestId}/${childId}`}
-      className="group relative flex min-h-20 items-center gap-4 overflow-hidden rounded-[14px] border border-line bg-surface px-5 py-4 shadow-[0_1px_2px_rgba(15,17,30,0.05)] transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_50px_-22px_rgba(31,40,90,0.30)]"
+      className="group relative flex min-h-20 items-center gap-4 overflow-hidden rounded-[14px] border border-line bg-surface px-5 py-4 shadow-[0_1px_2px_rgba(15,17,30,0.05)] transition-all duration-150 hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0 hover:shadow-[0_24px_50px_-22px_rgba(31,40,90,0.30)]"
     >
       <span
         aria-hidden
@@ -36,7 +36,7 @@ export function ParentTermTestCard({
           Score, rank, and corrections are ready
         </span>
       </span>
-      <span className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-brand-500 px-4 text-[12px] font-bold text-white transition-transform duration-150 group-hover:translate-x-0.5">
+      <span className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-brand-500 px-4 text-[12px] font-bold text-white transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0">
         View <ArrowRight className="h-4 w-4" />
       </span>
     </Link>

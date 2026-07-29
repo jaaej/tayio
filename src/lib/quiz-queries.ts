@@ -27,6 +27,7 @@ import {
 } from "@/db/schema";
 import { signQuizAttachment } from "@/lib/quiz-storage";
 import { formatQuizWeekLabel } from "@/lib/quiz-status";
+import { getTermTestCohort } from "@/lib/term-test-results";
 
 // A weekly quiz's term is reached via subject_weeks.term_id; a term test's
 // term is set directly on the quiz row. Two aliases of `terms` let a single
@@ -686,6 +687,19 @@ export type StudentTermTestSummary = {
  * approved term test for this (subject, term) that the student can access?
  * Reuses canStudentAccessApprovedQuiz for the enrolment check rather than
  * re-deriving it, so the two access rules cannot drift apart.
+ *
+ * Once results are released, this must also agree with
+ * `getStudentTermTestResults`/`getParentTermTestResults`, which gate on
+ * COHORT membership (enrolled on/before the release date, not withdrawn
+ * before it) rather than merely-currently-active enrolment. Without the
+ * extra check below, a student who enrols after release is
+ * currently-active (passes canStudentAccessApprovedQuiz) but outside the
+ * cohort, so the subject page would show a "Results" card that 404s on
+ * click. Before release this gap cannot occur - `canStudentAccessApprovedQuiz`
+ * passing pre-release already implies future cohort membership, since
+ * `enrolled_at <= now < resultsReleaseAt` implies `enrolled_at <=
+ * resultsReleaseAt` - so the extra check only runs once released. Reuses
+ * `getTermTestCohort` rather than re-deriving the predicate.
  */
 export async function getStudentTermTestForSubjectTerm(
   studentId: string,
@@ -706,6 +720,11 @@ export async function getStudentTermTestForSubjectTerm(
     .limit(1);
   if (!quiz || !quiz.resultsReleaseAt) return null;
   if (!(await canStudentAccessApprovedQuiz(studentId, quiz.id))) return null;
+
+  if (Date.now() >= quiz.resultsReleaseAt.getTime()) {
+    const cohort = await getTermTestCohort(subjectId, quiz.resultsReleaseAt);
+    if (!cohort.some((member) => member.studentId === studentId)) return null;
+  }
 
   const [attempt] = await db
     .select({ id: termTestAttempts.id })

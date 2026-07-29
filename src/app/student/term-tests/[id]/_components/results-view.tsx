@@ -30,6 +30,20 @@ export function TermTestResultsView({
   const pct = results.total > 0 ? Math.round((results.score / results.total) * 100) : 0;
   const myRow = results.board.top.find((r) => r.isMe) ?? results.board.me;
   const answerLabel = childName ? `${childName}'s answer` : "Your answer";
+  /**
+   * For the student view (no childName), the board row shows a masked name
+   * ("Ada L.") and "(you)" is never redundant with it - keep that
+   * unchanged. For the parent view, `myRow.name` is already built from the
+   * same child first name that `childName` holds, so "Ada L. (Ada)" is a
+   * redundant repeat of the name already on the row. Only add the
+   * parenthetical when it would not just repeat what the row already
+   * displays.
+   */
+  const meLabel = childName
+    ? myRow && myRow.name.trim().toLowerCase().startsWith(childName.trim().toLowerCase())
+      ? undefined
+      : childName
+    : "you";
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5">
@@ -143,7 +157,7 @@ export function TermTestResultsView({
         <TermTestLeaderboard
           title={`${subjectName} - Term ${termNumber} leaderboard`}
           board={results.board}
-          meLabel={childName ?? "you"}
+          meLabel={meLabel}
         />
       </div>
     </div>

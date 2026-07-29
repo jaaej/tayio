@@ -7,7 +7,7 @@ const MEDAL: Record<number, string> = {
   3: "#cd7f32",
 };
 
-function Row({ row, meLabel }: { row: BoardRow; meLabel: string }) {
+function Row({ row, meLabel }: { row: BoardRow; meLabel?: string }) {
   const medal = MEDAL[row.rank];
   return (
     <div
@@ -24,7 +24,7 @@ function Row({ row, meLabel }: { row: BoardRow; meLabel: string }) {
         </span>
         <span className={`truncate ${row.isMe ? "font-bold" : "font-medium"}`}>
           {row.name}
-          {row.isMe && <span className="text-brand-500"> ({meLabel})</span>}
+          {row.isMe && meLabel && <span className="text-brand-500"> ({meLabel})</span>}
         </span>
       </span>
       <span className="tabular-nums font-extrabold">{row.score}</span>
@@ -39,12 +39,16 @@ function Row({ row, meLabel }: { row: BoardRow; meLabel: string }) {
  *
  * `meLabel` names the highlighted row - "you" for a student viewing their
  * own board, or the child's first name when a parent views a child's board
- * (the "me" row is ranked around the child, not the parent).
+ * (the "me" row is ranked around the child, not the parent). The caller
+ * passes `undefined` when the label would just repeat the row's own name
+ * (e.g. a masked name that already starts with the child's first name);
+ * no default is applied here so that omission renders no parenthetical at
+ * all, rather than falling back to "you".
  */
 export function TermTestLeaderboard({
   title,
   board,
-  meLabel = "you",
+  meLabel,
 }: {
   title: string;
   board: { top: BoardRow[]; me: BoardRow | null };
