@@ -5,7 +5,7 @@ import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { requireRole } from "@/lib/auth";
 import { listQuizzesForTutor, type QuizListRow } from "@/lib/quiz-queries";
-import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE, quizSubjectPeriodLabel } from "@/lib/quiz-status";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ function QuizRows({ rows }: { rows: QuizListRow[] }) {
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-bold text-ink truncate">{r.title}</div>
               <div className="mt-0.5 truncate text-[11px] text-muted">
-                {r.subjectName} - Term {r.termNumber}, Week {r.weekNumber}
+                {quizSubjectPeriodLabel(r)}
               </div>
             </div>
             <Pill tone={toneFor(r.status)} dot>
@@ -49,12 +49,15 @@ const GROUPS: { key: string; heading: string; statuses: string[] }[] = [
 export default async function TutorQuizzesPage() {
   const user = await requireRole("tutor");
   const rows = await listQuizzesForTutor(user.id);
+  const weeklyRows = rows.filter((r) => r.kind === "weekly");
+  const termTestRows = rows.filter((r) => r.kind === "term_test");
 
   const groups = GROUPS.map((g) => ({
     ...g,
-    rows: rows.filter((r) => g.statuses.includes(r.status)),
+    rows: weeklyRows.filter((r) => g.statuses.includes(r.status)),
   }));
-  const totalShown = groups.reduce((sum, g) => sum + g.rows.length, 0);
+  const totalShown =
+    groups.reduce((sum, g) => sum + g.rows.length, 0) + termTestRows.length;
 
   return (
     <div className="space-y-5">
@@ -77,35 +80,46 @@ export default async function TutorQuizzesPage() {
           </CardBody>
         </Card>
       ) : (
-        groups.map((g) => {
-          if (g.rows.length === 0) return null;
-          if (g.key !== "done") {
-            return (
-              <Card key={g.key}>
-                <CardHead title={`${g.heading} (${g.rows.length})`} />
-                <CardBody tight>
-                  <QuizRows rows={g.rows} />
-                </CardBody>
-              </Card>
-            );
-          }
-          const bySubject = new Map<string, QuizListRow[]>();
-          for (const r of g.rows) {
-            const list = bySubject.get(r.subjectName) ?? [];
-            list.push(r);
-            bySubject.set(r.subjectName, list);
-          }
-          return Array.from(bySubject.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([subjectName, rows]) => (
-              <Card key={`done-${subjectName}`}>
-                <CardHead title={`Done - ${subjectName} (${rows.length})`} />
-                <CardBody tight>
-                  <QuizRows rows={rows} />
-                </CardBody>
-              </Card>
-            ));
-        })
+        <>
+          {groups.map((g) => {
+            if (g.rows.length === 0) return null;
+            if (g.key !== "done") {
+              return (
+                <Card key={g.key}>
+                  <CardHead title={`${g.heading} (${g.rows.length})`} />
+                  <CardBody tight>
+                    <QuizRows rows={g.rows} />
+                  </CardBody>
+                </Card>
+              );
+            }
+            const bySubject = new Map<string, QuizListRow[]>();
+            for (const r of g.rows) {
+              const list = bySubject.get(r.subjectName) ?? [];
+              list.push(r);
+              bySubject.set(r.subjectName, list);
+            }
+            return Array.from(bySubject.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([subjectName, rows]) => (
+                <Card key={`done-${subjectName}`}>
+                  <CardHead title={`Done - ${subjectName} (${rows.length})`} />
+                  <CardBody tight>
+                    <QuizRows rows={rows} />
+                  </CardBody>
+                </Card>
+              ));
+          })}
+
+          {termTestRows.length > 0 && (
+            <Card>
+              <CardHead title={`Term tests (${termTestRows.length})`} />
+              <CardBody tight>
+                <QuizRows rows={termTestRows} />
+              </CardBody>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

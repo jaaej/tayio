@@ -34,11 +34,12 @@ import {
   updateQuizTitle,
   uploadQuizAttachments,
 } from "@/app/_actions/quizzes";
+import { setTermTestReleaseDate } from "@/app/_actions/term-tests";
 import type {
   QuizAttachmentView,
   QuizWithContent,
 } from "@/lib/quiz-queries";
-import { QUIZ_STATUS_LABEL } from "@/lib/quiz-status";
+import { QUIZ_STATUS_LABEL, quizSubjectPeriodLabelWithYear } from "@/lib/quiz-status";
 
 type Question = QuizWithContent["questions"][number];
 type Option = Question["options"][number];
@@ -169,12 +170,15 @@ export function QuizMaker({
   canEditTitle,
   canSubmit,
   canApprove,
+  canEditReleaseDate,
   hrefBack,
 }: QuizWithContent & {
   editable: boolean;
   canEditTitle: boolean;
   canSubmit: boolean;
   canApprove: boolean;
+  /** Admin-only: show the term-test release-date editor (setTermTestReleaseDate is admin-guarded). */
+  canEditReleaseDate: boolean;
   hrefBack: string;
 }) {
   const { error: actionError, pending: actionPending, run } = useActionRunner();
@@ -265,9 +269,15 @@ export function QuizMaker({
               editable={canEditTitle}
             />
             <p className="mt-2 text-[12px] font-semibold text-muted">
-              {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
-              {quiz.weekNumber}
+              {quizSubjectPeriodLabelWithYear(quiz)}
             </p>
+            {quiz.kind === "term_test" && (
+              <ReleaseDateEditor
+                quizId={quiz.id}
+                resultsReleaseAt={quiz.resultsReleaseAt}
+                canEdit={canEditReleaseDate}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -482,6 +492,100 @@ function TitleEditor({
         >
           {title}
         </h1>
+      )}
+      {error && (
+        <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const releaseFmt = new Intl.DateTimeFormat("en-AU", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+// <input type="datetime-local"> reads/writes "YYYY-MM-DDTHH:mm" in the
+// browser's local time zone (no offset, no seconds).
+function toDatetimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function ReleaseDateEditor({
+  quizId,
+  resultsReleaseAt,
+  canEdit,
+}: {
+  quizId: string;
+  resultsReleaseAt: Date | null;
+  canEdit: boolean;
+}) {
+  const { error, pending, run } = useActionRunner();
+
+  if (!resultsReleaseAt) {
+    return (
+      <p className="mt-2 text-[12px] font-semibold text-muted">
+        No release date set yet.
+      </p>
+    );
+  }
+
+  const released = resultsReleaseAt.getTime() <= Date.now();
+  const editable = canEdit && !released;
+  const localValue = toDatetimeLocalValue(resultsReleaseAt);
+
+  return (
+    <div className="mt-3">
+      <label
+        htmlFor={`quiz-release-${quizId}`}
+        className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted"
+      >
+        Results release
+      </label>
+      {editable ? (
+        <input
+          id={`quiz-release-${quizId}`}
+          type="datetime-local"
+          defaultValue={localValue}
+          disabled={pending}
+          onBlur={(event) => {
+            const raw = event.target.value;
+            if (!raw) {
+              event.target.value = localValue;
+              return;
+            }
+            const next = new Date(raw);
+            if (Number.isNaN(next.getTime())) {
+              event.target.value = localValue;
+              return;
+            }
+            if (toDatetimeLocalValue(next) === localValue) return;
+            run(
+              () =>
+                setTermTestReleaseDate({
+                  quizId,
+                  releaseAt: next.toISOString(),
+                }),
+              undefined,
+              () => {
+                event.target.value = localValue;
+              },
+            );
+          }}
+          className="mt-1 h-11 rounded-[10px] border border-line bg-background px-3 text-[13px] font-semibold text-ink outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
+        />
+      ) : (
+        <p className="mt-1 text-[13px] font-bold text-ink">
+          {releaseFmt.format(resultsReleaseAt)}
+        </p>
+      )}
+      {released && (
+        <p className="mt-1 text-[11px] font-semibold text-muted">
+          Results have been released to students.
+        </p>
       )}
       {error && (
         <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">

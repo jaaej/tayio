@@ -29,3 +29,32 @@ export function formatQuizWeekLabel(input: {
 }): string {
   return `${input.subjectName} - ${input.year} Term ${input.termNumber}, Week ${input.weekNumber}`;
 }
+
+/**
+ * Kind-aware "subject + period" label used by the admin/tutor quiz list rows.
+ * A term test has no week, so it renders as "Term N test" instead of
+ * "Term N, Week M".
+ */
+export function quizSubjectPeriodLabel(row: {
+  subjectName: string;
+  kind: "weekly" | "term_test";
+  termNumber: number;
+  weekNumber: number | null;
+}): string {
+  return row.kind === "term_test"
+    ? `${row.subjectName} - Term ${row.termNumber} test`
+    : `${row.subjectName} - Term ${row.termNumber}, Week ${row.weekNumber}`;
+}
+
+/** Same as {@link quizSubjectPeriodLabel} but also includes the term year, for detail-page headers. */
+export function quizSubjectPeriodLabelWithYear(row: {
+  subjectName: string;
+  kind: "weekly" | "term_test";
+  termYear: number;
+  termNumber: number;
+  weekNumber: number | null;
+}): string {
+  return row.kind === "term_test"
+    ? `${row.subjectName} - ${row.termYear} Term ${row.termNumber} test`
+    : `${row.subjectName} - ${row.termYear} Term ${row.termNumber}, Week ${row.weekNumber}`;
+}

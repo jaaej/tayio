@@ -20,7 +20,7 @@ import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
 import { canStudentAccessApprovedQuiz } from "@/lib/quiz-queries";
 import { gradeTermTest } from "@/lib/term-test";
-import { isUniqueViolation } from "@/app/_actions/quizzes";
+import { isUniqueViolation } from "@/lib/db-errors";
 
 type Result = { ok: true } | { ok: false; error: string };
 type CreateResult = { ok: true; id: string } | { ok: false; error: string };
@@ -144,17 +144,22 @@ export async function createTermTest(input: {
 
 export async function setTermTestReleaseDate(input: {
   quizId: string;
-  releaseAt: Date;
+  // A server action's arguments are serialized over the wire, so a
+  // <input type="datetime-local"> value (or any client-built Date) must
+  // cross as a string. The client sends `date.toISOString()`; parse it back
+  // into a Date here rather than trusting a client-constructed Date object.
+  releaseAt: string;
 }): Promise<Result> {
   await requireAdmin();
   const parsed = z
     .object({
       quizId: z.string().uuid(),
-      releaseAt: z.date(),
+      releaseAt: z.string().datetime(),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { quizId, releaseAt } = parsed.data;
+  const { quizId } = parsed.data;
+  const releaseAt = new Date(parsed.data.releaseAt);
 
   const [row] = await db
     .select({ kind: quizzes.kind, resultsReleaseAt: quizzes.resultsReleaseAt })

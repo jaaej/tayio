@@ -32,6 +32,7 @@ import {
   removeQuizAttachmentFile,
   uploadQuizAttachmentFile,
 } from "@/lib/quiz-storage";
+import { isUniqueViolation } from "@/lib/db-errors";
 
 type Result = { ok: true } | { ok: false; error: string };
 type CreateResult = { ok: true; id: string } | { ok: false; error: string };
@@ -95,15 +96,6 @@ async function quizAlreadyExists(subjectWeekId: string): Promise<boolean> {
     .where(eq(quizzes.subjectWeekId, subjectWeekId))
     .limit(1);
   return Boolean(row);
-}
-
-export function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  );
 }
 
 async function quizIdForQuestion(questionId: string): Promise<string | null> {

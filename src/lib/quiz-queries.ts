@@ -74,6 +74,7 @@ export type QuizWithContent = {
     assignedTutorId: string | null;
     note: string | null;
     createdBy: string;
+    resultsReleaseAt: Date | null;
   };
   questions: Array<{
     id: string;
@@ -287,6 +288,7 @@ export async function getQuizWithContent(
       assignedTutorId: quizzes.assignedTutorId,
       note: quizzes.note,
       createdBy: quizzes.createdBy,
+      resultsReleaseAt: quizzes.resultsReleaseAt,
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
