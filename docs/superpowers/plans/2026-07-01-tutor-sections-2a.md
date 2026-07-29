@@ -1,22 +1,22 @@
-# Tutor Curriculum Sections — Part 2a (write side) Implementation Plan
+# Tutor Curriculum Sections - Part 2a (write side) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a tutor add a per-`(tutor, subject-week)` note + file attachments (their own additive material) to any week of a subject they teach, authored on the reshaped `/tutor/classes/[id]/curriculum` page.
 
-**Architecture:** Two new tables (`tutor_week_sections`, `tutor_week_attachments`); the tutor curriculum page shows the admin base **read-only** plus an editable note + attachments block. The old per-class override (empty, unused) is left in place — it and its table are removed in Part 2b along with the student/parent read-view changes. Writes go through tutor-gated server actions; RLS is defense-in-depth.
+**Architecture:** Two new tables (`tutor_week_sections`, `tutor_week_attachments`); the tutor curriculum page shows the admin base **read-only** plus an editable note + attachments block. The old per-class override (empty, unused) is left in place - it and its table are removed in Part 2b along with the student/parent read-view changes. Writes go through tutor-gated server actions; RLS is defense-in-depth.
 
 **Tech Stack:** Next.js 16 App Router, React 19, Drizzle/Postgres, Supabase (Storage + raw-SQL RLS), Zod, Tailwind v4.
 
-**Spec:** `docs/superpowers/specs/2026-07-01-tutor-sections-design.md` (Part 2). This plan is **2a of 2** — the write side. 2b does the student/parent read views + removes the override + drops `class_week_overrides`.
+**Spec:** `docs/superpowers/specs/2026-07-01-tutor-sections-design.md` (Part 2). This plan is **2a of 2** - the write side. 2b does the student/parent read views + removes the override + drops `class_week_overrides`.
 
 ## Global Constraints
 
-- **No automated test suite.** Per-task verification is `npm run typecheck 2>&1 | grep -cE "^src/.*error"` printing **0** (ignore pre-existing `.next/types/...d 2.ts` "Duplicate identifier" errors — iCloud artifacts). End-to-end is the manual plan in the final task.
+- **No automated test suite.** Per-task verification is `npm run typecheck 2>&1 | grep -cE "^src/.*error"` printing **0** (ignore pre-existing `.next/types/...d 2.ts` "Duplicate identifier" errors - iCloud artifacts). End-to-end is the manual plan in the final task.
 - **Schema is applied with `db:push`, never `db:generate`** (repo tracks no `drizzle/` migration files; generate emits a full-schema baseline). RLS lives in `supabase/migrations/` applied via `node scripts/apply-sql.mjs <file>` (uses `DIRECT_URL`).
-- **DB-apply steps are gated:** the controller decides when to run `db:push`, the RLS apply, and the seed. Implementer tasks write code/SQL and commit; they do **not** run DB commands unless the task explicitly says so (this plan marks each DB step `[DB — controller-gated]`).
+- **DB-apply steps are gated:** the controller decides when to run `db:push`, the RLS apply, and the seed. Implementer tasks write code/SQL and commit; they do **not** run DB commands unless the task explicitly says so (this plan marks each DB step `[DB - controller-gated]`).
 - **Server-action pattern:** `"use server"`, `await requireRole("tutor")` (or admin) first, Zod-validate, ownership check, return `{ ok: true, ... } | { ok: false, error: string }`, `revalidatePath` the curriculum page.
-- **2a keeps the old override in place** (`class_week_overrides`, `mergeOverride`, override actions). Do NOT remove them here — student/parent reads still depend on them until 2b.
+- **2a keeps the old override in place** (`class_week_overrides`, `mergeOverride`, override actions). Do NOT remove them here - student/parent reads still depend on them until 2b.
 - **Branch:** feature branch off `main`. Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ---
@@ -28,7 +28,7 @@
 
 ---
 
-## Task 1: Schema — `tutor_week_sections` + `tutor_week_attachments`
+## Task 1: Schema - `tutor_week_sections` + `tutor_week_attachments`
 
 **Files:** Modify `src/db/schema.ts`.
 
@@ -100,7 +100,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Create `supabase/migrations/0010_tutor_week_sections_rls.sql`; modify `docs/SECURITY.md`.
 
-- [ ] **Step 1 [DB — controller-gated]:** apply the schema — `npm run db:push`. (Controller runs this; implementer skips.)
+- [ ] **Step 1 [DB - controller-gated]:** apply the schema - `npm run db:push`. (Controller runs this; implementer skips.)
 
 - [ ] **Step 2:** Write `supabase/migrations/0010_tutor_week_sections_rls.sql`:
 
@@ -157,9 +157,9 @@ grant select on public.tutor_week_attachments to authenticated;
 commit;
 ```
 
-- [ ] **Step 3 [DB — controller-gated]:** `node scripts/apply-sql.mjs supabase/migrations/0010_tutor_week_sections_rls.sql`.
+- [ ] **Step 3 [DB - controller-gated]:** `node scripts/apply-sql.mjs supabase/migrations/0010_tutor_week_sections_rls.sql`.
 
-- [ ] **Step 4:** Add a `### 0010 — tutor_week_sections + attachments RLS` entry to `docs/SECURITY.md` (status, low risk, what-it-does incl. the `is_owner_of_tutor_section` helper, reversible-by: `disable row level security` on both tables + `drop function public.is_owner_of_tutor_section`). Add read + write access-matrix rows for both tables (read: all authenticated; write: tutor-own / admin).
+- [ ] **Step 4:** Add a `### 0010 - tutor_week_sections + attachments RLS` entry to `docs/SECURITY.md` (status, low risk, what-it-does incl. the `is_owner_of_tutor_section` helper, reversible-by: `disable row level security` on both tables + `drop function public.is_owner_of_tutor_section`). Add read + write access-matrix rows for both tables (read: all authenticated; write: tutor-own / admin).
 
 - [ ] **Step 5:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → `0` (unchanged; SQL + md only).
 - [ ] **Step 6:** Commit:
@@ -240,13 +240,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 **Files:** Modify `src/app/tutor/_actions.ts`.
 
 **Interfaces produced:**
-- `upsertTutorWeekNote(formData): Promise<{ok:true}|{ok:false,error}>` — form fields `classId`, `subjectWeekId`, `note`
-- `addTutorWeekAttachment(formData): Promise<{ok:true}|{ok:false,error}>` — form fields `classId`, `subjectWeekId`, `file`
+- `upsertTutorWeekNote(formData): Promise<{ok:true}|{ok:false,error}>` - form fields `classId`, `subjectWeekId`, `note`
+- `addTutorWeekAttachment(formData): Promise<{ok:true}|{ok:false,error}>` - form fields `classId`, `subjectWeekId`, `file`
 - `removeTutorWeekAttachment(attachmentId: string, classId: string): Promise<{ok:true}|{ok:false,error}>`
 
 **Interfaces consumed:** `uploadTutorAttachment`, `removeCurriculumObject` (Task 3); `tutorWeekSections`, `tutorWeekAttachments` (Task 1).
 
-> Leave the existing override actions (`upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverride*`) untouched — removed in 2b.
+> Leave the existing override actions (`upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverride*`) untouched - removed in 2b.
 
 - [ ] **Step 1:** Read `src/app/tutor/_actions.ts` to confirm imports (`db`, `requireRole`, `revalidatePath`, `z`, `and`, `eq`, drizzle tables, `classes`, `subjectWeeks`). Add imports as needed: `tutorWeekSections`, `tutorWeekAttachments` from `@/db/schema`; `randomUUID` from `node:crypto`; `uploadTutorAttachment`, `removeCurriculumObject` from `@/lib/curriculum-storage`.
 
@@ -366,7 +366,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Tutor curriculum query — base + section (drop override usage)
+## Task 5: Tutor curriculum query - base + section (drop override usage)
 
 **Files:** Rewrite `src/app/tutor/classes/[id]/curriculum/_queries.ts`.
 
@@ -448,19 +448,19 @@ Build each week from the template + its section:
 
 `TutorCurriculumData` is unchanged except `weeks: TutorCurriculumWeek[]`.
 
-- [ ] **Step 2:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → will FAIL until Task 6 (the page/components still reference the old shape). That's expected mid-task; do not commit yet. If you want an isolated green commit, do Task 6 in the same commit — see Task 6 Step 4.
+- [ ] **Step 2:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → will FAIL until Task 6 (the page/components still reference the old shape). That's expected mid-task; do not commit yet. If you want an isolated green commit, do Task 6 in the same commit - see Task 6 Step 4.
 
 ---
 
-## Task 6: Tutor curriculum UI — section editor
+## Task 6: Tutor curriculum UI - section editor
 
 **Files:** Create `src/app/tutor/classes/[id]/curriculum/_components/section-editor.tsx`; modify `page.tsx` and `_components/week-strip-tutor.tsx`; **delete** `_components/override-editor.tsx`.
 
 **Interfaces consumed:** `TutorCurriculumWeek` (Task 5); actions `upsertTutorWeekNote`, `addTutorWeekAttachment`, `removeTutorWeekAttachment` (Task 4); `signCurriculumUrl` from `@/lib/curriculum-storage` for base video/booklet + attachment download links; `createHomework` (existing) for the kept homework block.
 
-- [ ] **Step 1:** Create `section-editor.tsx` (client). Three parts: (a) **base, read-only** — week title/description + base video/booklet links, labelled "Set by admin"; (b) **your section** — a note `<textarea>` posting `upsertTutorWeekNote` (hidden `classId`, `subjectWeekId`), plus an attachments list (each with a remove button calling `removeTutorWeekAttachment(att.id, classId)`) and a file `<input>` posting `addTutorWeekAttachment`; (c) **homework block** — copy the existing homework list + `createHomework` form verbatim from `override-editor.tsx` (lines 150–244) so that functionality is preserved. Add a hint line: "Shared across all your {subjectName} classes." Use `useTransition` + inline error, matching the existing editor's patterns. Signed URLs for base files/attachments are minted server-side — pass them in as props from the page (see Step 2), or render download links that hit an existing signing route; simplest: have the page pre-sign and pass `attachments` with a `url` field. (Implementer: pre-sign in the page Server Component and extend the prop with `url`.)
+- [ ] **Step 1:** Create `section-editor.tsx` (client). Three parts: (a) **base, read-only** - week title/description + base video/booklet links, labelled "Set by admin"; (b) **your section** - a note `<textarea>` posting `upsertTutorWeekNote` (hidden `classId`, `subjectWeekId`), plus an attachments list (each with a remove button calling `removeTutorWeekAttachment(att.id, classId)`) and a file `<input>` posting `addTutorWeekAttachment`; (c) **homework block** - copy the existing homework list + `createHomework` form verbatim from `override-editor.tsx` (lines 150–244) so that functionality is preserved. Add a hint line: "Shared across all your {subjectName} classes." Use `useTransition` + inline error, matching the existing editor's patterns. Signed URLs for base files/attachments are minted server-side - pass them in as props from the page (see Step 2), or render download links that hit an existing signing route; simplest: have the page pre-sign and pass `attachments` with a `url` field. (Implementer: pre-sign in the page Server Component and extend the prop with `url`.)
 
-- [ ] **Step 2:** In `page.tsx`, replace the `OverrideEditor` import + usage with `SectionEditor`, pass `classId`, `week={selected}`, and `subjectName={data.subjectName}`. Pre-sign attachment + base file URLs in the Server Component before passing down (use `signCurriculumUrl`). The `WeekStripTutor` prop `hasOverride` becomes `hasSection` — update the `.map` (`hasOverride: w.hasOverride` → `hasSection: w.hasSection`).
+- [ ] **Step 2:** In `page.tsx`, replace the `OverrideEditor` import + usage with `SectionEditor`, pass `classId`, `week={selected}`, and `subjectName={data.subjectName}`. Pre-sign attachment + base file URLs in the Server Component before passing down (use `signCurriculumUrl`). The `WeekStripTutor` prop `hasOverride` becomes `hasSection` - update the `.map` (`hasOverride: w.hasOverride` → `hasSection: w.hasSection`).
 
 - [ ] **Step 3:** In `week-strip-tutor.tsx`, rename the `hasOverride` field/label to `hasSection` (and any "override" wording → "your notes"/"section"). Read the file first; keep its layout.
 
@@ -493,7 +493,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1:** After weeks are seeded, insert one `tutor_week_sections` row (note only, no attachment) for one class's tutor + one of that subject's weeks, so the demo shows a populated section. Reuse the file's `sql` client + `on conflict (tutor_id, subject_week_id) do update` for idempotency. Look up a real `tutor_id` (a class's tutor) + a `subject_week_id` for that class's subject.
 
 - [ ] **Step 2:** `node --check scripts/seed-demo.mjs` parses; `npm run typecheck` → `0` src errors.
-- [ ] **Step 3 [DB — controller-gated]:** `node scripts/seed-demo.mjs`.
+- [ ] **Step 3 [DB - controller-gated]:** `node scripts/seed-demo.mjs`.
 - [ ] **Step 4:** Commit:
 
 ```bash

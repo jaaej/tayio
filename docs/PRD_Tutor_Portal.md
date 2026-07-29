@@ -55,7 +55,7 @@ Tutors should see their teaching tasks for the day.
 Tutors need fast access to the information that helps them teach. The dashboard should reduce preparation time.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 5. Schedule and Class List
 
@@ -77,7 +77,7 @@ Tutors can see:
 This keeps tutors organised and helps them prepare before each session.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 6. Student Profiles
 
@@ -102,7 +102,7 @@ Tutors can view student information relevant to teaching.
 Tutors often teach many students. Student profiles help tutors personalise lessons and avoid starting from scratch every time.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 7. Attendance Marking
 
@@ -121,7 +121,7 @@ Tutors can mark students as:
 Attendance is needed for parent transparency, admin records, and make-up class management.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 8. Lesson Note Templates
 
@@ -150,7 +150,7 @@ There should be two types of notes:
 Not all notes should be visible to parents. Tutors may need internal notes about behaviour, learning difficulties, or future teaching strategy.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 9. Homework Assignment and Marking
 
@@ -172,7 +172,7 @@ Tutors can:
 This completes the homework loop and creates accountability.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 10. Resource Management
 
@@ -195,7 +195,7 @@ Depending on business rules, admin may need to approve uploaded resources before
 A shared resource library improves teaching quality and consistency across tutors.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 11. Tutor Messaging
 
@@ -213,7 +213,7 @@ Tutors can:
 This keeps learning communication inside the portal rather than scattered across SMS, email, or personal accounts.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 12. Tutor Availability and Timesheets
 
@@ -233,7 +233,7 @@ Tutors can:
 This helps the business manage staff scheduling and payroll.
 
 ### Priority
-**P2 — Later version**
+**P2 - Later version**
 
 ## 13. Tutor Progress View
 

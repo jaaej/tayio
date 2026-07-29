@@ -2,18 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a Zetamac-style mental-math speed game in the student portal — four difficulty tiers, 60-second timed runs with typed integer answers, per-difficulty leaderboards, and pick-your-sound feedback — entered from a purple gradient CTA block in the student sidebar.
+**Goal:** Ship a Zetamac-style mental-math speed game in the student portal - four difficulty tiers, 60-second timed runs with typed integer answers, per-difficulty leaderboards, and pick-your-sound feedback - entered from a purple gradient CTA block in the student sidebar.
 
 **Architecture:** A single route `/student/math-game`. Pure, unit-tested modules for question generation and score plausibility. A `"use client"` game component owns the timer/state machine and plays synthesized Web Audio sounds. A server action records scores; server queries compute leaderboards. One append-only `math_game_scores` table.
 
-**Tech Stack:** Next.js 16 App Router, React 19, Drizzle ORM (Postgres), Zod v4, Tailwind v4 (`.theme-student` cornflower theme + a bespoke purple gradient), Web Audio API. Tests via **vitest** (added in Task 2 — the repo has no test runner yet).
+**Tech Stack:** Next.js 16 App Router, React 19, Drizzle ORM (Postgres), Zod v4, Tailwind v4 (`.theme-student` cornflower theme + a bespoke purple gradient), Web Audio API. Tests via **vitest** (added in Task 2 - the repo has no test runner yet).
 
 ## Global Constraints
 
 - **Every generated answer is a whole integer.** No fractions, no remainders, in any tier (including Genius). Division is always generated as `divisor × quotient`; percentages are chosen so the result is whole.
 - **Auth:** every server entry point uses `requireRole("student")` from `@/lib/auth`. Available to all students (both role tiers).
 - **DB import:** `import { db } from "@/db/client"`.
-- **Migrations are raw SQL** in `supabase/migrations/`, applied manually by the user (Supabase SQL editor / psql). **Never run `db:push` or `db:generate`** — `db:push` wipes all RLS.
+- **Migrations are raw SQL** in `supabase/migrations/`, applied manually by the user (Supabase SQL editor / psql). **Never run `db:push` or `db:generate`** - `db:push` wipes all RLS.
 - **Leaderboard privacy:** show `firstName + " " + lastInitial + "."` only. Never expose email or user id to the client.
 - **Gradient stops (approximate, sample exact hex from the screenshot at build):** `linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)`.
 - **Difficulty union type** (used everywhere): `type Difficulty = "easy" | "medium" | "hard" | "genius"`.
@@ -22,7 +22,7 @@
 
 ---
 
-### Task 1: Database — enum, table, migration
+### Task 1: Database - enum, table, migration
 
 **Files:**
 - Modify: `src/db/schema.ts` (add enum + table near the other pgEnum/pgTable declarations)
@@ -33,7 +33,7 @@
 
 - [ ] **Step 1: Add the enum and table to `src/db/schema.ts`**
 
-Add after the existing enum declarations (near line 91, before `profiles`, is fine — but place the table anywhere after `profiles` is declared since it references it; put both at the end of the file's table declarations for isolation):
+Add after the existing enum declarations (near line 91, before `profiles`, is fine - but place the table anywhere after `profiles` is declared since it references it; put both at the end of the file's table declarations for isolation):
 
 ```ts
 export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
@@ -68,7 +68,7 @@ export const mathGameScores = pgTable(
 - [ ] **Step 2: Create the migration `supabase/migrations/0022_math_game_scores.sql`**
 
 ```sql
--- 0022 — math game scores (student "Math Sprint" speed-drill leaderboard)
+-- 0022 - math game scores (student "Math Sprint" speed-drill leaderboard)
 --
 -- Append-only: one row per completed 60s run. Leaderboard = max(score) per
 -- student per difficulty. App reads/writes via Drizzle as the postgres role
@@ -107,7 +107,7 @@ commit;
 Run: `npm run typecheck`
 Expected: PASS (no errors). This confirms `schema.ts` compiles with the new table.
 
-- [ ] **Step 4: Apply the migration (USER action — do not automate)**
+- [ ] **Step 4: Apply the migration (USER action - do not automate)**
 
 The user runs `supabase/migrations/0022_math_game_scores.sql` against the database via the Supabase SQL editor or psql. Do **not** run `db:push`.
 
@@ -230,7 +230,7 @@ describe("generateQuestion", () => {
 - [ ] **Step 4: Run the test to verify it fails**
 
 Run: `npm test`
-Expected: FAIL — cannot resolve `./question-generator` / `generateQuestion is not a function`.
+Expected: FAIL - cannot resolve `./question-generator` / `generateQuestion is not a function`.
 
 - [ ] **Step 5: Implement `question-generator.ts`**
 
@@ -391,7 +391,7 @@ git commit -m "feat(math-game): question generator + vitest setup"
   - `function playSound(name: SoundName): void`
   Consumed by Tasks 5 and 6.
 
-This module is browser-only (uses `window`/`AudioContext`) and has no unit test — it is exercised by the manual device test in Task 6. All functions guard against SSR (`typeof window === "undefined"`).
+This module is browser-only (uses `window`/`AudioContext`) and has no unit test - it is exercised by the manual device test in Task 6. All functions guard against SSR (`typeof window === "undefined"`).
 
 - [ ] **Step 1: Implement `sound.ts`**
 
@@ -460,7 +460,7 @@ export function playSound(name: SoundName): void {
     case "mute":
       return;
     case "coin":
-      // two quick ascending notes — classic pickup
+      // two quick ascending notes - classic pickup
       blip("square", [[988, 0], [1319, 0.07]], 0.12);
       return;
     case "pop":
@@ -537,7 +537,7 @@ describe("isPlausibleScore", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npm test`
-Expected: FAIL — cannot resolve `./scoring`.
+Expected: FAIL - cannot resolve `./scoring`.
 
 - [ ] **Step 3: Implement `scoring.ts`**
 
@@ -893,7 +893,7 @@ git commit -m "feat(math-game): timed game client with auto-advance + sound"
 
 ---
 
-### Task 6: Landing page — hero, difficulty picker, leaderboard, wiring
+### Task 6: Landing page - hero, difficulty picker, leaderboard, wiring
 
 **Files:**
 - Create: `src/app/student/math-game/_components/difficulty-picker.tsx`
@@ -964,7 +964,7 @@ export function Leaderboard({ boards }: { boards: Boards }) {
       </div>
       {board.top.length === 0 ? (
         <div className="py-8 text-center text-[13px] text-muted">
-          No scores yet — be the first!
+          No scores yet - be the first!
         </div>
       ) : (
         <div className="flex flex-col gap-1">
@@ -984,7 +984,7 @@ export function Leaderboard({ boards }: { boards: Boards }) {
 }
 ```
 
-- [ ] **Step 2: Implement `difficulty-picker.tsx` (client — owns selection, sound, launches game)**
+- [ ] **Step 2: Implement `difficulty-picker.tsx` (client - owns selection, sound, launches game)**
 
 ```tsx
 "use client";
@@ -1127,7 +1127,7 @@ export default async function MathGamePage() {
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Device test (USER-verified — no "it works" before this)**
+- [ ] **Step 5: Device test (USER-verified - no "it works" before this)**
 
 Start the dev server (the user does this per their workflow), log in as a seeded student, visit `/student/math-game`, and verify:
 1. Hero shows the purple gradient with the light-bloom.
@@ -1141,7 +1141,7 @@ Start the dev server (the user does this per their workflow), log in as a seeded
 
 ```bash
 git add src/app/student/math-game/_components/difficulty-picker.tsx src/app/student/math-game/_components/leaderboard.tsx src/app/student/math-game/page.tsx
-git commit -m "feat(math-game): landing page — hero, difficulty picker, leaderboard"
+git commit -m "feat(math-game): landing page - hero, difficulty picker, leaderboard"
 ```
 
 ---
@@ -1240,6 +1240,6 @@ git commit -m "feat(math-game): purple Math Sprint CTA block in student sidebar"
 - All-students access via `requireRole("student")` → Tasks 4, 6 ✓
 - No XP/levels (out of scope) → confirmed absent ✓
 
-**Placeholder scan:** none — every code step is complete and runnable.
+**Placeholder scan:** none - every code step is complete and runnable.
 
 **Type consistency:** `Difficulty`, `Question`, `SoundName`, `LeaderboardRow`, `MyBests`, `Boards` are defined once and imported consistently; `generateQuestion`, `playSound`, `submitScore`, `getLeaderboard`, `getMyBests`, `isPlausibleScore` signatures match across producing and consuming tasks.

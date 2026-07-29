@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- **Deploy-ready, not MVP** — no stubs; full validation, error handling, and access control on every task (per `CLAUDE.md`).
-- **Never `drizzle-kit push` / `db:generate`** — it wipes all RLS. Apply SQL via `node scripts/apply-sql.mjs <file>` (per `reference_schema_apply_dbpush`). Stop the dev server before applying (locks).
+- **Deploy-ready, not MVP** - no stubs; full validation, error handling, and access control on every task (per `CLAUDE.md`).
+- **Never `drizzle-kit push` / `db:generate`** - it wipes all RLS. Apply SQL via `node scripts/apply-sql.mjs <file>` (per `reference_schema_apply_dbpush`). Stop the dev server before applying (locks).
 - **Every new `pgTable` gets an RLS migration entry** (security-checklist A10).
 - **Files stored as `storage_bucket` + `storage_path`, never a persisted public URL**; reads mint short-lived (1h) signed URLs (security E4/E5).
 - **Uploads:** magic-byte sniff + size cap + allowlist; SVG excluded; canonical ext/content-type from the allowlist, not the client (E1/E3).
@@ -26,22 +26,22 @@ Spec: `docs/superpowers/specs/2026-07-23-resource-library-design.md`.
 ## File Structure
 
 **Create:**
-- `supabase/migrations/0024_resources.sql` — enum, table, indexes, CHECK, RLS enable + policies, audit trigger.
-- `src/lib/resources-storage.ts` — `uploadResourceFile`, `signResourceAttachment` (mirrors `discussions-storage.ts`).
-- `src/lib/resources.ts` — scoping helpers + read queries shared across portals.
-- `src/app/_actions/resources.ts` — server actions (add/update/promote/unpublish/remove/restore).
-- `src/app/student/resources/_components/library-browser.tsx` — student browse UI (filters + open).
-- `src/app/parent/resources/page.tsx` + `_components/` — parent read-only mirror.
-- `src/app/admin/resources/page.tsx` + `_components/` — admin moderation.
-- `src/app/tutor/resources/page.tsx` + `_components/resource-form.tsx` — tutor authoring for taught subjects.
-- `src/lib/__tests__/upload-validation.resource.test.ts` — RESOURCE_POLICY unit tests.
+- `supabase/migrations/0024_resources.sql` - enum, table, indexes, CHECK, RLS enable + policies, audit trigger.
+- `src/lib/resources-storage.ts` - `uploadResourceFile`, `signResourceAttachment` (mirrors `discussions-storage.ts`).
+- `src/lib/resources.ts` - scoping helpers + read queries shared across portals.
+- `src/app/_actions/resources.ts` - server actions (add/update/promote/unpublish/remove/restore).
+- `src/app/student/resources/_components/library-browser.tsx` - student browse UI (filters + open).
+- `src/app/parent/resources/page.tsx` + `_components/` - parent read-only mirror.
+- `src/app/admin/resources/page.tsx` + `_components/` - admin moderation.
+- `src/app/tutor/resources/page.tsx` + `_components/resource-form.tsx` - tutor authoring for taught subjects.
+- `src/lib/__tests__/upload-validation.resource.test.ts` - RESOURCE_POLICY unit tests.
 
 **Modify:**
-- `src/db/schema.ts` — add `resourceType` enum + `resources` table + relations.
-- `src/lib/upload-validation.ts` — add `RESOURCE_POLICY`.
-- `src/app/student/resources/page.tsx` — convert to `Library` + `Recorded lessons` tabs.
-- The tutor curriculum week editor component (`src/app/tutor/classes/[id]/curriculum/_components/week-editor.tsx`) — add the "Also publish to library" toggle.
-- The tutor weekly-attachment delete action — block deletion when the attachment has a published `resources` row (`source_attachment_id`).
+- `src/db/schema.ts` - add `resourceType` enum + `resources` table + relations.
+- `src/lib/upload-validation.ts` - add `RESOURCE_POLICY`.
+- `src/app/student/resources/page.tsx` - convert to `Library` + `Recorded lessons` tabs.
+- The tutor curriculum week editor component (`src/app/tutor/classes/[id]/curriculum/_components/week-editor.tsx`) - add the "Also publish to library" toggle.
+- The tutor weekly-attachment delete action - block deletion when the attachment has a published `resources` row (`source_attachment_id`).
 
 ---
 
@@ -119,7 +119,7 @@ export type Resource = typeof resources.$inferSelect;
 - [ ] **Step 2: Write the migration `supabase/migrations/0024_resources.sql`**
 
 ```sql
--- 0024_resources.sql — resource library table, RLS, audit
+-- 0024_resources.sql - resource library table, RLS, audit
 -- Reversible by: DROP TABLE resources; DROP TYPE resource_type; DROP TYPE resource_kind;
 
 CREATE TYPE resource_type AS ENUM (
@@ -229,7 +229,7 @@ git commit -m "feat(resources): resources table + RLS + audit (migration 0024)"
 - Test: `src/lib/__tests__/upload-validation.resource.test.ts`
 
 **Interfaces:**
-- Consumes: existing `validateUpload(file, policy)` and the policy shape (grep `DISCUSSION_POLICY` in `upload-validation.ts` for the exact structure — `{ maxBytes, allow: [{ mime, ext, family }] }` or similar).
+- Consumes: existing `validateUpload(file, policy)` and the policy shape (grep `DISCUSSION_POLICY` in `upload-validation.ts` for the exact structure - `{ maxBytes, allow: [{ mime, ext, family }] }` or similar).
 - Produces: `RESOURCE_POLICY` exported from `upload-validation.ts`.
 
 - [ ] **Step 1: Write failing tests** `src/lib/__tests__/upload-validation.resource.test.ts`
@@ -275,9 +275,9 @@ describe("RESOURCE_POLICY", () => {
 - [ ] **Step 2: Run to verify failure**
 
 Run: `npx vitest run src/lib/__tests__/upload-validation.resource.test.ts`
-Expected: FAIL — `RESOURCE_POLICY` is not exported.
+Expected: FAIL - `RESOURCE_POLICY` is not exported.
 
-- [ ] **Step 3: Add `RESOURCE_POLICY`** to `src/lib/upload-validation.ts` (mirror `CURRICULUM`/`DISCUSSION_POLICY` exactly; combine the doc allowlist with the 500MB video entry). Use the SAME allowlist entry objects the file already defines for pdf/png/jpeg/webp/gif/office/mp4/webm; set `maxBytes` per-family if the existing policy supports it, else set the policy `maxBytes` to the video cap and add a per-entry `maxBytes` for docs. Match the existing structure — do not restructure the module.
+- [ ] **Step 3: Add `RESOURCE_POLICY`** to `src/lib/upload-validation.ts` (mirror `CURRICULUM`/`DISCUSSION_POLICY` exactly; combine the doc allowlist with the 500MB video entry). Use the SAME allowlist entry objects the file already defines for pdf/png/jpeg/webp/gif/office/mp4/webm; set `maxBytes` per-family if the existing policy supports it, else set the policy `maxBytes` to the video cap and add a per-entry `maxBytes` for docs. Match the existing structure - do not restructure the module.
 
 ```ts
 // Allow common study docs + images + video. SVG intentionally excluded (XSS).
@@ -417,7 +417,7 @@ git commit -m "feat(resources): storage helper + private resource-library bucket
   - `listResourcesForSubjects(subjectIds: string[], filter?): Promise<Resource[]>` (published, not removed, ordered by createdAt desc)
   - `getResourceForViewer(id: string, allowedSubjectIds: string[]): Promise<Resource | null>` (authorization gate for signing)
 
-> **No unit test for this module.** `resources.ts` is `import "server-only"` + DB-bound, so it cannot be imported in the node vitest environment (server-only throws; db needs a live connection). The empty-scope guard (`subjectIds.length === 0 → []`) and full subject-scoping are verified at **runtime** in Task 11, Step 1 (the cross-subject-leak test) — the real security check. Do not add a vitest file here.
+> **No unit test for this module.** `resources.ts` is `import "server-only"` + DB-bound, so it cannot be imported in the node vitest environment (server-only throws; db needs a live connection). The empty-scope guard (`subjectIds.length === 0 → []`) and full subject-scoping are verified at **runtime** in Task 11, Step 1 (the cross-subject-leak test) - the real security check. Do not add a vitest file here.
 
 - [ ] **Step 1: Implement `src/lib/resources.ts`**
 
@@ -507,9 +507,9 @@ export async function getResourceForViewer(
 }
 ```
 
-> Fix imports (`isNull`) and align the enrolment/teaches joins with the exact relations the existing queries use (grep `src/app/student/_lib/queries.ts` and `src/app/tutor/**/_lib`). Do not invent column names — verify `classes.subjectId`, `classes.tutorId`, `enrollments.studentId/classId/withdrawnAt`, `familyLinks.parentId/childId` against `schema.ts`.
+> Fix imports (`isNull`) and align the enrolment/teaches joins with the exact relations the existing queries use (grep `src/app/student/_lib/queries.ts` and `src/app/tutor/**/_lib`). Do not invent column names - verify `classes.subjectId`, `classes.tutorId`, `enrollments.studentId/classId/withdrawnAt`, `familyLinks.parentId/childId` against `schema.ts`.
 
-- [ ] **Step 2: Typecheck** — `npx tsc --noEmit` → no errors in `resources.ts` (fix any join/column/import mismatches against `schema.ts`).
+- [ ] **Step 2: Typecheck** - `npx tsc --noEmit` → no errors in `resources.ts` (fix any join/column/import mismatches against `schema.ts`).
 
 - [ ] **Step 3: Commit**
 
@@ -526,7 +526,7 @@ git commit -m "feat(resources): subject-scoping helpers + read queries"
 - Create: `src/app/_actions/resources.ts`
 
 **Interfaces:**
-- Consumes: `requireRole` (`@/lib/auth`), `taughtSubjectIds`, `uploadResourceFile`, `isSafeUrl` (from `src/lib/safe-url.ts` — grep its exact export), `withActor` (`src/lib/with-actor.ts`), `db`, `resources`, `tutorWeekAttachments`.
+- Consumes: `requireRole` (`@/lib/auth`), `taughtSubjectIds`, `uploadResourceFile`, `isSafeUrl` (from `src/lib/safe-url.ts` - grep its exact export), `withActor` (`src/lib/with-actor.ts`), `db`, `resources`, `tutorWeekAttachments`.
 - Produces: `addResource(formData)`, `promoteAttachment(formData)`, `setResourcePublished(formData)`, `removeResource(formData)`, `restoreResource(formData)`. All return `{ok:true}|{ok:false,error}` except redirecting flows.
 
 - [ ] **Step 1: Implement the actions** (Zod-validate every input; length-cap free text; guard subject ownership for tutors)
@@ -730,7 +730,7 @@ git commit -m "feat(resources): server actions (add/promote/publish/remove/resto
 **Interfaces:**
 - Consumes: `resources` table.
 
-- [ ] **Step 1: Add a guard at the top of the attachment-delete action** — before deleting, check for a live promoted resource:
+- [ ] **Step 1: Add a guard at the top of the attachment-delete action** - before deleting, check for a live promoted resource:
 
 ```ts
 const [promoted] = await db
@@ -746,7 +746,7 @@ if (promoted) {
 }
 ```
 
-- [ ] **Step 2: Surface the error in the week-editor UI** — ensure the delete button shows the returned error (match how other action errors are shown in that component).
+- [ ] **Step 2: Surface the error in the week-editor UI** - ensure the delete button shows the returned error (match how other action errors are shown in that component).
 
 - [ ] **Step 3: Typecheck + commit**
 
@@ -767,11 +767,11 @@ git commit -m "feat(resources): block deleting a weekly attachment that is publi
 **Interfaces:**
 - Consumes: `taughtSubjectIds`, `listResourcesForSubjects`, `addResource`, `promoteAttachment`.
 
-- [ ] **Step 1: Build `/tutor/resources`** — server component: `const user = await requireRole("tutor")`; `const subjectIds = await taughtSubjectIds(user.id)`; load each subject's name; render, per subject, the existing resources (`listResourcesForSubjects([subjectId])`) + a `<ResourceForm subjectId subjectTopics />`. Reuse tutor UI primitives (import from the tutor shell/card kit used by other tutor pages — grep `src/app/tutor/**/_components`).
+- [ ] **Step 1: Build `/tutor/resources`** - server component: `const user = await requireRole("tutor")`; `const subjectIds = await taughtSubjectIds(user.id)`; load each subject's name; render, per subject, the existing resources (`listResourcesForSubjects([subjectId])`) + a `<ResourceForm subjectId subjectTopics />`. Reuse tutor UI primitives (import from the tutor shell/card kit used by other tutor pages - grep `src/app/tutor/**/_components`).
 
-- [ ] **Step 2: Build `ResourceForm`** (client component) — fields: type `<select>` (the 8 types), topic `<select>` (subject topics, optional), title, description, a **kind toggle** (Upload file / Paste link) that shows a `<input type=file>` OR a `<input type=url>`. Submits via `<form action={addResource}>` with hidden `subjectId`. Show returned `error`. Follow the composer pattern in `src/components/dm/message-composer.tsx` for file inputs + action error handling.
+- [ ] **Step 2: Build `ResourceForm`** (client component) - fields: type `<select>` (the 8 types), topic `<select>` (subject topics, optional), title, description, a **kind toggle** (Upload file / Paste link) that shows a `<input type=file>` OR a `<input type=url>`. Submits via `<form action={addResource}>` with hidden `subjectId`. Show returned `error`. Follow the composer pattern in `src/components/dm/message-composer.tsx` for file inputs + action error handling.
 
-- [ ] **Step 3: Add the promote toggle to the week editor** — for each attachment, an "Also publish to [subject] library" button opens a tiny inline form (type select + optional topic) posting to `promoteAttachment` with the `attachmentId`. If already promoted, show "In library ✓" (query `resources.sourceAttachmentId` when loading the editor).
+- [ ] **Step 3: Add the promote toggle to the week editor** - for each attachment, an "Also publish to [subject] library" button opens a tiny inline form (type select + optional topic) posting to `promoteAttachment` with the `attachmentId`. If already promoted, show "In library ✓" (query `resources.sourceAttachmentId` when loading the editor).
 
 - [ ] **Step 4: Runtime check + commit** (dev server + seed `tutor@taiyo.com`)
 
@@ -807,9 +807,9 @@ export async function openResource(id: string): Promise<{ ok: true; url: string 
 }
 ```
 
-- [ ] **Step 2: Convert `/student/resources` to tabs** — `Library` (default) renders `<LibraryBrowser subjects=.../>`; `Recorded lessons` renders the existing recorded-lessons list (keep the current markup verbatim, just move it under a tab). Preserve the current page's data fetch for recorded lessons.
+- [ ] **Step 2: Convert `/student/resources` to tabs** - `Library` (default) renders `<LibraryBrowser subjects=.../>`; `Recorded lessons` renders the existing recorded-lessons list (keep the current markup verbatim, just move it under a tab). Preserve the current page's data fetch for recorded lessons.
 
-- [ ] **Step 3: Build `LibraryBrowser`** — server component loads `enrolledSubjectIds` + each subject's resources + topics; groups by subject; client sub-component holds filter state (type chips, topic select, title search) filtering the already-loaded rows client-side (lists are small). Each item is a button calling `openResource(id)` then `window.open(url)` for links / triggering download for files. Use existing student card primitives.
+- [ ] **Step 3: Build `LibraryBrowser`** - server component loads `enrolledSubjectIds` + each subject's resources + topics; groups by subject; client sub-component holds filter state (type chips, topic select, title search) filtering the already-loaded rows client-side (lists are small). Each item is a button calling `openResource(id)` then `window.open(url)` for links / triggering download for files. Use existing student card primitives.
 
 - [ ] **Step 4: Commit**
 ```bash
@@ -828,10 +828,10 @@ git commit -m "feat(resources): student library browse + tabs + signed open"
 **Interfaces:**
 - Consumes: `childSubjectIds`, `listResourcesForSubjects`, a parent `openResource` variant authorizing via `childSubjectIds`.
 
-- [ ] **Step 1:** Build `/parent/resources` mirroring `LibraryBrowser` but scoped via `childSubjectIds(user.id)` and a child switcher if multiple children (reuse the existing parent child-switcher pattern). Read-only — no form, no moderate.
+- [ ] **Step 1:** Build `/parent/resources` mirroring `LibraryBrowser` but scoped via `childSubjectIds(user.id)` and a child switcher if multiple children (reuse the existing parent child-switcher pattern). Read-only - no form, no moderate.
 - [ ] **Step 2:** Add `openResourceForParent(id)` authorizing with `childSubjectIds`. 
 - [ ] **Step 3:** Add the nav link in the parent shell (grep `src/components/parent` or the parent shell nav).
-- [ ] **Step 4: Commit** — `git commit -m "feat(resources): parent read-only mirror"`
+- [ ] **Step 4: Commit** - `git commit -m "feat(resources): parent read-only mirror"`
 
 ---
 
@@ -844,10 +844,10 @@ git commit -m "feat(resources): student library browse + tabs + signed open"
 **Interfaces:**
 - Consumes: `setResourcePublished`, `removeResource`, `restoreResource`, a broad admin list query (all subjects, incl. removed).
 
-- [ ] **Step 1:** Admin list query `listAllResourcesForAdmin(filter)` in `src/lib/resources.ts` — returns rows across all subjects incl. removed, with uploader name + provenance (`sourceAttachmentId IS NOT NULL` → "promoted"). Filters: subject, type, status (live/unpublished/removed).
-- [ ] **Step 2:** Build `/admin/resources` — table with columns Title · Subject · Type · Source · Uploader · Status, and row actions Unpublish/Republish, Remove (with reason prompt), Restore. Use admin UI kit (`@/components/admin/ui`).
+- [ ] **Step 1:** Admin list query `listAllResourcesForAdmin(filter)` in `src/lib/resources.ts` - returns rows across all subjects incl. removed, with uploader name + provenance (`sourceAttachmentId IS NOT NULL` → "promoted"). Filters: subject, type, status (live/unpublished/removed).
+- [ ] **Step 2:** Build `/admin/resources` - table with columns Title · Subject · Type · Source · Uploader · Status, and row actions Unpublish/Republish, Remove (with reason prompt), Restore. Use admin UI kit (`@/components/admin/ui`).
 - [ ] **Step 3:** Add nav entry `Resources` under an appropriate admin section.
-- [ ] **Step 4: Commit** — `git commit -m "feat(resources): admin moderation UI"`
+- [ ] **Step 4: Commit** - `git commit -m "feat(resources): admin moderation UI"`
 
 ---
 
@@ -855,12 +855,12 @@ git commit -m "feat(resources): student library browse + tabs + signed open"
 
 **Files:** none (verification only). Use the `verify` skill's method; drive the running app with seed users (`student@taiyo.com`/`student` restricted, `student.pro@taiyo.com`/`student` unrestricted, `tutor@taiyo.com`/`tutor`, `parent@taiyo.com`/`parent`, `admin@taiyo.com`/`admin`) via the hand-built SSR cookie (see `reference_seed_login_curl`).
 
-- [ ] **Step 1 — security-critical (no cross-subject leak):** As a tutor, add a resource to Subject A. As a student enrolled in A → it appears. As a student NOT enrolled in A → the `/student/resources` Library shows nothing for A, and calling `openResource(id)` returns `{ok:false}`. Capture both responses.
-- [ ] **Step 2 — cross-class visibility:** With two classes of Subject A taught by different tutors, promote a weekly attachment in class 1; confirm a student in class 2 sees it in the library.
-- [ ] **Step 3 — block-delete:** Attempt to delete the promoted weekly attachment → blocked with the library message.
-- [ ] **Step 4 — moderation + audit:** As admin, Remove a resource → it disappears from the student Library; confirm an `audit_logs` row with the admin actor. Restore → reappears.
-- [ ] **Step 5 — signed URL:** Open a file resource → signed URL returns the file; confirm it 404s after `SIGNED_URL_TTL_SECONDS` (or that the URL carries a short expiry).
-- [ ] **Step 6 — parent mirror:** As parent, confirm the library shows only the child's subjects; no add/remove controls.
+- [ ] **Step 1 - security-critical (no cross-subject leak):** As a tutor, add a resource to Subject A. As a student enrolled in A → it appears. As a student NOT enrolled in A → the `/student/resources` Library shows nothing for A, and calling `openResource(id)` returns `{ok:false}`. Capture both responses.
+- [ ] **Step 2 - cross-class visibility:** With two classes of Subject A taught by different tutors, promote a weekly attachment in class 1; confirm a student in class 2 sees it in the library.
+- [ ] **Step 3 - block-delete:** Attempt to delete the promoted weekly attachment → blocked with the library message.
+- [ ] **Step 4 - moderation + audit:** As admin, Remove a resource → it disappears from the student Library; confirm an `audit_logs` row with the admin actor. Restore → reappears.
+- [ ] **Step 5 - signed URL:** Open a file resource → signed URL returns the file; confirm it 404s after `SIGNED_URL_TTL_SECONDS` (or that the URL carries a short expiry).
+- [ ] **Step 6 - parent mirror:** As parent, confirm the library shows only the child's subjects; no add/remove controls.
 - [ ] **Step 7:** Update `docs/checklist.md` (flip resource rows to ✅ with routes), `docs/features.md` (add the resource-library feature entries per role), and `docs/security-checklist.md` (bucket row → done in dev / pending prod). Commit.
 ```bash
 git commit -m "docs(resources): flip checklist/features/security to reflect shipped resource library"
@@ -871,6 +871,6 @@ git commit -m "docs(resources): flip checklist/features/security to reflect ship
 ## Self-Review
 
 - **Spec coverage:** data model (T1) · RESOURCE_POLICY (T2) · storage+bucket (T3) · subject-scoping incl. parent (T4) · add/promote/moderate actions (T5) · reference+block-delete (T6) · tutor authoring + promote toggle (T7) · student tabs+browse+signed open (T8) · parent mirror (T9) · admin moderation + audit (T10) · full test plan incl. cross-subject-leak (T11). All spec sections mapped.
-- **Placeholders:** backend tasks carry real code; UI tasks (T7–T10) specify exact files, data calls, and an existing component to mirror rather than full JSX — deliberate, since they parallel existing pages the implementer will read. No "TBD"/"add validation"-style gaps.
+- **Placeholders:** backend tasks carry real code; UI tasks (T7–T10) specify exact files, data calls, and an existing component to mirror rather than full JSX - deliberate, since they parallel existing pages the implementer will read. No "TBD"/"add validation"-style gaps.
 - **Type consistency:** `resources` columns, action names (`addResource`/`promoteAttachment`/`setResourcePublished`/`removeResource`/`restoreResource`/`openResource`), and helper names (`enrolledSubjectIds`/`childSubjectIds`/`taughtSubjectIds`/`listResourcesForSubjects`/`getResourceForViewer`) are used consistently across tasks.
 - **Verification-dependent names:** several joins/helper predicates (SQL `is_admin_like`/`teaches_subject`/`can_see_subject`/`record_audit`; `tutorWeekAttachments` subject/path columns; `isSafeUrl`) are explicitly flagged to verify against existing code before use, because they must match established names.

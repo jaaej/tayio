@@ -1,19 +1,19 @@
 You own the **Tutor** portal redesign on your current branch.
 
-**Step 0 — required before writing any code:** invoke these two skills in order so every visual decision is grounded:
+**Step 0 - required before writing any code:** invoke these two skills in order so every visual decision is grounded:
 1. Skill: `frontend-design:frontend-design`
 2. Skill: `ui-ux-pro-max:ui-ux-pro-max`
 
 Follow their guidance for typography, motion, contrast, touch targets, accessibility. Don't make a styling choice that contradicts either.
 
-Apply the design language of the student dashboard (`src/app/student/page.tsx`) to the tutor portal, **but the dashboard layout and content must be tutor-specific** — different from student. Roles share visual primitives, not interfaces.
+Apply the design language of the student dashboard (`src/app/student/page.tsx`) to the tutor portal, **but the dashboard layout and content must be tutor-specific** - different from student. Roles share visual primitives, not interfaces.
 
 **Required reading**
 
-- `src/db/schema.ts` — data contract (read only)
-- `src/app/student/page.tsx` — visual reference for design language
-- `docs/PRD_Tutor_Portal.md` — feature spec
-- `docs/AGENT_HANDOFF.md` — boundaries
+- `src/db/schema.ts` - data contract (read only)
+- `src/app/student/page.tsx` - visual reference for design language
+- `docs/PRD_Tutor_Portal.md` - feature spec
+- `docs/AGENT_HANDOFF.md` - boundaries
 
 **Your sandbox**
 
@@ -28,15 +28,15 @@ Modify only:
 - `src/components/ui/*`, `src/components/data/*`
 - Any other role's folder
 
-**Shared primitives — USE these, don't reinvent**
+**Shared primitives - USE these, don't reinvent**
 
-UI components: `<MiniWeekCalendar>`, `<ProgressBar>`, `<StatTile>`, `<ScoreBadge>`, `<StatusBadge>`, `<Card>`, `<CardLabel>`, `<Button>` — all in `src/components/data/*` and `src/components/ui/*`.
+UI components: `<MiniWeekCalendar>`, `<ProgressBar>`, `<StatTile>`, `<ScoreBadge>`, `<StatusBadge>`, `<Card>`, `<CardLabel>`, `<Button>` - all in `src/components/data/*` and `src/components/ui/*`.
 
 Helpers: `@/lib/format` (all formatters), `@/lib/status` (all status maps).
 
 If you need a new shared primitive, **stop and ask the user**.
 
-**Tutor dashboard — what's different from student**
+**Tutor dashboard - what's different from student**
 
 The tutor isn't a learner. The tutor is the one *teaching*. The dashboard answers:
 
@@ -59,7 +59,7 @@ Suggested layout:
 - `/tutor/students` (roster) + `/tutor/students/[id]` (profile)
 - `/tutor/homework` (homework I've assigned, with submissions to mark) + `/tutor/homework/[id]` (mark UI)
 - `/tutor/notes` (lessons I taught + write-note flow)
-- `/tutor/lessons/[id]` (lesson detail — write attendance + note)
+- `/tutor/lessons/[id]` (lesson detail - write attendance + note)
 - `/tutor/availability` (stub OK)
 
 **Critical safety**
@@ -82,4 +82,4 @@ Sign in as `tutor@taiyo.com / tutor`. Walk every page. Write a test lesson note 
 git push -u origin <your-branch>
 ```
 
-When done: tell the user *"done — branch pushed"*.
+When done: tell the user *"done - branch pushed"*.

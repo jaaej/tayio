@@ -1,4 +1,4 @@
-# Direct Messaging (DM) — Design Spec
+# Direct Messaging (DM) - Design Spec
 
 **Date:** 2026-05-27
 **Author:** jae (with Claude)
@@ -24,7 +24,7 @@ Separate from the discussions feature (which is forum-style, per-subject, multi-
 | Admin → anyone | ✓ |
 | Anything → same role | ✗ (no parent↔parent, no student↔student, no tutor↔tutor) |
 
-DMs are bidirectional once allowed — if A can DM B, B can also DM A.
+DMs are bidirectional once allowed - if A can DM B, B can also DM A.
 
 ## Conversation model
 
@@ -34,7 +34,7 @@ Canonical pair ordering: the row stores `userAId` = smaller UUID, `userBId` = la
 
 ## Relationship lapse policy
 
-If the relationship that allowed a DM is later removed (student withdraws from class, family link unlinked), the existing thread remains readable to both parties indefinitely. New sends require the relationship to currently hold. (Option A from brainstorm — humane, no surprise data loss.)
+If the relationship that allowed a DM is later removed (student withdraws from class, family link unlinked), the existing thread remains readable to both parties indefinitely. New sends require the relationship to currently hold. (Option A from brainstorm - humane, no surprise data loss.)
 
 ## Data model
 
@@ -90,9 +90,9 @@ export const dmReads = pgTable(
 
 Enforced server-side at three boundaries:
 
-1. **`/{role}/messages/with/[userId]` route handler** — calls `canDM(me, target)`; if false, 404.
-2. **`sendMessage` server action** — re-checks before insert.
-3. **`listMyThreads` query** — only returns threads where current user is `userAId` OR `userBId`.
+1. **`/{role}/messages/with/[userId]` route handler** - calls `canDM(me, target)`; if false, 404.
+2. **`sendMessage` server action** - re-checks before insert.
+3. **`listMyThreads` query** - only returns threads where current user is `userAId` OR `userBId`.
 
 `canDM(meId, meRole, targetId, targetRole)` returns true iff the (meRole, targetRole) pair is in the matrix above AND the relationship clause holds. Implementation lives in `src/lib/dm-permissions.ts`.
 
@@ -108,9 +108,9 @@ The relationship clauses use existing joins:
 
 | Route | Page |
 |---|---|
-| `/{role}/messages` | Inbox — list of threads. Each row: other-participant name + role, last message preview, last activity timestamp, unread badge. Sorted by `lastActivityAt` desc. |
-| `/{role}/messages/[threadId]` | Single thread — message list (oldest at top, newest at bottom, autoscrolls to bottom on load), composer pinned to bottom. Messenger-style: sender's messages right-aligned, recipient's left-aligned. |
-| `/{role}/messages/with/[userId]` | Resolver — validates relationship, opens or creates thread, `redirect()` to `/{role}/messages/[threadId]`. Where contact-row "Message" buttons point. |
+| `/{role}/messages` | Inbox - list of threads. Each row: other-participant name + role, last message preview, last activity timestamp, unread badge. Sorted by `lastActivityAt` desc. |
+| `/{role}/messages/[threadId]` | Single thread - message list (oldest at top, newest at bottom, autoscrolls to bottom on load), composer pinned to bottom. Messenger-style: sender's messages right-aligned, recipient's left-aligned. |
+| `/{role}/messages/with/[userId]` | Resolver - validates relationship, opens or creates thread, `redirect()` to `/{role}/messages/[threadId]`. Where contact-row "Message" buttons point. |
 
 `{role}` ∈ `parent | student | tutor | admin`. Three pages per role, four roles = 12 thin route wrappers. Each calls `requireRole` then renders shared UI.
 
@@ -118,8 +118,8 @@ The relationship clauses use existing joins:
 
 In `src/app/_actions/dm.ts`:
 
-- `sendMessage({ threadId, body })` — checks `canDM` between current user and the other participant on the thread; inserts message; bumps `lastActivityAt`; writes a `dm_message` notification to the other participant (deduped by unread state).
-- `markThreadRead({ threadId })` — upserts the current user's row in `dmReads` with `lastReadAt = now()`. Also clears the unread `dm_message` notification for that thread by setting its `readAt`.
+- `sendMessage({ threadId, body })` - checks `canDM` between current user and the other participant on the thread; inserts message; bumps `lastActivityAt`; writes a `dm_message` notification to the other participant (deduped by unread state).
+- `markThreadRead({ threadId })` - upserts the current user's row in `dmReads` with `lastReadAt = now()`. Also clears the unread `dm_message` notification for that thread by setting its `readAt`.
 
 All actions are Next.js server actions (`"use server"`), validated with Zod, call `requireRole(...)` at the top.
 
@@ -137,7 +137,7 @@ Match the existing portal language:
 | Role | Where | Targets |
 |---|---|---|
 | Parent | `/parent` dashboard contact block (`src/app/parent/page.tsx:355`) | "Message" button on each tutor row + the admin row |
-| Student | `/student` dashboard — add a new contact card (does not currently exist) | Student's tutors + admin |
+| Student | `/student` dashboard - add a new contact card (does not currently exist) | Student's tutors + admin |
 | Tutor | `/tutor/students/[id]` detail page | Per family link: "Message parent" button. At top: "Message student" button. |
 | Admin | `/admin/users/[id]` detail page | "Message" button at top of detail card |
 
@@ -168,7 +168,7 @@ Unread badge: small numeric badge on the nav item showing total unread threads a
 
 ## Polling / refresh
 
-No realtime. Messages are loaded server-side on page render. Sending a message uses `revalidatePath` to refresh the thread page and inbox for the sender. The recipient sees new messages on next navigation or refresh. Acceptable for MVP. A "Refresh" button on the thread header is optional polish — out of scope unless added explicitly.
+No realtime. Messages are loaded server-side on page render. Sending a message uses `revalidatePath` to refresh the thread page and inbox for the sender. The recipient sees new messages on next navigation or refresh. Acceptable for MVP. A "Refresh" button on the thread header is optional polish - out of scope unless added explicitly.
 
 ## Out-of-scope for v1 (explicit cuts)
 
@@ -200,7 +200,7 @@ An admin:
 
 A tutor whose student withdraws from a class:
 - The existing DM thread with that student's parent remains readable.
-- New sends require the relationship to currently hold — denied if the only shared enrollment was the withdrawn one. (Re-enrollment restores send ability.)
+- New sends require the relationship to currently hold - denied if the only shared enrollment was the withdrawn one. (Re-enrollment restores send ability.)
 
 ## Open questions / decisions deferred
 

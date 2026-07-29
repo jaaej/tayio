@@ -1,4 +1,4 @@
-# Subject Curriculum — Design Spec
+# Subject Curriculum - Design Spec
 
 **Date:** 2026-05-30
 **Status:** Approved, ready for implementation plan
@@ -6,7 +6,7 @@
 
 ## Problem
 
-Taiyo's tuition curriculum is fixed week-by-week per subject (e.g., Year 9 English Term 2 Week 5 = "Romeo and Juliet — Act 2"). Today there is no way for students to see what's coming, parents to see what's being taught, or tutors/admins to publish weekly content. The current subject page shows homework + lessons but no curriculum structure.
+Taiyo's tuition curriculum is fixed week-by-week per subject (e.g., Year 9 English Term 2 Week 5 = "Romeo and Juliet - Act 2"). Today there is no way for students to see what's coming, parents to see what's being taught, or tutors/admins to publish weekly content. The current subject page shows homework + lessons but no curriculum structure.
 
 ## Goals
 
@@ -90,8 +90,8 @@ homework: + weekId fk -> subjectWeeks.id, nullable
 ## Storage
 
 Supabase Storage bucket `curriculum/`, private:
-- `curriculum/videos/{subjectWeekId-or-classOverrideId}.{ext}` — admin or tutor uploads.
-- `curriculum/booklets/{subjectWeekId-or-classOverrideId}.{ext}` — same.
+- `curriculum/videos/{subjectWeekId-or-classOverrideId}.{ext}` - admin or tutor uploads.
+- `curriculum/booklets/{subjectWeekId-or-classOverrideId}.{ext}` - same.
 
 Signed URLs minted server-side at render time after the read-permission check. Booklet opens are tracked via a server action that mints the URL and writes `bookletOpenedAt` in the same transaction. Video watches recorded via a client-side `<video>` `onPlay` callback that hits a server action.
 
@@ -162,7 +162,7 @@ Two-column on `lg`+, single-column with horizontal week strip on smaller widths.
 
 ```
 ┌────────────┬──────────────────────────────────────────────────┐
-│  WEEKS     │  WEEK 5 · Romeo and Juliet — Act 2              │
+│  WEEKS     │  WEEK 5 · Romeo and Juliet - Act 2              │
 │  Term 2 ▾  │  ─────────────────────────────────────           │
 │            │                                                  │
 │  ● Week 1  │  ▶ Recorded lesson   [thumbnail, 32 min]        │
@@ -194,17 +194,17 @@ Same shell. Each content block has an "Override" pill. Clicking opens an inline 
 
 ### Admin
 
-Sidebar shows weeks for selected term + "+ Add week" button. Editing a week opens a form panel inline. No override concept — these rows are the source.
+Sidebar shows weeks for selected term + "+ Add week" button. Editing a week opens a form panel inline. No override concept - these rows are the source.
 
 ## Edge cases
 
-- **No curriculum seeded for this term yet:** empty state — *"Curriculum coming soon — your tutor is preparing this term's content."*
-- **Between terms:** default-select most recent past term; banner — *"Term 2 ended on X. Term 3 starts Y."*
+- **No curriculum seeded for this term yet:** empty state - *"Curriculum coming soon - your tutor is preparing this term's content."*
+- **Between terms:** default-select most recent past term; banner - *"Term 2 ended on X. Term 3 starts Y."*
 - **Student enrolled in two classes for same subject:** pick first enrollment by `enrollments.createdAt asc`. Documented limitation, no UI for choosing yet.
 - **Homework with `weekId = null`:** does not appear in any week's "due" list; still visible on `/student/homework`. Existing homework rows remain null.
 - **Override row with all null fields after edit:** delete the override row in the same server action.
 - **Tutor's override of a video the admin later updates:** override wins. Tutor must click "Reset to template" to adopt admin's new video.
-- **Storage object deleted while DB still has the path:** signed URL fetch 404s; render *"Video unavailable — contact your tutor."* in place of the player; don't block rest of page.
+- **Storage object deleted while DB still has the path:** signed URL fetch 404s; render *"Video unavailable - contact your tutor."* in place of the player; don't block rest of page.
 
 ## Error handling
 

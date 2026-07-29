@@ -34,7 +34,7 @@ async function asAnon(fn) {
 
 function expect(label, actual, expected) {
   const ok = actual === expected;
-  console.log(`${ok ? "✓" : "✗"} ${label} — got ${actual}, expected ${expected}`);
+  console.log(`${ok ? "✓" : "✗"} ${label} - got ${actual}, expected ${expected}`);
   if (!ok) process.exitCode = 1;
 }
 
@@ -82,21 +82,21 @@ expect("studentA: cannot read studentB's homework_assignments", sAHomeworkOther[
 const sAOwnHomework = await asUser(studentA, (tx) =>
   tx`select count(*)::int as n from public.homework_assignments where student_id = ${studentA.id}`,
 );
-console.log(`  (studentA own homework_assignments count: ${sAOwnHomework[0].n} — informational)`);
+console.log(`  (studentA own homework_assignments count: ${sAOwnHomework[0].n} - informational)`);
 
-// lesson_notes base table — student must get ZERO rows
+// lesson_notes base table - student must get ZERO rows
 const sALessonNotesBase = await asUser(studentA, (tx) =>
   tx`select count(*)::int as n from public.lesson_notes`,
 );
 expect("studentA: cannot read lesson_notes base table", sALessonNotesBase[0].n, 0);
 
-// lesson_notes_safe view — student should see own
+// lesson_notes_safe view - student should see own
 const sASafeNotes = await asUser(studentA, (tx) =>
   tx`select count(*)::int as n from public.lesson_notes_safe where student_id != ${studentA.id}`,
 );
 expect("studentA: lesson_notes_safe returns 0 rows for OTHER students", sASafeNotes[0].n, 0);
 
-// confirm column shape — internal_note column should not exist on the view
+// confirm column shape - internal_note column should not exist on the view
 const safeCols = await sql`
   select column_name from information_schema.columns
   where table_schema = 'public' and table_name = 'lesson_notes_safe'
@@ -104,7 +104,7 @@ const safeCols = await sql`
 const internalLeak = safeCols.some((c) => c.column_name === "internal_note");
 expect("lesson_notes_safe excludes internal_note", internalLeak, false);
 
-// invoices — studentA must not see other parents' invoices
+// invoices - studentA must not see other parents' invoices
 const sAInvoicesOther = await asUser(studentA, (tx) =>
   tx`select count(*)::int as n from public.invoices where parent_id = ${parentB.id}`,
 );
@@ -121,7 +121,7 @@ expect("parentA: cannot see studentB enrollments (not linked)", pAClassesOther[0
 const pAOwnFamily = await asUser(parentA, (tx) =>
   tx`select count(*)::int as n from public.family_links where parent_id = ${parentA.id}`,
 );
-console.log(`  (parentA own family_links count: ${pAOwnFamily[0].n} — informational)`);
+console.log(`  (parentA own family_links count: ${pAOwnFamily[0].n} - informational)`);
 
 const pAOtherFamily = await asUser(parentA, (tx) =>
   tx`select count(*)::int as n from public.family_links where parent_id = ${parentB.id}`,

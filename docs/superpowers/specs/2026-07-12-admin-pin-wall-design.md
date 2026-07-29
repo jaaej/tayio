@@ -1,21 +1,21 @@
-# Admin PIN Wall — Design
+# Admin PIN Wall - Design
 
 **Date:** 2026-07-12
 **Status:** Approved design, ready for implementation plan
 **Branch:** `feat/student-role-tiers` (continues the role-tiers work; commits `da2bf3a` roles, `30b6a37` reschedule)
 
-Gate the admin portal's most sensitive surfaces behind a **separate admin PIN** (step-up auth). This replaces the earlier "reception vs owner role split + push-approval" idea — that is **dropped**. There is a single admin; the `admin_restricted`/`admin_unrestricted` enum tiers (added in migrations 0017/0018) stay **dormant/unused** for now.
+Gate the admin portal's most sensitive surfaces behind a **separate admin PIN** (step-up auth). This replaces the earlier "reception vs owner role split + push-approval" idea - that is **dropped**. There is a single admin; the `admin_restricted`/`admin_unrestricted` enum tiers (added in migrations 0017/0018) stay **dormant/unused** for now.
 
 ## Scope
 
 **Walled (require PIN unlock):**
-1. **Revenue & financial reports** — the dashboard revenue tiles (`revenueMonth`/`revenueLastMonth`, computed in `src/app/admin/_lib/queries.ts`, shown on `src/app/admin/page.tsx`) and the revenue content on `src/app/admin/reports/page.tsx`.
-2. **Role / permission changes** — `updateUser` (when it changes `role`) and `createUser` (when the new role is `admin_*` or `tutor`) in `src/app/admin/_lib/actions-users.ts`, plus the role controls in the create/edit user forms.
-3. **Account deactivation** — `setUserActive(id, false)` in `actions-users.ts` (there is no hard-delete; deactivation bans the auth user). Reactivation may also be walled for symmetry.
+1. **Revenue & financial reports** - the dashboard revenue tiles (`revenueMonth`/`revenueLastMonth`, computed in `src/app/admin/_lib/queries.ts`, shown on `src/app/admin/page.tsx`) and the revenue content on `src/app/admin/reports/page.tsx`.
+2. **Role / permission changes** - `updateUser` (when it changes `role`) and `createUser` (when the new role is `admin_*` or `tutor`) in `src/app/admin/_lib/actions-users.ts`, plus the role controls in the create/edit user forms.
+3. **Account deactivation** - `setUserActive(id, false)` in `actions-users.ts` (there is no hard-delete; deactivation bans the auth user). Reactivation may also be walled for symmetry.
 
 **Explicitly NOT walled:** individual invoice/payment status (daily-ops need it), creating student/parent accounts, password reset, attendance, enrolment, class/schedule management, announcements.
 
-**Out of scope:** reception/owner role split + approval queue (dropped); refunds/discounts (payment model is just free-trial → payment); bulk data export (doesn't exist yet — wall it if/when built).
+**Out of scope:** reception/owner role split + approval queue (dropped); refunds/discounts (payment model is just free-trial → payment); bulk data export (doesn't exist yet - wall it if/when built).
 
 ## Mechanism
 
@@ -24,16 +24,16 @@ Gate the admin portal's most sensitive surfaces behind a **separate admin PIN** 
 ### A. Storage
 New singleton table **`admin_settings`** (migration `0020`):
 - `id uuid pk default gen_random_uuid()`
-- `pin_hash text` (nullable — null means "no PIN set yet")
+- `pin_hash text` (nullable - null means "no PIN set yet")
 - `updated_at timestamptz not null default now()`
 - Enforce a single row in app logic (read `limit 1`, upsert the existing row).
-- RLS: `enable row level security`, no client policies (all access is server-side Drizzle as postgres, which bypasses RLS) — deny-by-default for anon/authenticated.
+- RLS: `enable row level security`, no client policies (all access is server-side Drizzle as postgres, which bypasses RLS) - deny-by-default for anon/authenticated.
 
 Hash the PIN with built-in **`node:crypto` scrypt** (no new dependency): store `"<saltHex>:<hashHex>"`. Verify by re-deriving with the stored salt and `timingSafeEqual`. PIN format: 4–8 digits (validate).
 
-### B. Set / change PIN — `/admin/settings`
+### B. Set / change PIN - `/admin/settings`
 New page `src/app/admin/settings/page.tsx` with an "Admin PIN" section:
-- If `pin_hash` is null → "Set a PIN" (no current PIN required — bootstrap).
+- If `pin_hash` is null → "Set a PIN" (no current PIN required - bootstrap).
 - If set → "Change PIN" requires the current PIN.
 - Server action `setAdminPin({ current?: string, next: string })` in a new `src/app/admin/_lib/actions-security.ts`: `requireAdmin()`, verify current when a PIN exists, scrypt-hash `next`, upsert `admin_settings`.
 
@@ -44,14 +44,14 @@ Server action `unlockAdmin(pin)`:
 - Signing `key` = `process.env.ADMIN_PIN_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY` (server-only; nothing new required to run, overridable).
 
 Helpers in `src/lib/admin-lock.ts` (server-only):
-- `isAdminUnlocked(): Promise<boolean>` — read the cookie, recompute the HMAC, check it matches, not expired, and the `userId` equals the current user's id.
-- `assertAdminUnlocked()` — throw if `!isAdminUnlocked()` (used by walled server actions).
+- `isAdminUnlocked(): Promise<boolean>` - read the cookie, recompute the HMAC, check it matches, not expired, and the `userId` equals the current user's id.
+- `assertAdminUnlocked()` - throw if `!isAdminUnlocked()` (used by walled server actions).
 
 One unlock opens **all** walled surfaces for the 30-minute window.
 
 ### D. UI
 - Reusable client component `src/components/admin/pin-gate.tsx` `<AdminPinGate unlocked={boolean} pinSet={boolean}>{children}</AdminPinGate>`: if `unlocked`, render children; else render a compact PIN prompt (input → `unlockAdmin` → on success `router.refresh()`); if `!pinSet`, render a "Set an admin PIN in Settings" link instead of the input.
-- **Revenue:** on the dashboard + reports, wrap the revenue tiles/section in `<AdminPinGate>`; when locked, render a neutral locked placeholder (no figures) with the prompt. Compute revenue in the page regardless (it's server-side and never sent when locked — pass it into the gate only when unlocked, or gate rendering so the number isn't in the DOM while locked).
+- **Revenue:** on the dashboard + reports, wrap the revenue tiles/section in `<AdminPinGate>`; when locked, render a neutral locked placeholder (no figures) with the prompt. Compute revenue in the page regardless (it's server-side and never sent when locked - pass it into the gate only when unlocked, or gate rendering so the number isn't in the DOM while locked).
 - **Role controls:** in create/edit user forms, disable the role `<Select>` (and admin/tutor options) while locked, with an inline "Unlock to change roles" + prompt.
 - **Deactivation:** gate the deactivate toggle similarly.
 

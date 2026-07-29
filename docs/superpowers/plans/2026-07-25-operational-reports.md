@@ -616,11 +616,11 @@ import { TermSelect } from "./_components/term-select";
 export const dynamic = "force-dynamic";
 
 function pct(value: number | null): string {
-  return value === null ? "—" : `${value}%`;
+  return value === null ? "-" : `${value}%`;
 }
 
 function score(value: number | null): string {
-  return value === null ? "—" : String(value);
+  return value === null ? "-" : String(value);
 }
 
 export default async function ReportsPage({

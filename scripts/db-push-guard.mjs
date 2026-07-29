@@ -1,10 +1,10 @@
 // Guard for `npm run db:push`. drizzle-kit push DROPS every RLS policy and the
 // lesson_notes_safe view, because they live in raw SQL (supabase/migrations/),
-// not src/db/schema.ts — so it silently wipes row-level security on ALL tables.
+// not src/db/schema.ts - so it silently wipes row-level security on ALL tables.
 // This guard blocks the accidental path and points to the safe workflow.
 
 console.error(`
-⛔  db:push is disabled in this repo — it WIPES row-level security.
+⛔  db:push is disabled in this repo - it WIPES row-level security.
 
     drizzle-kit push drops every RLS policy + the lesson_notes_safe view,
     because they live in supabase/migrations/*.sql, not src/db/schema.ts.

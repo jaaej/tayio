@@ -1,4 +1,4 @@
-# Tutor Curriculum Sections — Part 2b (read side + cleanup) Implementation Plan
+# Tutor Curriculum Sections - Part 2b (read side + cleanup) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,13 +8,13 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, Drizzle/Postgres, Supabase (Storage + raw-SQL RLS), Zod, Tailwind v4.
 
-**Spec:** `docs/superpowers/specs/2026-07-01-tutor-sections-design.md` (Part 2). This is **2b of 2** — the read side + cleanup. 2a (write side) is merged (`97ed25d`).
+**Spec:** `docs/superpowers/specs/2026-07-01-tutor-sections-design.md` (Part 2). This is **2b of 2** - the read side + cleanup. 2a (write side) is merged (`97ed25d`).
 
 ## Global Constraints
 
 - **No automated test suite.** Per-task verification is `npm run typecheck 2>&1 | grep -cE "^src/.*error"` printing **0** (ignore `.next/types/...d 2.ts` errors). End-to-end is the manual task at the end.
 - **Schema applied with `db:push`, never `db:generate`.** RLS in `supabase/migrations/` via `node scripts/apply-sql.mjs`.
-- **DB-apply steps are controller-gated** (marked `[DB — controller-gated]`): `db:push` (which will DROP `class_week_overrides`) and applying `0011`. Implementers write code/SQL and commit only.
+- **DB-apply steps are controller-gated** (marked `[DB - controller-gated]`): `db:push` (which will DROP `class_week_overrides`) and applying `0011`. Implementers write code/SQL and commit only.
 - **Build-green order:** the student (Task 1) and parent (Task 2) queries must stop using `mergeOverride`/`classWeekOverrides` BEFORE Task 3 removes them. Do not remove the override until Tasks 1–2 land.
 - **Branch:** feature branch off `main`. Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
@@ -27,7 +27,7 @@
 
 ---
 
-## Task 1: Student curriculum read — base + topic grouping + tutor section
+## Task 1: Student curriculum read - base + topic grouping + tutor section
 
 **Files:** Rewrite `src/app/student/subjects/[id]/_queries.ts`; modify `page.tsx` + `_components/*` (week sidebar/strip/content) to group by topic and render the tutor block.
 
@@ -55,7 +55,7 @@
     : [];
 ```
 
-- [ ] **Step 3:** Build each `StudentCurriculumWeek` from `tpl` directly (no merge): set `title/description/videoUrl/bookletUrl` from `tpl`; add `topicId: tpl.topicId`, `topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null`, `tutorNote: sectionByWeek.get(tpl.id)?.note ?? null`, and `tutorAttachments` (map the section's attachments; **sign each `storagePath`** with `signCurriculumUrl` — do the signing here in this server module, producing `{ id, fileName, url }`). Keep `videoWatchedAt`/`bookletOpenedAt`/`homework`/`recaps` exactly as now.
+- [ ] **Step 3:** Build each `StudentCurriculumWeek` from `tpl` directly (no merge): set `title/description/videoUrl/bookletUrl` from `tpl`; add `topicId: tpl.topicId`, `topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null`, `tutorNote: sectionByWeek.get(tpl.id)?.note ?? null`, and `tutorAttachments` (map the section's attachments; **sign each `storagePath`** with `signCurriculumUrl` - do the signing here in this server module, producing `{ id, fileName, url }`). Keep `videoWatchedAt`/`bookletOpenedAt`/`homework`/`recaps` exactly as now.
 
 - [ ] **Step 4:** In `page.tsx` + the week sidebar/strip components: group the weeks list by `topicName` (weeks with `topicId = null` under an "Other" heading), preserving week order within each topic. In the week content panel, add a "From your tutor" block (rendered only when `tutorNote` or `tutorAttachments.length`) showing the note + attachment download links. Read each component before editing; match existing style. (The base video/booklet already render; keep them, now always from base.)
 
@@ -71,13 +71,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2: Parent curriculum read — mirror of Task 1
+## Task 2: Parent curriculum read - mirror of Task 1
 
 **Files:** Rewrite `src/app/parent/subjects/[id]/_queries.ts`; modify `page.tsx` + `_components/*`.
 
 **Interfaces:** same additions as Task 1, scoped to the selected child (resolved via `familyLinks`).
 
-- [ ] **Step 1:** Apply the same changes as Task 1 to the parent query: it already resolves the child's enrollment via `familyLinks` — add the child's class `tutorId`, drop `classWeekOverrides`/`mergeOverride`, load topic names + the tutor's sections/attachments (`tutorWeekSections.tutorId = child's class tutorId`), sign attachment URLs, and add `topicId`/`topicName`/`tutorNote`/`tutorAttachments` to each week.
+- [ ] **Step 1:** Apply the same changes as Task 1 to the parent query: it already resolves the child's enrollment via `familyLinks` - add the child's class `tutorId`, drop `classWeekOverrides`/`mergeOverride`, load topic names + the tutor's sections/attachments (`tutorWeekSections.tutorId = child's class tutorId`), sign attachment URLs, and add `topicId`/`topicName`/`tutorNote`/`tutorAttachments` to each week.
 
 - [ ] **Step 2:** Mirror the view changes in the parent `page.tsx` + components (group by topic + "From your tutor" block). If the parent view shares components with the student view, reuse them; otherwise apply the same edits. Read before editing.
 
@@ -103,15 +103,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```bash
 grep -rn "mergeOverride\|classWeekOverrides\|ClassWeekOverride\|upsertClassWeekOverride\|resetClassWeekOverride\|uploadTutorOverride" src
 ```
-Expected after Tasks 1–2: hits only in `curriculum.ts`, `tutor/_actions.ts`, and `schema.ts` (the definitions themselves). If any student/parent/tutor consumer remains, STOP — it must be migrated first.
+Expected after Tasks 1–2: hits only in `curriculum.ts`, `tutor/_actions.ts`, and `schema.ts` (the definitions themselves). If any student/parent/tutor consumer remains, STOP - it must be migrated first.
 
 - [ ] **Step 2:** In `src/lib/curriculum.ts`: remove `mergeOverride`, the `MergedWeek` type, and the `ClassWeekOverride`/`SubjectWeek` imports that are now unused. Keep `resolveCurrentTerm`, `resolveMostRecentPastTerm`, `currentWeekNumber`.
 
-- [ ] **Step 3:** In `src/app/tutor/_actions.ts`: remove `upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverrideVideo`, `uploadTutorOverrideBooklet`, the `overrideSchema`, `isEmptyOverride`, and the `classWeekOverrides` import — and `assertTutorOwnsClass` **only if** it's now unused (grep it first; it may be used by other tutor actions). Leave all non-override actions intact.
+- [ ] **Step 3:** In `src/app/tutor/_actions.ts`: remove `upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverrideVideo`, `uploadTutorOverrideBooklet`, the `overrideSchema`, `isEmptyOverride`, and the `classWeekOverrides` import - and `assertTutorOwnsClass` **only if** it's now unused (grep it first; it may be used by other tutor actions). Leave all non-override actions intact.
 
 - [ ] **Step 4:** In `src/db/schema.ts`: remove the `classWeekOverrides` table definition and its `ClassWeekOverride` type export.
 
-- [ ] **Step 5:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → `0`. Re-run the Step-1 grep — expected: **no hits**.
+- [ ] **Step 5:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → `0`. Re-run the Step-1 grep - expected: **no hits**.
 - [ ] **Step 6:** Commit:
 
 ```bash
@@ -127,9 +127,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Create `supabase/migrations/0011_tutor_section_read_scope.sql`; modify `docs/SECURITY.md`.
 
-- [ ] **Step 1 [DB — controller-gated]:** `npm run db:push` — applies the schema, which **DROPS** `class_week_overrides` (empty table; no data lost). The controller runs this after confirming the table is empty.
+- [ ] **Step 1 [DB - controller-gated]:** `npm run db:push` - applies the schema, which **DROPS** `class_week_overrides` (empty table; no data lost). The controller runs this after confirming the table is empty.
 
-- [ ] **Step 2:** Write `supabase/migrations/0011_tutor_section_read_scope.sql` — replace the 2a `using(true)` read policies with per-viewer scoping via SECURITY DEFINER helpers:
+- [ ] **Step 2:** Write `supabase/migrations/0011_tutor_section_read_scope.sql` - replace the 2a `using(true)` read policies with per-viewer scoping via SECURITY DEFINER helpers:
 
 ```sql
 begin;
@@ -184,9 +184,9 @@ commit;
 
 (The `tutor_all` + `admin_all` write policies from 0010 stay. Server-side Drizzle still bypasses RLS; this hardens the direct-SDK path.)
 
-- [ ] **Step 3 [DB — controller-gated]:** `node scripts/apply-sql.mjs supabase/migrations/0011_tutor_section_read_scope.sql`.
+- [ ] **Step 3 [DB - controller-gated]:** `node scripts/apply-sql.mjs supabase/migrations/0011_tutor_section_read_scope.sql`.
 
-- [ ] **Step 4:** In `docs/SECURITY.md`: add a `### 0011 — tutor section read scoping` migration-log entry (what/why/reversible-by: drop the two functions + recreate the `select_authenticated using(true)` policies). Update the read access-matrix rows for `tutor_week_sections`/`tutor_week_attachments` from "all authenticated" to "own tutor's (student/parent), own (tutor), all (admin)". **Remove** the `class_week_overrides` rows/log references (table dropped) — or add a note that it was dropped in Part 2b.
+- [ ] **Step 4:** In `docs/SECURITY.md`: add a `### 0011 - tutor section read scoping` migration-log entry (what/why/reversible-by: drop the two functions + recreate the `select_authenticated using(true)` policies). Update the read access-matrix rows for `tutor_week_sections`/`tutor_week_attachments` from "all authenticated" to "own tutor's (student/parent), own (tutor), all (admin)". **Remove** the `class_week_overrides` rows/log references (table dropped) - or add a note that it was dropped in Part 2b.
 
 - [ ] **Step 5:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → `0`
 - [ ] **Step 6:** Commit:
@@ -203,7 +203,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 5: Manual verification (+ controller DB apply)
 
 - [ ] **Step 1:** `npm run typecheck 2>&1 | grep -cE "^src/.*error"` → `0`
-- [ ] **Step 2 [DB — controller-gated]:** run `db:push` (drops `class_week_overrides`) + apply `0011`.
+- [ ] **Step 2 [DB - controller-gated]:** run `db:push` (drops `class_week_overrides`) + apply `0011`.
 - [ ] **Step 3:** On the dev server (user starts it):
   1. Student in Tutor A's class opens `/student/subjects/<id>` → weeks grouped by topic; base content shows; a "From your tutor" block shows Tutor A's note/attachments on the seeded week.
   2. Student in a different tutor's class of the same subject does NOT see Tutor A's note.
@@ -216,6 +216,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Self-Review
 
-- **Spec coverage:** student read view + topic grouping + tutor block (T1); parent mirror (T2); override removal — table, mergeOverride, actions (T3); read-RLS tightening + drop override policies (T4); manual test incl. cross-tutor isolation probe (T5). Matches the Part 2 spec's read-side + the user's decision to tighten reads in 2b.
+- **Spec coverage:** student read view + topic grouping + tutor block (T1); parent mirror (T2); override removal - table, mergeOverride, actions (T3); read-RLS tightening + drop override policies (T4); manual test incl. cross-tutor isolation probe (T5). Matches the Part 2 spec's read-side + the user's decision to tighten reads in 2b.
 - **Placeholder scan:** the view/component edits (T1 Step 4, T2 Step 2) are described rather than fully coded because they depend on the exact existing components (sidebar/strip/content) the implementer reads; the query rewrites and the RLS SQL are concrete. T3 is precise removals guarded by a grep gate.
 - **Type consistency:** `StudentCurriculumWeek` additions (`topicId`/`topicName`/`tutorNote`/`tutorAttachments`) are introduced in T1 and mirrored in T2; the RLS helpers use the verified column names (`family_links.parent_id/student_id`, `enrollments.class_id/student_id`, `classes.subject_id/tutor_id`, `subject_weeks.id/subject_id`).

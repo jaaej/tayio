@@ -2,7 +2,7 @@
 // Usage: node scripts/apply-sql.mjs supabase/migrations/0001_profile_sync_trigger.sql
 //
 // Prefers DIRECT_URL (session pooler, :5432) over DATABASE_URL (transaction
-// pooler, :6543). DDL — functions, triggers, RLS, views — must go through the
+// pooler, :6543). DDL - functions, triggers, RLS, views - must go through the
 // session pooler; the transaction pooler doesn't support advisory locks,
 // prepared statements, or session-level state reliably.
 

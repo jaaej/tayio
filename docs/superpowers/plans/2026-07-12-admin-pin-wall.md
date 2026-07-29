@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Gate the admin portal's sensitive *mutations* — role/permission changes and account deactivation — behind a separate admin PIN (step-up auth), enforced on the server with a UI convenience gate on top.
+**Goal:** Gate the admin portal's sensitive *mutations* - role/permission changes and account deactivation - behind a separate admin PIN (step-up auth), enforced on the server with a UI convenience gate on top.
 
 **Architecture:** A singleton `admin_settings` table stores a scrypt-hashed PIN. Unlocking sets a signed, httpOnly cookie (`admin_unlock`, HMAC-signed, 30-min expiry, bound to the user id). Server actions call `assertAdminUnlocked()` before applying a walled change; pages/forms call `isAdminUnlocked()` to render a PIN prompt instead of the live control. One unlock opens all walled surfaces for the window.
 
@@ -80,7 +80,7 @@ export const adminSettings = pgTable("admin_settings", {
 - [ ] **Step 5: Typecheck**
 
 Run: `npm run typecheck`
-Expected: PASS (no errors). The new export is unused so far — that's fine.
+Expected: PASS (no errors). The new export is unused so far - that's fine.
 
 - [ ] **Step 6: Commit**
 
@@ -99,13 +99,13 @@ git commit -m "feat(admin-pin): add admin_settings table (migration 0020)"
 **Interfaces:**
 - Consumes: `adminSettings` (Task 1), `db` from `@/db/client`, `getCurrentUser` from `@/lib/auth`, `cookies` from `next/headers`.
 - Produces (all server-only):
-  - `hashPin(pin: string): string` — returns `"<saltHex>:<hashHex>"`.
-  - `verifyPin(pin: string, stored: string): boolean` — constant-time compare.
-  - `getPinHash(): Promise<string | null>` — reads the singleton row's `pin_hash`.
-  - `upsertPinHash(hash: string): Promise<void>` — sets the singleton row (insert if none).
-  - `setUnlockCookie(userId: string): Promise<void>` — writes the signed `admin_unlock` cookie (30 min).
-  - `isAdminUnlocked(): Promise<boolean>` — validates the cookie against the current user.
-  - `assertAdminUnlocked(): Promise<void>` — throws `Error("Admin unlock required")` if not unlocked.
+  - `hashPin(pin: string): string` - returns `"<saltHex>:<hashHex>"`.
+  - `verifyPin(pin: string, stored: string): boolean` - constant-time compare.
+  - `getPinHash(): Promise<string | null>` - reads the singleton row's `pin_hash`.
+  - `upsertPinHash(hash: string): Promise<void>` - sets the singleton row (insert if none).
+  - `setUnlockCookie(userId: string): Promise<void>` - writes the signed `admin_unlock` cookie (30 min).
+  - `isAdminUnlocked(): Promise<boolean>` - validates the cookie against the current user.
+  - `assertAdminUnlocked(): Promise<void>` - throws `Error("Admin unlock required")` if not unlocked.
 
 - [ ] **Step 1: Write the helper module**
 
@@ -140,7 +140,7 @@ function signingKey(): string {
   return key;
 }
 
-/** "<saltHex>:<hashHex>" — scrypt over the PIN with a random 16-byte salt. */
+/** "<saltHex>:<hashHex>" - scrypt over the PIN with a random 16-byte salt. */
 export function hashPin(pin: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(pin, salt, KEYLEN);
@@ -290,7 +290,7 @@ git commit -m "feat(admin-pin): scrypt PIN hashing + signed unlock cookie helper
 - Produces:
   - `setAdminPin(input: { current?: string; next: string }): Promise<{ ok: true } | { ok: false; error: string }>`
   - `unlockAdmin(pin: string): Promise<{ ok: true } | { ok: false; error: string }>`
-  - `getAdminSecurityState(): Promise<{ pinSet: boolean; unlocked: boolean }>` — a server helper (not a mutation) pages call to drive the gate UI.
+  - `getAdminSecurityState(): Promise<{ pinSet: boolean; unlocked: boolean }>` - a server helper (not a mutation) pages call to drive the gate UI.
 
 - [ ] **Step 1: Write the actions module**
 
@@ -375,7 +375,7 @@ git commit -m "feat(admin-pin): setAdminPin / unlockAdmin / security-state actio
 - Consumes: `unlockAdmin`, `setAdminPin`, `getAdminSecurityState` (Task 3); `@/components/admin/ui` (`Card`, `CardHead`, `Button`, `PageHeader`, `Pill`); `@/components/ui/input` (`Input`, `Label`).
 - Produces:
   - `AdminPinPrompt` (client): a compact PIN input that calls `unlockAdmin` and `router.refresh()` on success. Props: `{ pinSet: boolean; label?: string }`. When `!pinSet`, renders a "Set an admin PIN in Settings" link instead of the input.
-  - `AdminPinGate` (client): `{ unlocked: boolean; pinSet: boolean; children: ReactNode }` — renders children when unlocked, else `<AdminPinPrompt>`.
+  - `AdminPinGate` (client): `{ unlocked: boolean; pinSet: boolean; children: ReactNode }` - renders children when unlocked, else `<AdminPinPrompt>`.
 
 - [ ] **Step 1: Write the gate component**
 
@@ -468,7 +468,7 @@ export function AdminPinGate({
 - [ ] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
-Expected: PASS. (If `Input` doesn't accept `className`, wrap it in a `<div className="max-w-[220px]">` instead — check `src/components/ui/input.tsx` and adjust.)
+Expected: PASS. (If `Input` doesn't accept `className`, wrap it in a `<div className="max-w-[220px]">` instead - check `src/components/ui/input.tsx` and adjust.)
 
 - [ ] **Step 3: Write the PIN settings form**
 
@@ -572,7 +572,7 @@ export default async function AdminSettingsPage() {
         />
         <div className="p-5 space-y-3">
           <p className="text-[13px] text-muted">
-            The PIN protects sensitive actions — changing a user&apos;s role and
+            The PIN protects sensitive actions - changing a user&apos;s role and
             deactivating accounts. One unlock lasts about 30 minutes.
           </p>
           <PinSettingsForm pinSet={pinSet} />
@@ -740,7 +740,7 @@ Add import:
 import { AdminPinPrompt } from "@/components/admin/pin-gate";
 ```
 
-Extend the props type with `unlocked: boolean; pinSet: boolean;` and destructure them (the component currently takes a single `props` object — add the two fields to its type and read `props.unlocked` / `props.pinSet`).
+Extend the props type with `unlocked: boolean; pinSet: boolean;` and destructure them (the component currently takes a single `props` object - add the two fields to its type and read `props.unlocked` / `props.pinSet`).
 
 Replace the role field block with:
 
@@ -806,7 +806,7 @@ Extend props with `unlocked: boolean; pinSet: boolean;`. When locked, render the
       </Button>
 ```
 
-Because row actions are inline per-row, don't render a prompt in every row. Instead the page renders ONE prompt above the table when locked (Step 6). Keep the button `disabled={!unlocked}` here; add `unlocked` to the destructured props. (`pinSet` is accepted for signature symmetry but the shared prompt lives on the page — you may omit `pinSet` from this component if unused; if you keep it, reference it or prefix with `_`.)
+Because row actions are inline per-row, don't render a prompt in every row. Instead the page renders ONE prompt above the table when locked (Step 6). Keep the button `disabled={!unlocked}` here; add `unlocked` to the destructured props. (`pinSet` is accepted for signature symmetry but the shared prompt lives on the page - you may omit `pinSet` from this component if unused; if you keep it, reference it or prefix with `_`.)
 
 - [ ] **Step 6: Wire the props from the user pages**
 
@@ -834,7 +834,7 @@ const { unlocked, pinSet } = await getAdminSecurityState();
 
 In `src/app/admin/users/[id]/page.tsx`: call `getAdminSecurityState()` and pass `unlocked`/`pinSet` into `<EditUserForm … unlocked={unlocked} pinSet={pinSet} />`.
 
-(Read each page first to place these against the existing JSX — exact insertion points depend on current layout. The invariants: every `<CreateUserForm>`, `<EditUserForm>`, and `<UserRowActions>` receives `unlocked` (+ `pinSet` where it renders its own prompt).)
+(Read each page first to place these against the existing JSX - exact insertion points depend on current layout. The invariants: every `<CreateUserForm>`, `<EditUserForm>`, and `<UserRowActions>` receives `unlocked` (+ `pinSet` where it renders its own prompt).)
 
 - [ ] **Step 7: Typecheck**
 
@@ -853,7 +853,7 @@ git commit -m "feat(admin-pin): wall role changes + deactivation (server-enforce
 ### Task 6: Runtime verification + memory update
 
 **Files:**
-- None (verification) — plus a memory pointer update.
+- None (verification) - plus a memory pointer update.
 
 - [ ] **Step 1: Final typecheck**
 
@@ -871,12 +871,12 @@ Ask the user to run `npm run dev` (per project rule: do not start the dev server
 3. Enter `1234` in the banner → page refreshes → role select + deactivate buttons become enabled.
 4. Change a test user's role and save → succeeds. Deactivate + reactivate a test user → succeeds.
 5. Wrong PIN in the prompt → "Incorrect PIN"; controls stay locked.
-6. **Server boundary:** with the cookie cleared (or after 30 min), calling a walled action directly still fails. Quick proof: in the browser devtools console on `/admin`, run a fetch that invokes `setUserActive` via the server-action endpoint while locked — expect it to throw "Admin unlock required". (Or simply confirm the disabled controls can't be triggered and trust the `assertAdminUnlocked()` calls added in Task 5; the enable/disable is driven by the same `isAdminUnlocked()`.)
+6. **Server boundary:** with the cookie cleared (or after 30 min), calling a walled action directly still fails. Quick proof: in the browser devtools console on `/admin`, run a fetch that invokes `setUserActive` via the server-action endpoint while locked - expect it to throw "Admin unlock required". (Or simply confirm the disabled controls can't be triggered and trust the `assertAdminUnlocked()` calls added in Task 5; the enable/disable is driven by the same `isAdminUnlocked()`.)
 7. Editing a user's name/phone WITHOUT changing role, while locked, still saves (only role changes are walled).
 
 - [ ] **Step 4: Update the auto-memory pointer**
 
-Update `project_role_tiers_spec1_2026_07_10.md` (the "Admin split" paragraph): change status from "spec'd, NOT yet built" to "BUILT + verified <date>" with the migration number (0020) and the final scope (revenue deferred — not surfaced yet; walled = role changes + deactivation). Keep `MEMORY.md`'s one-liner in sync.
+Update `project_role_tiers_spec1_2026_07_10.md` (the "Admin split" paragraph): change status from "spec'd, NOT yet built" to "BUILT + verified <date>" with the migration number (0020) and the final scope (revenue deferred - not surfaced yet; walled = role changes + deactivation). Keep `MEMORY.md`'s one-liner in sync.
 
 - [ ] **Step 5: Commit any remaining docs**
 
@@ -902,6 +902,6 @@ git commit -m "docs(admin-pin): implementation plan + status"
 - **Revenue walling** → intentionally DEFERRED per user decision 2026-07-12 (no revenue rendered today); helpers/component make it a one-step add later. Documented in Global Constraints. ✓ (deviation from spec, approved)
 - Reactivation walled for symmetry → Task 5 (`setUserActive` asserts for BOTH activate and deactivate). ✓
 
-**Placeholder scan:** No "TODO"/"handle edge cases"/"similar to Task N" — every code step has real code. Task 5 Step 6 says "read each page first to place these" because the two user pages' exact JSX wasn't captured in the plan; the invariant (which props each component must receive) is stated explicitly, so it's directed, not a placeholder.
+**Placeholder scan:** No "TODO"/"handle edge cases"/"similar to Task N" - every code step has real code. Task 5 Step 6 says "read each page first to place these" because the two user pages' exact JSX wasn't captured in the plan; the invariant (which props each component must receive) is stated explicitly, so it's directed, not a placeholder.
 
-**Type consistency:** `hashPin`/`verifyPin`/`getPinHash`/`upsertPinHash`/`setUnlockCookie`/`isAdminUnlocked`/`assertAdminUnlocked` names are identical across Tasks 2/3/5. `AdminPinPrompt` props `{ pinSet, label? }` and `AdminPinGate` props `{ unlocked, pinSet, children }` are consistent across Task 4 and their consumers in Task 5. `getAdminSecurityState()` returns `{ pinSet, unlocked }` — consumed with those exact names in Tasks 4–5. ✓
+**Type consistency:** `hashPin`/`verifyPin`/`getPinHash`/`upsertPinHash`/`setUnlockCookie`/`isAdminUnlocked`/`assertAdminUnlocked` names are identical across Tasks 2/3/5. `AdminPinPrompt` props `{ pinSet, label? }` and `AdminPinGate` props `{ unlocked, pinSet, children }` are consistent across Task 4 and their consumers in Task 5. `getAdminSecurityState()` returns `{ pinSet, unlocked }` - consumed with those exact names in Tasks 4–5. ✓

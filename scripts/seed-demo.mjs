@@ -24,7 +24,7 @@ const admin = createClient(url, serviceKey, {
 const sql = postgres(dbUrl, { prepare: false });
 
 // ----------------------------------------------------------------------------
-// 1. Auth users (tutors, students, parents) — keep existing @taiyo.com seeds.
+// 1. Auth users (tutors, students, parents) - keep existing @taiyo.com seeds.
 // ----------------------------------------------------------------------------
 
 const TUTORS = [
@@ -222,7 +222,7 @@ for (const s of SUBJECTS) {
 }
 
 // ----------------------------------------------------------------------------
-// 2.2. Subject topics — 4 canonical topics per subject; weeks reference these.
+// 2.2. Subject topics - 4 canonical topics per subject; weeks reference these.
 // ----------------------------------------------------------------------------
 
 const SUBJECT_TOPICS_MAP = {
@@ -256,7 +256,7 @@ for (const s of SUBJECTS) {
 }
 
 // ----------------------------------------------------------------------------
-// 2.5. Curriculum scaffold — one term covering the lesson window, plus
+// 2.5. Curriculum scaffold - one term covering the lesson window, plus
 //      10 weekly placeholder subject_weeks per subject so the subject
 //      weekly page renders real content instead of "Curriculum coming soon".
 // ----------------------------------------------------------------------------
@@ -298,7 +298,7 @@ const subjectWeekIds = {}; // { subjectName -> [weekNumber-1]: subjectWeekId }
 for (const s of SUBJECTS) {
   const sid = subjectIds[s.name];
   subjectWeekIds[s.name] = [];
-  // Topics per subject — reuse TOPICS_BY_SUBJECT if defined later, otherwise fallback.
+  // Topics per subject - reuse TOPICS_BY_SUBJECT if defined later, otherwise fallback.
   // (TOPICS_BY_SUBJECT is declared further down; we inline a small subset here.)
   const subjectTopics =
     {
@@ -413,7 +413,7 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 3.5. Tutor week sections — one demo "From your tutor" note so the student
+// 3.5. Tutor week sections - one demo "From your tutor" note so the student
 //      weekly page renders populated content instead of an empty section.
 //      Uses Tom Tutor (tutor@taiyo.com) + Week 1 of "Year 9 Maths" (linear
 //      equations). Both ids exist by this point: tutorIds populated in §1,
@@ -426,13 +426,13 @@ console.log("→ Seeding tutor week sections");
   const subjectWeekId = subjectWeekIds["Year 9 Maths"][0]; // Week 1: linear equations
   await sql`
     insert into tutor_week_sections (tutor_id, subject_week_id, note)
-    values (${tutorId}, ${subjectWeekId}, ${"Bring your exercise book and last week's notes — we'll work through the trickier rearrangement problems first, then move on to word problems. If you found Q7 from the worksheet hard, jot down where you got stuck."})
+    values (${tutorId}, ${subjectWeekId}, ${"Bring your exercise book and last week's notes - we'll work through the trickier rearrangement problems first, then move on to word problems. If you found Q7 from the worksheet hard, jot down where you got stuck."})
     on conflict (tutor_id, subject_week_id) do update set note = excluded.note
   `;
 }
 
 // ----------------------------------------------------------------------------
-// 4. Enrollments — wire students into classes
+// 4. Enrollments - wire students into classes
 // ----------------------------------------------------------------------------
 
 const ENROLMENTS = {
@@ -462,7 +462,7 @@ for (const [className, emails] of Object.entries(ENROLMENTS)) {
 }
 
 // ----------------------------------------------------------------------------
-// 5. Lessons — generate 6 weeks (3 past, 3 future) per class
+// 5. Lessons - generate 6 weeks (3 past, 3 future) per class
 // ----------------------------------------------------------------------------
 
 console.log("→ Generating lessons");
@@ -506,7 +506,7 @@ for (const c of CLASSES) {
       status = "upcoming";
     }
 
-    // No unique constraint on (class_id, date, start_time) — check first.
+    // No unique constraint on (class_id, date, start_time) - check first.
     const [existing] = await sql`
       select id, status from lessons
       where class_id = ${classId} and date = ${dateStr} and start_time = ${c.start}
@@ -548,7 +548,7 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 6. Attendance — fill in for completed lessons
+// 6. Attendance - fill in for completed lessons
 // ----------------------------------------------------------------------------
 
 console.log("→ Filling attendance");
@@ -566,7 +566,7 @@ for (const l of allLessons) {
 }
 
 // ----------------------------------------------------------------------------
-// 6.5. Make-up lessons — pick up to 2 completed lessons, mark one student
+// 6.5. Make-up lessons - pick up to 2 completed lessons, mark one student
 //      absent on the original, then create a make-up lesson on a later date
 //      with `makeup_attended` attendance. Demos the admin reschedule flow.
 // ----------------------------------------------------------------------------
@@ -629,7 +629,7 @@ console.log("→ Seeding make-up lessons");
 }
 
 // ----------------------------------------------------------------------------
-// 7. Lesson notes — ~70% of completed lessons, per student
+// 7. Lesson notes - ~70% of completed lessons, per student
 // ----------------------------------------------------------------------------
 
 console.log("→ Writing lesson notes");
@@ -637,14 +637,14 @@ console.log("→ Writing lesson notes");
 const PARENT_VISIBLE_TEMPLATES = [
   "Worked through {topic} today. Good engagement, especially when applying it to worked examples. Recommended {action} before next lesson.",
   "Covered {topic}. Confident on the basics, needs more practice with the trickier cases. Set a worksheet to consolidate.",
-  "Today's focus was {topic}. Solid understanding overall — encouraged independent practice this week.",
+  "Today's focus was {topic}. Solid understanding overall - encouraged independent practice this week.",
   "Reviewed {topic} and the previous quiz. Identified the gap as careless errors more than concept; we worked on a check-back routine.",
 ];
 const INTERNAL_TEMPLATES = [
   "Slightly distracted at the start, settled in after 15 min. Worth flagging if pattern continues.",
-  "Confidence dipped when introduced to harder examples — keep encouragement up and don't pile on new content next week.",
+  "Confidence dipped when introduced to harder examples - keep encouragement up and don't pile on new content next week.",
   "Strong session. Could be ready to accelerate.",
-  "Mentioned exam stress — keep an eye on workload, mention to parents only if it escalates.",
+  "Mentioned exam stress - keep an eye on workload, mention to parents only if it escalates.",
 ];
 const TOPICS_BY_SUBJECT = {
   "Year 9 Maths": ["linear equations", "negative numbers", "fractions", "Pythagoras"],
@@ -671,7 +671,7 @@ for (const l of allLessons) {
   if (l.status !== "completed") continue;
   const topic = pick(TOPICS_BY_SUBJECT[l.subjectName] ?? ["the chapter"]);
   for (const sid of l.students) {
-    // Dedupe by (lesson_id, student_id) — at most one note per pair.
+    // Dedupe by (lesson_id, student_id) - at most one note per pair.
     const [existing] = await sql`
       select id from lesson_notes where lesson_id = ${l.id} and student_id = ${sid} limit 1
     `;
@@ -692,7 +692,7 @@ for (const l of allLessons) {
 }
 
 // ----------------------------------------------------------------------------
-// 8. Homework — one per subject_week so every week on the curriculum page
+// 8. Homework - one per subject_week so every week on the curriculum page
 //    has a homework attached. Titles match the week topic. Due date is the
 //    end of the week (week start + 6 days), so past weeks land overdue/marked
 //    and future weeks land as viewed/not_started.
@@ -711,7 +711,7 @@ const HOMEWORK_BY_SUBJECT = {
     { title: "Fractions mixed practice",     desc: "Add/sub/mul/div fractions worksheet." },
     { title: "Pythagoras problem set",       desc: "Real-world Pythagoras questions." },
     { title: "Perimeter & area worksheet",   desc: "Composite shapes calculations." },
-    { title: "Indices practice",             desc: "Index laws — 12 questions." },
+    { title: "Indices practice",             desc: "Index laws - 12 questions." },
     { title: "Probability basics",           desc: "Sample space + simple probability." },
     { title: "Statistics summary set",       desc: "Mean / median / mode / range." },
     { title: "End-of-term review sheet",     desc: "Mixed review covering term content." },
@@ -725,7 +725,7 @@ const HOMEWORK_BY_SUBJECT = {
     { title: "Text analysis quotes table",   desc: "Collect 10 quotes + analyse each." },
     { title: "Creative writing draft",       desc: "600-word short story draft." },
     { title: "Comparative texts notes",      desc: "Compare two prescribed extracts." },
-    { title: "Vocabulary set",               desc: "20-word list — definitions + sentences." },
+    { title: "Vocabulary set",               desc: "20-word list - definitions + sentences." },
     { title: "Revision summary sheet",       desc: "One-page summary of term." },
     { title: "Mock exam essay",              desc: "Full timed essay under exam conditions." },
   ],
@@ -850,7 +850,7 @@ for (const c of CLASSES) {
     // weekly subject page in the right week.
     const weekId = weekIdForDate(c.subject, due);
 
-    // Idempotent: dedupe by (class_id, title) — schema has no unique index so check first.
+    // Idempotent: dedupe by (class_id, title) - schema has no unique index so check first.
     const [existing] = await sql`
       select id from homework where class_id = ${classId} and title = ${item.title} limit 1
     `;
@@ -921,7 +921,7 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 9. Progress topics — sprinkle mastery per student
+// 9. Progress topics - sprinkle mastery per student
 // ----------------------------------------------------------------------------
 
 console.log("→ Adding progress topics");
@@ -959,7 +959,7 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 10. Invoices — for each parent, 2-3 across last 3 months
+// 10. Invoices - for each parent, 2-3 across last 3 months
 // ----------------------------------------------------------------------------
 
 console.log("→ Creating invoices");
@@ -1026,7 +1026,7 @@ if (adminId) {
       audienceRole: null,
     },
     {
-      title: "Year 9 Maths — Saturday class room change",
+      title: "Year 9 Maths - Saturday class room change",
       body: "From this Saturday, Year 9 Maths moves to Room 4. Same time, same tutor.",
       audienceRole: "student",
     },
@@ -1036,7 +1036,7 @@ if (adminId) {
       audienceRole: "parent",
     },
     {
-      title: "Tutor PD day — 30 June",
+      title: "Tutor PD day - 30 June",
       body: "Optional professional development on differentiated instruction. Lunch provided.",
       audienceRole: "tutor",
     },

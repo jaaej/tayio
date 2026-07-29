@@ -1,12 +1,12 @@
-# Curriculum Topics (Foundation) — Design Spec
+# Curriculum Topics (Foundation) - Design Spec
 
 **Date:** 2026-06-30
 **Status:** Draft, pending user review
-**Part 1 of 3** — see "Roadmap" below. This spec covers ONLY the curriculum + topics foundation.
+**Part 1 of 3** - see "Roadmap" below. This spec covers ONLY the curriculum + topics foundation.
 
 ## Problem
 
-Taiyo's curriculum is organised as **Subject → Topic → Week**: a subject (e.g. "Year 9 Maths") has topics ("Algebra", "Geometry"), and each topic is taught across several weeks ("linear equations", "fractions" are weeks under Algebra). Today the curriculum has only the week layer (`subject_weeks`, per subject per term) — there is no topic grouping above it. Topics are needed as the organising layer for two downstream features (per-tutor sections, automated mastery), so they must exist first.
+Taiyo's curriculum is organised as **Subject → Topic → Week**: a subject (e.g. "Year 9 Maths") has topics ("Algebra", "Geometry"), and each topic is taught across several weeks ("linear equations", "fractions" are weeks under Algebra). Today the curriculum has only the week layer (`subject_weeks`, per subject per term) - there is no topic grouping above it. Topics are needed as the organising layer for two downstream features (per-tutor sections, automated mastery), so they must exist first.
 
 Separately, the student progress tracker currently shows topic mastery from a free-text `progress_topics` table seeded with fake data. That table is replaced by computed mastery in Part 3; this spec does **not** touch it.
 
@@ -14,9 +14,9 @@ Separately, the student progress tracker currently shows topic mastery from a fr
 
 Three connected pieces, built in dependency order. This spec is Part 1.
 
-1. **Curriculum + topics (this spec)** — topic layer above weeks; admin authoring. Gates the rest.
-2. **Per-(tutor, subject) additive section** — reshape `class_week_overrides` into a per-tutor additive notes/materials section, visible only to that tutor's students. Includes the student/parent curriculum read-view changes (grouping weeks by topic, showing the tutor section).
-3. **Automated mastery** — admin-defined tests attached to weeks; a student's test scores roll up by topic into a Strong/Improving/Needs-work band; replaces seed `progress_topics`. Score-capture + thresholds decided there.
+1. **Curriculum + topics (this spec)** - topic layer above weeks; admin authoring. Gates the rest.
+2. **Per-(tutor, subject) additive section** - reshape `class_week_overrides` into a per-tutor additive notes/materials section, visible only to that tutor's students. Includes the student/parent curriculum read-view changes (grouping weeks by topic, showing the tutor section).
+3. **Automated mastery** - admin-defined tests attached to weeks; a student's test scores roll up by topic into a Strong/Improving/Needs-work band; replaces seed `progress_topics`. Score-capture + thresholds decided there.
 
 ## Goals (this spec)
 
@@ -28,7 +28,7 @@ Three connected pieces, built in dependency order. This spec is Part 1.
 ## Non-goals (deferred to later parts)
 
 - Per-tutor additive section (Part 2).
-- Student/parent curriculum view grouped by topic (Part 2 — that view is reshaped there anyway).
+- Student/parent curriculum view grouped by topic (Part 2 - that view is reshaped there anyway).
 - Tests, test scores, mastery computation, thresholds (Part 3).
 - Reordering UX beyond simple up/down.
 - Bulk import of topics/curriculum.
@@ -42,7 +42,7 @@ Three connected pieces, built in dependency order. This spec is Part 1.
 
 ## Schema
 
-Append to `src/db/schema.ts` (Drizzle owns table DDL only — see `docs/SECURITY.md` migration boundary).
+Append to `src/db/schema.ts` (Drizzle owns table DDL only - see `docs/SECURITY.md` migration boundary).
 
 ```ts
 subjectTopics (
@@ -60,7 +60,7 @@ subjectTopics (
 subjectWeeks: + topicId uuid fk -> subjectTopics.id (onDelete set null), nullable
 ```
 
-**Why `topicId` nullable + `onDelete set null`:** existing weeks have no topic until an admin assigns one (non-destructive migration), and deleting a topic must not delete curriculum content — its weeks fall back to "unassigned" and the admin reassigns. A week with `topicId = null` simply does not roll into any topic's mastery later (Part 3).
+**Why `topicId` nullable + `onDelete set null`:** existing weeks have no topic until an admin assigns one (non-destructive migration), and deleting a topic must not delete curriculum content - its weeks fall back to "unassigned" and the admin reassigns. A week with `topicId = null` simply does not roll into any topic's mastery later (Part 3).
 
 **Why topics are subject-level (not term-level):** a topic like "Algebra" belongs to the subject and can be taught across weeks in any term. Weeks remain term-scoped; the topic is the cross-term grouping.
 
@@ -85,10 +85,10 @@ Extend the existing `/admin/subjects/[id]/curriculum` page (per-subject, current
 
 New file `src/app/admin/_lib/actions-topics.ts`, mirroring the existing `{ ok, error }` + Zod + `requireRole("admin")` + `revalidatePath` pattern in `actions-curriculum.ts`:
 
-- `createSubjectTopic(formData)` — `{ subjectId, name }`; appends with `position = max+1`.
-- `renameSubjectTopic(id, formData)` — `{ name }`.
-- `reorderSubjectTopic(id, direction)` — swaps `position` with the adjacent topic.
-- `deleteSubjectTopic(id, subjectId)` — deletes; weeks' `topicId` set null via FK.
+- `createSubjectTopic(formData)` - `{ subjectId, name }`; appends with `position = max+1`.
+- `renameSubjectTopic(id, formData)` - `{ name }`.
+- `reorderSubjectTopic(id, direction)` - swaps `position` with the adjacent topic.
+- `deleteSubjectTopic(id, subjectId)` - deletes; weeks' `topicId` set null via FK.
 
 Extend `weekInputSchema` in `actions-curriculum.ts` with optional `topicId: z.string().uuid().nullable()` so `createSubjectWeek` / `updateSubjectWeek` persist the assignment.
 
@@ -96,7 +96,7 @@ All revalidate `/admin/subjects/${subjectId}/curriculum`.
 
 ## Permissions
 
-- Writes go through admin server actions (`requireRole("admin")`). Server-side Drizzle connects as the `postgres` role and bypasses RLS — RLS is defense-in-depth.
+- Writes go through admin server actions (`requireRole("admin")`). Server-side Drizzle connects as the `postgres` role and bypasses RLS - RLS is defense-in-depth.
 - `subject_topics` RLS: admin all; `authenticated` SELECT only; `anon` none. Matches the `subjects` posture (curriculum metadata, not student PII).
 
 ## Validation & error handling
@@ -109,7 +109,7 @@ All revalidate `/admin/subjects/${subjectId}/curriculum`.
 - **Week left unassigned** (`topicId = null`): allowed; shown as "Unassigned" in the admin editor; excluded from mastery in Part 3.
 - **Deleting a topic with weeks:** weeks become unassigned (FK set null), not deleted; confirm dialog discloses the count.
 - **Reorder at list ends:** up on the first / down on the last is a no-op (button disabled).
-- **Two subjects with same topic name:** allowed — uniqueness is per subject.
+- **Two subjects with same topic name:** allowed - uniqueness is per subject.
 
 ## Test plan (manual; repo has no test suite)
 

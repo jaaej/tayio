@@ -4,7 +4,7 @@
 
 **Goal:** Ship in-portal 1:1 direct messaging for parent / student / tutor / admin, with relationship-based permissions and a Messenger-style UI.
 
-**Architecture:** Three new tables (`dm_threads`, `dm_messages`, `dm_reads`) with canonical pair ordering on the threads (`userAId < userBId`). Shared server actions in `src/app/_actions/dm.ts`. Shared read queries + a permission helper in `src/lib/dm-queries.ts` and `src/lib/dm-permissions.ts`. Each role gets three thin route wrappers under `/{role}/messages/...`. Notifications reuse the existing table. No realtime — request-revalidate model.
+**Architecture:** Three new tables (`dm_threads`, `dm_messages`, `dm_reads`) with canonical pair ordering on the threads (`userAId < userBId`). Shared server actions in `src/app/_actions/dm.ts`. Shared read queries + a permission helper in `src/lib/dm-queries.ts` and `src/lib/dm-permissions.ts`. Each role gets three thin route wrappers under `/{role}/messages/...`. Notifications reuse the existing table. No realtime - request-revalidate model.
 
 **Tech Stack:** Next.js 16 App Router (server components by default, client only where state is needed), React 19, Drizzle ORM over Postgres, Supabase auth, Tailwind v4, Zod for action validation, lucide-react for icons.
 
@@ -14,7 +14,7 @@
 
 ## Pre-flight
 
-This project uses `db:push` (no `drizzle/` migration directory). The executor does **not** run `db:push` themselves — the user runs it after each schema change, after disclosure of effect. CLAUDE.md gates this.
+This project uses `db:push` (no `drizzle/` migration directory). The executor does **not** run `db:push` themselves - the user runs it after each schema change, after disclosure of effect. CLAUDE.md gates this.
 
 The codebase has no test framework. Verification is `npm run typecheck` (passes `tsc --noEmit`) at each task boundary + a manual browser walkthrough at the end (Task 12). The user starts the dev server themselves (per `feedback_dev_server.md`).
 
@@ -28,33 +28,33 @@ Key gotchas:
 ## File map
 
 **New files:**
-- `src/db/schema.ts` — *modify* — append `dmThreads`, `dmMessages`, `dmReads` + add `uniqueIndex` import
-- `src/lib/dm.ts` — *create* — types, label helpers, canonical-pair sort
-- `src/lib/dm-permissions.ts` — *create* — `canDM(meId, meRole, targetId, targetRole)` with relationship checks
-- `src/lib/dm-queries.ts` — *create* — `listMyThreads`, `getThreadForMe`, `getThreadByPair`, `getOrCreateThread`, `getUnreadThreadCount`
-- `src/app/_actions/dm.ts` — *create* — `sendMessage`, `markThreadRead`
-- `src/components/dm/thread-row.tsx` — *create* — inbox list item
-- `src/components/dm/message-list.tsx` — *create* — message bubbles, sender right / recipient left
-- `src/components/dm/message-composer.tsx` — *create*, **client** — textarea + send, Enter to submit
-- `src/app/parent/messages/page.tsx` — *create*
-- `src/app/parent/messages/[threadId]/page.tsx` — *create*
-- `src/app/parent/messages/with/[userId]/page.tsx` — *create*
-- `src/app/student/messages/page.tsx` — *create*
-- `src/app/student/messages/[threadId]/page.tsx` — *create*
-- `src/app/student/messages/with/[userId]/page.tsx` — *create*
-- `src/app/tutor/messages/page.tsx` — *create*
-- `src/app/tutor/messages/[threadId]/page.tsx` — *create*
-- `src/app/tutor/messages/with/[userId]/page.tsx` — *create*
-- `src/app/admin/messages/page.tsx` — *create*
-- `src/app/admin/messages/[threadId]/page.tsx` — *create*
-- `src/app/admin/messages/with/[userId]/page.tsx` — *create*
+- `src/db/schema.ts` - *modify* - append `dmThreads`, `dmMessages`, `dmReads` + add `uniqueIndex` import
+- `src/lib/dm.ts` - *create* - types, label helpers, canonical-pair sort
+- `src/lib/dm-permissions.ts` - *create* - `canDM(meId, meRole, targetId, targetRole)` with relationship checks
+- `src/lib/dm-queries.ts` - *create* - `listMyThreads`, `getThreadForMe`, `getThreadByPair`, `getOrCreateThread`, `getUnreadThreadCount`
+- `src/app/_actions/dm.ts` - *create* - `sendMessage`, `markThreadRead`
+- `src/components/dm/thread-row.tsx` - *create* - inbox list item
+- `src/components/dm/message-list.tsx` - *create* - message bubbles, sender right / recipient left
+- `src/components/dm/message-composer.tsx` - *create*, **client** - textarea + send, Enter to submit
+- `src/app/parent/messages/page.tsx` - *create*
+- `src/app/parent/messages/[threadId]/page.tsx` - *create*
+- `src/app/parent/messages/with/[userId]/page.tsx` - *create*
+- `src/app/student/messages/page.tsx` - *create*
+- `src/app/student/messages/[threadId]/page.tsx` - *create*
+- `src/app/student/messages/with/[userId]/page.tsx` - *create*
+- `src/app/tutor/messages/page.tsx` - *create*
+- `src/app/tutor/messages/[threadId]/page.tsx` - *create*
+- `src/app/tutor/messages/with/[userId]/page.tsx` - *create*
+- `src/app/admin/messages/page.tsx` - *create*
+- `src/app/admin/messages/[threadId]/page.tsx` - *create*
+- `src/app/admin/messages/with/[userId]/page.tsx` - *create*
 
 **Modified files:**
-- `src/components/portal/shell.tsx` — add Messages nav entry × 4 roles + `MessageCircle` icon import
-- `src/app/parent/page.tsx` — add Message buttons on contact rows (`ContactRow` already exists at line 432; we add a `userId` prop + a button)
-- `src/app/student/page.tsx` — add a contact card with Message buttons for tutors + admin
-- `src/app/tutor/students/[id]/page.tsx` — add Message buttons for the student + each linked parent
-- `src/app/admin/users/[id]/page.tsx` — add Message button at top of detail card
+- `src/components/portal/shell.tsx` - add Messages nav entry × 4 roles + `MessageCircle` icon import
+- `src/app/parent/page.tsx` - add Message buttons on contact rows (`ContactRow` already exists at line 432; we add a `userId` prop + a button)
+- `src/app/student/page.tsx` - add a contact card with Message buttons for tutors + admin
+- `src/app/tutor/students/[id]/page.tsx` - add Message buttons for the student + each linked parent
+- `src/app/admin/users/[id]/page.tsx` - add Message button at top of detail card
 
 ---
 
@@ -187,7 +187,7 @@ git commit -m "feat(dm): add dm_threads, dm_messages, dm_reads schema"
 import type { UserRole } from "@/db/schema";
 
 /**
- * Canonical pair ordering — smaller UUID becomes userAId, larger becomes userBId.
+ * Canonical pair ordering - smaller UUID becomes userAId, larger becomes userBId.
  * Ensures there is only one row per pair in dm_threads regardless of who started.
  */
 export function canonicalPair(
@@ -319,7 +319,7 @@ export async function getUserRole(userId: string): Promise<UserRole | null> {
 
 - [ ] **Step 2: Verify `exists` is not actually used and remove if unused**
 
-The `exists` import is included above only if the implementation uses it. Re-read the file — it doesn't. Drop the `exists` from the import.
+The `exists` import is included above only if the implementation uses it. Re-read the file - it doesn't. Drop the `exists` from the import.
 
 Final import line should be:
 ```ts
@@ -610,7 +610,7 @@ export async function sendMessage(formData: FormData) {
   }
   const otherId = t.userAId === user.id ? t.userBId : t.userAId;
 
-  // Re-check relationship — defense in depth.
+  // Re-check relationship - defense in depth.
   const otherRole = await getUserRole(otherId);
   if (!otherRole) throw new Error("Recipient not found");
   const allowed = await canDM(
@@ -1599,7 +1599,7 @@ function ContactRow({
 }
 ```
 
-(Preserve the existing content of `ContactRow` — the snippet above only shows the new addition. Read the full function before editing and keep the rest.)
+(Preserve the existing content of `ContactRow` - the snippet above only shows the new addition. Read the full function before editing and keep the rest.)
 
 Then, in the caller sites in the same file (around lines 369 and 382), pass `userId`:
 
@@ -1701,7 +1701,7 @@ const unread = user ? await getUnreadThreadCount(user.id) : 0;
 ) : null}
 ```
 
-(Adapt the JSX to NavLinks' actual structure — read the file first.)
+(Adapt the JSX to NavLinks' actual structure - read the file first.)
 
 4. In `shell.tsx`, when building the `nav` array, attach the unread count to the Messages entry for the current role:
 
@@ -1811,7 +1811,7 @@ Ask the user to log in as a parent whose child is enrolled in at least one class
 
 - [ ] **Step 5: Lapse policy**
 
-(Optional — requires being able to withdraw an enrollment from the DB or admin UI.)
+(Optional - requires being able to withdraw an enrollment from the DB or admin UI.)
 
 1. Note: a parent has an active DM with a tutor whose class their child is enrolled in.
 2. Withdraw the child from that class (or set `enrollments.withdrawnAt` directly in Supabase).
@@ -1839,7 +1839,7 @@ If any step fails, describe the symptom and which task/file to revisit. Otherwis
 
 ## Self-review notes (for the executor)
 
-- The `markThreadRead` action runs inline on every thread page render. This is a small write per page load — acceptable for MVP. If it becomes a hot path, move to a client-side `useEffect` + server action call.
+- The `markThreadRead` action runs inline on every thread page render. This is a small write per page load - acceptable for MVP. If it becomes a hot path, move to a client-side `useEffect` + server action call.
 - The inbox query (`listMyThreads`) runs O(threads) lookups for profile + last message + last read. For tens of threads this is fine. If it gets slow (~100+ threads/user), rewrite as a single SQL join with `lateral`.
 - The "lapse policy" gives existing threads "read forever" access. This is intentional per the spec. If the user later wants strict revocation, swap the `listMyThreads` filter to re-check `canDM` per thread.
 - `getUserRole` is in `dm-permissions.ts` but is also useful generally. If another feature needs it, move to `src/lib/profiles.ts` or similar.

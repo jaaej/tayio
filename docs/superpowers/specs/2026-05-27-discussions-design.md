@@ -1,4 +1,4 @@
-# Discussions — Design Spec
+# Discussions - Design Spec
 
 **Date:** 2026-05-27
 **Author:** jae (with Claude)
@@ -6,14 +6,14 @@
 
 ## Purpose
 
-A per-subject (and per-year) Q&A board where students can ask questions, tutors answer + give feedback, and admins oversee and answer where needed. Replaces the current "no messaging anywhere" gap flagged in `docs/checklist.md` for student / tutor portals. Parent portal is intentionally **out of scope** for v1 — the parent PRD describes a different "routed messaging" pattern (learning→tutor, payment→admin) that needs its own design.
+A per-subject (and per-year) Q&A board where students can ask questions, tutors answer + give feedback, and admins oversee and answer where needed. Replaces the current "no messaging anywhere" gap flagged in `docs/checklist.md` for student / tutor portals. Parent portal is intentionally **out of scope** for v1 - the parent PRD describes a different "routed messaging" pattern (learning→tutor, payment→admin) that needs its own design.
 
 ## Roles in v1
 
-- **Student** — can read, post threads, post replies on boards they're enrolled in (plus Admin/Tech).
-- **Tutor** — same as student, scoped to subjects they teach (plus Admin/Tech).
-- **Admin** — sees every board. Can post + reply anywhere. Can soft-delete any thread or reply.
-- **Parent** — no access. Not in this feature.
+- **Student** - can read, post threads, post replies on boards they're enrolled in (plus Admin/Tech).
+- **Tutor** - same as student, scoped to subjects they teach (plus Admin/Tech).
+- **Admin** - sees every board. Can post + reply anywhere. Can soft-delete any thread or reply.
+- **Parent** - no access. Not in this feature.
 
 ## Conversation unit
 
@@ -23,7 +23,7 @@ A per-subject (and per-year) Q&A board where students can ask questions, tutors 
 
 A "board" is a `(subject, year level)` pair. Since the existing `subjects` table already encodes `yearLevel` per subject row, **a board = one row in the `subjects` table**. No separate `boards` table needed.
 
-In addition there is **one "Admin / Tech" board** for non-academic stuff (login issues, generic admin questions, anything off-syllabus). It is shared — every student / tutor / admin sees the same Admin/Tech board.
+In addition there is **one "Admin / Tech" board** for non-academic stuff (login issues, generic admin questions, anything off-syllabus). It is shared - every student / tutor / admin sees the same Admin/Tech board.
 
 Sentinel-null pattern: a thread row's `subject_id` column is the `subjects.id` UUID for subject boards, and `NULL` for the Admin/Tech board. The "list all boards I can see" query is a UNION of (subjects-I-have-access-to) + (one synthetic "Admin/Tech" entry).
 
@@ -35,12 +35,12 @@ Sentinel-null pattern: a thread row's `subject_id` column is the `subjects.id` U
 | Tutor | subjects of any class they teach (`classes.tutorId = me`) | always |
 | Admin | all subjects | always |
 
-Enforced in the query layer (no RLS in v1 — that's tracked as a separate cross-cutting brief at `docs/briefs/security-rls-brief.md`).
+Enforced in the query layer (no RLS in v1 - that's tracked as a separate cross-cutting brief at `docs/briefs/security-rls-brief.md`).
 
 ## Post / reply / delete / edit
 
 - Any role can **post** a thread on any board they have read access to.
-- Any role can **reply** to any thread on any board they have read access to. Cross-student replies are allowed (students can answer each other) — matches a shared-classroom feel.
+- Any role can **reply** to any thread on any board they have read access to. Cross-student replies are allowed (students can answer each other) - matches a shared-classroom feel.
 - **Delete:** author cannot delete their own post. Admin can soft-delete any thread or reply (sets `deletedAt`). Soft-deleted content renders as `[removed by admin]` with the original author name kept visible.
 - **Edit:** nobody, in v1.
 
@@ -89,9 +89,9 @@ Same shape duplicated under each role:
 
 | Route | Page |
 |---|---|
-| `/{role}/discussions` | Landing — list of boards the user has access to (subject boards + Admin/Tech). Each board card: name, total thread count, last activity timestamp. |
-| `/{role}/discussions/[boardId]` | Single board — list of threads sorted by `lastActivityAt` desc. Per-thread row: title, author, reply count, last reply time. Button: "Ask a question" (opens composer modal or inline form). |
-| `/{role}/discussions/[boardId]/[threadId]` | Thread view — original post at top, replies chronological below, reply composer pinned at bottom. |
+| `/{role}/discussions` | Landing - list of boards the user has access to (subject boards + Admin/Tech). Each board card: name, total thread count, last activity timestamp. |
+| `/{role}/discussions/[boardId]` | Single board - list of threads sorted by `lastActivityAt` desc. Per-thread row: title, author, reply count, last reply time. Button: "Ask a question" (opens composer modal or inline form). |
+| `/{role}/discussions/[boardId]/[threadId]` | Thread view - original post at top, replies chronological below, reply composer pinned at bottom. |
 
 `{role}` ∈ `student | tutor | admin`. Same UI, different scope.
 
@@ -103,10 +103,10 @@ Same shape duplicated under each role:
 
 Shared in `src/app/_actions/discussions.ts` (the action logic is identical across roles; only the auth check varies). Each action validates role + board membership at the top:
 
-- `createThread({ boardId, title, body })` — validates membership, inserts thread, redirects to thread view.
-- `postReply({ threadId, body })` — validates membership, inserts reply, bumps `lastActivityAt` on the parent thread, writes a notification to the thread author (if author is someone other than the replier and they don't already have an unread `discussion_reply` notification for that thread).
-- `softDeleteThread({ threadId })` — admin only. Sets `deletedAt`.
-- `softDeleteReply({ replyId })` — admin only. Sets `deletedAt`.
+- `createThread({ boardId, title, body })` - validates membership, inserts thread, redirects to thread view.
+- `postReply({ threadId, body })` - validates membership, inserts reply, bumps `lastActivityAt` on the parent thread, writes a notification to the thread author (if author is someone other than the replier and they don't already have an unread `discussion_reply` notification for that thread).
+- `softDeleteThread({ threadId })` - admin only. Sets `deletedAt`.
+- `softDeleteReply({ replyId })` - admin only. Sets `deletedAt`.
 
 All actions are server actions (Next.js `"use server"`), validated with Zod, and call `requireRole(...)` at the top.
 
@@ -130,7 +130,7 @@ Reuse the existing `notifications` table.
 - Written when: someone replies to a thread you authored, AND you don't already have an unread `discussion_reply` notification for that thread. (One unread ping per thread until you read it, not one per reply.)
 - Not written when: a new thread is created on a board you're a member of (would be noisy across whole subject boards).
 
-The portal does not yet have an in-app inbox UI. Notifications written by this feature will sit in the table waiting for that UI to land — they aren't lost.
+The portal does not yet have an in-app inbox UI. Notifications written by this feature will sit in the table waiting for that UI to land - they aren't lost.
 
 ## Navigation
 
@@ -141,7 +141,7 @@ Add a "Discussions" entry to the three role shells in `src/components/portal/she
 | Student | "Homework" | Discussions | `MessagesSquare` |
 | Tutor | "Notes" | Discussions | `MessagesSquare` |
 | Admin | "Announcements" | Discussions | `MessagesSquare` |
-| Parent | — | — | — |
+| Parent | - | - | - |
 
 `MessagesSquare` (plural, two stacked bubbles) is used instead of `MessageSquareText` to keep it visually distinct from Parent → "Feedback" which already uses `MessageSquareText`.
 

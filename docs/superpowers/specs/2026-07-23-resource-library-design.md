@@ -1,4 +1,4 @@
-# Resource Library — Design Spec
+# Resource Library - Design Spec
 
 **Date:** 2026-07-23
 **Status:** Approved (design); pending implementation plan
@@ -12,13 +12,13 @@ week-by-week curriculum, not inside it. It gives students supplementary material
 subject-wide home for weekly tutor resources that would otherwise be visible only
 to one tutor's class.
 
-This is a **deploy-ready, final-product** feature — no stubs, proper validation,
+This is a **deploy-ready, final-product** feature - no stubs, proper validation,
 security, and moderation. It is distinct from:
-- **Curriculum** (`subject_weeks` / `tutor_week_sections` / `tutor_week_attachments`) —
+- **Curriculum** (`subject_weeks` / `tutor_week_sections` / `tutor_week_attachments`) -
   week-anchored delivery to a specific class.
-- **`/student/resources` "recorded lessons"** — the current lesson-recap list (kept
+- **`/student/resources` "recorded lessons"** - the current lesson-recap list (kept
   as a secondary tab).
-- **Practice Quizzes** (PRD §9) — a separate feature, out of scope here.
+- **Practice Quizzes** (PRD §9) - a separate feature, out of scope here.
 
 ## Decisions (settled during brainstorming)
 
@@ -26,14 +26,14 @@ security, and moderation. It is distinct from:
 |---|---|
 | Purpose | "Additional" library alongside the week curriculum |
 | Content sources | (a) directly-added materials + (b) opt-in promotion of a weekly tutor resource |
-| Visibility | **Subject-scoped, cross-class** — every student enrolled in that subject, and only that subject |
+| Visibility | **Subject-scoped, cross-class** - every student enrolled in that subject, and only that subject |
 | Approval | **Instant publish + admin moderation** (unpublish / remove) |
 | Media | Per-resource `kind`: **file upload OR link**, author's choice (incl. video-as-upload up to 500MB, or video-as-link) |
 | Filters | **Subject + type + topic** (topic reuses `subject_topics`) |
-| Parents | **In scope** — read-only mirror of their child's subject resources |
+| Parents | **In scope** - read-only mirror of their child's subject resources |
 | Promoted-file lifecycle | **Reference the original curriculum object (no copy); block deletion of a promoted attachment** |
 
-**Core rationale — subject scoping:** a student sees library items only for subjects
+**Core rationale - subject scoping:** a student sees library items only for subjects
 they are actively enrolled in (paid for). This prevents students accessing material
 for subjects they did not pay for, i.e. no resource leakage across cohorts. This is
 the single most important invariant and is enforced at both the app layer and RLS.
@@ -78,7 +78,7 @@ resources
 
 Notes:
 - **`storage_bucket` + `storage_path`** (never a persisted public URL) so reads always
-  mint short-lived signed URLs — same pattern as homework / curriculum / discussion
+  mint short-lived signed URLs - same pattern as homework / curriculum / discussion
   attachments (security checklist E4/E5).
 - **`source_attachment_id`** distinguishes *promoted* (references a curriculum object)
   from *directly-added* (its own object in the `resource-library` bucket).
@@ -108,7 +108,7 @@ promoted attachment is therefore **blocked** with a clear message: *"This is pub
 to the subject resource library. Remove it from the library first."* One source of
 truth, no duplication, no orphans.
 - *Rejected alternative:* copy-on-promote into `resource-library` (independent/frozen
-  library copy) — rejected because a 500MB video would be stored twice; videos can also
+  library copy) - rejected because a 500MB video would be stored twice; videos can also
   just be links.
 
 **Write guards:** `requireRole(['tutor','admin'])`; tutors additionally
@@ -116,7 +116,7 @@ truth, no duplication, no orphans.
 
 ## Student & parent browse
 
-**Student — `/student/resources`** becomes the library. Tabs: **`Library`** (primary) ·
+**Student - `/student/resources`** becomes the library. Tabs: **`Library`** (primary) ·
 **`Recorded lessons`** (the existing recap list, preserved).
 
 Scoping query (the security boundary):
@@ -139,12 +139,12 @@ Opening:
 - `kind='link'` → open `external_url` in a new tab, `rel="noopener noreferrer"`
   (URL already validated at write time).
 
-**Parent — `/parent/...`**: read-only mirror scoped to the *child's* enrolled subjects
+**Parent - `/parent/...`**: read-only mirror scoped to the *child's* enrolled subjects
 (via `family_links` → child → `enrollments`). No add, no moderate.
 
 ## Admin moderation
 
-**Surface: `/admin/resources`** — every resource across all subjects, filters
+**Surface: `/admin/resources`** - every resource across all subjects, filters
 (subject / type / status), columns for uploader, provenance (direct vs promoted), and
 published/removed state.
 
@@ -166,24 +166,24 @@ so insert / unpublish / remove are logged with actor via `withActor` (security G
   "can this caller see this resource?" before minting a URL.
 - **Backstop (RLS):** `resources` gets RLS enabled + policies mirroring the above via a
   raw-SQL migration (A10 discipline; never `db:push`). Defense-in-depth (C6).
-- **Uploads:** `RESOURCE_POLICY` — magic-byte sniff, size caps (docs 25MB / video 500MB),
+- **Uploads:** `RESOURCE_POLICY` - magic-byte sniff, size caps (docs 25MB / video 500MB),
   allowlist, **SVG excluded**, canonical ext/content-type from the allowlist not the
   client (E1/E3).
 - **Links:** `safe-url.ts` validation (block `javascript:` / `data:` etc.).
-- **New private `resource-library` bucket** — must be created at deploy (track in
+- **New private `resource-library` bucket** - must be created at deploy (track in
   `security-checklist.md`, like E7). Signed URLs short-lived (E5).
 
 ## Testing plan
 
-To be executed (runtime, seed users) before the feature is claimed done — same rigor as
+To be executed (runtime, seed users) before the feature is claimed done - same rigor as
 the math-game verification.
 
 - **Unit:** `RESOURCE_POLICY` (valid pdf / image / video pass; html- or exe-spoofed-as-pdf,
   svg, oversize → rejected); `safe-url` link cases.
-- **Runtime — security-critical:** a student enrolled in Subject A sees A's resources; a
+- **Runtime - security-critical:** a student enrolled in Subject A sees A's resources; a
   student **not** enrolled in A gets **nothing** (no cross-subject leak). Parent mirror
   respects the child's enrolment set.
-- **Runtime — flows:** tutor direct-add (file + link) → visible to an enrolled student;
+- **Runtime - flows:** tutor direct-add (file + link) → visible to an enrolled student;
   promote a weekly attachment → visible subject-wide to a *different* tutor's student;
   block-delete on a promoted attachment fires; admin remove → disappears from student view
   + `audit_logs` row with actor; signed URL opens then expires; RLS backstop returns
@@ -193,6 +193,6 @@ the math-game verification.
 
 - Practice quizzes (PRD §9).
 - Year-level and difficulty filters (chose subject + type + topic).
-- Direct video *streaming* transcoding — uploaded videos are downloaded/played via signed
+- Direct video *streaming* transcoding - uploaded videos are downloaded/played via signed
   URL as-is; heavy media can instead be a link.
-- Recommended-resources engine (PRD "recommended resources") — future.
+- Recommended-resources engine (PRD "recommended resources") - future.

@@ -21,7 +21,7 @@ The working tree is currently dirty across all four portals (uncommitted UI work
 
 Failing to do this means later `git commit` steps will sweep up unrelated files and the diff per task will be unreadable.
 
-The project uses `db:push` (no `drizzle/` migration directory exists). The user runs `db:push` themselves after each schema change — the executor never runs it. Disclosure of effect is required (e.g. "creates X tables, no data loss possible") before asking the user to push.
+The project uses `db:push` (no `drizzle/` migration directory exists). The user runs `db:push` themselves after each schema change - the executor never runs it. Disclosure of effect is required (e.g. "creates X tables, no data loss possible") before asking the user to push.
 
 The user starts the dev server themselves (per `feedback_dev_server.md`). Plan steps that need a browser say "ask user to verify in browser" rather than `npm run dev`.
 
@@ -30,26 +30,26 @@ The user starts the dev server themselves (per `feedback_dev_server.md`). Plan s
 ## File map
 
 **New files (in dependency order):**
-- `src/db/schema.ts` — *modify* — append `discussionThreads` + `discussionReplies` tables
-- `drizzle/NNNN_*.sql` — *generated* — by `npm run db:generate`
-- `src/lib/discussions.ts` — *create* — types, constants (`ADMIN_BOARD_ID`), `resolveBoardId`, label helpers
-- `src/lib/discussions-queries.ts` — *create* — read queries: `listAccessibleBoards`, `listThreadsForBoard`, `getThreadWithReplies`
-- `src/app/_actions/discussions.ts` — *create* — `createThread`, `postReply`, `softDeleteThread`, `softDeleteReply`
-- `src/components/discussions/board-card.tsx` — *create* — boards-landing card
-- `src/components/discussions/thread-row.tsx` — *create* — board-page thread row
-- `src/components/discussions/new-thread-form.tsx` — *create*, **client** — composer used on board page
-- `src/components/discussions/reply-composer.tsx` — *create*, **client** — composer used on thread page
-- `src/components/discussions/thread-view.tsx` — *create* — original post + replies render
-- `src/app/student/discussions/page.tsx` — *create* — student boards landing
-- `src/app/student/discussions/[boardId]/page.tsx` — *create* — student board view
-- `src/app/student/discussions/[boardId]/[threadId]/page.tsx` — *create* — student thread view
-- `src/app/tutor/discussions/page.tsx` — *create* — tutor boards landing
-- `src/app/tutor/discussions/[boardId]/page.tsx` — *create* — tutor board view
-- `src/app/tutor/discussions/[boardId]/[threadId]/page.tsx` — *create* — tutor thread view
-- `src/app/admin/discussions/page.tsx` — *create* — admin boards landing (all subjects)
-- `src/app/admin/discussions/[boardId]/page.tsx` — *create* — admin board view (with delete affordance)
-- `src/app/admin/discussions/[boardId]/[threadId]/page.tsx` — *create* — admin thread view (with delete affordance)
-- `src/components/portal/shell.tsx` — *modify* — add 3 nav entries (student / tutor / admin)
+- `src/db/schema.ts` - *modify* - append `discussionThreads` + `discussionReplies` tables
+- `drizzle/NNNN_*.sql` - *generated* - by `npm run db:generate`
+- `src/lib/discussions.ts` - *create* - types, constants (`ADMIN_BOARD_ID`), `resolveBoardId`, label helpers
+- `src/lib/discussions-queries.ts` - *create* - read queries: `listAccessibleBoards`, `listThreadsForBoard`, `getThreadWithReplies`
+- `src/app/_actions/discussions.ts` - *create* - `createThread`, `postReply`, `softDeleteThread`, `softDeleteReply`
+- `src/components/discussions/board-card.tsx` - *create* - boards-landing card
+- `src/components/discussions/thread-row.tsx` - *create* - board-page thread row
+- `src/components/discussions/new-thread-form.tsx` - *create*, **client** - composer used on board page
+- `src/components/discussions/reply-composer.tsx` - *create*, **client** - composer used on thread page
+- `src/components/discussions/thread-view.tsx` - *create* - original post + replies render
+- `src/app/student/discussions/page.tsx` - *create* - student boards landing
+- `src/app/student/discussions/[boardId]/page.tsx` - *create* - student board view
+- `src/app/student/discussions/[boardId]/[threadId]/page.tsx` - *create* - student thread view
+- `src/app/tutor/discussions/page.tsx` - *create* - tutor boards landing
+- `src/app/tutor/discussions/[boardId]/page.tsx` - *create* - tutor board view
+- `src/app/tutor/discussions/[boardId]/[threadId]/page.tsx` - *create* - tutor thread view
+- `src/app/admin/discussions/page.tsx` - *create* - admin boards landing (all subjects)
+- `src/app/admin/discussions/[boardId]/page.tsx` - *create* - admin board view (with delete affordance)
+- `src/app/admin/discussions/[boardId]/[threadId]/page.tsx` - *create* - admin thread view (with delete affordance)
+- `src/components/portal/shell.tsx` - *modify* - add 3 nav entries (student / tutor / admin)
 
 ---
 
@@ -118,7 +118,7 @@ This project uses `db:push` rather than generated migration files (the `drizzle/
 
 > "Schema updated to add `discussion_threads` and `discussion_replies`. Please run `npm run db:push` against your Supabase DB. Disclosure: this CREATES two new tables; no existing tables are altered, no data can be lost. Tell me when done."
 
-Wait for user confirmation before proceeding. Do not run `db:push` yourself — it's a destructive action against the live DB per CLAUDE.md.
+Wait for user confirmation before proceeding. Do not run `db:push` yourself - it's a destructive action against the live DB per CLAUDE.md.
 
 - [ ] **Step 4: Commit**
 
@@ -201,7 +201,7 @@ git commit -m "feat(discussions): add shared types and helpers"
 **Files:**
 - Create: `src/lib/discussions-queries.ts`
 
-This file is server-only — it imports `db` directly. Reads only; writes live in the actions file.
+This file is server-only - it imports `db` directly. Reads only; writes live in the actions file.
 
 - [ ] **Step 1: Create the queries file**
 
@@ -664,7 +664,7 @@ export async function softDelete(formData: FormData) {
 Run: `grep -n "export.*requireRole" src/lib/auth.ts`
 Expected: a function `requireRole(role: UserRole)` returning a user-like object with `.id` and `.role` properties.
 
-If the function signature differs, adjust the call site in the actions file accordingly. The action uses `parsed.rolePrefix` (validated by Zod to be one of `"student" | "tutor" | "admin"`) as the role argument — this ensures the form's claimed role matches the user's actual role.
+If the function signature differs, adjust the call site in the actions file accordingly. The action uses `parsed.rolePrefix` (validated by Zod to be one of `"student" | "tutor" | "admin"`) as the role argument - this ensures the form's claimed role matches the user's actual role.
 
 - [ ] **Step 3: Typecheck**
 
@@ -936,7 +936,7 @@ export function NewThreadForm({
           required
           maxLength={4000}
           rows={4}
-          placeholder="Add details — what you've tried, where you're stuck."
+          placeholder="Add details - what you've tried, where you're stuck."
           className="w-full rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm focus:outline-none focus:border-brand-600"
         />
         <div className="flex items-center gap-2">
@@ -1723,6 +1723,6 @@ If any step above fails, capture the symptom and tell me which task/file to revi
 
 - Task 4 uses `requireRole(parsed.rolePrefix)` rather than a multi-role helper, so the form's claimed role must match the user's actual role. If your `requireRole` signature differs (e.g. takes options object), adjust the four call sites in the actions file.
 - Task 3 Step 2 checks whether `profiles` has `firstName`/`lastName` columns. If the schema uses a single `fullName` column, replace the SQL coalesce expression with `profiles.fullName` everywhere it appears.
-- The "ask user to apply migration" step in Task 1 is non-negotiable — `drizzle-kit push` against the live Supabase DB is the destructive action this codebase's CLAUDE.md explicitly fences off.
+- The "ask user to apply migration" step in Task 1 is non-negotiable - `drizzle-kit push` against the live Supabase DB is the destructive action this codebase's CLAUDE.md explicitly fences off.
 - If the working tree was not cleaned before Task 1, the generated migration file will include unrelated ALTER statements from in-flight schema changes. If that happens, revert the migration generation, clean the tree, and regenerate.
-- `notifications` writes use the existing channel enum default `in_app`. The notification href is also used for deduplication — if you change the href format, also change the dedup query.
+- `notifications` writes use the existing channel enum default `in_app`. The notification href is also used for deduplication - if you change the href format, also change the dedup query.

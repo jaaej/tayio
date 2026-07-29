@@ -58,7 +58,7 @@ Admins should see the health of the tutoring business.
 Admins need a high-level overview to manage daily operations efficiently.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 5. User Management
 
@@ -80,7 +80,7 @@ Admins can manage:
 Role-based access is essential because each user type should only see information relevant to them.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 6. Class and Schedule Management
 
@@ -103,7 +103,7 @@ Admins can:
 Tutoring companies often have many classes across different subjects, tutors, and locations. A central scheduling system reduces confusion.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 7. Enrolment Management
 
@@ -124,7 +124,7 @@ Admins can:
 Enrolments are one of the core business operations. This needs to be smooth and easy to update.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 8. Payment and Invoice Management
 
@@ -154,7 +154,7 @@ Admins can:
 Payments are a major admin task. Automating this saves time and reduces missed payments.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 9. Announcement System
 
@@ -183,7 +183,7 @@ Admins can send updates to specific users or groups.
 This reduces scattered communication and makes sure important updates are sent to the correct people.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 10. Make-Up Class Management
 
@@ -203,7 +203,7 @@ Admins can:
 Make-up classes can become messy if handled manually. This system makes rescheduling clearer and more organised.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 11. Reporting Dashboard
 
@@ -234,7 +234,7 @@ Admins should see:
 Reports help the business make better decisions and identify problems early.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 12. Resource Approval and Management
 
@@ -254,7 +254,7 @@ Admins can:
 This keeps content quality consistent and prevents students from seeing incorrect or unfinished resources.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 13. Communication and Notifications (Admin View)
 
@@ -303,7 +303,7 @@ The portal should include:
 - restricted tutor access to only assigned students
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 15. Suggested MVP Build Order (Admin-driven Rollout)
 

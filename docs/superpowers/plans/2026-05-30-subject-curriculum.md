@@ -14,63 +14,63 @@
 
 ## Pre-flight
 
-This project uses `db:push` (no `drizzle/` migration directory). The executor does **not** run `db:push` themselves — the user runs it after each schema change, after disclosure of effect. CLAUDE.md gates this.
+This project uses `db:push` (no `drizzle/` migration directory). The executor does **not** run `db:push` themselves - the user runs it after each schema change, after disclosure of effect. CLAUDE.md gates this.
 
 The codebase has no test framework. Verification is `npm run typecheck` (passes `tsc --noEmit`) at each task boundary + a manual browser walkthrough at the end (Task 16). The user starts the dev server themselves (per memory `feedback_dev_server.md`).
 
-Storage requires a one-time bucket creation in Supabase (Task 4). The executor asks the user to do this through the Supabase dashboard — admin credentials are needed.
+Storage requires a one-time bucket creation in Supabase (Task 4). The executor asks the user to do this through the Supabase dashboard - admin credentials are needed.
 
 Key gotchas:
 - `db` lives at `@/db/client` (not `@/db`).
 - `requireRole(role)` from `@/lib/auth` returns the Supabase user object (`.id`, `.email`). Use the role you passed in.
 - Existing `homework` table has nullable `classId` and `lessonId`; adding `weekId` follows the same pattern (nullable, `onDelete: "set null"`).
 - The existing `subjects` table has `id, name, ...`. The `classes` table has `subjectId` and `tutorId`. Use these for permission joins.
-- Tailwind v4 arbitrary-value classes like `grid-cols-[minmax(0,1fr)_300px]` work; the scanner picks them up. Stick to existing UI patterns from `parent/subjects/[id]` (does not exist yet — model from `student/subjects/[id]` current state + `parent/page.tsx` two-column shell).
+- Tailwind v4 arbitrary-value classes like `grid-cols-[minmax(0,1fr)_300px]` work; the scanner picks them up. Stick to existing UI patterns from `parent/subjects/[id]` (does not exist yet - model from `student/subjects/[id]` current state + `parent/page.tsx` two-column shell).
 - Server actions go in `_actions.ts` per route (already established pattern). Admin actions go in `src/app/admin/_lib/actions-*.ts`.
-- Supabase server client: `import { createClient } from "@/lib/supabase/server"` — returns a client that can call `.storage.from("curriculum").createSignedUrl(path, expiresIn)`.
+- Supabase server client: `import { createClient } from "@/lib/supabase/server"` - returns a client that can call `.storage.from("curriculum").createSignedUrl(path, expiresIn)`.
 
 ---
 
 ## File map
 
 **New files:**
-- `src/lib/curriculum.ts` — *create* — `resolveCurrentTerm()`, `currentWeekNumber()`, `mergeOverride()`, types
-- `src/lib/curriculum-storage.ts` — *create* — `signCurriculumUrl()`, `uploadCurriculumFile()`, size constants
-- `src/app/admin/_lib/actions-terms.ts` — *create* — `createTerm`, `updateTerm`, `deleteTerm`
-- `src/app/admin/_lib/actions-curriculum.ts` — *create* — `createSubjectWeek`, `updateSubjectWeek`, `deleteSubjectWeek`, `uploadAdminVideo`, `uploadAdminBooklet`
-- `src/app/admin/terms/page.tsx` — *create*
-- `src/app/admin/terms/_components/term-form.tsx` — *create*, **client**
-- `src/app/admin/subjects/[id]/curriculum/page.tsx` — *create*
-- `src/app/admin/subjects/[id]/curriculum/_components/week-editor.tsx` — *create*, **client**
-- `src/app/admin/subjects/[id]/curriculum/_components/week-sidebar-admin.tsx` — *create*, **client**
-- `src/app/admin/subjects/page.tsx` — *modify if exists, else create* — list subjects with link into `[id]/curriculum`
-- `src/app/student/subjects/[id]/page.tsx` — *rewrite*
-- `src/app/student/subjects/[id]/_components/week-sidebar.tsx` — *create*, **client**
-- `src/app/student/subjects/[id]/_components/week-content.tsx` — *create* — server component
-- `src/app/student/subjects/[id]/_components/video-player.tsx` — *create*, **client** — `<video>` + `onPlay` → server action
-- `src/app/student/subjects/[id]/_components/booklet-link.tsx` — *create*, **client** — button that calls server action to record open + open URL
-- `src/app/student/subjects/[id]/_actions.ts` — *create* — `markVideoWatched`, `markBookletOpened`
-- `src/app/student/subjects/[id]/_queries.ts` — *create* — `getStudentCurriculum(userId, subjectId, weekParam)`
-- `src/app/parent/subjects/[id]/page.tsx` — *create*
-- `src/app/parent/subjects/[id]/_queries.ts` — *create* — `getParentCurriculum(parentId, subjectId, childId, weekParam)`
-- `src/app/parent/subjects/[id]/_components/week-sidebar.tsx` — *create*, **client**
-- `src/app/parent/subjects/[id]/_components/week-content.tsx` — *create* — server component
-- `src/app/tutor/classes/[id]/curriculum/page.tsx` — *create*
-- `src/app/tutor/classes/[id]/curriculum/_queries.ts` — *create* — `getTutorCurriculum(tutorId, classId, weekParam)`
-- `src/app/tutor/classes/[id]/curriculum/_components/week-sidebar-tutor.tsx` — *create*, **client**
-- `src/app/tutor/classes/[id]/curriculum/_components/override-editor.tsx` — *create*, **client**
-- `src/app/tutor/_actions.ts` — *modify* — append `upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverrideVideo`, `uploadTutorOverrideBooklet`
+- `src/lib/curriculum.ts` - *create* - `resolveCurrentTerm()`, `currentWeekNumber()`, `mergeOverride()`, types
+- `src/lib/curriculum-storage.ts` - *create* - `signCurriculumUrl()`, `uploadCurriculumFile()`, size constants
+- `src/app/admin/_lib/actions-terms.ts` - *create* - `createTerm`, `updateTerm`, `deleteTerm`
+- `src/app/admin/_lib/actions-curriculum.ts` - *create* - `createSubjectWeek`, `updateSubjectWeek`, `deleteSubjectWeek`, `uploadAdminVideo`, `uploadAdminBooklet`
+- `src/app/admin/terms/page.tsx` - *create*
+- `src/app/admin/terms/_components/term-form.tsx` - *create*, **client**
+- `src/app/admin/subjects/[id]/curriculum/page.tsx` - *create*
+- `src/app/admin/subjects/[id]/curriculum/_components/week-editor.tsx` - *create*, **client**
+- `src/app/admin/subjects/[id]/curriculum/_components/week-sidebar-admin.tsx` - *create*, **client**
+- `src/app/admin/subjects/page.tsx` - *modify if exists, else create* - list subjects with link into `[id]/curriculum`
+- `src/app/student/subjects/[id]/page.tsx` - *rewrite*
+- `src/app/student/subjects/[id]/_components/week-sidebar.tsx` - *create*, **client**
+- `src/app/student/subjects/[id]/_components/week-content.tsx` - *create* - server component
+- `src/app/student/subjects/[id]/_components/video-player.tsx` - *create*, **client** - `<video>` + `onPlay` → server action
+- `src/app/student/subjects/[id]/_components/booklet-link.tsx` - *create*, **client** - button that calls server action to record open + open URL
+- `src/app/student/subjects/[id]/_actions.ts` - *create* - `markVideoWatched`, `markBookletOpened`
+- `src/app/student/subjects/[id]/_queries.ts` - *create* - `getStudentCurriculum(userId, subjectId, weekParam)`
+- `src/app/parent/subjects/[id]/page.tsx` - *create*
+- `src/app/parent/subjects/[id]/_queries.ts` - *create* - `getParentCurriculum(parentId, subjectId, childId, weekParam)`
+- `src/app/parent/subjects/[id]/_components/week-sidebar.tsx` - *create*, **client**
+- `src/app/parent/subjects/[id]/_components/week-content.tsx` - *create* - server component
+- `src/app/tutor/classes/[id]/curriculum/page.tsx` - *create*
+- `src/app/tutor/classes/[id]/curriculum/_queries.ts` - *create* - `getTutorCurriculum(tutorId, classId, weekParam)`
+- `src/app/tutor/classes/[id]/curriculum/_components/week-sidebar-tutor.tsx` - *create*, **client**
+- `src/app/tutor/classes/[id]/curriculum/_components/override-editor.tsx` - *create*, **client**
+- `src/app/tutor/_actions.ts` - *modify* - append `upsertClassWeekOverride`, `resetClassWeekOverride`, `uploadTutorOverrideVideo`, `uploadTutorOverrideBooklet`
 
 **Modified files:**
-- `src/db/schema.ts` — add `terms`, `subjectWeeks`, `classWeekOverrides`, `studentWeekProgress` + `weekId` column on `homework`
-- `src/components/portal/shell.tsx` — add Terms nav for admin role
-- `src/app/admin/classes/[id]/page.tsx` — add "Curriculum" link to `/admin/subjects/{subjectId}/curriculum` (helpful nav)
-- `src/app/tutor/classes/page.tsx` — add Curriculum link per row
-- `src/app/admin/_lib/actions-classes.ts` or wherever homework is created — add `weekId` to schema/form (Task 15)
+- `src/db/schema.ts` - add `terms`, `subjectWeeks`, `classWeekOverrides`, `studentWeekProgress` + `weekId` column on `homework`
+- `src/components/portal/shell.tsx` - add Terms nav for admin role
+- `src/app/admin/classes/[id]/page.tsx` - add "Curriculum" link to `/admin/subjects/{subjectId}/curriculum` (helpful nav)
+- `src/app/tutor/classes/page.tsx` - add Curriculum link per row
+- `src/app/admin/_lib/actions-classes.ts` or wherever homework is created - add `weekId` to schema/form (Task 15)
 
 ---
 
-## Task 1: Schema — terms, subject_weeks, class_week_overrides, student_week_progress, week_id on homework
+## Task 1: Schema - terms, subject_weeks, class_week_overrides, student_week_progress, week_id on homework
 
 **Files:**
 - Modify: `src/db/schema.ts`
@@ -97,7 +97,7 @@ export const homework = pgTable("homework", {
 });
 ```
 
-Note the `(): any => subjectWeeks.id` lazy reference — `subjectWeeks` is declared further down the file so we need the closure.
+Note the `(): any => subjectWeeks.id` lazy reference - `subjectWeeks` is declared further down the file so we need the closure.
 
 - [ ] **Step 2: Append `terms` table at the end of `src/db/schema.ts`**
 
@@ -666,7 +666,7 @@ In `src/components/portal/shell.tsx`, find the `admin: [...]` array inside `NAV_
 { label: "Terms", href: "/admin/terms", icon: <CalendarDays className={ICON_CLASS} /> },
 ```
 
-`CalendarDays` is already imported at the top — no new import needed.
+`CalendarDays` is already imported at the top - no new import needed.
 
 - [ ] **Step 4: Typecheck**
 
@@ -1082,7 +1082,7 @@ export default async function AdminSubjectCurriculumPage({
   if (!currentTerm) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-medium text-ink">{subject.name} — Curriculum</h1>
+        <h1 className="text-3xl font-medium text-ink">{subject.name} - Curriculum</h1>
         <p className="text-sm text-ink-soft">
           No terms defined yet.{" "}
           <Link href="/admin/terms" className="text-brand-700 hover:underline">
@@ -1110,7 +1110,7 @@ export default async function AdminSubjectCurriculumPage({
         >
           ← All subjects
         </Link>
-        <h1 className="text-3xl font-medium text-ink">{subject.name} — Curriculum</h1>
+        <h1 className="text-3xl font-medium text-ink">{subject.name} - Curriculum</h1>
         <p className="text-sm text-ink-soft">
           {currentTerm.year} · Term {currentTerm.termNumber} · {currentTerm.startDate} to{" "}
           {currentTerm.endDate}
@@ -1768,7 +1768,7 @@ export default async function StudentSubjectPage({
 
   const data = await getStudentCurriculum(user.id, subjectId, termParam, weekParam);
   if (!data) {
-    // Either not enrolled, or no curriculum yet — distinguish with a quick existence check.
+    // Either not enrolled, or no curriculum yet - distinguish with a quick existence check.
     const [stillEnrolled] = await db
       .select({ id: classes.id })
       .from(enrollments)
@@ -1847,7 +1847,7 @@ function EmptyCurriculum({ subjectId }: { subjectId: string }) {
         ← All subjects
       </Link>
       <div className="rounded-xl border border-hairline/60 bg-card p-6 text-sm text-ink-soft">
-        Curriculum coming soon — your tutor is preparing this term's content.
+        Curriculum coming soon - your tutor is preparing this term's content.
       </div>
     </div>
   );
@@ -2447,7 +2447,7 @@ export default async function TutorClassCurriculumPage({
           ← Back to class
         </Link>
         <h1 className="text-3xl font-medium text-ink">
-          {data.className} — Curriculum
+          {data.className} - Curriculum
         </h1>
         <p className="text-sm text-ink-soft">
           {data.subjectName} · {data.currentTerm.year} · Term {data.currentTerm.termNumber}
@@ -2775,7 +2775,7 @@ export function WeekSidebarParent({
 }
 ```
 
-- [ ] **Step 3: Create the parent week content (server, read-only — no tracking actions)**
+- [ ] **Step 3: Create the parent week content (server, read-only - no tracking actions)**
 
 ```tsx
 // src/app/parent/subjects/[id]/_components/week-content.tsx
@@ -2931,7 +2931,7 @@ export default async function ParentSubjectPage({
           ← Overview
         </Link>
         <h1 className="text-3xl font-medium text-ink">
-          {data.subjectName} — {data.childFirstName}
+          {data.subjectName} - {data.childFirstName}
         </h1>
         <p className="text-sm text-ink-soft">
           {data.className} · Term {data.currentTerm.termNumber} · {data.currentTerm.year}
@@ -3011,7 +3011,7 @@ Concrete shape for the select:
 <label className="block text-sm">
   <div className="text-xs uppercase tracking-wide text-muted mb-1">Week (optional)</div>
   <select name="weekId" defaultValue="" className="w-full rounded-md border border-hairline/60 bg-card px-3 py-2">
-    <option value="">— Not tagged to a week —</option>
+    <option value="">- Not tagged to a week -</option>
     {availableWeeks.map((w) => (
       <option key={w.id} value={w.id}>Week {w.weekNumber} · {w.title}</option>
     ))}
@@ -3039,7 +3039,7 @@ git commit -m "feat(homework): allow tagging a homework to a curriculum week"
 
 ## Task 16: Manual E2E walkthrough
 
-**Files:** none — this is verification only.
+**Files:** none - this is verification only.
 
 - [ ] **Step 1: Walk the user through the test plan**
 
@@ -3052,9 +3052,9 @@ Tell the user the dev server should be running, then ask them to step through:
    - Selecting Week 1 shows the video, the booklet button, no homework.
    - Pressing play on the video updates "Watched · just now" (refresh once).
    - Clicking "Open PDF" opens a new tab; status shows "opened earlier" on refresh.
-4. As **tutor** of that class: go to `/tutor/classes/{class-id}/curriculum`. Override Week 1's title with "Custom title". Student refreshes — sees the custom title.
-5. Tutor clicks "Reset to template" — student sees template title again.
-6. As **admin**: create a homework, tag it to Week 1. Student refreshes — homework appears under Week 1; progress strip shows `0/1 homework`.
+4. As **tutor** of that class: go to `/tutor/classes/{class-id}/curriculum`. Override Week 1's title with "Custom title". Student refreshes - sees the custom title.
+5. Tutor clicks "Reset to template" - student sees template title again.
+6. As **admin**: create a homework, tag it to Week 1. Student refreshes - homework appears under Week 1; progress strip shows `0/1 homework`.
 7. As **parent** of the student: go to `/parent/subjects/{subject-id}?child={student-id}`. Confirm read-only view shows same weeks + the student's video-watched / booklet-opened state.
 8. **Permission probe**: as student A, navigate to a subject ID for a subject they're not enrolled in. Page should 404 (`notFound()`).
 
@@ -3073,7 +3073,7 @@ Re-read the spec and check each requirement maps to a task:
 - **Schema (4 tables + weekId on homework):** Task 1. ✓
 - **Read pattern COALESCE override over template:** `mergeOverride()` in Task 2, used by Tasks 10/13/14. ✓
 - **Storage bucket + signed URLs:** Tasks 3, 4. ✓
-- **Routes — student replaces, parent new, tutor new, admin curriculum + admin terms:** Tasks 6, 8, 11, 13, 14. ✓
+- **Routes - student replaces, parent new, tutor new, admin curriculum + admin terms:** Tasks 6, 8, 11, 13, 14. ✓
 - **Permissions:** enforced in each query/action via Drizzle `where` joins (Tasks 5, 7, 10, 12, 14). Permission probe in Task 16. ✓
 - **Empty-state messages:** Task 11 (`EmptyCurriculum`), Task 13 (no weeks message). ✓
 - **"Current week" computation:** `currentWeekNumber` in Task 2, used in Tasks 11 + 14. ✓
@@ -3089,8 +3089,8 @@ Re-read the spec and check each requirement maps to a task:
 - Server-action signatures: `(formData: FormData)` for form-bound; `(id, formData)` for updates; `(...)` for explicit args. Consistent.
 - `requireRole` called with correct literal for each route.
 
-**Placeholder scan:** None — every step has actual code or a concrete user instruction.
+**Placeholder scan:** None - every step has actual code or a concrete user instruction.
 
 **Note on Task 11 `markVideoWatched`:** the `assertStudentCanAccessWeek` helper has TWO chained `.where()` calls in the draft; I flagged this with the required `and(...)` fix. Make sure to apply that fix when writing the file or the code won't compile.
 
-**Note on Task 14:** the `currentTerm` shape in `ParentCurriculumData` needs `startDate` and `endDate` for the parent page to compute `currentWeekHint`. The task body calls this out — make the query include both fields.
+**Note on Task 14:** the `currentTerm` shape in `ParentCurriculumData` needs `startDate` and `endDate` for the parent page to compute `currentWeekHint`. The task body calls this out - make the query include both fields.

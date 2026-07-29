@@ -1,4 +1,4 @@
-# Student & Admin Role Tiers — Spec 1: Foundation + Student Restricted/Unrestricted
+# Student & Admin Role Tiers - Spec 1: Foundation + Student Restricted/Unrestricted
 
 **Date:** 2026-07-09
 **Status:** Approved design, ready for implementation plan
@@ -16,10 +16,10 @@ Source of truth for the tier model: `docs/checklist.md` §"Role Tiering".
 The live `userRoleEnum` is flat: `student | parent | tutor | admin`. `requireRole`
 accepts exactly one role. There is no way to express:
 
-- **`student_unrestricted`** — older / independently-enrolled students who have **no
+- **`student_unrestricted`** - older / independently-enrolled students who have **no
   parent account** and therefore must self-serve the things a parent normally does
   for them (see their own invoices, pay, contact the office).
-- **`student_restricted`** — younger, parent-dependent students = today's exact
+- **`student_restricted`** - younger, parent-dependent students = today's exact
   student scope.
 
 This spec introduces the six-tier enum and delivers the unrestricted-student
@@ -39,7 +39,7 @@ admin_unrestricted | admin_restricted | tutor | parent | student_unrestricted | 
 
 `tutor` and `parent` are unchanged. This spec only *activates* the two student
 tiers; the two admin tiers are added to the enum and migrated to (existing `admin`
-→ `admin_unrestricted`) but their behavioural split is a later spec — after this
+→ `admin_unrestricted`) but their behavioural split is a later spec - after this
 spec every admin is `admin_unrestricted`, i.e. **zero behaviour change for admins**.
 
 ---
@@ -68,7 +68,7 @@ alter type public.user_role add value if not exists 'student_restricted';
 1. Migrate `public.profiles.role`: `admin` → `admin_unrestricted`,
    `student` → `student_restricted`.
 2. Backfill `auth.users.raw_app_meta_data->>'role'` with the same mapping (mirrors
-   migration `0002`; this JWT claim is what `requireRole` **and** RLS read — the
+   migration `0002`; this JWT claim is what `requireRole` **and** RLS read - the
    `profiles.role` column is not what gates access at runtime).
 3. Redefine `public.is_admin()` to match **both** admin tiers (and the legacy
    value, harmlessly):
@@ -91,15 +91,15 @@ student's `profiles` row (proves RLS admin policies survived the value change).
 
 ### 3.2 App code
 
-- **`src/db/schema.ts`** — `userRoleEnum` lists the six canonical tiers. Add helper
+- **`src/db/schema.ts`** - `userRoleEnum` lists the six canonical tiers. Add helper
   types: `AdminTier = 'admin_unrestricted' | 'admin_restricted'`,
   `StudentTier = 'student_unrestricted' | 'student_restricted'`.
-- **`src/lib/auth.ts`** —
+- **`src/lib/auth.ts`** -
   - `requireRole` accepts `UserRole | UserRole[]` (a set); redirect unless the
     caller's tier is in the set.
   - Add `requireAdmin()` → any admin tier; `requireStudent()` → any student tier.
     Both return `{ user, role }` so callers can branch on tier.
-- **`src/lib/supabase/middleware.ts`** — portal gates match tier families:
+- **`src/lib/supabase/middleware.ts`** - portal gates match tier families:
   `/admin/*` → any `admin_*`, `/student/*` → any `student_*`.
 - **Role-literal audit (~43 sites).** Grep and update every hard-coded role
   comparison that breaks once rows carry the new values. Two kinds:
@@ -118,9 +118,9 @@ student's `profiles` row (proves RLS admin policies survived the value change).
 
 ## 4. Student capability model
 
-- `studentTier(role): 'restricted' | 'unrestricted'` — a pure predicate in
+- `studentTier(role): 'restricted' | 'unrestricted'` - a pure predicate in
   `src/lib/auth.ts` (or a small `src/lib/tiers.ts`).
-- `requireUnrestrictedStudent()` — guard used by every new unrestricted-only page
+- `requireUnrestrictedStudent()` - guard used by every new unrestricted-only page
   loader and server action. Redirects a `student_restricted` caller.
 
 Restricted students retain today's exact scope; **no restricted-student code path
@@ -136,22 +136,22 @@ changes** except the DM-admin removal in §5.2.
   ordered by issue date. Mirror `getInvoicesForParent` but keyed on `student_id`.
   `getOutstandingBalanceForStudent(studentId)` = sum of `unpaid` + `overdue`
   amounts. (Reuse the parent `_data.ts` shapes; do not import parent modules into
-  the student portal — copy the small query into `student/_lib/queries.ts` to keep
+  the student portal - copy the small query into `student/_lib/queries.ts` to keep
   portal boundaries clean.)
-- **Page:** `/student/payments` — read-only invoice table + status pills, styled
+- **Page:** `/student/payments` - read-only invoice table + status pills, styled
   with the student UI kit (`@/components/student/ui`). Guarded by
   `requireUnrestrictedStudent()`.
 - **Dashboard:** an outstanding-balance stat tile, rendered only for unrestricted
   students.
 - **Nav:** "Payments" item shown only for unrestricted students.
-- **Note (not this spec):** actual online payment has no processor anywhere — this
+- **Note (not this spec):** actual online payment has no processor anywhere - this
   is invoice *view* only. `invoices.parent_id` is `NOT NULL`, so a truly
   parent-less student's invoices depend on the admin creation flow tolerating a
-  null/​self parent — an **admin-spec** concern, flagged there, not here.
+  null/​self parent - an **admin-spec** concern, flagged there, not here.
 
 ### 5.2 DM the admin office
 
-- **`src/lib/dm-permissions.ts`** — replace the blanket
+- **`src/lib/dm-permissions.ts`** - replace the blanket
   `if (meRole === "admin" || targetRole === "admin") return true` with tier-aware
   logic:
   - `student_unrestricted ↔ admin_*` → allowed.
@@ -159,7 +159,7 @@ changes** except the DM-admin removal in §5.2.
     students have today).
   - `student ↔ tutor` shared-class rule unchanged for both tiers.
   - parent/tutor/admin-to-admin paths unchanged (still allowed).
-- **Student messages UI** — show the "message the admin office" entry point only for
+- **Student messages UI** - show the "message the admin office" entry point only for
   unrestricted students. (`getAdminContact` already exists in the parent data layer;
   port the minimal version.)
 
@@ -175,7 +175,7 @@ Listed only to record that it was checked and is intentionally untouched.
 1. **UI** hides affordances by tier (nav items, dashboard tiles, DM entry point).
 2. **Server** is the real gate: every new page loader and server action calls
    `requireUnrestrictedStudent()`. Student/parent reads use server-side Drizzle that
-   **bypasses RLS**, so the app-layer guard — not the database — is the security
+   **bypasses RLS**, so the app-layer guard - not the database - is the security
    boundary here. This is consistent with the existing model documented in
    `docs/SECURITY.md`.
 
@@ -197,7 +197,7 @@ Listed only to record that it was checked and is intentionally untouched.
 
 ---
 
-## 8. Out of scope — captured for later specs
+## 8. Out of scope - captured for later specs
 
 **Reschedule spec (next):**
 - Add explicit `classType` enum (`one_on_one | group`) to `classes` (do **not**
@@ -209,7 +209,7 @@ Listed only to record that it was checked and is intentionally untouched.
   push approval.
 - Build a real approval subsystem: a `reschedule_requests` table (state:
   pending/approved/rejected) + accept/reject actions. Today's parent
-  `submitRescheduleRequest` is a **stub** — it only notifies admins, creates no
+  `submitRescheduleRequest` is a **stub** - it only notifies admins, creates no
   record, and reschedules nothing. "Push" = in-app notification for now; native
   device push is Phase 5.
 - Applies to **both** `student_unrestricted` and **parents** (parent reschedules
@@ -229,5 +229,5 @@ Listed only to record that it was checked and is intentionally untouched.
   (owner): hide financials/role-management/audit-log at the **data layer** from
   reception; per-feature middleware gates (e.g. `/admin/payments/refund`).
 - Owner **push-approval** flow: reception requests a sensitive action, owner
-  accepts/rejects (no password — approval *is* the lock).
+  accepts/rejects (no password - approval *is* the lock).
 - `invoices.parent_id NOT NULL` handling for parent-less independent students.

@@ -1,5 +1,5 @@
 // Audits row-level security across every public table. Exits non-zero if any
-// table has RLS disabled or zero policies — so an accidental RLS wipe (e.g. from
+// table has RLS disabled or zero policies - so an accidental RLS wipe (e.g. from
 // `drizzle-kit push`, which drops all policies not declared in schema.ts) is
 // caught immediately instead of going unnoticed. Run after ANY database change.
 //

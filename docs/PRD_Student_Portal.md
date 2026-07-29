@@ -69,7 +69,7 @@ Next task: Complete Quiz 2 before Friday
 The dashboard reduces confusion and gives the student a clear action plan. Students should not need to search around the portal to know what to do next.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 5. Timetable / Schedule
 
@@ -99,7 +99,7 @@ Students should be able to see:
 This reduces the need for students or parents to message admin asking about lesson times or locations.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 6. Homework System
 
@@ -130,7 +130,7 @@ Students should be able to:
 Homework is one of the main ways tutoring continues outside the lesson. A digital homework system creates accountability and gives parents visibility.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 7. Lesson Notes and Recaps
 
@@ -151,7 +151,7 @@ Each lesson recap should include:
 Students often forget what they learned after tutoring. Lesson recaps give them something to revise and make each lesson feel structured.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 8. Resource Library
 
@@ -181,7 +181,7 @@ Students should be able to filter by:
 This gives students support outside class and makes the tutoring company feel more complete, like a proper learning platform.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 9. Practice Quizzes
 
@@ -209,7 +209,7 @@ Students should be able to:
 Quizzes help identify weak areas and provide useful learning data for tutors and parents.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 10. Progress Tracker
 
@@ -237,7 +237,7 @@ Progress should be based on:
 Students need to see improvement to stay motivated. It also helps them understand what to focus on next.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 11. Ask-a-Tutor / Homework Help
 
@@ -264,7 +264,7 @@ To avoid tutor overload:
 This gives extra support outside the lesson and increases perceived value.
 
 ### Priority
-**P2 — Later version**
+**P2 - Later version**
 
 ## 12. Notifications (Student-relevant)
 

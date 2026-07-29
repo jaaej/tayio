@@ -1,6 +1,6 @@
 You own the **Student** dashboard redesign on your current branch.
 
-**Step 0 — required before writing any code:** invoke these two skills in order so every visual decision is grounded:
+**Step 0 - required before writing any code:** invoke these two skills in order so every visual decision is grounded:
 1. Skill: `frontend-design:frontend-design`
 2. Skill: `ui-ux-pro-max:ui-ux-pro-max`
 
@@ -14,9 +14,9 @@ Polish, fix anything broken, add small refinements the user discovers. You may a
 
 **Required reading**
 
-- `src/db/schema.ts` — data contract (read only)
-- `docs/PRD_Student_Portal.md` — feature spec
-- `docs/AGENT_HANDOFF.md` — boundaries
+- `src/db/schema.ts` - data contract (read only)
+- `docs/PRD_Student_Portal.md` - feature spec
+- `docs/AGENT_HANDOFF.md` - boundaries
 
 **Your sandbox**
 
@@ -31,23 +31,23 @@ Modify only:
 - `src/components/ui/*`, `src/components/data/*`
 - Any other role's folder
 
-**Shared primitives — USE these, don't reinvent**
+**Shared primitives - USE these, don't reinvent**
 
 UI components:
-- `<MiniWeekCalendar>` — `src/components/data/mini-week-calendar.tsx`
-- `<ProgressBar>` / `<MasteryBar>` — `src/components/data/progress-bar.tsx`
-- `<SubjectCard>` — `src/components/data/subject-card.tsx`
-- `<StatTile>` — `src/components/data/stat-tile.tsx`
-- `<ScoreBadge>` — `src/components/data/score-badge.tsx`
-- `<StatusBadge>` — `src/components/data/status-badge.tsx`
-- `<Card>` / `<CardLabel>` — `src/components/ui/card.tsx`
-- `<Button>` — `src/components/ui/button.tsx`
+- `<MiniWeekCalendar>` - `src/components/data/mini-week-calendar.tsx`
+- `<ProgressBar>` / `<MasteryBar>` - `src/components/data/progress-bar.tsx`
+- `<SubjectCard>` - `src/components/data/subject-card.tsx`
+- `<StatTile>` - `src/components/data/stat-tile.tsx`
+- `<ScoreBadge>` - `src/components/data/score-badge.tsx`
+- `<StatusBadge>` - `src/components/data/status-badge.tsx`
+- `<Card>` / `<CardLabel>` - `src/components/ui/card.tsx`
+- `<Button>` - `src/components/ui/button.tsx`
 
 Helpers:
-- `formatTime`, `formatWeekday`, `formatDateLong`, `formatDueDate`, `formatMoney`, `relativeTime`, `startOfMondayWeek`, `isoDate` — `src/lib/format.ts`
-- `LESSON_STATUS_LABEL/STYLE`, `HOMEWORK_STATUS_LABEL/STYLE`, `ATTENDANCE_STATUS_LABEL/STYLE`, `INVOICE_STATUS_LABEL/STYLE` — `src/lib/status.ts`
+- `formatTime`, `formatWeekday`, `formatDateLong`, `formatDueDate`, `formatMoney`, `relativeTime`, `startOfMondayWeek`, `isoDate` - `src/lib/format.ts`
+- `LESSON_STATUS_LABEL/STYLE`, `HOMEWORK_STATUS_LABEL/STYLE`, `ATTENDANCE_STATUS_LABEL/STYLE`, `INVOICE_STATUS_LABEL/STYLE` - `src/lib/status.ts`
 
-If you need a new shared primitive, **stop and ask the user** — don't fork.
+If you need a new shared primitive, **stop and ask the user** - don't fork.
 
 **Design rules**
 
@@ -74,4 +74,4 @@ You should already be on your branch. Work, commit often, push:
 git push -u origin <your-branch>
 ```
 
-When you're done: tell the user *"done — branch pushed"*. They'll merge.
+When you're done: tell the user *"done - branch pushed"*. They'll merge.

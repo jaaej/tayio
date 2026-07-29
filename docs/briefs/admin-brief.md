@@ -3,7 +3,7 @@ You own the **Admin** track for Phase 2 of the Tayio Tuition portal.
 **Required reading first:**
 - `docs/PRD_Admin_Portal.md` (your spec)
 - `docs/AGENT_HANDOFF.md` (ownership boundaries)
-- `src/db/schema.ts` (the shared data contract — read only)
+- `src/db/schema.ts` (the shared data contract - read only)
 
 **Your sandbox:** only modify files under
 - `src/app/admin/**`
@@ -12,7 +12,7 @@ You own the **Admin** track for Phase 2 of the Tayio Tuition portal.
 If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't change existing). Do not touch `src/db/schema.ts`, `src/lib/auth.ts`, `src/middleware.ts`, `src/components/portal/shell.tsx`, or any other role's folder.
 
 **MVP scope (P0 in the PRD):**
-1. Operations dashboard (already stubbed at `src/app/admin/page.tsx` — replace placeholders with real aggregate queries)
+1. Operations dashboard (already stubbed at `src/app/admin/page.tsx` - replace placeholders with real aggregate queries)
 2. User management: list/create/edit/deactivate `profiles` across all roles, manage `family_links`
 3. Class management: CRUD over `classes` (set subject, tutor, capacity, location, recurrence)
 4. Enrolment management: add/remove students to/from `classes` via `enrollments`, manage withdrawals

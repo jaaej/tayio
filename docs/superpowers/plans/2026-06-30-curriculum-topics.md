@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **No automated test suite exists.** Per-task verification is `npm run typecheck` showing **0 errors under `src/`** (ignore pre-existing `.next/types/...d 2.ts` "Duplicate identifier" errors — they are iCloud-sync artifacts, not code). End-to-end behaviour is verified with the manual test plan in Task 7, run by the user on their own dev server (do not start `npm run dev` unsolicited).
+- **No automated test suite exists.** Per-task verification is `npm run typecheck` showing **0 errors under `src/`** (ignore pre-existing `.next/types/...d 2.ts` "Duplicate identifier" errors - they are iCloud-sync artifacts, not code). End-to-end behaviour is verified with the manual test plan in Task 7, run by the user on their own dev server (do not start `npm run dev` unsolicited).
 - **Migration boundary** (`docs/SECURITY.md`): Drizzle owns table DDL (`src/db/schema.ts`, `drizzle/`); raw SQL owns RLS/policies (`supabase/migrations/`). Apply Drizzle first, then raw SQL. Never re-define a policy in Drizzle.
 - **Server-action pattern:** every action is `"use server"`, calls `await requireRole("admin")` first, validates input with Zod, returns `{ ok: true, ... } | { ok: false, error: string }`, and `revalidatePath`s the curriculum page.
 - **This is Part 1 only:** no student/parent-facing change, no tutor section, no mastery. Do not build those here.
@@ -35,12 +35,12 @@ Expected: `0`
 
 ---
 
-## Task 1: Schema — `subject_topics` table + `subject_weeks.topic_id`
+## Task 1: Schema - `subject_topics` table + `subject_weeks.topic_id`
 
 **Files:**
 - Modify: `src/db/schema.ts` (add `subjectTopics` immediately before `subjectWeeks`; add `topicId` column to `subjectWeeks`; export `SubjectTopic` type)
 
-> **Note:** this project has never used Drizzle migration files — schema is applied with `db:push` (Task 2), and RLS lives in `supabase/migrations/`. Do **not** run `db:generate` (it would emit a full-schema baseline). Task 1 changes `schema.ts` only.
+> **Note:** this project has never used Drizzle migration files - schema is applied with `db:push` (Task 2), and RLS lives in `supabase/migrations/`. Do **not** run `db:generate` (it would emit a full-schema baseline). Task 1 changes `schema.ts` only.
 
 **Interfaces:**
 - Produces: `subjectTopics` table `{ id, subjectId, name, position, createdAt, updatedAt }`; `subjectWeeks.topicId: string | null`; type `SubjectTopic = typeof subjectTopics.$inferSelect`.
@@ -90,7 +90,7 @@ export type SubjectTopic = typeof subjectTopics.$inferSelect;
 Run: `npm run typecheck 2>&1 | grep -cE "^src/.*error"`
 Expected: `0`
 
-- [ ] **Step 5: Commit** (schema.ts only — do NOT commit any `drizzle/` files)
+- [ ] **Step 5: Commit** (schema.ts only - do NOT commit any `drizzle/` files)
 
 ```bash
 git add src/db/schema.ts
@@ -111,7 +111,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Consumes: `subject_topics` table from Task 1.
 - Produces: RLS-protected `subject_topics` (admin write, authenticated read).
 
-> **Destructive-action note:** this applies DDL + RLS to the live Supabase project. It is **additive and low-risk** — a new table and a new nullable column, no existing rows rewritten, no data lost. Still, confirm with the user before running the apply commands if this is the production project.
+> **Destructive-action note:** this applies DDL + RLS to the live Supabase project. It is **additive and low-risk** - a new table and a new nullable column, no existing rows rewritten, no data lost. Still, confirm with the user before running the apply commands if this is the production project.
 
 - [ ] **Step 1: Apply the Drizzle DDL**
 
@@ -159,7 +159,7 @@ Expected: `relrowsecurity = t` (true). (If `apply-sql.mjs` doesn't accept proces
 
 - [ ] **Step 5: Log it in `docs/SECURITY.md`**
 
-Add a `### 0009 — subject_topics RLS` entry to the migration log (status, low risk, what-it-does, reversible-by `alter table public.subject_topics disable row level security;`), and add a `subject_topics` row to the read + write access matrices (read: all authenticated; write: admin only).
+Add a `### 0009 - subject_topics RLS` entry to the migration log (status, low risk, what-it-does, reversible-by `alter table public.subject_topics disable row level security;`), and add a `subject_topics` row to the read + write access matrices (read: all authenticated; write: admin only).
 
 - [ ] **Step 6: Commit**
 
@@ -310,7 +310,7 @@ const weekInputSchema = z.object({
 });
 ```
 
-No other change is needed in `createSubjectWeek` / `updateSubjectWeek` — they spread `parsed.data`, so `topicId` flows through to insert/update (including `null` to unassign).
+No other change is needed in `createSubjectWeek` / `updateSubjectWeek` - they spread `parsed.data`, so `topicId` flows through to insert/update (including `null` to unassign).
 
 - [ ] **Step 3: Typecheck**
 
@@ -635,7 +635,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Task 7: Manual end-to-end verification
 
-No code — execute the spec's test plan against the dev server (user starts it).
+No code - execute the spec's test plan against the dev server (user starts it).
 
 - [ ] **Step 1: Typecheck is clean**
 
@@ -646,8 +646,8 @@ Expected: `0`
 
 Ask the user to start the dev server, then verify on `/admin/subjects/{a subject}/curriculum`:
 1. Topics panel renders (empty initially for a fresh subject).
-2. Add "Algebra" and "Geometry"; reorder (↑/↓); rename one. Reload — order + names persist.
-3. In the week editor, set a week's Topic to "Algebra"; save; reload — selection persists.
+2. Add "Algebra" and "Geometry"; reorder (↑/↓); rename one. Reload - order + names persist.
+3. In the week editor, set a week's Topic to "Algebra"; save; reload - selection persists.
 4. Delete "Algebra" with weeks under it → confirm dialog shows "N weeks will become unassigned" → after delete, those weeks show "Unassigned" in the selector.
 5. Add a duplicate topic name → friendly "A topic with that name already exists." error; no row created.
 6. RLS probe (Supabase SQL editor or `apply-sql.mjs`): with a non-admin `authenticated` JWT, `insert into subject_topics` is denied; `select` returns rows.
@@ -658,6 +658,6 @@ Ask the user to start the dev server, then verify on `/admin/subjects/{a subject
 
 ## Self-Review
 
-- **Spec coverage:** schema (Task 1) ✓; migration + RLS + SECURITY.md (Task 2) ✓; admin authoring UI — topics panel (Task 4), week assignment (Task 3+5) ✓; permissions (Task 2) ✓; validation/error handling (Task 3) ✓; edge cases — unassigned weeks, delete-with-count, reorder at ends, per-subject uniqueness (Tasks 3/4) ✓; seed (Task 6) ✓; manual test plan (Task 7) ✓. Non-goals (tutor section, student view, mastery) correctly excluded.
+- **Spec coverage:** schema (Task 1) ✓; migration + RLS + SECURITY.md (Task 2) ✓; admin authoring UI - topics panel (Task 4), week assignment (Task 3+5) ✓; permissions (Task 2) ✓; validation/error handling (Task 3) ✓; edge cases - unassigned weeks, delete-with-count, reorder at ends, per-subject uniqueness (Tasks 3/4) ✓; seed (Task 6) ✓; manual test plan (Task 7) ✓. Non-goals (tutor section, student view, mastery) correctly excluded.
 - **Placeholder scan:** seed assignment (Task 6 Step 1) is described rather than coded because the exact seed-loop variables are local to `seed-demo.mjs`; the implementer adapts to the existing loop. All app code (schema, actions, components, page wiring) is concrete.
 - **Type consistency:** action signatures in Task 3 (`renameSubjectTopic(id, subjectId, formData)`, `reorderSubjectTopic(id, subjectId, direction)`, `deleteSubjectTopic(id, subjectId)`) match their call sites in Task 4; `TopicsPanel` props in Task 4 match the render in Task 5; `WeekEditor` gains `topics` consistently in Task 5; `topicId` column (Task 1) ↔ `topicId` schema field (Task 3) ↔ `topicId` select name (Task 5) all align.

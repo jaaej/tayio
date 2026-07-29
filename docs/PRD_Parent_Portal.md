@@ -53,15 +53,15 @@ Parents should have a simple overview of their child's tutoring activity.
 The parent should be able to switch between child profiles.
 
 Example:
-- Sarah — Year 8 Maths
-- Daniel — Year 10 English
-- Chloe — VCE Chemistry
+- Sarah - Year 8 Maths
+- Daniel - Year 10 English
+- Chloe - VCE Chemistry
 
 ### Reason for Implementation
 Parents want fast and clear updates. They should not have to dig through multiple pages to understand how their child is going.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 5. Attendance Tracking
 
@@ -89,7 +89,7 @@ Parents can see:
 Attendance tracking creates accountability and prevents confusion around missed classes.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 6. Homework Completion Tracking
 
@@ -109,7 +109,7 @@ Parents can view:
 Parents often want to know whether their child is putting in effort outside tutoring. This makes progress more transparent.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 7. Tutor Feedback
 
@@ -131,7 +131,7 @@ After each lesson, parents receive a short tutor comment.
 This is one of the strongest trust-building features. Parents can see that the tutor is paying attention and that the lesson has clear value.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 8. Progress Reports
 
@@ -163,7 +163,7 @@ Parents do not need too much detail. They need a clear explanation of how their 
 Progress reports help parents understand whether tutoring is working. This can improve parent satisfaction and student retention.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 9. Payments and Invoices
 
@@ -193,7 +193,7 @@ Parents should be able to:
 This reduces manual admin work and makes the payment process easier for parents.
 
 ### Priority
-**P0 — Must have**
+**P0 - Must have**
 
 ## 10. Booking and Make-Up Classes
 
@@ -221,7 +221,7 @@ Admin can:
 Scheduling changes are one of the biggest admin burdens for tutoring companies. This system reduces manual back-and-forth.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 11. Parent Messaging
 
@@ -242,7 +242,7 @@ Parents can message the correct person depending on the issue.
 This keeps communication organised and prevents tutors from being overloaded with admin questions.
 
 ### Priority
-**P1 — Important after MVP**
+**P1 - Important after MVP**
 
 ## 12. Notifications (Parent-relevant)
 

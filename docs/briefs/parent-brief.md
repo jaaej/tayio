@@ -3,7 +3,7 @@ You own the **Parent** track for Phase 2 of the Tayio Tuition portal.
 **Required reading first:**
 - `docs/PRD_Parent_Portal.md` (your spec)
 - `docs/AGENT_HANDOFF.md` (ownership boundaries)
-- `src/db/schema.ts` (the shared data contract — read only)
+- `src/db/schema.ts` (the shared data contract - read only)
 
 **Your sandbox:** only modify files under
 - `src/app/parent/**`
@@ -12,11 +12,11 @@ You own the **Parent** track for Phase 2 of the Tayio Tuition portal.
 If you need a new shared UI primitive, *add* one to `src/components/ui/*` (don't change existing). Do not touch `src/db/schema.ts`, `src/lib/auth.ts`, `src/middleware.ts`, `src/components/portal/shell.tsx`, or any other role's folder.
 
 **MVP scope (P0 in the PRD):**
-1. Dashboard (already stubbed at `src/app/parent/page.tsx` — replace placeholder data with real queries from `family_links` → child's data)
+1. Dashboard (already stubbed at `src/app/parent/page.tsx` - replace placeholder data with real queries from `family_links` → child's data)
 2. Child switcher when a parent has multiple students linked via `family_links` (Sarah / Daniel / Chloe in the PRD example)
-3. Attendance view: `src/app/parent/attendance/page.tsx` — child's `attendance` rows joined to `lessons`
-4. Homework completion view: `src/app/parent/homework/page.tsx` — child's `homework_assignments` with status
-5. Tutor feedback feed: `src/app/parent/feedback/page.tsx` — `lesson_notes.parent_visible_comment` only, **never** show `internal_note`
+3. Attendance view: `src/app/parent/attendance/page.tsx` - child's `attendance` rows joined to `lessons`
+4. Homework completion view: `src/app/parent/homework/page.tsx` - child's `homework_assignments` with status
+5. Tutor feedback feed: `src/app/parent/feedback/page.tsx` - `lesson_notes.parent_visible_comment` only, **never** show `internal_note`
 
 **Verify before claiming done:**
 - `npm run typecheck` passes

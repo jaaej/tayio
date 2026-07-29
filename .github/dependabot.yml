@@ -1,4 +1,4 @@
-# Dependabot config — auto-PRs for npm dependency security patches.
+# Dependabot config - auto-PRs for npm dependency security patches.
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
@@ -9,7 +9,7 @@ updates:
       interval: "weekly"
       day: "monday"
     # Cap concurrent open PRs so we don't drown in noise. Security alerts
-    # (separate from version updates) are uncapped — they always come through.
+    # (separate from version updates) are uncapped - they always come through.
     open-pull-requests-limit: 5
     # Group patch + minor updates of related packages into single PRs.
     # Major bumps stay as individual PRs so they can be reviewed carefully.
