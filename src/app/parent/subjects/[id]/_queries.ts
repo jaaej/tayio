@@ -21,6 +21,7 @@ import {
   resolveMostRecentPastTerm,
 } from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
+import { getStudentTermTestForSubjectTerm } from "@/lib/quiz-queries";
 
 export type ParentCurriculumWeek = {
   subjectWeekId: string;
@@ -63,6 +64,13 @@ export type ParentCurriculumData = {
   };
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: ParentCurriculumWeek[];
+  /**
+   * Set only when this subject+term has an approved term test AND its
+   * results have already been released - the entry point to
+   * /parent/term-tests/[id]/[childId] must not appear before release, same
+   * as the embargo on the results page itself.
+   */
+  termTestResultsId: string | null;
 };
 
 export async function getParentCurriculum(
@@ -139,6 +147,22 @@ export async function getParentCurriculum(
     .orderBy(asc(subjectWeeks.weekNumber));
   if (templates.length === 0) return null;
   const weekIds = templates.map((w) => w.id);
+
+  // getStudentTermTestForSubjectTerm only needs a studentId - the child IS
+  // a student, and the family link was already verified above, so this is
+  // a direct reuse of the student-side lookup rather than a parallel
+  // near-duplicate. Only surface the entry point once results are
+  // released; before that, the parent must see nothing (same embargo as
+  // the results page).
+  const termTestSummary = await getStudentTermTestForSubjectTerm(
+    childId,
+    subjectId,
+    term.id,
+  );
+  const termTestResultsId =
+    termTestSummary && Date.now() >= termTestSummary.resultsReleaseAt.getTime()
+      ? termTestSummary.id
+      : null;
 
   // Topic names for this subject
   const topicRows = await db
@@ -264,5 +288,6 @@ export async function getParentCurriculum(
       termNumber: t.termNumber,
     })),
     weeks,
+    termTestResultsId,
   };
 }

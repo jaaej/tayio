@@ -724,3 +724,44 @@ export async function getStudentTermTestForSubjectTerm(
     hasAttempt: Boolean(attempt),
   };
 }
+
+export type TermTestSubjectContext = {
+  subjectId: string;
+  subjectName: string;
+  termId: string;
+  termYear: number;
+  termNumber: number;
+};
+
+/**
+ * Subject + term labels for an approved term test - not scoped to any
+ * viewer. Carries no scores, ranks, or answers, so unlike
+ * `getStudentTermTest`/`getParentTermTestResults` it does not need an
+ * access check: callers use it only to build a "back to subject" link and
+ * page header, after their own viewer-specific access check has already
+ * passed.
+ */
+export async function getTermTestSubjectAndTerm(
+  quizId: string,
+): Promise<TermTestSubjectContext | null> {
+  const [row] = await db
+    .select({
+      subjectId: quizzes.subjectId,
+      subjectName: subjects.name,
+      termId: terms.id,
+      termYear: terms.year,
+      termNumber: terms.termNumber,
+    })
+    .from(quizzes)
+    .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
+    .innerJoin(terms, eq(terms.id, quizzes.termId))
+    .where(
+      and(
+        eq(quizzes.id, quizId),
+        eq(quizzes.status, "approved"),
+        eq(quizzes.kind, "term_test"),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}

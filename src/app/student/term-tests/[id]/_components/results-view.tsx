@@ -11,15 +11,25 @@ export function TermTestResultsView({
   termYear,
   termNumber,
   hrefBack,
+  childName,
 }: {
   results: ReleasedResults;
   subjectName: string;
   termYear: number;
   termNumber: number;
   hrefBack: string;
+  /**
+   * Set when a parent is viewing their child's results. Switches the
+   * first-person "your"/"you" copy to third-person, named after the child,
+   * and labels the highlighted leaderboard row with the child's name
+   * instead of "you" (the board's "me" row is ranked around the child, not
+   * the parent).
+   */
+  childName?: string;
 }) {
   const pct = results.total > 0 ? Math.round((results.score / results.total) * 100) : 0;
   const myRow = results.board.top.find((r) => r.isMe) ?? results.board.me;
+  const answerLabel = childName ? `${childName}'s answer` : "Your answer";
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5">
@@ -38,7 +48,7 @@ export function TermTestResultsView({
         <div className="relative grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
           <div>
             <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/75">
-              {subjectName} - {termYear} Term {termNumber} - Results
+              {`${childName ? `${childName} - ` : ""}${subjectName} - ${termYear} Term ${termNumber} - Results`}
             </div>
             <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-[-0.025em] sm:text-[34px]">
               {results.title}
@@ -114,7 +124,7 @@ export function TermTestResultsView({
                       </div>
                       <div className="mt-2 space-y-1 text-[13px] font-semibold">
                         <div className={isCorrect ? "text-good" : "text-bad"}>
-                          Your answer: {correction.selectedOptionText ?? "No answer"}
+                          {answerLabel}: {correction.selectedOptionText ?? "No answer"}
                         </div>
                         {!isCorrect && (
                           <div className="text-good">
@@ -133,6 +143,7 @@ export function TermTestResultsView({
         <TermTestLeaderboard
           title={`${subjectName} - Term ${termNumber} leaderboard`}
           board={results.board}
+          meLabel={childName ?? "you"}
         />
       </div>
     </div>

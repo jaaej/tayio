@@ -7,6 +7,7 @@ import { currentWeekNumber } from "@/lib/curriculum";
 import { getParentCurriculum } from "./_queries";
 import { WeekStripParent } from "./_components/week-strip";
 import { WeekContentParent } from "./_components/week-content";
+import { ParentTermTestCard } from "./_components/term-test-card";
 
 type SearchParams = Promise<{ child?: string; term?: string; week?: string }>;
 
@@ -104,7 +105,13 @@ export default async function ParentSubjectPage({
             selectedWeekId={selected?.subjectWeekId ?? null}
             currentWeekIdHint={currentWeekHint}
           />
-          <div className="lg:border-l lg:border-line lg:pl-6">
+          <div className="lg:border-l lg:border-line lg:pl-6 space-y-3.5">
+            {data.termTestResultsId && (
+              <ParentTermTestCard
+                termTestId={data.termTestResultsId}
+                childId={resolved.selected.id}
+              />
+            )}
             {selected && <WeekContentParent week={selected} />}
           </div>
         </div>

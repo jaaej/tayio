@@ -7,7 +7,7 @@ const MEDAL: Record<number, string> = {
   3: "#cd7f32",
 };
 
-function Row({ row }: { row: BoardRow }) {
+function Row({ row, meLabel }: { row: BoardRow; meLabel: string }) {
   const medal = MEDAL[row.rank];
   return (
     <div
@@ -24,7 +24,7 @@ function Row({ row }: { row: BoardRow }) {
         </span>
         <span className={`truncate ${row.isMe ? "font-bold" : "font-medium"}`}>
           {row.name}
-          {row.isMe && <span className="text-brand-500"> (you)</span>}
+          {row.isMe && <span className="text-brand-500"> ({meLabel})</span>}
         </span>
       </span>
       <span className="tabular-nums font-extrabold">{row.score}</span>
@@ -36,13 +36,19 @@ function Row({ row }: { row: BoardRow }) {
  * Single-board leaderboard for a term test - no difficulty tabs, unlike the
  * math-game version this is adapted from. Title is supplied by the caller
  * (subject + term) since the board itself carries no subject/term identity.
+ *
+ * `meLabel` names the highlighted row - "you" for a student viewing their
+ * own board, or the child's first name when a parent views a child's board
+ * (the "me" row is ranked around the child, not the parent).
  */
 export function TermTestLeaderboard({
   title,
   board,
+  meLabel = "you",
 }: {
   title: string;
   board: { top: BoardRow[]; me: BoardRow | null };
+  meLabel?: string;
 }) {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-sm">
@@ -65,12 +71,12 @@ export function TermTestLeaderboard({
           </div>
           <div className="flex flex-col gap-0.5">
             {board.top.map((r) => (
-              <Row key={r.rank} row={r} />
+              <Row key={r.rank} row={r} meLabel={meLabel} />
             ))}
             {board.me && (
               <>
                 <div className="text-center text-muted text-[11px] py-1">···</div>
-                <Row row={board.me} />
+                <Row row={board.me} meLabel={meLabel} />
               </>
             )}
           </div>
