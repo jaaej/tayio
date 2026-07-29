@@ -19,6 +19,7 @@ import {
   LogOut,
   Search,
   FolderOpen,
+  Sparkles,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -36,6 +37,7 @@ const SECTIONS: NavSection[] = [
       { label: "Operations", href: "/admin", icon: <LayoutDashboard className={IC} /> },
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
+      { label: "Trials", href: "/admin/trials", icon: <Sparkles className={IC} /> },
       { label: "Quizzes", href: "/admin/quizzes", icon: <HelpCircle className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },

@@ -52,6 +52,8 @@ export default async function ClassEditPage({
       email: profiles.email,
       school: profiles.school,
       deliveryMode: enrollments.deliveryMode,
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
     })
     .from(enrollments)
     .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
@@ -79,6 +81,8 @@ export default async function ClassEditPage({
 
   const subjectName =
     subjectList.find((s) => s.id === row.subjectId)?.name ?? null;
+
+  const today = new Date().toISOString().slice(0, 10);
 
   const scheduleChip =
     row.isRecurring && row.weekday !== null && row.startTime && row.endTime
@@ -146,6 +150,7 @@ export default async function ClassEditPage({
               enrolled={enrolled}
               availableStudents={availableStudents}
               capacity={row.capacity}
+              today={today}
             />
           </CardBody>
         </Card>
