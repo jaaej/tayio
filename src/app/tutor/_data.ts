@@ -81,13 +81,15 @@ async function getTutorClassIds(tutorId: string): Promise<string[]> {
 export async function getTutorStudents(tutorId: string) {
   const classIds = await getTutorClassIds(tutorId);
   if (classIds.length === 0) return [];
-  return db
-    .selectDistinct({
+  const rows = await db
+    .select({
       id: profiles.id,
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       email: profiles.email,
       yearLevel: profiles.yearLevel,
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
     })
     .from(profiles)
     .innerJoin(enrollments, eq(enrollments.studentId, profiles.id))
@@ -99,6 +101,26 @@ export async function getTutorStudents(tutorId: string) {
       ),
     )
     .orderBy(asc(profiles.lastName), asc(profiles.firstName));
+
+  // A student can be enrolled in several of this tutor's classes at once, so
+  // the join above yields one row per (student, class) enrollment. Collapse
+  // to one row per student, surfacing the trial dates from whichever
+  // enrollment has the latest trial_ends_at - a student "on trial" in any of
+  // this tutor's classes should read as on trial in the aggregated list.
+  const byStudent = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const existing = byStudent.get(r.id);
+    if (!existing) {
+      byStudent.set(r.id, r);
+    } else if ((r.trialEndsAt ?? "") > (existing.trialEndsAt ?? "")) {
+      byStudent.set(r.id, {
+        ...existing,
+        trialStartsAt: r.trialStartsAt,
+        trialEndsAt: r.trialEndsAt,
+      });
+    }
+  }
+  return Array.from(byStudent.values());
 }
 
 export type TutorDmContacts = {
@@ -254,7 +276,38 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     )
     .orderBy(desc(homework.dueDate));
 
-  return { student, attendance: attendanceRows, notes, homework: homeworkRows };
+  // This page isn't scoped to one class, so a student enrolled in several of
+  // this tutor's classes could have several enrollment rows here too; apply
+  // the same "latest trial_ends_at wins" aggregation as getTutorStudents.
+  const trialRows = await db
+    .select({
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
+    })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        inArray(enrollments.classId, classIds.length ? classIds : ["__none__"]),
+      ),
+    );
+  let trialStartsAt: string | null = null;
+  let trialEndsAt: string | null = null;
+  for (const r of trialRows) {
+    if ((r.trialEndsAt ?? "") > (trialEndsAt ?? "")) {
+      trialStartsAt = r.trialStartsAt;
+      trialEndsAt = r.trialEndsAt;
+    }
+  }
+
+  return {
+    student,
+    attendance: attendanceRows,
+    notes,
+    homework: homeworkRows,
+    trialStartsAt,
+    trialEndsAt,
+  };
 }
 
 export async function getLessonForTutor(tutorId: string, lessonId: string) {
@@ -286,6 +339,8 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       yearLevel: profiles.yearLevel,
       attendanceStatus: attendance.status,
       attendanceNote: attendance.note,
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
     })
     .from(enrollments)
     .innerJoin(profiles, eq(profiles.id, enrollments.studentId))

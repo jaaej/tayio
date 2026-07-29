@@ -111,6 +111,42 @@ export async function setDeliveryMode(input: z.infer<typeof deliverySchema>) {
   return { ok: true as const };
 }
 
+const trialSchema = z.object({
+  classId: z.string().uuid(),
+  studentId: z.string().uuid(),
+  trialStartsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  trialEndsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+});
+
+/**
+ * Set (or clear) a student's free-trial window within a class. Both dates set =
+ * a trial; both null = a regular enrollment (convert-to-regular). Admin only.
+ */
+export async function setTrialDates(input: z.infer<typeof trialSchema>) {
+  const user = await requireAdmin();
+  const data = trialSchema.parse(input);
+  if ((data.trialStartsAt === null) !== (data.trialEndsAt === null)) {
+    return { ok: false as const, error: "Set both a start and end date, or clear both." };
+  }
+  if (data.trialStartsAt && data.trialEndsAt && data.trialStartsAt > data.trialEndsAt) {
+    return { ok: false as const, error: "Trial end date must be on or after the start date." };
+  }
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(enrollments)
+      .set({ trialStartsAt: data.trialStartsAt, trialEndsAt: data.trialEndsAt })
+      .where(
+        and(
+          eq(enrollments.classId, data.classId),
+          eq(enrollments.studentId, data.studentId),
+        ),
+      ),
+  );
+  revalidatePath("/admin/trials");
+  revalidatePath(`/admin/classes/${data.classId}`);
+  return { ok: true as const };
+}
+
 export async function removeEnrollment(input: z.infer<typeof pair>) {
   const user = await requireAdmin();
   const data = pair.parse(input);

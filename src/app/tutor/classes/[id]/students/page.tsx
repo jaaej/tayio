@@ -43,6 +43,8 @@ export default async function TutorClassStudentsPage({
       lastName: profiles.lastName,
       email: profiles.email,
       enrolledAt: enrollments.enrolledAt,
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
     })
     .from(enrollments)
     .innerJoin(profiles, eq(profiles.id, enrollments.studentId))

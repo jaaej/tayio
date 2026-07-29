@@ -683,3 +683,48 @@ export async function getDiscontinuedStudents(
     (a, b) => b.mostRecentWithdraw.getTime() - a.mostRecentWithdraw.getTime(),
   );
 }
+
+export type Trial = {
+  studentId: string;
+  studentFirstName: string;
+  studentLastName: string;
+  classId: string;
+  className: string;
+  subjectName: string;
+  tutorFirstName: string;
+  tutorLastName: string;
+  trialStartsAt: string | null;
+  trialEndsAt: string | null;
+};
+
+/**
+ * Active-enrollment trials (has a trial end date, not withdrawn), for the
+ * `/admin/trials` worklist. Ordered by trial_ends_at asc so soonest-ending
+ * trials surface first. Status/grouping is derived on the page with
+ * `deriveTrialStatus`/`isEndingSoon`, not here.
+ */
+export async function getTrials(): Promise<Trial[]> {
+  const tutor = alias(profiles, "tutor");
+  return db
+    .select({
+      studentId: profiles.id,
+      studentFirstName: profiles.firstName,
+      studentLastName: profiles.lastName,
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+      tutorFirstName: tutor.firstName,
+      tutorLastName: tutor.lastName,
+      trialStartsAt: enrollments.trialStartsAt,
+      trialEndsAt: enrollments.trialEndsAt,
+    })
+    .from(enrollments)
+    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(tutor, eq(tutor.id, classes.tutorId))
+    .where(
+      and(isNotNull(enrollments.trialEndsAt), isNull(enrollments.withdrawnAt)),
+    )
+    .orderBy(asc(enrollments.trialEndsAt));
+}
