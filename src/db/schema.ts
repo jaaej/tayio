@@ -192,6 +192,8 @@ export const enrollments = pgTable(
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
     deliveryMode: deliveryModeEnum("delivery_mode"),
     adminNotes: text("admin_notes"),
+    trialStartsAt: date("trial_starts_at"),
+    trialEndsAt: date("trial_ends_at"),
   },
   (t) => [primaryKey({ columns: [t.classId, t.studentId] })],
 );
