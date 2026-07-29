@@ -3,6 +3,7 @@ import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { StatChip } from "@/components/student/stat-chip";
+import { TrialBadge } from "@/components/tutor/trial-badge";
 import { formatDateShort, relativeTime } from "@/lib/format";
 import {
   ATTENDANCE_STATUS_LABEL,
@@ -35,10 +36,9 @@ export default async function StudentProfilePage({
 }) {
   const { id } = await params;
   const tutor = await requireTutor();
-  const { student, attendance, notes, homework } = await getStudentProfile(
-    tutor.id,
-    id,
-  );
+  const { student, attendance, notes, homework, trialStartsAt, trialEndsAt } =
+    await getStudentProfile(tutor.id, id);
+  const today = new Date().toISOString().slice(0, 10);
 
   const presentCount = attendance.filter(
     (a) => a.status === "present" || a.status === "makeup_attended",
@@ -62,7 +62,16 @@ export default async function StudentProfilePage({
           [student.yearLevel, student.email].filter(Boolean).join(" · ") ||
           undefined
         }
-        title={`${student.firstName} ${student.lastName}`}
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2.5">
+            {student.firstName} {student.lastName}
+            <TrialBadge
+              trialStartsAt={trialStartsAt}
+              trialEndsAt={trialEndsAt}
+              today={today}
+            />
+          </span>
+        }
         actions={
           <a
             href={`/tutor/messages/with/${id}`}

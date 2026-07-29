@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
+import { TrialBadge } from "@/components/tutor/trial-badge";
 import { getTutorStudents, requireTutor } from "../_data";
 
 export default async function TutorStudentsPage() {
   const tutor = await requireTutor();
   const students = await getTutorStudents(tutor.id);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-5">
@@ -43,8 +45,15 @@ export default async function TutorStudentsPage() {
                       {s.lastName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-bold text-ink truncate">
-                        {s.firstName} {s.lastName}
+                      <div className="flex items-center gap-2">
+                        <div className="text-[13px] font-bold text-ink truncate">
+                          {s.firstName} {s.lastName}
+                        </div>
+                        <TrialBadge
+                          trialStartsAt={s.trialStartsAt}
+                          trialEndsAt={s.trialEndsAt}
+                          today={today}
+                        />
                       </div>
                       <div className="text-[11px] text-muted mt-0.5 truncate">
                         {s.yearLevel || s.email}

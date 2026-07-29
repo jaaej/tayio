@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
+import { TrialBadge } from "@/components/tutor/trial-badge";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonReschedules } from "@/lib/reschedule";
@@ -34,6 +35,7 @@ export default async function LessonDetailPage({
   const tutor = await requireTutor();
   const { lesson, roster, notes } = await getLessonForTutor(tutor.id, id);
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
+  const today = new Date().toISOString().slice(0, 10);
 
   // Reschedules — who moved out of this lesson (and where) and who's a make-up in.
   const { movedOut, movedIn } = await getLessonReschedules(id);
@@ -77,7 +79,7 @@ export default async function LessonDetailPage({
                 return (
                   <li key={s.id} className="px-4 py-3 space-y-2">
                     <div className="flex items-baseline justify-between">
-                      <div>
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/tutor/students/${s.id}`}
                           className="text-[13px] font-bold text-ink hover:text-brand-700"
@@ -85,10 +87,15 @@ export default async function LessonDetailPage({
                           {s.firstName} {s.lastName}
                         </Link>
                         {s.yearLevel && (
-                          <span className="ml-3 text-[11px] text-muted">
+                          <span className="text-[11px] text-muted">
                             {s.yearLevel}
                           </span>
                         )}
+                        <TrialBadge
+                          trialStartsAt={s.trialStartsAt}
+                          trialEndsAt={s.trialEndsAt}
+                          today={today}
+                        />
                       </div>
                       {movedOutById.has(s.id) && (
                         <span className="inline-flex items-center rounded-full border border-warn/40 bg-warn-bg px-2.5 py-1 text-[11px] font-bold text-warn">
