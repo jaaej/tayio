@@ -19,7 +19,10 @@ import {
   resolveMostRecentPastTerm,
 } from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
+import {
+  getStudentTermTestForSubjectTerm,
+  listApprovedQuizSummariesForWeeks,
+} from "@/lib/quiz-queries";
 
 export type StudentCurriculumWeek = {
   subjectWeekId: string;
@@ -67,6 +70,11 @@ export type StudentCurriculumData = {
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: StudentCurriculumWeek[];
   selectedWeekId: string | null;
+  termTest: {
+    id: string;
+    resultsReleaseAt: Date;
+    hasAttempt: boolean;
+  } | null;
 };
 
 export async function getStudentCurriculum(
@@ -132,6 +140,11 @@ export async function getStudentCurriculum(
   const quizRows = await listApprovedQuizSummariesForWeeks(weekIds);
   const quizByWeek = new Map(
     quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
+  );
+  const termTest = await getStudentTermTestForSubjectTerm(
+    userId,
+    subjectId,
+    term.id,
   );
 
   // Topic names for this subject
@@ -264,5 +277,6 @@ export async function getStudentCurriculum(
         weeks.find((w) => w.subjectWeekId === selectedWeekId)
           ?.subjectWeekId) ??
       null,
+    termTest,
   };
 }

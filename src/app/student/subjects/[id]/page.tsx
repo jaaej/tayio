@@ -13,6 +13,7 @@ import {
 import { getStudentCurriculum } from "./_queries";
 import { WeekStrip } from "./_components/week-strip";
 import { WeekContent } from "./_components/week-content";
+import { TermTestCard } from "./_components/term-test-card";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
 
@@ -129,10 +130,15 @@ export default async function StudentSubjectPage({
           currentWeekIdHint={currentWeekHint}
           accent={tokens}
         />
-        <WeekContent
-          week={selectedWeek}
-          subjectName={data.subjectName}
-        />
+        <div className="space-y-3.5">
+          {data.termTest && (
+            <TermTestCard termTest={data.termTest} accent={tokens} />
+          )}
+          <WeekContent
+            week={selectedWeek}
+            subjectName={data.subjectName}
+          />
+        </div>
       </div>
     </div>
   );

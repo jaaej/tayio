@@ -674,3 +674,53 @@ export async function getStudentTermTest(
     hasAttempt: Boolean(attempt),
   };
 }
+
+export type StudentTermTestSummary = {
+  id: string;
+  resultsReleaseAt: Date;
+  hasAttempt: boolean;
+};
+
+/**
+ * Cheap existence check for the subject page's term-test card: is there an
+ * approved term test for this (subject, term) that the student can access?
+ * Reuses canStudentAccessApprovedQuiz for the enrolment check rather than
+ * re-deriving it, so the two access rules cannot drift apart.
+ */
+export async function getStudentTermTestForSubjectTerm(
+  studentId: string,
+  subjectId: string,
+  termId: string,
+): Promise<StudentTermTestSummary | null> {
+  const [quiz] = await db
+    .select({ id: quizzes.id, resultsReleaseAt: quizzes.resultsReleaseAt })
+    .from(quizzes)
+    .where(
+      and(
+        eq(quizzes.subjectId, subjectId),
+        eq(quizzes.termId, termId),
+        eq(quizzes.kind, "term_test"),
+        eq(quizzes.status, "approved"),
+      ),
+    )
+    .limit(1);
+  if (!quiz || !quiz.resultsReleaseAt) return null;
+  if (!(await canStudentAccessApprovedQuiz(studentId, quiz.id))) return null;
+
+  const [attempt] = await db
+    .select({ id: termTestAttempts.id })
+    .from(termTestAttempts)
+    .where(
+      and(
+        eq(termTestAttempts.quizId, quiz.id),
+        eq(termTestAttempts.studentId, studentId),
+      ),
+    )
+    .limit(1);
+
+  return {
+    id: quiz.id,
+    resultsReleaseAt: quiz.resultsReleaseAt,
+    hasAttempt: Boolean(attempt),
+  };
+}
