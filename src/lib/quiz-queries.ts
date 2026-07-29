@@ -27,14 +27,22 @@ import {
 import { signQuizAttachment } from "@/lib/quiz-storage";
 import { formatQuizWeekLabel } from "@/lib/quiz-status";
 
+// A weekly quiz's term is reached via subject_weeks.term_id; a term test's
+// term is set directly on the quiz row. Two aliases of `terms` let a single
+// left-joined query resolve either shape and coalesce to one term.
+const weekTerm = alias(terms, "week_term");
+const directTerm = alias(terms, "direct_term");
+
 export type QuizListRow = {
   id: string;
   title: string;
   status: string;
+  kind: "weekly" | "term_test";
   subjectName: string;
+  termId: string;
   termYear: number;
   termNumber: number;
-  weekNumber: number;
+  weekNumber: number | null;
   assignedTutorId: string | null;
   assignedTutorName: string | null;
   updatedAt: Date;
@@ -54,13 +62,14 @@ export type QuizWithContent = {
     id: string;
     title: string;
     status: string;
+    kind: "weekly" | "term_test";
     subjectId: string;
     subjectName: string;
-    subjectWeekId: string;
+    subjectWeekId: string | null;
     termId: string;
     termYear: number;
     termNumber: number;
-    weekNumber: number;
+    weekNumber: number | null;
     assignedTutorId: string | null;
     note: string | null;
     createdBy: string;
@@ -83,9 +92,12 @@ function baseListSelect() {
       id: quizzes.id,
       title: quizzes.title,
       status: quizzes.status,
+      kind: quizzes.kind,
       subjectName: subjects.name,
-      termYear: terms.year,
-      termNumber: terms.termNumber,
+      termId: sql<string>`coalesce(${weekTerm.id}, ${directTerm.id})`,
+      termYear: sql<number>`coalesce(${weekTerm.year}, ${directTerm.year})`.mapWith(Number),
+      termNumber:
+        sql<number>`coalesce(${weekTerm.termNumber}, ${directTerm.termNumber})`.mapWith(Number),
       weekNumber: subjectWeeks.weekNumber,
       assignedTutorId: quizzes.assignedTutorId,
       assignedTutorFirst: tutor.firstName,
@@ -94,14 +106,16 @@ function baseListSelect() {
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
-    .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
-    .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
+    .leftJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
+    .leftJoin(weekTerm, eq(weekTerm.id, subjectWeeks.termId))
+    .leftJoin(directTerm, eq(directTerm.id, quizzes.termId))
     .leftJoin(tutor, eq(tutor.id, quizzes.assignedTutorId));
 }
 
 function toListRow(r: {
-  id: string; title: string; status: string; subjectName: string;
-  termYear: number; termNumber: number; weekNumber: number;
+  id: string; title: string; status: string; kind: "weekly" | "term_test";
+  subjectName: string; termId: string; termYear: number; termNumber: number;
+  weekNumber: number | null;
   assignedTutorId: string | null; assignedTutorFirst: string | null;
   assignedTutorLast: string | null; updatedAt: Date;
 }): QuizListRow {
@@ -109,7 +123,9 @@ function toListRow(r: {
     id: r.id,
     title: r.title,
     status: r.status,
+    kind: r.kind,
     subjectName: r.subjectName,
+    termId: r.termId,
     termYear: r.termYear,
     termNumber: r.termNumber,
     weekNumber: r.weekNumber,
@@ -200,6 +216,56 @@ export async function listQuizTargets(): Promise<{
   };
 }
 
+export async function listTermTestTargets(): Promise<{
+  tutors: { id: string; name: string }[];
+  slots: { subjectId: string; termId: string; label: string }[];
+}> {
+  const tutorRows = await db
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    })
+    .from(profiles)
+    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
+    .orderBy(asc(profiles.firstName));
+
+  const termTestQuiz = alias(quizzes, "term_test_quiz");
+  const slotRows = await db
+    .selectDistinct({
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      termId: terms.id,
+      year: terms.year,
+      termNumber: terms.termNumber,
+    })
+    .from(subjectWeeks)
+    .innerJoin(subjects, eq(subjects.id, subjectWeeks.subjectId))
+    .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
+    .leftJoin(
+      termTestQuiz,
+      and(
+        eq(termTestQuiz.subjectId, subjects.id),
+        eq(termTestQuiz.termId, terms.id),
+        eq(termTestQuiz.kind, "term_test"),
+      ),
+    )
+    .where(isNull(termTestQuiz.id))
+    .orderBy(desc(terms.year), desc(terms.termNumber), asc(subjects.name));
+
+  return {
+    tutors: tutorRows.map((t) => ({
+      id: t.id,
+      name: `${t.firstName} ${t.lastName ?? ""}`.trim(),
+    })),
+    slots: slotRows.map((s) => ({
+      subjectId: s.subjectId,
+      termId: s.termId,
+      label: `${s.subjectName} - ${s.year} Term ${s.termNumber}`,
+    })),
+  };
+}
+
 export async function getQuizWithContent(
   quizId: string,
 ): Promise<QuizWithContent | null> {
@@ -208,15 +274,14 @@ export async function getQuizWithContent(
       id: quizzes.id,
       title: quizzes.title,
       status: quizzes.status,
+      kind: quizzes.kind,
       subjectId: quizzes.subjectId,
       subjectName: subjects.name,
-      // subjectWeekId is nullable at the column level (term tests have no
-      // week), but this query inner-joins subjectWeeks so every returned row
-      // is weekly and has a non-null value; cast to match QuizWithContent.
-      subjectWeekId: sql<string>`${quizzes.subjectWeekId}`,
-      termId: terms.id,
-      termYear: terms.year,
-      termNumber: terms.termNumber,
+      subjectWeekId: quizzes.subjectWeekId,
+      termId: sql<string>`coalesce(${weekTerm.id}, ${directTerm.id})`,
+      termYear: sql<number>`coalesce(${weekTerm.year}, ${directTerm.year})`.mapWith(Number),
+      termNumber:
+        sql<number>`coalesce(${weekTerm.termNumber}, ${directTerm.termNumber})`.mapWith(Number),
       weekNumber: subjectWeeks.weekNumber,
       assignedTutorId: quizzes.assignedTutorId,
       note: quizzes.note,
@@ -224,8 +289,9 @@ export async function getQuizWithContent(
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
-    .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
-    .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
+    .leftJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
+    .leftJoin(weekTerm, eq(weekTerm.id, subjectWeeks.termId))
+    .leftJoin(directTerm, eq(directTerm.id, quizzes.termId))
     .where(eq(quizzes.id, quizId))
     .limit(1);
   const quiz = rows[0];
@@ -364,13 +430,14 @@ export type StudentQuiz = {
   quiz: {
     id: string;
     title: string;
+    kind: "weekly" | "term_test";
     subjectId: string;
     subjectName: string;
-    subjectWeekId: string;
+    subjectWeekId: string | null;
     termId: string;
     termYear: number;
     termNumber: number;
-    weekNumber: number;
+    weekNumber: number | null;
   };
   questions: Array<{
     id: string;
@@ -397,21 +464,21 @@ export async function getStudentQuiz(
     .select({
       id: quizzes.id,
       title: quizzes.title,
+      kind: quizzes.kind,
       subjectId: quizzes.subjectId,
       subjectName: subjects.name,
-      // subjectWeekId is nullable at the column level (term tests have no
-      // week), but this query inner-joins subjectWeeks so every returned row
-      // is weekly and has a non-null value; cast to match StudentQuiz.
-      subjectWeekId: sql<string>`${quizzes.subjectWeekId}`,
-      termId: terms.id,
-      termYear: terms.year,
-      termNumber: terms.termNumber,
+      subjectWeekId: quizzes.subjectWeekId,
+      termId: sql<string>`coalesce(${weekTerm.id}, ${directTerm.id})`,
+      termYear: sql<number>`coalesce(${weekTerm.year}, ${directTerm.year})`.mapWith(Number),
+      termNumber:
+        sql<number>`coalesce(${weekTerm.termNumber}, ${directTerm.termNumber})`.mapWith(Number),
       weekNumber: subjectWeeks.weekNumber,
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
-    .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
-    .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
+    .leftJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
+    .leftJoin(weekTerm, eq(weekTerm.id, subjectWeeks.termId))
+    .leftJoin(directTerm, eq(directTerm.id, quizzes.termId))
     .where(and(eq(quizzes.id, quizId), eq(quizzes.status, "approved")))
     .limit(1);
   if (!quiz) return null;
