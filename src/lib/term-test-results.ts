@@ -195,7 +195,10 @@ async function buildReleasedResults(
 
 /**
  * Student's own term-test results. Returns null if the quiz does not exist,
- * is not an approved term test, or has no release date set. Before
+ * is not an approved term test, has no release date set, or the student is
+ * not in the test's cohort (not enrolled, active at the deadline, in a class
+ * of the quiz's subject) - a student outside the cohort must not learn the
+ * board or the answer key for a subject they are not in. Before
  * `resultsReleaseAt`, returns `{ released: false }` without touching the
  * board, scores, or the answer key - the release gate is checked first and
  * nothing past it runs until `now >= resultsReleaseAt`.
@@ -207,11 +210,14 @@ export async function getStudentTermTestResults(
   const quiz = await loadApprovedTermTest(quizId);
   if (!quiz) return null;
 
+  const cohort = await getTermTestCohort(quiz.subjectId, quiz.resultsReleaseAt);
+  if (!cohort.some((m) => m.studentId === studentId)) return null;
+
   if (Date.now() < quiz.resultsReleaseAt.getTime()) {
     return { released: false, quizId: quiz.id, title: quiz.title, resultsReleaseAt: quiz.resultsReleaseAt };
   }
 
-  return buildReleasedResults(quiz, studentId);
+  return buildReleasedResults(quiz, studentId, cohort);
 }
 
 /**
