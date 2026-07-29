@@ -640,8 +640,10 @@ git commit -m "feat(term-test): kind-aware quiz queries + term-test authoring ac
 ## Task 4: Student take + server-side grading
 
 **Files:**
-- Modify: `src/lib/quiz-queries.ts` (add `getStudentTermTest`)
+- Create: `supabase/migrations/0029_term_test_rls_tighten.sql` (student RLS -> SELECT-only)
+- Modify: `src/lib/quiz-queries.ts` (add `getStudentTermTest`; add a weekly-only guard to `getStudentQuiz`)
 - Modify: `src/app/_actions/term-tests.ts` (add `submitTermTest`)
+- Modify: `src/app/_actions/quizzes.ts` (weekly-only guard in `gradePracticeQuiz`; export `isUniqueViolation` if reused)
 
 **Interfaces:**
 - Consumes: `gradeTermTest` (Task 2); `quizzes.kind/termId/resultsReleaseAt`, `termTestAttempts`, `termTestAnswers` (Task 1); `canStudentAccessApprovedQuiz` (existing, reused - it keys on subject enrollment, which term tests share).
@@ -649,11 +651,41 @@ git commit -m "feat(term-test): kind-aware quiz queries + term-test authoring ac
   - `getStudentTermTest(studentId, quizId): Promise<StudentTermTest | null>` - returns the term test (kind must be `term_test`), its `resultsReleaseAt`, the questions and options WITH `is_correct` OMITTED, and whether this student already has an attempt. Returns null if not a term test or the student is not in the subject.
   - `submitTermTest(input: { quizId; answers: {questionId; optionId}[] }): Promise<{ ok: true } | { ok: false; error: string }>`.
 
-- [ ] **Step 1: Add `getStudentTermTest`**
+- [ ] **Step 1: Tighten student RLS to read-only (migration 0029)**
+
+Create `supabase/migrations/0029_term_test_rls_tighten.sql`. The Task 1 student policies on `term_test_attempts`/`term_test_answers` are `for all`; since every write goes through server-only code (Drizzle bypasses RLS), students never need write access, and a `for all` policy would let a student self-insert a fake perfect score via direct PostgREST with their JWT. Replace them with SELECT-only:
+
+```sql
+begin;
+drop policy if exists term_test_attempts_student_own on term_test_attempts;
+drop policy if exists term_test_answers_student_own on term_test_answers;
+
+create policy term_test_attempts_student_read on term_test_attempts
+  for select to authenticated
+  using (student_id = auth.uid());
+create policy term_test_answers_student_read on term_test_answers
+  for select to authenticated
+  using (
+    exists (select 1 from term_test_attempts a
+            where a.id = attempt_id and a.student_id = auth.uid())
+  );
+commit;
+```
+
+Apply with `node scripts/apply-sql.mjs supabase/migrations/0029_term_test_rls_tighten.sql`, then `npm run db:check-rls` (must stay green: both tables keep RLS on, admin-all + a student SELECT policy).
+
+- [ ] **Step 2: Keep term tests out of the weekly practice path**
+
+The existing student practice route (`/student/quizzes/[id]` via `getStudentQuiz`) and the practice grader (`gradePracticeQuiz` in `src/app/_actions/quizzes.ts`) are not kind-aware, so an approved term test could be opened there and client-graded - leaking its correct answers and bypassing the embargo/one-attempt rule. Add a weekly-only guard to BOTH:
+- In `getStudentQuiz` (`src/lib/quiz-queries.ts`), add `eq(quizzes.kind, "weekly")` to the WHERE so it returns null for a term test.
+- In `gradePracticeQuiz` (`src/app/_actions/quizzes.ts`), after loading the quiz, reject when `kind !== "weekly"` with the same "Quiz not found." error, so the practice grader never returns a correct-answer key for a term test.
+Do not change `canStudentAccessApprovedQuiz` - `submitTermTest` and `getStudentTermTest` reuse it for the subject-enrollment check; the kind gate lives at the delivery points.
+
+- [ ] **Step 3: Add `getStudentTermTest`**
 
 Model it on `getStudentQuiz` (which already omits `is_correct`). Additions: assert `quizzes.kind = 'term_test'`; select `resultsReleaseAt`; join the term via `quizzes.termId` (not via a week); include only leaf questions and context containers exactly as `getStudentQuiz` does; add `hasAttempt` via a single `term_test_attempts` lookup for `(quizId, studentId)`. The options projection must NOT select `isCorrect` (copy the existing `getStudentQuiz` option select verbatim).
 
-- [ ] **Step 2: Add `submitTermTest` with server-side grading**
+- [ ] **Step 4: Add `submitTermTest` with server-side grading**
 
 ```ts
 export async function submitTermTest(input: {
@@ -729,21 +761,21 @@ export async function submitTermTest(input: {
 
 Reuse `isUniqueViolation` (export it from `quizzes.ts` or duplicate the tiny helper locally).
 
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 5: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 4: Confirm `is_correct` is never selected in the take path**
+- [ ] **Step 6: Confirm `is_correct` is never selected in the take path**
 
 Grep the new `getStudentTermTest` for `isCorrect`; expected: no match in the option projection.
 Run: `grep -n "isCorrect" src/lib/quiz-queries.ts` and confirm every hit is inside an admin/tutor or grading function, never `getStudentTermTest`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/lib/quiz-queries.ts src/app/_actions/term-tests.ts
-git commit -m "feat(term-test): student take query (no is_correct) + server-side grading"
+git add supabase/migrations/0029_term_test_rls_tighten.sql src/lib/quiz-queries.ts src/app/_actions/term-tests.ts src/app/_actions/quizzes.ts
+git commit -m "feat(term-test): student take query (no is_correct) + server-side grading + weekly-path guards + RLS tighten"
 ```
 
 ---
