@@ -11,12 +11,12 @@ export function TrialActions({
   classId,
   studentId,
   studentName,
-  className,
+  classDisplayName,
 }: {
   classId: string;
   studentId: string;
   studentName: string;
-  className: string;
+  classDisplayName: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function TrialActions({
   function handleConvert() {
     if (
       !confirm(
-        `Convert ${studentName} to a regular enrollment in ${className}? This clears the trial dates.`,
+        `Convert ${studentName} to a regular enrollment in ${classDisplayName}? This clears the trial dates.`,
       )
     )
       return;
@@ -43,7 +43,7 @@ export function TrialActions({
   function handleWithdraw() {
     if (
       !confirm(
-        `Withdraw ${studentName} from ${className}? Past records are kept.`,
+        `Withdraw ${studentName} from ${classDisplayName}? Past records are kept.`,
       )
     )
       return;

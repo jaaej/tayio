@@ -62,10 +62,10 @@ function TrialsTable({
                       {t.tutorFirstName} {t.tutorLastName}
                     </td>
                     <td className="px-5 py-3 text-[12px] text-ink-soft tabular-nums">
-                      {t.trialStartsAt ? formatDateShort(t.trialStartsAt) : "—"}
+                      {t.trialStartsAt ? formatDateShort(t.trialStartsAt) : "-"}
                     </td>
                     <td className="px-5 py-3 text-[12px] text-ink-soft tabular-nums">
-                      {t.trialEndsAt ? formatDateShort(t.trialEndsAt) : "—"}
+                      {t.trialEndsAt ? formatDateShort(t.trialEndsAt) : "-"}
                     </td>
                     <td className="px-5 py-3">
                       {t.status === "trial_ended" ? (
@@ -88,7 +88,7 @@ function TrialsTable({
                         classId={t.classId}
                         studentId={t.studentId}
                         studentName={studentName}
-                        className={t.className}
+                        classDisplayName={t.className}
                       />
                     </td>
                   </tr>

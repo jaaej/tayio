@@ -261,7 +261,7 @@ export function EnrollmentsManager({
             className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink"
             disabled={pending}
           >
-            <option value="">— Select a student —</option>
+            <option value="">- Select a student -</option>
             {availableStudents.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.firstName} {s.lastName} · {s.email}
