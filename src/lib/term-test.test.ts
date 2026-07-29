@@ -58,6 +58,11 @@ describe("gradeTermTest", () => {
     const r = gradeTermTest(keys, [{ questionId: "qX", optionId: "a" }]);
     expect(r.ok).toBe(false);
   });
+
+  it("rejects a valid option from one question submitted against another", () => {
+    const r = gradeTermTest(keys, [{ questionId: "q1", optionId: "c" }]);
+    expect(r.ok).toBe(false);
+  });
 });
 
 describe("deriveTermTestState", () => {
@@ -83,6 +88,19 @@ describe("deriveTermTestState", () => {
     ).toBe("released");
     expect(
       deriveTermTestState({ ...base, status: "approved", now: new Date("2026-08-02"), hasAttempt: true }),
+    ).toBe("released");
+  });
+
+  it("is released at exact boundary when now equals resultsReleaseAt", () => {
+    const releaseTime = new Date("2026-08-01T00:00:00Z");
+    expect(
+      deriveTermTestState({ resultsReleaseAt: releaseTime, status: "approved", now: releaseTime, hasAttempt: false }),
+    ).toBe("released");
+  });
+
+  it("is released and overrides a non-approved status", () => {
+    expect(
+      deriveTermTestState({ ...base, status: "pending_review", now: new Date("2026-08-02"), hasAttempt: false }),
     ).toBe("released");
   });
 });
@@ -123,5 +141,32 @@ describe("rankTermTestBoard", () => {
     expect(top).toHaveLength(20);
     expect(me?.isMe).toBe(true);
     expect(me?.rank).toBe(25);
+  });
+
+  it("me is null when the viewer is inside the top N", () => {
+    expect(rankTermTestBoard(cohort, [
+      { studentId: "s1", score: 8, submittedAt: new Date("2026-07-10") },
+      { studentId: "s2", score: 5, submittedAt: new Date("2026-07-11") },
+    ], "s2").me).toBe(null);
+  });
+
+  it("0-score submitter ranks above a no-show in tie-break", () => {
+    const cohort2 = [
+      { studentId: "s1", firstName: "Alice", lastName: "Smith" },
+      { studentId: "s2", firstName: "Bob", lastName: "Jones" },
+    ];
+    const { top } = rankTermTestBoard(
+      cohort2,
+      [
+        { studentId: "s1", score: 0, submittedAt: new Date("2026-07-10") },
+      ],
+      "s1",
+    );
+    expect(top.map((r) => [r.rank, r.score])).toEqual([
+      [1, 0],
+      [2, 0],
+    ]);
+    expect(top[0].name).toMatch(/^Alice/);
+    expect(top[1].name).toMatch(/^Bob/);
   });
 });
