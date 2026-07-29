@@ -210,7 +210,10 @@ export async function getQuizWithContent(
       status: quizzes.status,
       subjectId: quizzes.subjectId,
       subjectName: subjects.name,
-      subjectWeekId: quizzes.subjectWeekId,
+      // subjectWeekId is nullable at the column level (term tests have no
+      // week), but this query inner-joins subjectWeeks so every returned row
+      // is weekly and has a non-null value; cast to match QuizWithContent.
+      subjectWeekId: sql<string>`${quizzes.subjectWeekId}`,
       termId: terms.id,
       termYear: terms.year,
       termNumber: terms.termNumber,
@@ -292,7 +295,9 @@ export async function listApprovedQuizSummariesForWeeks(
     .select({
       id: quizzes.id,
       title: quizzes.title,
-      subjectWeekId: quizzes.subjectWeekId,
+      // Filtered by inArray(quizzes.subjectWeekId, weekIds) below, so every
+      // returned row has a non-null value; cast to match ApprovedQuizSummary.
+      subjectWeekId: sql<string>`${quizzes.subjectWeekId}`,
       questionCount: sql<number>`count(${quizQuestions.id})`.mapWith(Number),
     })
     .from(quizzes)
@@ -394,7 +399,10 @@ export async function getStudentQuiz(
       title: quizzes.title,
       subjectId: quizzes.subjectId,
       subjectName: subjects.name,
-      subjectWeekId: quizzes.subjectWeekId,
+      // subjectWeekId is nullable at the column level (term tests have no
+      // week), but this query inner-joins subjectWeeks so every returned row
+      // is weekly and has a non-null value; cast to match StudentQuiz.
+      subjectWeekId: sql<string>`${quizzes.subjectWeekId}`,
       termId: terms.id,
       termYear: terms.year,
       termNumber: terms.termNumber,

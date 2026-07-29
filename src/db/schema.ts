@@ -830,6 +830,8 @@ export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [
   "context",
 ]);
 
+export const quizKindEnum = pgEnum("quiz_kind", ["weekly", "term_test"]);
+
 export const quizzes = pgTable(
   "quizzes",
   {
@@ -837,9 +839,12 @@ export const quizzes = pgTable(
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
-    subjectWeekId: uuid("subject_week_id")
-      .notNull()
-      .references(() => subjectWeeks.id, { onDelete: "cascade" }),
+    kind: quizKindEnum("kind").notNull().default("weekly"),
+    subjectWeekId: uuid("subject_week_id").references(() => subjectWeeks.id, {
+      onDelete: "cascade",
+    }),
+    termId: uuid("term_id").references(() => terms.id),
+    resultsReleaseAt: timestamp("results_release_at", { withTimezone: true }),
     title: text("title").notNull(),
     status: quizStatusEnum("status").notNull().default("draft"),
     createdBy: uuid("created_by")
@@ -918,6 +923,46 @@ export const quizAttachments = pgTable(
     index("quiz_attachments_question_idx").on(t.questionId),
   ],
 );
+
+export const termTestAttempts = pgTable(
+  "term_test_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quizId: uuid("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    total: integer("total").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("term_test_attempts_student_unique_idx").on(t.quizId, t.studentId),
+    index("term_test_attempts_board_idx").on(t.quizId, t.score.desc()),
+  ],
+);
+
+export const termTestAnswers = pgTable(
+  "term_test_answers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => termTestAttempts.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => quizQuestions.id, { onDelete: "cascade" }),
+    selectedOptionId: uuid("selected_option_id").references(() => quizOptions.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (t) => [uniqueIndex("term_test_answers_attempt_question_idx").on(t.attemptId, t.questionId)],
+);
+
+export type TermTestAttempt = typeof termTestAttempts.$inferSelect;
+export type TermTestAnswer = typeof termTestAnswers.$inferSelect;
 
 export type Profile = typeof profiles.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
