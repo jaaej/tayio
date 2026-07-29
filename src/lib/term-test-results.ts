@@ -24,6 +24,13 @@ export type TermTestCorrection = {
   prompt: string;
   selectedOptionText: string | null;
   correctOptionText: string;
+  /**
+   * Authoritative right/wrong flag, computed by option id (not by comparing
+   * `selectedOptionText`/`correctOptionText` - two options on the same
+   * question can share identical text, which would make a text comparison
+   * misclassify a wrong answer as correct or vice versa).
+   */
+  isCorrect: boolean;
 };
 
 export type TermTestBoard = { top: BoardRow[]; me: BoardRow | null };
@@ -156,6 +163,7 @@ async function buildCorrectionsAndScore(
       prompt: q.prompt,
       selectedOptionText: selected?.text ?? null,
       correctOptionText: correct?.text ?? "",
+      isCorrect: selected ? selected.id === correct?.id : false,
     };
   });
 

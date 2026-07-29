@@ -66,7 +66,21 @@ export default async function StudentTermTestPage({
 
   // state === "released"
   const results = await getStudentTermTestResults(user.id, quizId);
-  if (!results || !results.released) notFound();
+  if (!results) notFound();
+
+  // Race between this page's `now` and the results query's `now`, right at
+  // the release boundary - render the pending card instead of a dead end.
+  if (!results.released) {
+    return (
+      <TermTestStatusCard
+        icon={Hourglass}
+        title="Submitted"
+        message={`Results release after ${releaseFmt.format(results.resultsReleaseAt)}. Come back then to see your score, rank, and corrections.`}
+        hrefBack={hrefBack}
+        subjectName={content.quiz.subjectName}
+      />
+    );
+  }
 
   return (
     <TermTestResultsView

@@ -76,9 +76,7 @@ export function TermTestResultsView({
           </h2>
           <div className="space-y-3">
             {results.corrections.map((correction, index) => {
-              const isCorrect =
-                correction.selectedOptionText !== null &&
-                correction.selectedOptionText === correction.correctOptionText;
+              const isCorrect = correction.isCorrect;
               return (
                 <div
                   key={correction.questionId}
