@@ -132,7 +132,7 @@ export type RevenueSummary = {
 
 /** Financial figures for the PIN-gated revenue page. */
 export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
-  // Bucket by paidAt (cash received in the month), not issuedAt — a "Revenue"
+  // Bucket by paidAt (cash received in the month), not issuedAt - a "Revenue"
   // figure means money collected. Both months are half-open [start, nextStart).
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);

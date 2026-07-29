@@ -67,7 +67,7 @@ export default async function HomeworkDetailPage({
 
   const isOverdue = !hw.submittedAt && hw.dueDate < new Date();
 
-  // Test rank — only fetched when this homework is flagged as a test and the
+  // Test rank - only fetched when this homework is flagged as a test and the
   // student has been marked. Anonymous: returns rank + total only.
   const testRank =
     hw.isTest && hw.score !== null
@@ -102,7 +102,7 @@ export default async function HomeworkDetailPage({
         />
       )}
 
-      {/* HERO — subject-coloured */}
+      {/* HERO - subject-coloured */}
       <section
         className="relative overflow-hidden rounded-[24px] px-6 py-6 text-white shadow-[0_16px_36px_-20px_rgba(31,40,90,0.5)]"
         style={{
@@ -346,7 +346,7 @@ export default async function HomeworkDetailPage({
           ) : (
             <div className="rounded-[12px] bg-surface-2 px-4 py-3 text-[13px] text-ink-soft">
               {effectiveStatus === "marked" || effectiveStatus === "returned"
-                ? "This homework has been marked — no further submissions needed."
+                ? "This homework has been marked - no further submissions needed."
                 : "Submissions are closed for this homework."}
             </div>
           )}

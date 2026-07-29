@@ -45,7 +45,7 @@ export function SlotPicker({
 }: {
   studentId: string;
   lessonId: string;
-  /** ISO date YYYY-MM-DD of the lesson being rescheduled — highlighted in calendar */
+  /** ISO date YYYY-MM-DD of the lesson being rescheduled - highlighted in calendar */
   originalLessonDate: string;
   sameSubjectSlots: AvailableSlot[];
   allTutorSlots: AvailableSlot[];
@@ -262,7 +262,7 @@ export function SlotPicker({
             <div className="px-1.5 pb-1.5 flex-1 space-y-1 overflow-hidden">
               {d.isPast || !d.inMonth ? null : d.slots.length === 0 ? (
                 <div className="text-[10px] text-muted-2 px-1 py-2 text-center italic">
-                  —
+                  -
                 </div>
               ) : (
                 d.slots.slice(0, 4).map((s) => {

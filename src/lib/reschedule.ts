@@ -251,7 +251,7 @@ export async function executeMakeupReschedule(p: {
     )
     .limit(1);
   if (clash.length) {
-    return { ok: false, error: "That slot was just taken — pick another." };
+    return { ok: false, error: "That slot was just taken - pick another." };
   }
 
   // Re-reschedule: undo the student's previous move of this lesson before
@@ -306,7 +306,7 @@ export async function executeSessionSwitch(p: {
   if (!original || !target) return { ok: false, error: "Lesson not found" };
 
   if ((await seatsLeftOn(target.classId, target.id, target.capacity)) <= 0) {
-    return { ok: false, error: "That session just filled up — pick another." };
+    return { ok: false, error: "That session just filled up - pick another." };
   }
 
   await markAbsentOnOriginal(original.id, p.studentId, p.reason, p.actorId);
@@ -642,7 +642,7 @@ export async function getLessonReschedules(
     );
   const movedOut: LessonRescheduleInfo["movedOut"] = [];
   for (const r of outRows) {
-    let toLabel = "—";
+    let toLabel = "-";
     if (r.targetLessonId) {
       const t = await getReschedulableLesson(r.targetLessonId);
       toLabel = t
@@ -823,7 +823,7 @@ export async function listPendingRequests(opts: {
     } else if (r.targetDate && r.targetStartTime) {
       toLabel = `${formatDateLong(r.targetDate)} ${formatTime(r.targetStartTime)}`;
     } else {
-      toLabel = "—";
+      toLabel = "-";
     }
     out.push({
       id: r.id,

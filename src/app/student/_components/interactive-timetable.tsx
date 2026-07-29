@@ -183,12 +183,12 @@ export function InteractiveTimetable({
       {picking && (
         <div className="flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5">
           <div className="text-[13px] font-bold text-brand-800">
-            Pick a new time for {picking.opts.lesson.subjectName} — tutor's open
+            Pick a new time for {picking.opts.lesson.subjectName} - tutor's open
             slots are highlighted.
             {picking.opts.approvalRequired && (
               <span className="font-semibold text-brand-700">
                 {picking.opts.secondReschedule
-                  ? " Second reschedule — needs tutor/admin approval."
+                  ? " Second reschedule - needs tutor/admin approval."
                   : " This will be sent for approval."}
               </span>
             )}

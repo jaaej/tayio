@@ -150,7 +150,7 @@ export default async function ParentDashboard({
       >
         <StatTile
           label="Attendance"
-          value={data.attendanceRate !== null ? `${data.attendanceRate}%` : "—"}
+          value={data.attendanceRate !== null ? `${data.attendanceRate}%` : "-"}
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
@@ -169,7 +169,7 @@ export default async function ParentDashboard({
           value={
             data.homeworkTotal > 0
               ? `${data.homeworkCompleted}/${data.homeworkTotal}`
-              : "—"
+              : "-"
           }
           icon={<ClipboardList className="h-5 w-5" />}
           tone="sky"
@@ -185,7 +185,7 @@ export default async function ParentDashboard({
         />
         <StatTile
           label="Overall mastery"
-          value={overallMastery !== null ? `${overallMastery}%` : "—"}
+          value={overallMastery !== null ? `${overallMastery}%` : "-"}
           icon={<TrendingUp className="h-5 w-5" />}
           tone="grape"
           accent

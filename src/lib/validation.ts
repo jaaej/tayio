@@ -1,6 +1,6 @@
 // Length-bounded text helpers for server actions that parse FormData manually
-// (i.e. without a Zod schema). Rejecting over-long input — rather than silently
-// truncating — prevents storage abuse while keeping stored data intact.
+// (i.e. without a Zod schema). Rejecting over-long input - rather than silently
+// truncating - prevents storage abuse while keeping stored data intact.
 //
 // Zod-schema-based actions use `.max(N)` directly; these mirror that behavior
 // for the manual-parse call sites.

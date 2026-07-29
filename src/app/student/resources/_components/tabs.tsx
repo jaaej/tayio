@@ -5,7 +5,7 @@ export type TabItem = { label: string; href: string; active: boolean };
 /**
  * Segmented control mirrored from the parent portal's
  * `src/app/parent/_components/tabs.tsx`. Link-based so tab switches are
- * plain navigations driven by the `tab` search param — no client JS needed.
+ * plain navigations driven by the `tab` search param - no client JS needed.
  */
 export function Tabs({ items }: { items: TabItem[] }) {
   return (

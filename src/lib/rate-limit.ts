@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 /**
  * Postgres-backed fixed-window rate limiter (migration 0014).
  * Returns true if the caller is still under the limit, false if throttled.
- * Fails OPEN on DB error — a limiter outage must not lock users out.
+ * Fails OPEN on DB error - a limiter outage must not lock users out.
  */
 export async function rateLimit(opts: {
   bucket: string;
@@ -34,7 +34,7 @@ export async function rateLimit(opts: {
  * TRUST BOUNDARY: x-forwarded-for is only trustworthy behind a proxy that
  * *overwrites* it with the real client IP (Vercel does this). If the origin is
  * reachable directly, a client can spoof this header and rotate "IPs" to evade
- * the per-IP limit. The per-IP limit is therefore a secondary control only —
+ * the per-IP limit. The per-IP limit is therefore a secondary control only -
  * the per-EMAIL / per-USER limits (which don't depend on IP) are the real guard
  * against brute-forcing a specific account. Residual risk: IP-rotated password
  * *spraying* across many accounts. Revisit if the app is ever served without a

@@ -5,7 +5,7 @@ import { Pill } from "./pill";
 import { SubjectPill } from "./subject-pill";
 
 /**
- * Quest row — homework reframed as a quest, with a checkbox and XP pill.
+ * Quest row - homework reframed as a quest, with a checkbox and XP pill.
  * The subject is a colour-coded pill (same family the subject uses
  * everywhere); the due date sits beside it as a neutral chip. Replaces
  * the old cramped "{subject} · {meta}" sub line.

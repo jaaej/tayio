@@ -258,7 +258,7 @@ export function MonthCalendar({
 }
 
 /**
- * WeekCalendar — single Mon–Sun row using the same day cells, chips, and
+ * WeekCalendar - single Mon–Sun row using the same day cells, chips, and
  * legend as MonthCalendar, navigable via ?week=YYYY-MM-DD links.
  */
 export function WeekCalendar({
@@ -612,8 +612,8 @@ function SubjectHomeworkChip({
   return (
     <Link
       href={`/student/homework/${h.id}`}
-      title={`${h.title} — ${subject}`}
-      aria-label={`${h.title} — ${subject}, due ${h.dueDate}${stateLabel}`}
+      title={`${h.title} - ${subject}`}
+      aria-label={`${h.title} - ${subject}, due ${h.dueDate}${stateLabel}`}
       className={cn(
         "relative block rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]",
         overdue && "ring-1 ring-inset ring-bad/60",

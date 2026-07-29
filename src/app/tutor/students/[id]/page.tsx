@@ -85,7 +85,7 @@ export default async function StudentProfilePage({
                   ? "sun"
                   : "coral"
           }
-          value={attendanceRate === null ? "—" : `${attendanceRate}%`}
+          value={attendanceRate === null ? "-" : `${attendanceRate}%`}
           label="Attendance rate"
         />
         <StatChip

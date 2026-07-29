@@ -78,7 +78,7 @@ export function BoardInteractive({
             No questions yet
           </div>
           <div className="text-[14px] text-ink-soft max-w-[320px] mx-auto">
-            Be the first to ask — use the prompt above.
+            Be the first to ask - use the prompt above.
           </div>
         </div>
       ) : filtered.length === 0 ? (
@@ -185,7 +185,7 @@ function AskPrompt({
         required
         maxLength={4000}
         rows={4}
-        placeholder="Add details — what you've tried, where you're stuck."
+        placeholder="Add details - what you've tried, where you're stuck."
         className="w-full rounded-[14px] border border-line bg-surface-2 px-4 py-3 text-[14px] leading-relaxed placeholder:text-muted focus:outline-none focus:bg-surface focus:border-line-strong transition-colors"
       />
       <AttachmentPicker accent={tokens.arrow} />

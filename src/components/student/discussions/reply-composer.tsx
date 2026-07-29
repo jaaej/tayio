@@ -91,7 +91,7 @@ export function StudentReplyComposer({
         maxLength={4000}
         rows={4}
         autoFocus
-        placeholder="Share what you know — or where you got stuck too."
+        placeholder="Share what you know - or where you got stuck too."
         className="w-full rounded-[14px] border border-line bg-surface-2 px-4 py-3 text-[15px] leading-relaxed placeholder:text-muted focus:outline-none focus:bg-surface focus:border-line-strong transition-colors"
       />
       <AttachmentPicker accent={tokens.arrow} />

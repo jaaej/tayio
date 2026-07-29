@@ -252,7 +252,7 @@ export default async function ProgressPage() {
 
           {/* SIDEBAR */}
           <aside className="space-y-4 min-w-0 lg:sticky lg:top-6 lg:self-start">
-            {/* Focus next — sun-themed card */}
+            {/* Focus next - sun-themed card */}
             <section
               className="relative overflow-hidden rounded-[22px] border border-sun-200 p-5"
               style={{ background: "var(--sun-50)" }}
@@ -286,7 +286,7 @@ export default async function ProgressPage() {
               </div>
               {focusList.length === 0 ? (
                 <div className="relative text-[13px] text-ink-soft py-2">
-                  No weak topics right now — keep it up.
+                  No weak topics right now - keep it up.
                 </div>
               ) : (
                 <ul className="relative space-y-2">

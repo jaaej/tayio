@@ -80,7 +80,7 @@ export function Leaderboard({ boards }: { boards: Boards }) {
 
       {board.top.length === 0 ? (
         <div className="py-10 text-center text-[13px] text-muted">
-          No scores yet — be the first to set one!
+          No scores yet - be the first to set one!
         </div>
       ) : (
         <>

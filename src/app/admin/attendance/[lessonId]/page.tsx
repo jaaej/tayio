@@ -62,7 +62,7 @@ export default async function AdminLessonAttendancePage({
     .limit(1);
   if (!lesson) notFound();
 
-  // Roster — enrolled students for the class, with current attendance status if any.
+  // Roster - enrolled students for the class, with current attendance status if any.
   const roster = await db
     .select({
       id: profiles.id,
@@ -88,7 +88,7 @@ export default async function AdminLessonAttendancePage({
     )
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
-  // Reschedules — who left this lesson (and where to) and who's here as a make-up.
+  // Reschedules - who left this lesson (and where to) and who's here as a make-up.
   const { movedOut, movedIn } = await getLessonReschedules(lessonId);
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
 

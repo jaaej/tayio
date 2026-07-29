@@ -55,7 +55,7 @@ function fmtTime(hhmm: string) {
  * Shared reschedule picker used by the student and parent portals.
  * mode "makeup" (1-on-1) picks a same-tutor availability slot; mode "switch"
  * (group) picks another same-subject session. `approvalRequired` only affects
- * the button label + confirmation copy — the server re-derives the real path.
+ * the button label + confirmation copy - the server re-derives the real path.
  *
  * Options are laid out on a Mon-first month calendar (like the admin reschedule
  * screen): each date cell lists its clickable slots/sessions.

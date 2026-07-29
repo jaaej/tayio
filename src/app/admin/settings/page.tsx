@@ -24,7 +24,7 @@ export default async function AdminSettingsPage() {
         />
         <div className="p-5 space-y-3">
           <p className="text-[13px] text-muted">
-            The PIN protects sensitive actions — changing a user&apos;s role and
+            The PIN protects sensitive actions - changing a user&apos;s role and
             deactivating accounts. One unlock lasts about 30 minutes.
           </p>
           <PinSettingsForm pinSet={pinSet} />

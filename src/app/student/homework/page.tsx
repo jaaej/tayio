@@ -58,7 +58,7 @@ export default async function HomeworkListPage() {
       else openLater.push(r);
       continue;
     }
-    // any other status — treat as open
+    // any other status - treat as open
     openSoon.push(r);
   }
 
@@ -145,7 +145,7 @@ export default async function HomeworkListPage() {
               tone="warn"
               items={overdue}
               today={startOfToday}
-              emptyLabel="Nothing overdue — nice."
+              emptyLabel="Nothing overdue - nice."
             />
           </Card>
           <Card className="space-y-8">
@@ -260,7 +260,7 @@ function HomeworkCard({
   showScore?: boolean;
 }) {
   // Subject family from class name (we don't get subject name in HomeworkRow,
-  // but className typically encodes the subject — "Year 11 Chemistry" etc.)
+  // but className typically encodes the subject - "Year 11 Chemistry" etc.)
   const family = colorFamilyForSubject(hw.className ?? hw.title);
   const tokens = getAccentTokens(family);
 
@@ -356,7 +356,7 @@ function DueDateLabel({
   let toneClass: string;
 
   if (!isOpen) {
-    // Past or completed — just show the date softly
+    // Past or completed - just show the date softly
     label = `Due ${formatDueDate(due)}`;
     toneClass = "text-ink-soft";
   } else if (daysUntil < 0) {

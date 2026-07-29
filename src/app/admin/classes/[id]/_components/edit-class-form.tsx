@@ -135,7 +135,7 @@ export function EditClassForm({
           name="weekday"
           defaultValue={initial.weekday === null ? "" : String(initial.weekday)}
         >
-          <option value="">—</option>
+          <option value="">-</option>
           {WEEKDAYS.map((d, i) => (
             <option key={d} value={i}>
               {d}

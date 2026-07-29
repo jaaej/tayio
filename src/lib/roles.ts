@@ -56,14 +56,14 @@ export function isUnrestrictedStudent(
 
 /**
  * Assignable account roles for the admin user-management forms, with
- * human-readable labels. Only tiered values are offered — new/edited accounts
+ * human-readable labels. Only tiered values are offered - new/edited accounts
  * should always carry a tier, never a bare coarse role.
  */
 export const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "student_restricted", label: "Student — restricted" },
-  { value: "student_unrestricted", label: "Student — unrestricted" },
+  { value: "student_restricted", label: "Student - restricted" },
+  { value: "student_unrestricted", label: "Student - unrestricted" },
   { value: "parent", label: "Parent" },
   { value: "tutor", label: "Tutor" },
-  { value: "admin_restricted", label: "Admin — reception" },
-  { value: "admin_unrestricted", label: "Admin — owner" },
+  { value: "admin_restricted", label: "Admin - reception" },
+  { value: "admin_unrestricted", label: "Admin - owner" },
 ];

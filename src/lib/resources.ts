@@ -25,7 +25,7 @@ export async function enrolledSubjectIds(studentId: string): Promise<string[]> {
 }
 
 export async function childSubjectIds(parentId: string): Promise<string[]> {
-  // familyLinks.studentId is the child — NOT childId (schema uses parent_id + student_id)
+  // familyLinks.studentId is the child - NOT childId (schema uses parent_id + student_id)
   const kids = await db
     .select({ studentId: familyLinks.studentId })
     .from(familyLinks)

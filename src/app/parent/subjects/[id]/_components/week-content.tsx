@@ -31,7 +31,7 @@ export async function WeekContentParent({
         </h2>
       </header>
 
-      {/* OVERVIEW — what this week covers */}
+      {/* OVERVIEW - what this week covers */}
       {week.description && (
         <section className="space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
@@ -89,7 +89,7 @@ export async function WeekContentParent({
         </div>
       </section>
 
-      {/* TUTOR NOTES — extra material the tutor added for this week */}
+      {/* TUTOR NOTES - extra material the tutor added for this week */}
       {(week.tutorNote || week.tutorAttachments.length > 0) && (
         <section className="space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">

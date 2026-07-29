@@ -51,7 +51,7 @@ export async function WeekContent({
 
   return (
     <div className="space-y-3.5">
-      {/* HERO — compact, vibrant, subject-coloured */}
+      {/* HERO - compact, vibrant, subject-coloured */}
       <section
         className="relative overflow-hidden rounded-[22px] px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
         style={{
@@ -119,7 +119,7 @@ export async function WeekContent({
         </div>
       </section>
 
-      {/* OVERVIEW — what this week covers */}
+      {/* OVERVIEW - what this week covers */}
       {week.description && (
         <section>
           <SectionHead title="Overview" />
@@ -129,7 +129,7 @@ export async function WeekContent({
         </section>
       )}
 
-      {/* VIDEO + BOOKLET — side-by-side */}
+      {/* VIDEO + BOOKLET - side-by-side */}
       <div className="grid md:grid-cols-[1.6fr_1fr] gap-4">
         {/* Video */}
         <div className="rounded-[20px] border border-line bg-surface overflow-hidden shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-16px_rgba(31,40,90,0.16)]">
@@ -245,7 +245,7 @@ export async function WeekContent({
         </div>
       </div>
 
-      {/* TUTOR NOTES — extra material the tutor added for this week */}
+      {/* TUTOR NOTES - extra material the tutor added for this week */}
       {(week.tutorNote || week.tutorAttachments.length > 0) && (
         <section>
           <SectionHead title="Tutor notes" count={week.tutorAttachments.length} />
@@ -336,7 +336,7 @@ export async function WeekContent({
         </section>
       )}
 
-      {/* HOMEWORK — card grid */}
+      {/* HOMEWORK - card grid */}
       <section>
         <SectionHead
           title="Homework"

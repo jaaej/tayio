@@ -96,7 +96,7 @@ export default async function ParentHomeworkPage({
       >
         <StatTile
           label="Completion"
-          value={total > 0 ? `${completed}/${total}` : "—"}
+          value={total > 0 ? `${completed}/${total}` : "-"}
           icon={<ClipboardList className="h-5 w-5" />}
           tone="sky"
           accent
@@ -177,7 +177,7 @@ export default async function ParentHomeworkPage({
                       />
                     </Td>
                     <Td className="text-right tabular-nums font-extrabold text-ink">
-                      {r.score !== null ? r.score : "—"}
+                      {r.score !== null ? r.score : "-"}
                     </Td>
                   </Tr>
                 ))}

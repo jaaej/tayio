@@ -115,7 +115,7 @@ export default async function PaymentsPage() {
         className="rise"
         eyebrow="Invoices"
         title="Who has paid, who hasn't"
-        sub="Manual invoice tracking for the MVP. Stripe integration arrives in Phase 3 — mark payments here as they clear in your bank."
+        sub="Manual invoice tracking for the MVP. Stripe integration arrives in Phase 3 - mark payments here as they clear in your bank."
       />
 
       <section className="grid sm:grid-cols-3 gap-4 rise">
@@ -193,10 +193,10 @@ export default async function PaymentsPage() {
                       <td className="px-5 py-3 text-[13px] text-ink-soft">
                         {r.studentFirst
                           ? `${r.studentFirst} ${r.studentLast}`
-                          : "—"}
+                          : "-"}
                       </td>
                       <td className="px-5 py-3 text-[12px] text-ink-soft">
-                        {r.description || "—"}
+                        {r.description || "-"}
                       </td>
                       <td className="px-5 py-3 text-right text-[13px] font-extrabold tabular-nums text-ink">
                         {formatMoney(r.amount, r.currency)}

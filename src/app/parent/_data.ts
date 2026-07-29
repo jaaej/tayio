@@ -488,7 +488,7 @@ export type RescheduleLessonDetail = {
 
 /**
  * Fetches a lesson IF the requesting parent has at least one linked child
- * enrolled in the class. Returns null otherwise — caller must treat null as
+ * enrolled in the class. Returns null otherwise - caller must treat null as
  * "no access" or "not found" (do not leak the difference).
  */
 export async function getRescheduleLessonForParent(

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * PageHead — top-of-page header in the v2 design.
+ * PageHead - top-of-page header in the v2 design.
  * Eyebrow (optional uppercase tag) above an H1, with optional sub line
  * and right-aligned action slot.
  */
@@ -47,7 +47,7 @@ export function PageHead({
 }
 
 /**
- * SectionHead — block heading above a card or grid of cards.
+ * SectionHead - block heading above a card or grid of cards.
  * H3 + optional action link on the right.
  */
 export function SectionHead({

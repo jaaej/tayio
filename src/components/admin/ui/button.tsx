@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Admin button — the reference `.btn`. Variant/size names are kept compatible
+ * Admin button - the reference `.btn`. Variant/size names are kept compatible
  * with the shared `@/components/ui/button` so usages can be swapped 1:1.
  */
 const button = cva(

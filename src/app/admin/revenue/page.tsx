@@ -19,7 +19,7 @@ export default async function RevenuePage() {
   await requireRole("admin");
   const { unlocked, pinSet } = await getAdminSecurityState();
 
-  // Locked: never query or render any figure — the number must not reach the
+  // Locked: never query or render any figure - the number must not reach the
   // DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
   if (!unlocked) {
     return (

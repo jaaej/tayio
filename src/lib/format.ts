@@ -16,7 +16,7 @@ const dateShort = new Intl.DateTimeFormat("en-AU", {
 });
 
 export function parseLessonDate(date: string): Date {
-  // `lessons.date` is a postgres DATE — stringified as YYYY-MM-DD; treat as local.
+  // `lessons.date` is a postgres DATE - stringified as YYYY-MM-DD; treat as local.
   return new Date(`${date}T00:00:00`);
 }
 
@@ -35,7 +35,7 @@ export function formatWeekday(date: string, style: "long" | "short" = "long") {
 }
 
 export function formatTime(t: string) {
-  // postgres TIME comes back as HH:MM:SS — drop seconds, convert to 12h.
+  // postgres TIME comes back as HH:MM:SS - drop seconds, convert to 12h.
   const [h, m] = t.split(":");
   const hour = Number(h);
   const suffix = hour >= 12 ? "pm" : "am";

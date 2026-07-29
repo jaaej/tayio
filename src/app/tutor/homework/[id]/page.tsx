@@ -238,7 +238,7 @@ export default async function HomeworkDetailPage({
                           type="number"
                           step="0.01"
                           defaultValue={s.score ?? ""}
-                          placeholder="—"
+                          placeholder="-"
                           className={INPUT_CLS}
                         />
                       </div>

@@ -72,7 +72,7 @@ export default async function TutorClassCurriculumPage({
               className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none truncate"
               style={{ color: tokens.title }}
             >
-              {data.className} — Curriculum
+              {data.className} - Curriculum
             </h1>
           </div>
         </div>

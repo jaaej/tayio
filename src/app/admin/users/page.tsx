@@ -186,7 +186,7 @@ async function AllAccountsTab() {
                         <Pill tone={ROLE_TONE[coarseRole(u.role)]}>{u.role}</Pill>
                       </Td>
                       <Td className="text-muted">
-                        {u.yearLevel ? `Yr ${u.yearLevel}` : "—"}
+                        {u.yearLevel ? `Yr ${u.yearLevel}` : "-"}
                         {u.school ? ` · ${u.school}` : ""}
                       </Td>
                       <Td>

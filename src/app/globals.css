@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Taiyo Tuition design tokens — periwinkle + navy palette
+ * Taiyo Tuition design tokens - periwinkle + navy palette
  * matched to the Taiyo Tuition logo (soft periwinkle field, deep navy torii).
  */
 :root {
@@ -32,7 +32,7 @@
   --muted: #5e6a92;
   --hairline: #b9c5e6;
 
-  /* Periwinkle is the page — cards/inputs sit on top in white */
+  /* Periwinkle is the page - cards/inputs sit on top in white */
   --background: var(--periwinkle-200);
   --surface: var(--periwinkle-200);
   --surface-2: var(--periwinkle-300);
@@ -42,7 +42,7 @@
   --foreground: var(--ink);
 
   /* ===========================================================
-   * v2 design tokens — additive. Used only by the student portal
+   * v2 design tokens - additive. Used only by the student portal
    * (scoped via .theme-student which overrides the brand-* / surface
    * vars above). New tokens (sun, mint, grape, sky, coral, semantic
    * pairs, brand-ink, muted-2, line, line-strong, radius scale) live
@@ -81,12 +81,12 @@
 }
 
 /* ===========================================================
- * .theme-student / .theme-tutor — v2 portal scope. Overrides
+ * .theme-student / .theme-tutor - v2 portal scope. Overrides
  * the brand-* and surface/ink vars so Tailwind utility classes
  * like `bg-brand-500` resolve to the v2 cornflower-blue palette
  * inside this wrapper, without affecting parent/admin. Same
  * tokens for both portals so the cross-portal look matches.
- * Font is inherited from the body (Plus Jakarta Sans) — same as parent/admin.
+ * Font is inherited from the body (Plus Jakarta Sans) - same as parent/admin.
  * =========================================================== */
 .theme-student,
 .theme-tutor {
@@ -177,7 +177,7 @@ html {
 }
 
 /*
- * Background: diagonal split — lighter periwinkle in the top-left
+ * Background: diagonal split - lighter periwinkle in the top-left
  * half, deeper periwinkle in the bottom-right half. Smooth ~8% band
  * of transition between so the diagonal reads as a deliberate
  * design line, not a hard edge. Fixed so it doesn't scroll.
@@ -209,7 +209,7 @@ body {
   border-color: var(--hairline);
 }
 
-/* Signature periwinkle gradient — matches the logo backdrop */
+/* Signature periwinkle gradient - matches the logo backdrop */
 .brand-field {
   background: linear-gradient(
     155deg,
@@ -226,7 +226,7 @@ body {
 }
 
 /*
- * Fading dot field — a subtle grid of small navy dots sitting on top
+ * Fading dot field - a subtle grid of small navy dots sitting on top
  * of the diagonal gradient, masked radially so density tapers toward
  * the viewport edges. Fixed pseudo-element keeps it behind all content
  * without affecting flex/grid layout.
@@ -263,7 +263,7 @@ body > * {
   z-index: 1;
 }
 
-/* Soft grain — gentler than before to match the calmer palette */
+/* Soft grain - gentler than before to match the calmer palette */
 .grain {
   position: relative;
 }
@@ -291,7 +291,7 @@ body > * {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Math Blitz game — engagement effects */
+/* Math Blitz game - engagement effects */
 @keyframes blitz-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-14px); }

@@ -1,7 +1,7 @@
 import { Star, Medal } from "lucide-react";
 
 /**
- * Hero block — blue gradient with avatar, level/year chips, and XP bar.
+ * Hero block - blue gradient with avatar, level/year chips, and XP bar.
  *
  * Gamification numbers are static placeholders until the schema tracks
  * XP / levels. Real props: firstName, initials, yearLevel.

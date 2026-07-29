@@ -45,7 +45,7 @@ export default async function TutorHomeworkPage() {
         <Card>
           <CardBody>
             <div className="px-2 py-6 text-sm text-muted text-center">
-              All caught up — nothing waiting to mark. Assign new homework from a
+              All caught up - nothing waiting to mark. Assign new homework from a
               class&apos;s{" "}
               <Link
                 href="/tutor/classes"

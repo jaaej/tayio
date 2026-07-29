@@ -8,7 +8,7 @@ import { Wordmark } from "@/components/brand/wordmark";
 //
 // The old client-side SignupForm was removed on purpose: it called
 // supabase.auth.signUp({ data: { role } }) from the browser, writing a
-// caller-chosen role into user-mutable user_metadata — a self-service
+// caller-chosen role into user-mutable user_metadata - a self-service
 // privilege-escalation path. Any future self-service signup MUST set role
 // server-side into app_metadata only (never trust a client-supplied role).
 

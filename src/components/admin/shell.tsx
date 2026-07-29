@@ -87,12 +87,12 @@ function BrandMark() {
 }
 
 /**
- * AdminShell — admin's own portal chrome, mirroring StudentShell / TutorShell.
+ * AdminShell - admin's own portal chrome, mirroring StudentShell / TutorShell.
  *
  * Wrapped in `.theme-tutor` so the admin subtree inherits the cornflower v2
  * token scope already defined in globals.css (brand-* / surface / ink / line).
  * There is no `.theme-admin` class and globals.css is out of scope to edit, so
- * admin reuses the existing staff-portal cornflower scope — same tokens, no new
+ * admin reuses the existing staff-portal cornflower scope - same tokens, no new
  * ones, no globals.css change. This is the same mechanism student/tutor use.
  *
  * The shared `src/components/portal/shell.tsx` is intentionally NOT touched

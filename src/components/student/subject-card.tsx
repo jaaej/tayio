@@ -7,7 +7,7 @@ import {
 } from "@/lib/subject-colors";
 
 /**
- * Subject card — top accent stripe, colored initial tile, mastery ring,
+ * Subject card - top accent stripe, colored initial tile, mastery ring,
  * name + next class. Color-coded from subject name via the project's
  * accent-family map; the same name always resolves to the same family
  * so colors are consistent across every page.

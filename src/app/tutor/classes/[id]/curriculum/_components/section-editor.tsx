@@ -98,7 +98,7 @@ export function SectionEditor({
 
   return (
     <div className="space-y-4">
-      {/* HERO — subject-coloured */}
+      {/* HERO - subject-coloured */}
       <section
         className="relative overflow-hidden rounded-[22px] px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
         style={{
@@ -214,7 +214,7 @@ export function SectionEditor({
         </Link>
       )}
 
-      {/* TUTOR NOTES — edit-locked */}
+      {/* TUTOR NOTES - edit-locked */}
       <section className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
         <div
           aria-hidden

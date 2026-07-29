@@ -28,7 +28,7 @@ export default async function StudentDiscussionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero strip — indigo gradient, glass stat tile */}
+      {/* Hero strip - indigo gradient, glass stat tile */}
       <section
         className="relative overflow-hidden rounded-[28px] px-8 py-8 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
         style={{
@@ -61,7 +61,7 @@ export default async function StudentDiscussionsPage() {
         </div>
       </section>
 
-      {/* General help — featured wide card with sun accent */}
+      {/* General help - featured wide card with sun accent */}
       {generalHelp && (
         <Link
           href={`/student/discussions/${boardSegment(generalHelp.id)}`}
@@ -207,7 +207,7 @@ export default async function StudentDiscussionsPage() {
         </section>
       ) : (
         <div className="rounded-[22px] border border-line bg-surface p-8 text-center text-[13px] text-muted">
-          No subject boards yet — they&apos;ll appear here once you&apos;re
+          No subject boards yet - they&apos;ll appear here once you&apos;re
           enrolled in a class.
         </div>
       )}

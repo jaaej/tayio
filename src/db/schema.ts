@@ -460,7 +460,7 @@ export const discussionReplies = pgTable("discussion_replies", {
     .references(() => discussionThreads.id, { onDelete: "cascade" }),
   // Nullable: top-level replies have parentReplyId = null;
   // a "reply to a reply" stores the id of the parent reply here.
-  // Only 1 level of nesting supported — children of a reply cannot themselves have children.
+  // Only 1 level of nesting supported - children of a reply cannot themselves have children.
   parentReplyId: uuid("parent_reply_id"),
   authorId: uuid("author_id")
     .notNull()

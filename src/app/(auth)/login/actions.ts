@@ -43,14 +43,14 @@ export async function loginAction(
     return { error: error.message };
   }
 
-  // app_metadata only — user_metadata is user-mutable and must not gate access.
+  // app_metadata only - user_metadata is user-mutable and must not gate access.
   // Collapse the tiered role (e.g. student_restricted) to its route family
-  // (student) — only /student, /parent, /tutor, /admin exist as routes.
+  // (student) - only /student, /parent, /tutor, /admin exist as routes.
   const role = data.user?.app_metadata?.role as UserRole | undefined;
   const home = role ? `/${coarseRole(role)}` : "/";
 
   // Open-redirect guard: allow only same-origin absolute paths. First char must
-  // be "/" and the second must NOT be "/" or "\" — this rejects protocol-
+  // be "/" and the second must NOT be "/" or "\" - this rejects protocol-
   // relative ("//host") and backslash ("/\host") forms that browsers normalize
   // to another origin. Also reject any control characters (browsers strip
   // \t\r\n from URLs, which could smuggle a "//").

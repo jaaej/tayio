@@ -184,7 +184,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     .limit(1);
   if (!student) notFound();
 
-  // Limit attendance/notes/homework to lessons/classes this tutor teaches —
+  // Limit attendance/notes/homework to lessons/classes this tutor teaches -
   // a tutor shouldn't see what other tutors said about the student.
   const classIds = await getTutorClassIds(tutorId);
 

@@ -147,7 +147,7 @@ export async function saveLessonNote(formData: FormData) {
     internalNote: optionalText(formData.get("internalNote"), 5000),
   };
 
-  // Upsert by (lessonId, studentId, tutorId) — schema has no unique on those,
+  // Upsert by (lessonId, studentId, tutorId) - schema has no unique on those,
   // so do a delete-then-insert in a transaction.
   await db.transaction(async (tx) => {
     await tx
@@ -378,7 +378,7 @@ export async function toggleDayIsolation(formData: FormData) {
 
   if (existing.length > 0) {
     // Un-isolate: drop the sentinel AND any positive date overrides for this
-    // date (they were specific to the isolated picker — leaving them around
+    // date (they were specific to the isolated picker - leaving them around
     // would silently expand availability once the weekly rules reapply).
     await db
       .delete(tutorAvailability)

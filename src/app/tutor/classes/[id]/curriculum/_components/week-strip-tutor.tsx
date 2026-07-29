@@ -73,7 +73,7 @@ export function WeekStripTutor({
         />
       </div>
 
-      {/* Week list — grouped by topic */}
+      {/* Week list - grouped by topic */}
       <div className="space-y-1">
         {groups.map((g) => (
           <div key={g.items[0].topicId ?? "other"}>

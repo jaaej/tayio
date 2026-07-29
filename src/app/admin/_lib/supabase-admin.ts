@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 let cached: ReturnType<typeof createClient> | null = null;
 
 /**
- * Service-role Supabase client. Server-only. Bypasses RLS — never expose to the browser.
+ * Service-role Supabase client. Server-only. Bypasses RLS - never expose to the browser.
  */
 export function createAdminClient() {
   if (cached) return cached;

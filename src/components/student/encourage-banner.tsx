@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * Encourage banner — soft brand-tinted strip with emoji + message.
+ * Encourage banner - soft brand-tinted strip with emoji + message.
  * Used on the dashboard below the quests list.
  */
 export function EncourageBanner({

@@ -1,9 +1,9 @@
 /* ===========================================================
- * Parent portal — v2 cornflower/indigo theme scope.
+ * Parent portal - v2 cornflower/indigo theme scope.
  *
  * Mirrors .theme-student / .theme-tutor in globals.css so the parent
  * portal renders in the same Taiyo cornflower palette as the reference
- * design kit — without touching globals.css or any shared component.
+ * design kit - without touching globals.css or any shared component.
  * Scoped under .theme-parent; the rules only set CSS custom properties
  * (plus the wrapper's own background/colour), so they are inert anywhere
  * the .theme-parent class is not present. The shared shell, Card, and

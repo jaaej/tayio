@@ -14,7 +14,7 @@ export function HeroChip({ children }: { children: ReactNode }) {
   );
 }
 
-/** Indigo gradient hero — mirrors the student board hero. */
+/** Indigo gradient hero - mirrors the student board hero. */
 export function Hero({
   eyebrow,
   title,

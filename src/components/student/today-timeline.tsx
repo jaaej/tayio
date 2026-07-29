@@ -10,7 +10,7 @@ export type TimelineItem = {
 };
 
 /**
- * Compact "Today" timeline — time + bar + title/sub. Bar uses the subject
+ * Compact "Today" timeline - time + bar + title/sub. Bar uses the subject
  * accent colour so the column stays scannable at a glance.
  */
 export function TodayTimeline({ items }: { items: TimelineItem[] }) {

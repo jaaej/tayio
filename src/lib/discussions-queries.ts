@@ -133,7 +133,7 @@ export async function listAccessibleBoards(
 
   const countBySubjectId = new Map<string | null, { c: number; t: Date | null }>();
   for (const row of counts) {
-    // sql`max(...)` returns whatever the driver gives — often a string for
+    // sql`max(...)` returns whatever the driver gives - often a string for
     // timestamp aggregations. Normalize to Date here so consumers can trust
     // the BoardSummary type contract.
     const raw = row.lastActivityAt as Date | string | null;

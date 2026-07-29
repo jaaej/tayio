@@ -70,11 +70,11 @@ function BrandMark() {
 }
 
 /**
- * ParentShell — the parent portal's own chrome, mirroring TutorShell /
+ * ParentShell - the parent portal's own chrome, mirroring TutorShell /
  * AdminShell so all v2 portals share the same top-bar + grouped-sidebar
  * layout. Scoped under `.theme-parent` (defined in src/app/parent/theme.css
  * with the same cornflower v2 tokens as .theme-tutor) so no shared CSS or
- * component changes are needed — the shared portal shell is left untouched.
+ * component changes are needed - the shared portal shell is left untouched.
  */
 export async function ParentShell({
   userName,

@@ -75,7 +75,7 @@ export default async function AdminReschedulePage({
         <Card accent="bad">
           <CardBody className="text-[13px] text-bad font-medium">
             {error === "invalid-slot"
-              ? "Couldn't read that slot — try picking again."
+              ? "Couldn't read that slot - try picking again."
               : error === "lesson-past"
                 ? "That lesson has already started, so it can't be rescheduled."
                 : "Something went wrong. Try again."}
@@ -111,7 +111,7 @@ export default async function AdminReschedulePage({
           <CardHead title="Pick a new slot" />
           <CardBody>
             <p className="mb-5 text-[13px] text-muted">
-              Only this student is moved — other enrolled students still attend
+              Only this student is moved - other enrolled students still attend
               the original lesson normally.
             </p>
             <SlotPicker

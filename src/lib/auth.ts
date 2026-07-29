@@ -27,7 +27,7 @@ function roleMatches(userRole: UserRole, accept: UserRole | UserRole[]): boolean
 export async function requireRole(accept: UserRole | UserRole[]) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  // Role is read ONLY from app_metadata — it's server-only and the source of
+  // Role is read ONLY from app_metadata - it's server-only and the source of
   // truth. user_metadata is user-mutable via supabase.auth.updateUser(), so it
   // must never be trusted for authorization. Migration 0002 backfilled every
   // user's app_metadata.role (verified 0 missing), so no fallback is needed.

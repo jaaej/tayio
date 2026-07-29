@@ -66,7 +66,7 @@ export default async function ParentAttendancePage({
       >
         <StatTile
           label="Attendance rate"
-          value={rate !== null ? `${rate}%` : "—"}
+          value={rate !== null ? `${rate}%` : "-"}
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
@@ -122,10 +122,10 @@ export default async function ParentAttendancePage({
                         {formatTime(r.startTime)}
                       </div>
                     </Td>
-                    <Td className="text-ink-soft">{r.subjectName ?? "—"}</Td>
+                    <Td className="text-ink-soft">{r.subjectName ?? "-"}</Td>
                     <Td className="text-ink-soft">{r.tutorName}</Td>
                     <Td className="text-muted max-w-[14rem] truncate">
-                      {r.note || "—"}
+                      {r.note || "-"}
                     </Td>
                     <Td>
                       <StatusPill

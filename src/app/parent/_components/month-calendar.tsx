@@ -186,7 +186,7 @@ export function MonthCalendar({
         <LegendDot color="bg-amber-500" label="Rescheduled" />
         <LegendDot color="bg-rose-500" label="Cancelled" />
         {mode === "pick-slot" && (
-          <LegendDot color="bg-emerald-500" label="Available — click to move" />
+          <LegendDot color="bg-emerald-500" label="Available - click to move" />
         )}
       </div>
     </div>
@@ -317,7 +317,7 @@ function LessonChip({
   isSelected: boolean;
 }) {
   // Reschedule pages live only under /parent/classes, but this calendar renders
-  // on many parent routes (dashboard, attendance, …) with different basePaths —
+  // on many parent routes (dashboard, attendance, …) with different basePaths -
   // so the reschedule link is absolute, not basePath-relative.
   const href = `/parent/classes/reschedule/${lesson.id}${
     childId ? `?childId=${childId}` : ""

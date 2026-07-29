@@ -30,7 +30,7 @@ const WEEKDAY = [
 ];
 
 function trimTime(t: string | null) {
-  return t ? t.slice(0, 5) : "—";
+  return t ? t.slice(0, 5) : "-";
 }
 
 export default async function TutorClassesPage() {
@@ -149,14 +149,14 @@ export default async function TutorClassesPage() {
                       <dd className="text-ink text-right">
                         {typeof c.weekday === "number"
                           ? WEEKDAY[c.weekday]
-                          : "—"}{" "}
+                          : "-"}{" "}
                         <span className="tabular-nums">
                           {trimTime(c.startTime)}–{trimTime(c.endTime)}
                         </span>
                       </dd>
                       <dt className="text-muted">Where</dt>
                       <dd className="text-ink text-right truncate">
-                        {c.location ?? (c.onlineLink ? "Online" : "—")}
+                        {c.location ?? (c.onlineLink ? "Online" : "-")}
                       </dd>
                       <dt className="text-muted">Enrolled</dt>
                       <dd className="text-right">

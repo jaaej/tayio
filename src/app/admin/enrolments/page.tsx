@@ -179,10 +179,10 @@ export default async function EnrolmentsPage({
                               {e.email}
                             </td>
                             <td className="px-5 py-3 text-[13px] text-ink-soft">
-                              {e.yearLevel ? `Yr ${e.yearLevel}` : "—"}
+                              {e.yearLevel ? `Yr ${e.yearLevel}` : "-"}
                             </td>
                             <td className="px-5 py-3 text-[13px] text-ink-soft">
-                              {e.school || "—"}
+                              {e.school || "-"}
                             </td>
                             <td className="px-5 py-3 text-[12px] text-ink-soft tabular-nums">
                               {new Date(e.enrolledAt).toLocaleDateString("en-AU")}
@@ -210,7 +210,7 @@ export default async function EnrolmentsPage({
                 {enrolled.filter((e) => !e.withdrawnAt).length >=
                   selected.capacity && (
                   <div className="px-5 pt-4 text-[12px] text-warn">
-                    Class is at capacity — increase capacity in{" "}
+                    Class is at capacity - increase capacity in{" "}
                     <Link
                       className="underline"
                       href={`/admin/classes/${selected.id}`}

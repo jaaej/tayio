@@ -17,7 +17,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
 
   function isActive(href: string) {
     if (pathname === href) return true;
-    // /student is the dashboard — only exact match counts as active
+    // /student is the dashboard - only exact match counts as active
     // /student/subjects matches /student/subjects/[anything]
     if (href !== "/" && pathname.startsWith(href + "/")) return true;
     return false;

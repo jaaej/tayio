@@ -1,7 +1,7 @@
 import type { UserRole } from "@/db/schema";
 
 /**
- * Canonical pair ordering — smaller UUID becomes userAId, larger becomes userBId.
+ * Canonical pair ordering - smaller UUID becomes userAId, larger becomes userBId.
  * Ensures there is only one row per pair in dm_threads regardless of who started.
  */
 export function canonicalPair(

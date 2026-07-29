@@ -171,7 +171,7 @@ export default async function ClassesPage({
             }
           />
           {rows.length === 0 ? (
-            <Empty>No classes yet — create your first above.</Empty>
+            <Empty>No classes yet - create your first above.</Empty>
           ) : isMonth ? (
             <MonthView rows={rows} monthParam={m} />
           ) : (
@@ -546,7 +546,7 @@ function ScheduleHourRow({
         const cells = cellByKey.get(key) ?? [];
         const isOccupied = occupiedKeys.has(key);
         if (cells.length === 0 && isOccupied) {
-          // Spanned by a class starting in a previous hour — render nothing.
+          // Spanned by a class starting in a previous hour - render nothing.
           return <div key={key} className="h-16" />;
         }
         if (cells.length === 0) {

@@ -107,7 +107,7 @@ export default async function ParentProgressPage({
       >
         <StatTile
           label="Overall mastery"
-          value={overall !== null ? `${overall}%` : "—"}
+          value={overall !== null ? `${overall}%` : "-"}
           icon={<TrendingUp className="h-5 w-5" />}
           tone="grape"
           accent
@@ -137,7 +137,7 @@ export default async function ParentProgressPage({
           value={
             dashboard.attendanceRate !== null
               ? `${dashboard.attendanceRate}%`
-              : "—"
+              : "-"
           }
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"

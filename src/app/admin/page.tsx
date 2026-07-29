@@ -94,7 +94,7 @@ export default async function AdminDashboard() {
               }
             />
             {attentionItems === 0 ? (
-              <Empty>Nothing to action — every tutor and parent is up to date.</Empty>
+              <Empty>Nothing to action - every tutor and parent is up to date.</Empty>
             ) : (
               <div className="divide-y divide-line">
                 {tutorBacklog.map((t) => (
@@ -265,7 +265,7 @@ export default async function AdminDashboard() {
             />
             {notices.length === 0 ? (
               <Empty>
-                Nothing published yet —{" "}
+                Nothing published yet -{" "}
                 <Link
                   className="text-brand-700 font-semibold hover:underline"
                   href="/admin/announcements"

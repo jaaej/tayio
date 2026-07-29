@@ -75,7 +75,7 @@ export default async function TimetablePage({
       studentState: l.studentState,
       moveLabel: l.moveLabel,
       // A moved-out lesson (or one with a pending request) can be rescheduled
-      // again — a second move needs approval (enforced server-side) and a new
+      // again - a second move needs approval (enforced server-side) and a new
       // request supersedes the pending one.
       canReschedule:
         l.status === "upcoming" &&

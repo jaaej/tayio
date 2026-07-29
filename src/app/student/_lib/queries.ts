@@ -163,7 +163,7 @@ const MASTERY_PERCENT = {
 } as const;
 
 export async function getStudentSubjects(studentId: string): Promise<SubjectSummary[]> {
-  // Base list — enrolled classes with subject + tutor
+  // Base list - enrolled classes with subject + tutor
   const enrolled = await db
     .select({
       classId: classes.id,
@@ -588,7 +588,7 @@ export async function getStudentProgressSubjectDetail(
 
 /**
  * Rank for a specific test (homework with is_test = true), within the cohort
- * of students who have a score on that same test. Anonymous — returns only
+ * of students who have a score on that same test. Anonymous - returns only
  * { rank, total }, never names or scores. RANK() handles ties (1,2,2,4).
  * Returns null if the homework isn't a test, the student isn't marked yet,
  * or there are no marked students at all.
@@ -620,7 +620,7 @@ export async function getStudentTestRank(
 }
 
 /**
- * Overall rank within a subject — averages each student's marked test scores
+ * Overall rank within a subject - averages each student's marked test scores
  * (only is_test = true homework rows) and ranks by average descending.
  * Cohort = students with at least one marked test in this subject across any
  * class. Returns null if the student has no marked tests in the subject yet.
@@ -872,7 +872,7 @@ export type LessonRecap = {
   struggles: string | null;
   nextLessonFocus: string | null;
   parentVisibleComment: string | null;
-  // internalNote intentionally excluded — never expose to students.
+  // internalNote intentionally excluded - never expose to students.
 };
 
 export async function getLessonRecap(

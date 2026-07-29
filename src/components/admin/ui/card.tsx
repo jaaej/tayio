@@ -24,7 +24,7 @@ const ACCENT_BAR: Record<Accent, string> = {
   bad: "bg-bad",
 };
 
-/** Chunky white card on the cornflower wash — the reference `.card`. */
+/** Chunky white card on the cornflower wash - the reference `.card`. */
 export function Card({
   accent,
   interactive,
@@ -62,7 +62,7 @@ export function Card({
   );
 }
 
-/** Card header row — `.card-head` (title + optional eyebrow + right action). */
+/** Card header row - `.card-head` (title + optional eyebrow + right action). */
 export function CardHead({
   title,
   eyebrow,

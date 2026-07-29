@@ -26,7 +26,7 @@ function signingKey(): string {
   return key;
 }
 
-/** "<saltHex>:<hashHex>" — scrypt over the PIN with a random 16-byte salt. */
+/** "<saltHex>:<hashHex>" - scrypt over the PIN with a random 16-byte salt. */
 export function hashPin(pin: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(pin, salt, KEYLEN);
@@ -110,7 +110,7 @@ export async function setUnlockCookie(userId: string): Promise<void> {
   const jar = await cookies();
   jar.set(COOKIE, value, {
     httpOnly: true,
-    // Only mark Secure in production — a Secure cookie is silently dropped
+    // Only mark Secure in production - a Secure cookie is silently dropped
     // over plain HTTP (dev server / LAN-IP device testing), which would leave
     // the admin permanently "locked" after a correct PIN.
     secure: process.env.NODE_ENV === "production",
@@ -138,7 +138,7 @@ export async function isAdminUnlocked(): Promise<boolean> {
   try {
     expectedMac = sign(payload);
   } catch {
-    // Signing key missing/misconfigured — treat as not-unlocked rather than
+    // Signing key missing/misconfigured - treat as not-unlocked rather than
     // throwing, so a stale cookie can't 500 a page render.
     return false;
   }

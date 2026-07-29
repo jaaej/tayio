@@ -38,12 +38,12 @@ function parseSlot(raw: string) {
  *   1. New `lessons` row: same classId, picked tutor/date/time, status="makeup",
  *      rescheduledFrom=originalLessonId.
  *   2. Attendance row on the original lesson: studentId → "absent" (no
- *      "rescheduled" attendance status exists — absent is the closest fit).
+ *      "rescheduled" attendance status exists - absent is the closest fit).
  *   3. Attendance row on the new lesson: studentId → "makeup_attended".
  *   4. Notifications to: original tutor, new tutor (if different), and
  *      every linked parent of the student.
  *
- * The original lesson itself is NOT mutated — other enrolled students still
+ * The original lesson itself is NOT mutated - other enrolled students still
  * attend it normally.
  */
 export async function rescheduleStudentLesson(formData: FormData) {

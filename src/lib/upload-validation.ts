@@ -12,7 +12,7 @@ import "server-only";
  *   3. sniff the leading bytes and require the real content family to match
  *      what the declared MIME implies,
  *   4. return a *canonical* extension + content-type derived from the
- *      allowlist entry — never from the client filename.
+ *      allowlist entry - never from the client filename.
  *
  * Residual limitation (accepted): OOXML (.docx/.pptx) and legacy Office
  * (.doc/.ppt) share ZIP / OLE container signatures, so we verify the container
@@ -32,7 +32,7 @@ type Family =
   | "ole" // legacy Office: .doc / .ppt / .xls
   | "mp4" // ISO base media: .mp4 / .mov
   | "webm"
-  | "text"; // no signature — validated as UTF-8 text instead
+  | "text"; // no signature - validated as UTF-8 text instead
 
 type AllowEntry = { family: Family; ext: string; mime: string };
 
@@ -127,7 +127,7 @@ export async function validateUpload(
       return { ok: false, error: "File content does not match declared type" };
     }
   } else {
-    // Only the leading bytes are needed to identify a binary type — read a small
+    // Only the leading bytes are needed to identify a binary type - read a small
     // header slice and let the caller stream the original File to storage. This
     // avoids buffering large (e.g. 500 MB video) uploads into memory.
     const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
@@ -216,7 +216,7 @@ export const DISCUSSION_POLICY: UploadPolicy = {
 
 /**
  * Resource library uploads: study docs, images, and video.
- * SVG is intentionally excluded — it executes script and is an XSS vector.
+ * SVG is intentionally excluded - it executes script and is an XSS vector.
  * maxBytes is the overall ceiling (500 MB); perFamilyMax tightens document and
  * image families to 25 MB so a large video limit does not silently apply to PDFs.
  */

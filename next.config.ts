@@ -14,7 +14,7 @@ const supabaseWs = supabaseOrigin.replace(/^https/, "wss");
 
 // NOTE: script-src still allows 'unsafe-inline' because Next.js injects inline
 // bootstrap/hydration scripts. Turning that into real XSS protection requires a
-// per-request nonce (middleware-generated) — tracked as the follow-up. Every
+// per-request nonce (middleware-generated) - tracked as the follow-up. Every
 // other directive is locked down. style-src needs 'unsafe-inline' for the
 // inline style={{...}} attributes used throughout the UI.
 const csp = [

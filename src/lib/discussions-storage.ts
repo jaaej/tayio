@@ -17,7 +17,7 @@ export type UploadedAttachment = {
 /**
  * Validate (magic-byte sniff, size, allowlist) and upload one discussion
  * attachment under `${groupId}/<random>.<ext>`. Returns the storage path on
- * success. Uses the service-role client — callers MUST have already authorised
+ * success. Uses the service-role client - callers MUST have already authorised
  * the actor for this board.
  */
 export async function uploadDiscussionAttachment(

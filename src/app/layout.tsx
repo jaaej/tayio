@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Taiyo Tuition — Student Portal",
+  title: "Taiyo Tuition - Student Portal",
   description:
     "The Taiyo Tuition student portal. Lessons, homework, progress and feedback in one place.",
 };

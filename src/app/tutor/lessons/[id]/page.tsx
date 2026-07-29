@@ -35,7 +35,7 @@ export default async function LessonDetailPage({
   const { lesson, roster, notes } = await getLessonForTutor(tutor.id, id);
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
 
-  // Reschedules — who moved out of this lesson (and where) and who's a make-up in.
+  // Reschedules - who moved out of this lesson (and where) and who's a make-up in.
   const { movedOut, movedIn } = await getLessonReschedules(id);
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
 
@@ -269,7 +269,7 @@ export default async function LessonDetailPage({
                             defaultValue={existing?.internalNote ?? ""}
                             rows={4}
                             className={`${INPUT_CLS} h-auto py-2`}
-                            placeholder="e.g. Struggling with focus — check in with parent privately."
+                            placeholder="e.g. Struggling with focus - check in with parent privately."
                           />
                         </div>
                       </div>

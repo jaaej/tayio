@@ -122,7 +122,7 @@ export async function promoteAttachment(formData: FormData) {
     topicId: formData.get("topicId") || undefined,
   });
 
-  // Auth before DB read — rejects unauthenticated/wrong-role callers before any probe.
+  // Auth before DB read - rejects unauthenticated/wrong-role callers before any probe.
   await requireRole(["tutor", "admin"]);
 
   // tutorWeekAttachments has no subjectId column; derive via:
@@ -203,7 +203,7 @@ export async function setResourcePublished(formData: FormData) {
   const { id } = idSchema.parse({ id: formData.get("id") });
   const published = formData.get("published") === "true";
 
-  // Auth before DB read — rejects unauthenticated/wrong-role callers before any probe.
+  // Auth before DB read - rejects unauthenticated/wrong-role callers before any probe.
   await requireRole(["tutor", "admin"]);
 
   const [row] = await db
@@ -275,7 +275,7 @@ export async function restoreResource(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// openResource  (student browse — re-authorizes before signing)
+// openResource  (student browse - re-authorizes before signing)
 // ---------------------------------------------------------------------------
 
 export async function openResource(
@@ -291,7 +291,7 @@ export async function openResource(
 }
 
 // ---------------------------------------------------------------------------
-// openResourceForParent  (parent browse — re-authorizes before signing)
+// openResourceForParent  (parent browse - re-authorizes before signing)
 // ---------------------------------------------------------------------------
 
 export async function openResourceForParent(

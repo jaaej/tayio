@@ -202,7 +202,7 @@ export default async function StudentProgressSubjectPage({
         />
         <StatTile
           label="Average score"
-          value={averageScore !== null ? `${averageScore}%` : "—"}
+          value={averageScore !== null ? `${averageScore}%` : "-"}
           icon={<CheckCircle2 className="h-4 w-4" />}
           color={tokens.arrow}
           bg={tokens.bgFrom}
@@ -297,7 +297,7 @@ export default async function StudentProgressSubjectPage({
                       }}
                     >
                       <div className="text-[22px] font-bold tabular-nums leading-none tracking-[-0.02em]">
-                        {hasScore ? `${Number(h.score)}` : "—"}
+                        {hasScore ? `${Number(h.score)}` : "-"}
                       </div>
                       <div className="mt-1 text-[9px] uppercase tracking-[0.14em] font-bold">
                         {hasScore ? "score" : "ungraded"}

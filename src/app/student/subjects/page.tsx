@@ -59,7 +59,7 @@ export default async function StudentSubjectsIndex({
     ? monthBounds(year, month)
     : weekBounds(weekStart);
   // "Full month" toggle target: the month owning most of the viewed week
-  // (its Thursday, per ISO convention) — not the Monday, which can sit in
+  // (its Thursday, per ISO convention) - not the Monday, which can sit in
   // the previous month.
   const weekMid = new Date(weekStart);
   weekMid.setDate(weekStart.getDate() + 3);
@@ -159,7 +159,7 @@ export default async function StudentSubjectsIndex({
             </div>
           </div>
 
-          {/* Homework — full-month due-date calendar (timetable style) */}
+          {/* Homework - full-month due-date calendar (timetable style) */}
           <div>
             <SectionHead title="Homework" />
             {allHomework.length === 0 ? (

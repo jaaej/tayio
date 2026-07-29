@@ -62,7 +62,7 @@ export function playSound(name: SoundName): void {
     case "mute":
       return;
     case "coin":
-      // two quick ascending notes — classic pickup
+      // two quick ascending notes - classic pickup
       blip("square", [[988, 0], [1319, 0.07]], 0.12);
       return;
     case "pop":

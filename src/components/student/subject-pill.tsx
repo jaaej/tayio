@@ -1,7 +1,7 @@
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 
 /**
- * Subject chip — a colour-coded pill keyed off the subject name, using the
+ * Subject chip - a colour-coded pill keyed off the subject name, using the
  * same accent family the subject uses everywhere else in the portal. Shared
  * by the homework row, quest row, and today timeline so the "little
  * sub-block" treatment stays identical across the student portal.

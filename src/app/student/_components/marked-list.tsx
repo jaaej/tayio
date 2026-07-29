@@ -71,7 +71,7 @@ function MarkedRow({ hw }: { hw: HomeworkRow }) {
           )}
           <div className="flex items-center justify-between gap-3 text-xs text-ink-soft">
             <span>
-              {submittedLabel ? `Submitted ${submittedLabel}` : "—"}
+              {submittedLabel ? `Submitted ${submittedLabel}` : "-"}
             </span>
             <Link
               href={`/student/homework/${hw.homeworkId}`}

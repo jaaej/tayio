@@ -1,4 +1,4 @@
-// Solid background colour per author role — used for avatar circles in
+// Solid background colour per author role - used for avatar circles in
 // discussion threads so the speaker is identifiable at a glance.
 const ROLE_TONE = {
   student: "#4f5bd5",
@@ -11,7 +11,7 @@ export function roleColor(role: string): string {
   return ROLE_TONE[role as keyof typeof ROLE_TONE] ?? ROLE_TONE.student;
 }
 
-// Tutors and admins give authoritative answers — their replies get highlighted.
+// Tutors and admins give authoritative answers - their replies get highlighted.
 export function isStaffRole(role: string): boolean {
   return role === "tutor" || role === "admin";
 }

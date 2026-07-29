@@ -44,7 +44,7 @@ const DELTA_TONE = {
 } as const;
 
 /**
- * KPI tile — the reference `.kpi` / `.stat-chip` fused: tinted icon square,
+ * KPI tile - the reference `.kpi` / `.stat-chip` fused: tinted icon square,
  * extrabold tabular value, uppercase label, optional delta. Lifts on hover
  * when it links somewhere.
  */

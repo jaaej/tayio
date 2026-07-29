@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Small uppercase back link — the reference page back affordance. */
+/** Small uppercase back link - the reference page back affordance. */
 export function BackLink({
   href,
   children,
@@ -22,7 +22,7 @@ export function BackLink({
   );
 }
 
-/** Page title strip — the reference `.page-head`. */
+/** Page title strip - the reference `.page-head`. */
 export function PageHeader({
   eyebrow,
   title,

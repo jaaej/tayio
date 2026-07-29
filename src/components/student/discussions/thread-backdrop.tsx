@@ -34,7 +34,7 @@ export function ThreadBackdrop({ tokens }: { tokens: AccentTokens }) {
         }}
       />
 
-      {/* Diagonal half divider — lighter half + a crisp accent line, same angle */}
+      {/* Diagonal half divider - lighter half + a crisp accent line, same angle */}
       <div
         className="absolute inset-0 opacity-70"
         style={{

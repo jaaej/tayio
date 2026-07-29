@@ -56,7 +56,7 @@ export default function LandingPage() {
               </h1>
               <p className="mt-8 max-w-xl text-base lg:text-lg text-ink-soft leading-relaxed">
                 One place for students to learn, parents to follow along, tutors to
-                teach, and admins to run the business. Designed to remove noise — not
+                teach, and admins to run the business. Designed to remove noise - not
                 add to it.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">

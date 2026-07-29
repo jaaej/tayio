@@ -35,7 +35,7 @@ export function StudentReplyList({
   if (topLevel.length === 0) {
     return (
       <div className="py-2 text-[14px] text-muted">
-        No replies yet — be the first to chime in.
+        No replies yet - be the first to chime in.
       </div>
     );
   }

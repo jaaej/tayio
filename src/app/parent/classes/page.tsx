@@ -155,7 +155,7 @@ export default async function ParentClassesPage({
       >
         <StatTile
           label="Attendance rate"
-          value={rate !== null ? `${rate}%` : "—"}
+          value={rate !== null ? `${rate}%` : "-"}
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
@@ -242,7 +242,7 @@ export default async function ParentClassesPage({
             </div>
             {availableSlots.length === 0 && (
               <div className="px-6 py-4 bg-amber-50 border-b border-amber-200/70 text-sm text-amber-900">
-                No classes available — no tutor teaching{" "}
+                No classes available - no tutor teaching{" "}
                 {rescheduleLesson.subjectName} has open slots in the next 8
                 weeks. Pick a different class or contact the office.
               </div>
@@ -344,7 +344,7 @@ export default async function ParentClassesPage({
                     </div>
                   </div>
                   <div className="col-span-3 text-sm text-ink-soft min-w-0 truncate">
-                    {r.subjectName ?? "—"}
+                    {r.subjectName ?? "-"}
                   </div>
                   <div className="col-span-2 text-sm text-ink-soft min-w-0 truncate">
                     {r.tutorName}

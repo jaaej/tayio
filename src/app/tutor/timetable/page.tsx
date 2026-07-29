@@ -125,7 +125,7 @@ export default async function TutorTimetablePage({
       ),
   ]);
   const isolatedDates = new Set<string>();
-  // Map<dateIso, Set<hour>> of positive date overrides — used when the day
+  // Map<dateIso, Set<hour>> of positive date overrides - used when the day
   // is isolated to drive its independent hour pills.
   const dateOverrideHours = new Map<string, Set<number>>();
   for (const r of dateOverrideRows) {
@@ -315,7 +315,7 @@ export default async function TutorTimetablePage({
                 />
                 <Legend
                   color="bg-surface border border-line"
-                  label="Empty — click to add"
+                  label="Empty - click to add"
                 />
               </>
             )}
@@ -412,7 +412,7 @@ function DayCell({
               title={
                 day.isIsolated
                   ? "Re-link to weekly rules (this day's custom slots will be cleared)"
-                  : "Isolate this day — edit its slots independently of the weekly rules"
+                  : "Isolate this day - edit its slots independently of the weekly rules"
               }
               aria-pressed={day.isIsolated}
               aria-label={
@@ -480,10 +480,10 @@ function DayCell({
                 ? availTone
                 : "bg-surface text-muted-2 border border-line";
             const title = isLesson
-              ? `${formatTime(hh(h))} — ${lessonHours.get(h)!.subjectName}`
+              ? `${formatTime(hh(h))} - ${lessonHours.get(h)!.subjectName}`
               : isAvail
-                ? `${formatTime(hh(h))} — available${day.isIsolated ? " (this day only)" : ""} (click to remove)`
-                : `${formatTime(hh(h))} — empty (click to add${day.isIsolated ? " — this day only" : ""})`;
+                ? `${formatTime(hh(h))} - available${day.isIsolated ? " (this day only)" : ""} (click to remove)`
+                : `${formatTime(hh(h))} - empty (click to add${day.isIsolated ? " - this day only" : ""})`;
 
             if (!isLesson) {
               if (day.isIsolated) {

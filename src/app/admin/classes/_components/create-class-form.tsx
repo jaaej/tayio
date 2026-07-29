@@ -117,7 +117,7 @@ export function CreateClassForm({
       <div className="space-y-1.5">
         <Label htmlFor="weekday">Weekday</Label>
         <Select id="weekday" name="weekday" defaultValue="">
-          <option value="">—</option>
+          <option value="">-</option>
           {WEEKDAYS.map((d, i) => (
             <option key={d} value={i}>
               {d}

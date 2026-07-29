@@ -2,7 +2,7 @@
  * Subject colour-family tokens. Used by SubjectCard and any role-side UI
  * that needs to colour-code by subject (homework cards, schedule chips, etc.).
  *
- * Keep this module pure data + a name-heuristic function — no React. Visual
+ * Keep this module pure data + a name-heuristic function - no React. Visual
  * components compose these tokens via inline styles.
  */
 
@@ -16,7 +16,7 @@ export type AccentFamily =
   | "cyan";
 
 export type AccentTokens = {
-  /** soft gradient top — for tinted card backgrounds */
+  /** soft gradient top - for tinted card backgrounds */
   bgFrom: string;
   /** soft gradient bottom */
   bgTo: string;
@@ -26,9 +26,9 @@ export type AccentTokens = {
   title: string;
   /** secondary / meta text colour */
   meta: string;
-  /** small accent — arrows, dots, rails */
+  /** small accent - arrows, dots, rails */
   arrow: string;
-  /** vibrant pill background — for tags / chips */
+  /** vibrant pill background - for tags / chips */
   pillBg: string;
   /** bold pill text colour */
   pillText: string;

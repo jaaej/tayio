@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/** Empty-state block — the reference `.empty`. */
+/** Empty-state block - the reference `.empty`. */
 export function Empty({
   children,
   className,

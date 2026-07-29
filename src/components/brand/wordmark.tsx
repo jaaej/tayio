@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Torii gate mark — recreated as inline SVG so it scales without an asset request.
+ * Torii gate mark - recreated as inline SVG so it scales without an asset request.
  * Matches the navy torii in the Taiyo Tuition logo.
  */
 export function ToriiMark({
@@ -20,11 +20,11 @@ export function ToriiMark({
     >
       {/* Top beam (kasagi) with upturned ends */}
       <path d="M4 14c4-3 8-4 12-4h32c4 0 8 1 12 4l-2 4c-4-2-8-3-12-3H18c-4 0-8 1-12 3l-2-4z" />
-      {/* Shimaki — thick block under the top beam */}
+      {/* Shimaki - thick block under the top beam */}
       <rect x="8" y="18" width="48" height="6" rx="1" />
-      {/* Nuki — shorter beam below */}
+      {/* Nuki - shorter beam below */}
       <rect x="14" y="29" width="36" height="4" rx="1" />
-      {/* Gakuzuka — middle column */}
+      {/* Gakuzuka - middle column */}
       <rect x="30" y="24" width="4" height="6" />
       {/* Left pillar */}
       <rect x="14" y="33" width="6" height="27" rx="0.5" />
@@ -35,7 +35,7 @@ export function ToriiMark({
 }
 
 /**
- * Full lockup — torii + TAIYO TUITION text. Used on landing, login, footer.
+ * Full lockup - torii + TAIYO TUITION text. Used on landing, login, footer.
  */
 export function Wordmark({
   className,
@@ -76,7 +76,7 @@ export function Wordmark({
 }
 
 /**
- * Boxed logo — torii inside the signature periwinkle card,
+ * Boxed logo - torii inside the signature periwinkle card,
  * used for hero, login splash, and any standalone brand moment.
  */
 export function LogoCard({
@@ -102,7 +102,7 @@ export function LogoCard({
         TAIYO
       </div>
       <div className="mt-0.5 text-white/90 tracking-[0.2em] text-[7px]">
-        — TUITION —
+        - TUITION -
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ export type RescheduleOptions =
   | {
       ok: true;
       approvalRequired: boolean;
-      /** True when the lesson has already been rescheduled — this move needs
+      /** True when the lesson has already been rescheduled - this move needs
        *  approval regardless of timing. */
       secondReschedule: boolean;
       lesson: {
@@ -160,7 +160,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
       (s) => s.tutorId === tutorId && s.date === date && s.startTime === startTime,
     )
   ) {
-    return { ok: false, error: "That time is no longer available — pick another." };
+    return { ok: false, error: "That time is no longer available - pick another." };
   }
 
   const done = () => {

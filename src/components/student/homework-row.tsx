@@ -8,7 +8,7 @@ import {
 } from "@/lib/subject-colors";
 
 /**
- * Homework row — subject color bar + title + chips (subject + due).
+ * Homework row - subject color bar + title + chips (subject + due).
  * The subject is a colour-coded pill (same family the subject uses
  * everywhere); the due date sits beside it as a neutral chip. Replaces
  * the old cramped "{subject} · {meta}" meta line.

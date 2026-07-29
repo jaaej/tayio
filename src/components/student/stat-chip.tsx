@@ -13,7 +13,7 @@ const HUE_BG: Record<Hue, string> = {
 };
 
 /**
- * Stat chip — coloured icon tile + big value + small label.
+ * Stat chip - coloured icon tile + big value + small label.
  * Used in the dashboard's chip row.
  */
 export function StatChip({

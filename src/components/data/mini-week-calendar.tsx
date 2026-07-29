@@ -4,7 +4,7 @@ import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 export type CalendarEvent = {
   /** ISO date YYYY-MM-DD */
   date: string;
-  /** "HH:MM" — lessons. null = all-day (homework due, event) */
+  /** "HH:MM" - lessons. null = all-day (homework due, event) */
   time: string | null;
   /** End time for lessons, optional */
   endTime?: string | null;
@@ -150,7 +150,7 @@ export function MiniWeekCalendar({
               <div className="flex-1 p-1.5 space-y-1">
                 {dayEvents.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-[10px] text-muted/60 italic">
-                    —
+                    -
                   </div>
                 ) : (
                   dayEvents.map((e, i) => (

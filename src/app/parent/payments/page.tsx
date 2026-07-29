@@ -77,7 +77,7 @@ export default async function ParentPaymentsPage() {
                   {formatMoney(outstanding)}
                 </div>
                 <div className="mt-1 text-xs text-muted">
-                  Payments are processed externally — confirmation arrives by
+                  Payments are processed externally - confirmation arrives by
                   email.
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default async function ParentPaymentsPage() {
                           )}
                         </div>
                       </Td>
-                      <Td className="text-ink-soft">{studentName || "—"}</Td>
+                      <Td className="text-ink-soft">{studentName || "-"}</Td>
                       <Td className="text-right tabular-nums font-extrabold text-ink">
                         {formatMoney(Number(r.amount))}
                       </Td>

@@ -35,7 +35,7 @@ export type OpenResourceAction = (
 /**
  * Subject-scoped resource library browser: type/topic/title filters + grouped
  * resource lists. Shared between the student and parent Library tabs (both
- * are read-only browse UIs over the same `resources` data) — the caller
+ * are read-only browse UIs over the same `resources` data) - the caller
  * supplies the pre-scoped `groups`/`topicOptions` and the server action used
  * to open a resource, since student and parent authorize via different
  * subject sets (`enrolledSubjectIds` vs `childSubjectIds`).

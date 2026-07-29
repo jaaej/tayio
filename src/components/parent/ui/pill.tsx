@@ -28,7 +28,7 @@ const TONE: Record<PillTone, string> = {
   sun: "bg-sun-100 text-sun-600 border-transparent",
 };
 
-/** Pill / chip — the reference `.pill`. */
+/** Pill / chip - the reference `.pill`. */
 export function Pill({
   tone = "default",
   dot,

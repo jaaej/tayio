@@ -14,8 +14,8 @@ import {
 /**
  * Server-loaded resource library for the logged-in parent, scoped to the
  * union of all their children's actively-enrolled subjects (via
- * `childSubjectIds`). Mirrors the student `LibraryBrowser` — same subject
- * grouping and read-only filter UI — but resources aggregate across every
+ * `childSubjectIds`). Mirrors the student `LibraryBrowser` - same subject
+ * grouping and read-only filter UI - but resources aggregate across every
  * child at once rather than a single student, since resources are
  * subject-scoped (not per-child) and the subject grouping already makes the
  * origin clear without a child switcher.
@@ -27,7 +27,7 @@ export async function ParentLibraryBrowser({ parentId }: { parentId: string }) {
     return (
       <Card>
         <div className="py-6 text-sm text-ink-soft">
-          No resources yet — your children aren't enrolled in any subjects.
+          No resources yet - your children aren't enrolled in any subjects.
         </div>
       </Card>
     );

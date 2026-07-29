@@ -130,7 +130,7 @@ export default async function TutorDashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Hero band — soft brand gradient, time-based greeting, avatar +
+      {/* Hero band - soft brand gradient, time-based greeting, avatar +
         * next-up callout. Replaces the plain PageHead so the page opens
         * with a clear sense of "here's where you are today". */}
       <section
@@ -184,7 +184,7 @@ export default async function TutorDashboard() {
               title="Submissions to mark"
               tagline={
                 submissions.length === 0
-                  ? "Nothing waiting — enjoy the breather."
+                  ? "Nothing waiting - enjoy the breather."
                   : lateCount > 0
                     ? `${lateCount} late · review the most urgent first`
                     : `${submissions.length} fresh submission${submissions.length === 1 ? "" : "s"} waiting`
@@ -216,7 +216,7 @@ export default async function TutorDashboard() {
                 {lateCount > 0 && (
                   <div className="min-w-0">
                     <BandedSubsection
-                      label="Late — review first"
+                      label="Late - review first"
                       count={lateCount}
                       tone="bad"
                       icon={<Flame className="h-3.5 w-3.5" />}
@@ -261,7 +261,7 @@ export default async function TutorDashboard() {
               title="Students to bump"
               tagline={
                 bumpList.length === 0
-                  ? "Everyone's on track — nice work."
+                  ? "Everyone's on track - nice work."
                   : "Send a nudge before homework piles up."
               }
               countBadge={bumpList.length}
@@ -373,7 +373,7 @@ export default async function TutorDashboard() {
 }
 
 /** Plain card header with icon tile, tagline, count badge, optional CTA.
- * (Background is intentionally neutral — color lives in the row cards
+ * (Background is intentionally neutral - color lives in the row cards
  * below, not on the title block.) */
 function RichHeader({
   icon,
@@ -506,7 +506,7 @@ function SubmissionCard({
   submission: SubmissionItem;
   urgent?: boolean;
 }) {
-  // Subtle background tint differentiates state at a glance — coral wash
+  // Subtle background tint differentiates state at a glance - coral wash
   // for late, brand wash for on-time.
   const cardCls = urgent
     ? "bg-gradient-to-br from-bad-bg via-surface to-surface border-bad/40"
@@ -596,7 +596,7 @@ function BumpCard({ bump: b }: { bump: BumpItem }) {
       : overdueDays === 1
         ? "1 day overdue"
         : `${overdueDays} days overdue`;
-  // Severity tier — worst offenders get a coral wash + red ring; mild
+  // Severity tier - worst offenders get a coral wash + red ring; mild
   // ones stay calm so the eye picks the real urgency.
   const severity =
     overdueDays >= 7 ? "high" : overdueDays >= 3 ? "med" : "low";

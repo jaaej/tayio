@@ -13,7 +13,7 @@ const MEDAL_BG: Record<Medal, string> = {
 };
 
 /**
- * Achievement medal — square tile with emoji + label, with locked variant.
+ * Achievement medal - square tile with emoji + label, with locked variant.
  * Dummy/static data only until gamification backend exists.
  */
 export function AchievementMedal({

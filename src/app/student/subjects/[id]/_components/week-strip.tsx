@@ -5,7 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Vertical week rail — sits on the left of the subject page.
+ * Vertical week rail - sits on the left of the subject page.
  * Themed with the subject's accent color: the rail's frame, the active
  * pill, and the hover state all use shades from getAccentTokens.
  */
@@ -34,7 +34,7 @@ export function WeekStrip({
   }>;
   selectedWeekId: string | null;
   currentWeekIdHint: string | null;
-  /** Subject color tokens — drives the entire rail's theming. */
+  /** Subject color tokens - drives the entire rail's theming. */
   accent: {
     bgFrom: string;
     bgTo: string;
@@ -84,7 +84,7 @@ export function WeekStrip({
         />
       </div>
 
-      {/* Week list — grouped by topic */}
+      {/* Week list - grouped by topic */}
       {(() => {
         // Group by topic in first-occurrence order (one bucket per unique topic)
         const groupMap = new Map<string, typeof weeks>();

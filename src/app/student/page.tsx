@@ -181,7 +181,7 @@ export default async function StudentDashboard() {
             <Card flat accent="var(--mint)" className="overflow-hidden">
               {openHomework.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted">
-                  You're caught up — no quests right now 🎉
+                  You're caught up - no quests right now 🎉
                 </div>
               ) : (
                 <div className="divide-y divide-line">

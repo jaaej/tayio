@@ -24,8 +24,8 @@ import type { MyBests } from "../_queries";
 type Tier = {
   key: Difficulty;
   label: string;
-  accent: string; // bright — solid top stripe + tile tint
-  fg: string; // darker, readable — icon + "Best" text (≥4.5:1 on the light tint)
+  accent: string; // bright - solid top stripe + tile tint
+  fg: string; // darker, readable - icon + "Best" text (≥4.5:1 on the light tint)
   icon: LucideIcon;
 };
 

@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isRoleRoute) {
-    // app_metadata only — user_metadata is user-mutable and must not gate access.
+    // app_metadata only - user_metadata is user-mutable and must not gate access.
     const role = user.app_metadata?.role as UserRole | undefined;
     if (role) {
       const allowedPrefix = ROLE_HOME[role];
@@ -66,7 +66,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    // app_metadata only — user_metadata is user-mutable and must not gate access.
+    // app_metadata only - user_metadata is user-mutable and must not gate access.
     const role = user.app_metadata?.role as UserRole | undefined;
     const url = request.nextUrl.clone();
     url.pathname = role ? ROLE_HOME[role] : "/";

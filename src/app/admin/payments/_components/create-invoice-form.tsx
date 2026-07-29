@@ -62,7 +62,7 @@ export function CreateInvoiceForm({
       <div className="space-y-1.5">
         <Label htmlFor="studentId">For student (optional)</Label>
         <Select id="studentId" name="studentId" defaultValue="">
-          <option value="">—</option>
+          <option value="">-</option>
           {students.map((s) => (
             <option key={s.id} value={s.id}>
               {s.firstName} {s.lastName}
