@@ -3,16 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, familyLinks, lessons, rescheduleRequests } from "@/db/schema";
+import { classes, familyLinks, lessons, notifications, rescheduleRequests } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
+import { formatDateLong } from "@/lib/format";
 import {
   executeMakeupReschedule,
+  getAdminIds,
   getOneOnOneSlots,
   getReschedulableLesson,
   markStudentAbsent,
   recordDirectMakeup,
+  studentDisplayName,
   studentOwnsLesson,
   approveRescheduleRequest,
   rejectRescheduleRequest,
@@ -281,6 +284,25 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
     grantedById: user.id,
     expiresAt: term.endDate,
   });
+
+  const recipients = new Set<string>([original.tutorId]);
+  const parents = await db
+    .select({ id: familyLinks.parentId })
+    .from(familyLinks)
+    .where(eq(familyLinks.studentId, studentId));
+  for (const p of parents) recipients.add(p.id);
+  for (const a of await getAdminIds()) recipients.add(a);
+  const body =
+    `${await studentDisplayName(studentId)}'s ${original.subjectName} lesson on ` +
+    `${formatDateLong(original.date)} was converted to a class credit ` +
+    `(no reschedule slot was available).`;
+  const notifRows = Array.from(recipients).map((userId) => ({
+    userId,
+    channel: "in_app" as const,
+    title: "Class credit added",
+    body,
+  }));
+  if (notifRows.length) await db.insert(notifications).values(notifRows);
 
   revalidatePath("/student/timetable");
   revalidatePath("/parent/classes");
