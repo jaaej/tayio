@@ -22,6 +22,7 @@ import {
 import {
   getCancellationsUsed,
   getCancelledLessonIds,
+  getCreditGrantedLessonIds,
   getReschedulesUsed,
   getTerms,
   listRedeemableCredits,
@@ -122,15 +123,19 @@ export default async function TimetablePage({
     // must not also be cancellable or reschedulable - either would double-grant
     // a credit or create a real makeup for a lesson the student is no longer
     // attending. `studentState` alone doesn't reflect this (it only tracks
-    // reschedule-based moves), so check `lessonCancellations` directly.
-    const cancelledLessonIds = await getCancelledLessonIds(
-      user.id,
-      lessonRows.map((l) => l.id),
-    );
+    // reschedule-based moves), so check `lessonCancellations` directly. A
+    // lesson already converted to a no-slot reschedule credit needs the same
+    // treatment - it has no `lessonCancellations` row, only a `classCredits`
+    // row, so it's checked separately.
+    const [cancelledLessonIds, creditGrantedLessonIds] = await Promise.all([
+      getCancelledLessonIds(user.id, lessonRows.map((l) => l.id)),
+      getCreditGrantedLessonIds(user.id, lessonRows.map((l) => l.id)),
+    ]);
 
     const chips: TimetableChip[] = lessonRows.map((l) => {
       const canManage = isManageable(l);
       const alreadyCancelled = cancelledLessonIds.has(l.id);
+      const creditGranted = creditGrantedLessonIds.has(l.id);
       const term = termByLessonId.get(l.id) ?? null;
       const usage = term ? usageByTerm.get(term.id) : undefined;
       const cancelRemaining = usage ? remaining(CANCEL_CAP, usage.cancelUsed) : null;
@@ -146,12 +151,14 @@ export default async function TimetablePage({
         canManage &&
         l.studentState === "normal" &&
         !alreadyCancelled &&
+        !creditGranted &&
         term !== null &&
         meetsCancelNotice(now, l.date, l.startTime) &&
         (cancelRemaining ?? 0) > 0;
       const canReschedule =
         canManage &&
         !alreadyCancelled &&
+        !creditGranted &&
         term !== null &&
         meetsRescheduleNotice(now, l.date, l.startTime) &&
         (rescheduleRemaining ?? 0) > 0;

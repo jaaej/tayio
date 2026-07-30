@@ -27,6 +27,11 @@ import {
 import { getAdminIds, markStudentAbsent, studentDisplayName } from "@/lib/reschedule";
 import { expandAvailability, type AvailableSlot } from "@/lib/availability";
 
+/** An executor is either `db` directly or a `db.transaction(...)` callback's
+ *  `tx` - both expose the same query-builder API, so writes can be pointed at
+ *  whichever is in scope without duplicating call sites. */
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function getTerms(): Promise<TermRow[]> {
   return db
     .select({ id: terms.id, startDate: terms.startDate, endDate: terms.endDate })
@@ -89,16 +94,19 @@ export async function getReschedulesUsed(
   return Number(rescheduleCount) + Number(creditCount);
 }
 
-export async function grantCredit(p: {
-  studentId: string;
-  subjectId: string;
-  termId: string;
-  reason: "cancellation" | "reschedule_no_slot";
-  fromLessonId: string;
-  grantedById: string;
-  expiresAt: string;
-}): Promise<string> {
-  const [row] = await db
+export async function grantCredit(
+  p: {
+    studentId: string;
+    subjectId: string;
+    termId: string;
+    reason: "cancellation" | "reschedule_no_slot";
+    fromLessonId: string;
+    grantedById: string;
+    expiresAt: string;
+  },
+  executor: DbExecutor = db,
+): Promise<string> {
+  const [row] = await executor
     .insert(classCredits)
     .values({
       studentId: p.studentId,
@@ -224,23 +232,33 @@ export async function cancelLesson(p: {
     };
   }
 
-  await markStudentAbsent(p.lessonId, p.studentId, p.reason, p.actorId);
-  const creditId = await grantCredit({
-    studentId: p.studentId,
-    subjectId: lesson.subjectId,
-    termId: term.id,
-    reason: "cancellation",
-    fromLessonId: p.lessonId,
-    grantedById: p.actorId,
-    expiresAt: term.endDate,
-  });
-  await db.insert(lessonCancellations).values({
-    lessonId: p.lessonId,
-    studentId: p.studentId,
-    cancelledById: p.actorId,
-    termId: term.id,
-    creditId,
-    reason: p.reason,
+  // All three writes must land together, or none should: an absence with no
+  // credit (or a credit with no cancellation record) is a lost or duplicated
+  // benefit. The notification goes out only after the transaction commits -
+  // a failed notification must never roll back a real cancellation.
+  const creditId = await db.transaction(async (tx) => {
+    await markStudentAbsent(p.lessonId, p.studentId, p.reason, p.actorId, tx);
+    const creditId = await grantCredit(
+      {
+        studentId: p.studentId,
+        subjectId: lesson.subjectId,
+        termId: term.id,
+        reason: "cancellation",
+        fromLessonId: p.lessonId,
+        grantedById: p.actorId,
+        expiresAt: term.endDate,
+      },
+      tx,
+    );
+    await tx.insert(lessonCancellations).values({
+      lessonId: p.lessonId,
+      studentId: p.studentId,
+      cancelledById: p.actorId,
+      termId: term.id,
+      creditId,
+      reason: p.reason,
+    });
+    return creditId;
   });
 
   await notifyCancellation({
@@ -354,6 +372,50 @@ export async function getCancelledLessonIds(
   return new Set(rows.map((r) => r.lessonId));
 }
 
+/** Has this student already had a class credit granted from this lesson (via
+ *  `cancelLesson` or `grantRescheduleCredit`)? Any status counts - even a
+ *  redeemed credit means the lesson was already converted to a credit, so it
+ *  must not also be turned into a real makeup reschedule. */
+export async function hasCreditFromLesson(
+  studentId: string,
+  lessonId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: classCredits.id })
+    .from(classCredits)
+    .where(
+      and(
+        eq(classCredits.grantedFromLessonId, lessonId),
+        eq(classCredits.studentId, studentId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Of these lesson ids, which has this student already had a class credit
+ *  granted from (any status)? Batched form of `hasCreditFromLesson` for a
+ *  timetable's worth of lessons - used to hide a stale Cancel/Reschedule
+ *  action per lesson; the server re-derives this defensively either way. */
+export async function getCreditGrantedLessonIds(
+  studentId: string,
+  lessonIds: string[],
+): Promise<Set<string>> {
+  if (lessonIds.length === 0) return new Set();
+  const rows = await db
+    .select({ lessonId: classCredits.grantedFromLessonId })
+    .from(classCredits)
+    .where(
+      and(
+        eq(classCredits.studentId, studentId),
+        inArray(classCredits.grantedFromLessonId, lessonIds),
+      ),
+    );
+  return new Set(
+    rows.map((r) => r.lessonId).filter((id): id is string => id !== null),
+  );
+}
+
 async function loadActiveCredit(creditId: string, holderId: string) {
   const [credit] = await db
     .select({
@@ -448,6 +510,11 @@ async function notifyRedemption(o: {
   if (rows.length) await db.insert(notifications).values(rows);
 }
 
+/** Thrown inside the redemption transaction when the credit-status flip
+ *  affects zero rows - another redeem already won the race - so the
+ *  just-inserted makeup lesson + attendance roll back with it. */
+class CreditAlreadyRedeemedError extends Error {}
+
 export async function redeemCreditIntoSlot(p: {
   creditId: string;
   holderId: string;
@@ -485,35 +552,60 @@ export async function redeemCreditIntoSlot(p: {
     return { ok: false, error: "That slot was just taken - pick another." };
   }
 
-  const [newLesson] = await db
-    .insert(lessons)
-    .values({
-      classId: origin.classId,
-      tutorId: p.tutorId,
-      date: p.date,
-      startTime: p.startTime,
-      endTime: p.endTime,
-      status: "makeup",
-    })
-    .returning({ id: lessons.id });
+  let newLesson: { id: string };
+  try {
+    newLesson = await db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(lessons)
+        .values({
+          classId: origin.classId,
+          tutorId: p.tutorId,
+          date: p.date,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          status: "makeup",
+        })
+        .returning({ id: lessons.id });
 
-  await db.insert(attendance).values({
-    lessonId: newLesson.id,
-    studentId: credit.studentId,
-    status: "makeup_attended",
-    note: "Credit redeemed",
-    markedBy: p.actorId,
-  });
+      await tx.insert(attendance).values({
+        lessonId: inserted.id,
+        studentId: credit.studentId,
+        status: "makeup_attended",
+        note: "Credit redeemed",
+        markedBy: p.actorId,
+      });
 
-  await db
-    .update(classCredits)
-    .set({
-      status: "redeemed",
-      redeemedOnLessonId: newLesson.id,
-      redeemedById: p.actorId,
-      redeemedAt: new Date(),
-    })
-    .where(eq(classCredits.id, p.creditId));
+      // Conditional flip: only succeeds if the credit was still "active" the
+      // moment this ran. If another redeem already flipped it, zero rows
+      // come back and we throw to roll back the lesson + attendance just
+      // inserted above - the two redeems must not both create a lesson.
+      const flipped = await tx
+        .update(classCredits)
+        .set({
+          status: "redeemed",
+          redeemedOnLessonId: inserted.id,
+          redeemedById: p.actorId,
+          redeemedAt: new Date(),
+        })
+        .where(
+          and(eq(classCredits.id, p.creditId), eq(classCredits.status, "active")),
+        )
+        .returning({ id: classCredits.id });
+      if (flipped.length === 0) {
+        throw new CreditAlreadyRedeemedError();
+      }
+
+      return inserted;
+    });
+  } catch (err) {
+    if (err instanceof CreditAlreadyRedeemedError) {
+      return {
+        ok: false,
+        error: "That credit was already used - refresh and try again.",
+      };
+    }
+    throw err;
+  }
 
   await notifyRedemption({
     studentId: credit.studentId,

@@ -18,6 +18,11 @@ import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 
 const HOUR = 3600 * 1000;
 
+/** An executor is either `db` directly or a `db.transaction(...)` callback's
+ *  `tx` - both expose the same query-builder API, so writes can be pointed at
+ *  whichever is in scope without duplicating call sites. */
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export type ReschedulePath = "group_direct" | "approval";
 
 export type ReschedulableLesson = {
@@ -418,8 +423,9 @@ export async function markStudentAbsent(
   studentId: string,
   reason: string,
   actorId: string,
+  executor: DbExecutor = db,
 ) {
-  await db
+  await executor
     .insert(attendance)
     .values({
       lessonId,

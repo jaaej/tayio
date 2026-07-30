@@ -70,7 +70,7 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
 
   const parts = String(formData.get("slot") ?? "").split("|");
   if (parts.length !== 4) return { ok: false, error: "Pick a time first." };
-  const [tutorId, date, startTime, endTime] = parts;
+  const [tutorId, date, startTime] = parts;
 
   // Re-derive the credit's real availability server-side and reject anything
   // the client submitted that isn't in it - never trust the formData slot as-is.
@@ -79,9 +79,12 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
   if (!available.slots.some((s) => s.tutorId === tutorId)) {
     return { ok: false, error: "That time is no longer available - pick another." };
   }
-  if (
-    !available.slots.some((s) => s.date === date && s.startTime === startTime)
-  ) {
+  // Never trust the client's endTime - use the matched server slot's, so the
+  // clash guard and the inserted lesson's duration are both server-derived.
+  const matchedSlot = available.slots.find(
+    (s) => s.date === date && s.startTime === startTime,
+  );
+  if (!matchedSlot) {
     return { ok: false, error: "That time is no longer available - pick another." };
   }
 
@@ -92,7 +95,7 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
     tutorId,
     date,
     startTime,
-    endTime,
+    endTime: matchedSlot.endTime,
   });
   if (!res.ok) return res;
 

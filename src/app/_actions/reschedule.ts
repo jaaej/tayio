@@ -21,7 +21,13 @@ import {
   approveRescheduleRequest,
   rejectRescheduleRequest,
 } from "@/lib/reschedule";
-import { getReschedulesUsed, getTerms, grantCredit, isLessonCancelled } from "@/lib/credits";
+import {
+  getReschedulesUsed,
+  getTerms,
+  grantCredit,
+  hasCreditFromLesson,
+  isLessonCancelled,
+} from "@/lib/credits";
 import {
   meetsRescheduleNotice,
   remaining,
@@ -180,16 +186,17 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
 
   const parts = String(formData.get("slot") ?? "").split("|");
   if (parts.length !== 4) return { ok: false, error: "Pick a time first." };
-  const [tutorId, date, startTime, endTime] = parts;
+  const [tutorId, date, startTime] = parts;
   if (tutorId !== original.tutorId) {
     return { ok: false, error: "Slot must be with your tutor." };
   }
   const slots = await getOneOnOneSlots(original, now);
-  if (
-    !slots.some(
-      (s) => s.tutorId === tutorId && s.date === date && s.startTime === startTime,
-    )
-  ) {
+  // Never trust the client's endTime - use the matched server slot's, so the
+  // clash guard and the inserted lesson's duration are both server-derived.
+  const matchedSlot = slots.find(
+    (s) => s.tutorId === tutorId && s.date === date && s.startTime === startTime,
+  );
+  if (!matchedSlot) {
     return { ok: false, error: "That time is no longer available - pick another." };
   }
 
@@ -221,6 +228,16 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
       error: "That lesson has already been cancelled - message the office.",
     };
   }
+  // A lesson already converted to a class credit (no-slot reschedule credit)
+  // must not also be rescheduled into a real makeup - that would keep the
+  // still-active credit while also handing the student a real replacement
+  // lesson.
+  if (await hasCreditFromLesson(studentId, lessonId)) {
+    return {
+      ok: false,
+      error: "That lesson has already been converted to a class credit - message the office.",
+    };
+  }
 
   const done = () => {
     revalidatePath("/student/timetable");
@@ -234,7 +251,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
     tutorId,
     date,
     startTime,
-    endTime,
+    endTime: matchedSlot.endTime,
     reason,
     actorId: user.id,
   });
@@ -247,7 +264,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
     tutorId,
     date,
     startTime,
-    endTime,
+    endTime: matchedSlot.endTime,
     reason,
   });
   done();

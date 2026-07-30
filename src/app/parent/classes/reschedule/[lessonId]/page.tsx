@@ -18,6 +18,7 @@ import {
   getCancellationsUsed,
   getReschedulesUsed,
   getTerms,
+  hasCreditFromLesson,
   isLessonCancelled,
 } from "@/lib/credits";
 import {
@@ -67,14 +68,16 @@ export default async function ParentReschedulePage({
   // the student unrestricted timetable (src/app/student/timetable/page.tsx).
   const terms = await getTerms();
   const term = resolveTerm(lesson.date, terms);
-  const [cancelUsed, rescheduleUsed, alreadyMoved, alreadyCancelled] = term
-    ? await Promise.all([
-        getCancellationsUsed(childId, term.id),
-        getReschedulesUsed(childId, term.id),
-        hasPriorReschedule(childId, lesson.id),
-        isLessonCancelled(lesson.id, childId),
-      ])
-    : [0, 0, false, false];
+  const [cancelUsed, rescheduleUsed, alreadyMoved, alreadyCancelled, alreadyCredited] =
+    term
+      ? await Promise.all([
+          getCancellationsUsed(childId, term.id),
+          getReschedulesUsed(childId, term.id),
+          hasPriorReschedule(childId, lesson.id),
+          isLessonCancelled(lesson.id, childId),
+          hasCreditFromLesson(childId, lesson.id),
+        ])
+      : [0, 0, false, false, false];
   const cancelRemaining = term ? remaining(CANCEL_CAP, cancelUsed) : null;
   const rescheduleRemaining = term ? remaining(RESCHEDULE_CAP, rescheduleUsed) : null;
 
@@ -85,6 +88,7 @@ export default async function ParentReschedulePage({
     !started &&
     term !== null &&
     !alreadyCancelled &&
+    !alreadyCredited &&
     rescheduleNoticeOk &&
     (rescheduleRemaining ?? 0) > 0;
   // Cancel additionally requires the lesson still be in its normal state - a
@@ -95,18 +99,20 @@ export default async function ParentReschedulePage({
     term !== null &&
     !alreadyMoved &&
     !alreadyCancelled &&
+    !alreadyCredited &&
     cancelNoticeOk &&
     (cancelRemaining ?? 0) > 0;
 
   function rescheduleIneligibleReason(): string {
     if (!term) return "This lesson is outside a known term.";
-    if (alreadyCancelled) return "This lesson has already been moved or cancelled.";
+    if (alreadyCancelled || alreadyCredited)
+      return "This lesson has already been moved or cancelled.";
     if (!rescheduleNoticeOk) return "Reschedules need at least 7 days notice.";
     return "You have used all 3 reschedules this term.";
   }
   function cancelIneligibleReason(): string {
     if (!term) return "This lesson is outside a known term.";
-    if (alreadyMoved || alreadyCancelled)
+    if (alreadyMoved || alreadyCancelled || alreadyCredited)
       return "This lesson has already been moved or cancelled.";
     if (!cancelNoticeOk) return "Cancellations need at least 24 hours notice.";
     return "You have used all 3 cancellations this term.";
