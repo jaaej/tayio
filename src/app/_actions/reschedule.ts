@@ -8,17 +8,22 @@ import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
 import {
-  createRescheduleRequest,
   executeMakeupReschedule,
   getOneOnOneSlots,
   getReschedulableLesson,
-  hasPriorReschedule,
+  markStudentAbsent,
   recordDirectMakeup,
-  reschedulePath,
   studentOwnsLesson,
   approveRescheduleRequest,
   rejectRescheduleRequest,
 } from "@/lib/reschedule";
+import { getReschedulesUsed, getTerms, grantCredit } from "@/lib/credits";
+import {
+  meetsRescheduleNotice,
+  remaining,
+  resolveTerm,
+  RESCHEDULE_CAP,
+} from "@/lib/reschedule-credits";
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -33,10 +38,11 @@ export type RescheduleSlot = {
 export type RescheduleOptions =
   | {
       ok: true;
+      /** @deprecated approval retired; always false. UI reads removed in a later task. */
       approvalRequired: boolean;
-      /** True when the lesson has already been rescheduled - this move needs
-       *  approval regardless of timing. */
+      /** @deprecated approval retired; always false. UI reads removed in a later task. */
       secondReschedule: boolean;
+      hasSlots: boolean;
       lesson: {
         subjectName: string;
         className: string;
@@ -75,8 +81,8 @@ async function resolveStudent(
 }
 
 /**
- * Load the reschedule options for a lesson: the tutor's open availability slots
- * and whether the move needs approval. Used by the inline timetable picker.
+ * Load the reschedule options for a lesson: the tutor's open availability
+ * slots. Used by the inline timetable picker.
  */
 export async function loadRescheduleOptions(
   lessonId: string,
@@ -96,12 +102,13 @@ export async function loadRescheduleOptions(
     return { ok: false, error: "That lesson has already started." };
   }
   const slots = await getOneOnOneSlots(original, now);
-  const secondReschedule = await hasPriorReschedule(studentId, lessonId);
   return {
     ok: true,
-    approvalRequired:
-      reschedulePath(original, now) === "approval" || secondReschedule,
-    secondReschedule,
+    // deprecated: approval retired; UI reads removed in a later task
+    approvalRequired: false,
+    // deprecated: approval retired; UI reads removed in a later task
+    secondReschedule: false,
+    hasSlots: slots.length > 0,
     lesson: {
       subjectName: original.subjectName,
       className: original.className,
@@ -121,8 +128,8 @@ export async function loadRescheduleOptions(
 
 /**
  * Student (unrestricted) or parent reschedules a lesson to a tutor-availability
- * slot. Routing: 1-on-1 (always) and group <24h create a pending approval
- * request; group ≥24h moves directly. Slot = "tutorId|date|start|end".
+ * slot, gated on 7-day notice and the per-term reschedule cap. Moves the lesson
+ * directly - there is no approval step. Slot = "tutorId|date|start|end".
  */
 export async function submitReschedule(formData: FormData): Promise<Result> {
   const user = await requireRole(["student_unrestricted", "parent"]);
@@ -163,51 +170,122 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
     return { ok: false, error: "That time is no longer available - pick another." };
   }
 
+  const term = resolveTerm(original.date, await getTerms());
+  if (!term) {
+    return {
+      ok: false,
+      error: "That lesson is outside a known term - message the office.",
+    };
+  }
+  if (!meetsRescheduleNotice(now, original.date, original.startTime)) {
+    return {
+      ok: false,
+      error: "Reschedules need at least 7 days notice - message the office.",
+    };
+  }
+  if (remaining(RESCHEDULE_CAP, await getReschedulesUsed(studentId, term.id)) <= 0) {
+    return {
+      ok: false,
+      error: "You have used all 3 reschedules this term - message the office.",
+    };
+  }
+
   const done = () => {
     revalidatePath("/student/timetable");
     revalidatePath("/parent/classes");
     revalidatePath("/admin/attendance");
   };
 
-  // A second reschedule of the same lesson always needs approval.
-  const priorReschedule = await hasPriorReschedule(studentId, lessonId);
-
-  if (reschedulePath(original, now) === "group_direct" && !priorReschedule) {
-    const res = await executeMakeupReschedule({
-      studentId,
-      originalLessonId: lessonId,
-      tutorId,
-      date,
-      startTime,
-      endTime,
-      reason,
-      actorId: user.id,
-    });
-    if (!res.ok) return res;
-    await recordDirectMakeup({
-      studentId,
-      requestedById: user.id,
-      originalLessonId: lessonId,
-      makeupLessonId: res.lessonId,
-      tutorId,
-      date,
-      startTime,
-      endTime,
-      reason,
-    });
-    done();
-    return { ok: true, message: "Lesson moved." };
-  }
-
-  await createRescheduleRequest({
+  const res = await executeMakeupReschedule({
+    studentId,
+    originalLessonId: lessonId,
+    tutorId,
+    date,
+    startTime,
+    endTime,
+    reason,
+    actorId: user.id,
+  });
+  if (!res.ok) return res;
+  await recordDirectMakeup({
     studentId,
     requestedById: user.id,
     originalLessonId: lessonId,
+    makeupLessonId: res.lessonId,
+    tutorId,
+    date,
+    startTime,
+    endTime,
     reason,
-    target: { kind: "makeup", tutorId, date, startTime, endTime },
   });
   done();
-  return { ok: true, message: "Sent for approval." };
+  return { ok: true, message: "Lesson moved." };
+}
+
+/**
+ * No 1-on-1 slot is available with the tutor - grant a class credit instead of
+ * moving the lesson. Same 7-day notice + per-term cap gates as submitReschedule
+ * (the credit counts as one reschedule use).
+ */
+export async function grantRescheduleCredit(formData: FormData): Promise<Result> {
+  const user = await requireRole(["student_unrestricted", "parent"]);
+  const role = coarseRole(user.app_metadata?.role as UserRole);
+
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 2000);
+
+  const studentId = await resolveStudent(
+    user,
+    role,
+    String(formData.get("studentId") ?? ""),
+  );
+  if (!studentId) return { ok: false, error: "Not your student." };
+  if (!lessonId || !(await studentOwnsLesson(studentId, lessonId))) {
+    return { ok: false, error: "That lesson isn't yours to move." };
+  }
+
+  const original = await getReschedulableLesson(lessonId);
+  if (!original) return { ok: false, error: "Lesson not found." };
+  const now = new Date();
+  if (new Date(`${original.date}T${original.startTime}`).getTime() <= now.getTime()) {
+    return { ok: false, error: "That lesson has already started." };
+  }
+
+  const term = resolveTerm(original.date, await getTerms());
+  if (!term) {
+    return {
+      ok: false,
+      error: "That lesson is outside a known term - message the office.",
+    };
+  }
+  if (!meetsRescheduleNotice(now, original.date, original.startTime)) {
+    return {
+      ok: false,
+      error: "Reschedules need at least 7 days notice - message the office.",
+    };
+  }
+  if (remaining(RESCHEDULE_CAP, await getReschedulesUsed(studentId, term.id)) <= 0) {
+    return {
+      ok: false,
+      error: "You have used all 3 reschedules this term - message the office.",
+    };
+  }
+
+  await markStudentAbsent(lessonId, studentId, reason, user.id);
+  await grantCredit({
+    studentId,
+    subjectId: original.subjectId,
+    termId: term.id,
+    reason: "reschedule_no_slot",
+    fromLessonId: lessonId,
+    grantedById: user.id,
+    expiresAt: term.endDate,
+  });
+
+  revalidatePath("/student/timetable");
+  revalidatePath("/parent/classes");
+  revalidatePath("/admin/attendance");
+  return { ok: true, message: "Class credit added." };
 }
 
 // --- Approver actions (tutor of the class, or any admin) --------------------
