@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import {
   Card,
   CardHead,
@@ -9,7 +9,8 @@ import {
   BackLink,
 } from "@/components/admin/ui";
 import { db } from "@/db/client";
-import { profiles } from "@/db/schema";
+import { lessons, profiles } from "@/db/schema";
+import type { AvailableSlot } from "@/lib/availability";
 import { coarseRole } from "@/lib/roles";
 import { requireRole } from "@/lib/auth";
 import {
@@ -59,8 +60,46 @@ export default async function AdminReschedulePage({
     expandAvailability(allTutors, now, 4),
   ]);
 
+  // Mark slots the tutor is already booked for, so they show as taken rather
+  // than being offered (and rejected on submit by the double-booking guard).
+  const allSlots = [...sameSubjectSlots, ...allTutorSlots];
+  const tutorIds = Array.from(new Set(allSlots.map((s) => s.tutorId)));
+  const slotDates = allSlots.map((s) => s.date);
+  const booked =
+    tutorIds.length && slotDates.length
+      ? await db
+          .select({
+            tutorId: lessons.tutorId,
+            date: lessons.date,
+            startTime: lessons.startTime,
+            endTime: lessons.endTime,
+          })
+          .from(lessons)
+          .where(
+            and(
+              inArray(lessons.tutorId, tutorIds),
+              gte(lessons.date, slotDates.reduce((a, b) => (a < b ? a : b))),
+              lte(lessons.date, slotDates.reduce((a, b) => (a > b ? a : b))),
+            ),
+          )
+      : [];
+  const bookedByTutorDate = new Map<string, { startTime: string; endTime: string }[]>();
+  for (const b of booked) {
+    const key = `${b.tutorId}|${b.date}`;
+    (bookedByTutorDate.get(key) ?? bookedByTutorDate.set(key, []).get(key)!).push(b);
+  }
+  const markTaken = (slots: AvailableSlot[]): AvailableSlot[] =>
+    slots.map((s) => ({
+      ...s,
+      taken: (bookedByTutorDate.get(`${s.tutorId}|${s.date}`) ?? []).some(
+        (l) => l.startTime < s.endTime && l.endTime > s.startTime,
+      ),
+    }));
+  const sameSubjectMarked = markTaken(sameSubjectSlots);
+  const allTutorMarked = markTaken(allTutorSlots);
+
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href={`/admin/users/${studentId}`}>
         Back to {student.firstName} {student.lastName}
       </BackLink>
@@ -76,9 +115,11 @@ export default async function AdminReschedulePage({
           <CardBody className="text-[13px] text-bad font-medium">
             {error === "invalid-slot"
               ? "Couldn't read that slot - try picking again."
-              : error === "lesson-past"
-                ? "That lesson has already started, so it can't be rescheduled."
-                : "Something went wrong. Try again."}
+              : error === "slot-taken"
+                ? "That slot was just taken - pick another."
+                : error === "lesson-past"
+                  ? "That lesson has already started, so it can't be rescheduled."
+                  : "Something went wrong. Try again."}
           </CardBody>
         </Card>
       )}
@@ -118,8 +159,8 @@ export default async function AdminReschedulePage({
               studentId={studentId}
               lessonId={lessonId}
               originalLessonDate={lesson.date}
-              sameSubjectSlots={sameSubjectSlots}
-              allTutorSlots={allTutorSlots}
+              sameSubjectSlots={sameSubjectMarked}
+              allTutorSlots={allTutorMarked}
             />
           </CardBody>
         </Card>

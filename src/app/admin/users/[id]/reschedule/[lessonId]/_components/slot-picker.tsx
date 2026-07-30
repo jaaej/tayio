@@ -268,6 +268,23 @@ export function SlotPicker({
                 d.slots.slice(0, 4).map((s) => {
                   const code = encode(s);
                   const active = picked === code;
+                  if (s.taken) {
+                    return (
+                      <div
+                        key={code}
+                        aria-disabled="true"
+                        title="This tutor is already booked at this time"
+                        className="block w-full rounded-lg px-1.5 py-1 leading-tight overflow-hidden border border-line bg-surface-2 text-muted opacity-70 cursor-not-allowed"
+                      >
+                        <div className="text-[11px] font-bold tabular-nums line-through">
+                          {fmtTime(s.startTime)}
+                        </div>
+                        <div className="mt-0.5 text-[10px] truncate font-bold uppercase tracking-wide">
+                          Taken
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <button
                       key={code}
@@ -323,6 +340,10 @@ export function SlotPicker({
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-bad" />
           Original lesson date
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full border border-line bg-surface-2" />
+          Taken
         </span>
       </div>
 

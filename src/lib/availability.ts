@@ -10,6 +10,10 @@ export type AvailableSlot = {
   tutorId: string;
   tutorName: string;
   isOriginalTutor: boolean;
+  /** True when the tutor already has a lesson overlapping this slot, so it
+   *  can be shown as taken rather than offered. Set by consumers that compute
+   *  bookings (e.g. the admin reschedule picker); undefined = treat as open. */
+  taken?: boolean;
 };
 
 function isoLocal(d: Date): string {

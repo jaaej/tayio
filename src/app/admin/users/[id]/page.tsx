@@ -104,7 +104,7 @@ export default async function UserDetailPage({
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href="/admin/users">All users</BackLink>
 
       <Hero
