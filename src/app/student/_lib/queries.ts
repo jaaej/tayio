@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   announcements,
   attendance,
+  classCredits,
   classes,
   enrollments,
   homework,
@@ -1076,6 +1077,18 @@ export async function getStudentTimetableLessons(
     for (const r of rows) refInfo.set(r.id, { className: r.className });
   }
 
+  // Make-up lessons booked by redeeming a class credit are tagged distinctly
+  // from reschedule make-ups.
+  const creditMakeupRows = await db
+    .select({ lessonId: classCredits.redeemedOnLessonId })
+    .from(classCredits)
+    .where(
+      and(eq(classCredits.studentId, studentId), isNotNull(classCredits.redeemedOnLessonId)),
+    );
+  const creditMakeupIds = new Set(
+    creditMakeupRows.map((r) => r.lessonId).filter((id): id is string => !!id),
+  );
+
   const seen = new Set<string>();
   const out: TimetableLesson[] = [];
   for (const l of [...enrolledLessons, ...makeupLessons]) {
@@ -1086,9 +1099,13 @@ export async function getStudentTimetableLessons(
     let moveLabel: string | null = null;
     if (status === "makeup_attended") {
       studentState = "makeup_in";
-      const originId = movedInOrigin.get(l.id);
-      const info = originId ? refInfo.get(originId) : undefined;
-      moveLabel = info ? `Make-up · from ${info.className}` : "Make-up";
+      if (creditMakeupIds.has(l.id)) {
+        moveLabel = "Make-up: booked with credits";
+      } else {
+        const originId = movedInOrigin.get(l.id);
+        const info = originId ? refInfo.get(originId) : undefined;
+        moveLabel = info ? `Make-up: from ${info.className}` : "Make-up";
+      }
     } else if (status === "absent" && movedOut.has(l.id)) {
       studentState = "moved_out";
       const tgt = movedOut.get(l.id)!;

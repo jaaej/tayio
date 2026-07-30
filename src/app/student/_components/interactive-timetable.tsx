@@ -4,16 +4,20 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/lib/format";
+import { formatTime, formatDateLong } from "@/lib/format";
 import { CANCEL_CAP, RESCHEDULE_CAP } from "@/lib/reschedule-credits";
 import {
   loadRescheduleOptions,
   submitReschedule,
   grantRescheduleCredit,
-  type RescheduleOptions,
   type RescheduleSlot,
 } from "@/app/_actions/reschedule";
-import { cancelLesson } from "@/app/_actions/credits";
+import {
+  cancelLesson,
+  loadCreditRedemption,
+  redeemCredit,
+} from "@/app/_actions/credits";
+import type { PanelCredit } from "@/components/reschedule/credit-panel";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -81,15 +85,20 @@ function isoLocal(d: Date) {
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1";
 
-type LoadedOptions = Extract<RescheduleOptions, { ok: true }>;
+/** The two things that share the calendar slot-picking overlay: rescheduling a
+ *  lesson, and redeeming a class credit. */
+type PickAction =
+  | { type: "reschedule"; lessonId: string; hasSlots: boolean }
+  | { type: "credit"; creditId: string };
 type Mode =
   | { kind: "idle" }
   | { kind: "menu"; lessonId: string }
   | { kind: "cancel-confirm"; lessonId: string }
   | {
       kind: "picking";
-      lessonId: string;
-      opts: LoadedOptions;
+      action: PickAction;
+      subjectName: string;
+      slots: RescheduleSlot[];
       picked: RescheduleSlot | null;
     };
 
@@ -98,12 +107,16 @@ export function InteractiveTimetable({
   initialMonth,
   lessons,
   homework,
+  credits,
   adminId,
 }: {
   initialYear: number;
   initialMonth: number;
   lessons: TimetableChip[];
   homework: TimetableHw[];
+  /** The student's active class credits, redeemed via the same calendar
+   *  slot-picking overlay as a reschedule. */
+  credits: PanelCredit[];
   /** Admin office profile id to message when no reschedule slot is
    *  available. Null if no admin contact is available (empty state
    *  falls back to plain text with no link). */
@@ -133,7 +146,7 @@ export function InteractiveTimetable({
   const slotsByDate = useMemo(() => {
     const m = new Map<string, RescheduleSlot[]>();
     if (picking) {
-      for (const s of picking.opts.slots)
+      for (const s of picking.slots)
         (m.get(s.date) ?? m.set(s.date, []).get(s.date)!).push(s);
       for (const list of m.values()) list.sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
@@ -167,6 +180,13 @@ export function InteractiveTimetable({
     });
   }
 
+  function jumpToFirstSlot(slots: RescheduleSlot[]) {
+    if (slots.length === 0) return;
+    const first = slots.reduce((a, b) => (a.date <= b.date ? a : b));
+    const d = new Date(`${first.date}T00:00:00`);
+    setView({ year: d.getFullYear(), month: d.getMonth() });
+  }
+
   function openReschedule(lessonId: string) {
     startLoad(async () => {
       const opts = await loadRescheduleOptions(lessonId);
@@ -175,23 +195,54 @@ export function InteractiveTimetable({
         setMode({ kind: "idle" });
         return;
       }
-      setMode({ kind: "picking", lessonId, opts, picked: null });
-      if (opts.slots.length > 0) {
-        const first = opts.slots.reduce((a, b) => (a.date <= b.date ? a : b));
-        const d = new Date(`${first.date}T00:00:00`);
-        setView({ year: d.getFullYear(), month: d.getMonth() });
+      setMode({
+        kind: "picking",
+        action: { type: "reschedule", lessonId, hasSlots: opts.slots.length > 0 },
+        subjectName: opts.lesson.subjectName,
+        slots: opts.slots,
+        picked: null,
+      });
+      jumpToFirstSlot(opts.slots);
+    });
+  }
+
+  function openCreditRedemption(creditId: string) {
+    startLoad(async () => {
+      const res = await loadCreditRedemption(creditId);
+      if (!res.ok) {
+        setFlash({ ok: false, text: res.error });
+        setMode({ kind: "idle" });
+        return;
       }
+      setMode({
+        kind: "picking",
+        action: { type: "credit", creditId },
+        subjectName: res.subjectName,
+        slots: res.slots,
+        picked: null,
+      });
+      jumpToFirstSlot(res.slots);
     });
   }
 
   function confirm() {
     if (!picking?.picked) return;
     const s = picking.picked;
-    const fd = new FormData();
-    fd.set("lessonId", picking.lessonId);
-    fd.set("slot", `${s.tutorId}|${s.date}|${s.startTime}|${s.endTime}`);
+    const slot = `${s.tutorId}|${s.date}|${s.startTime}|${s.endTime}`;
+    const action = picking.action;
     startSubmit(async () => {
-      const res = await submitReschedule(fd);
+      let res: { ok: true; message: string } | { ok: false; error: string };
+      if (action.type === "reschedule") {
+        const fd = new FormData();
+        fd.set("lessonId", action.lessonId);
+        fd.set("slot", slot);
+        res = await submitReschedule(fd);
+      } else {
+        const fd = new FormData();
+        fd.set("creditId", action.creditId);
+        fd.set("slot", slot);
+        res = await redeemCredit(fd);
+      }
       setMode({ kind: "idle" });
       setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
       if (res.ok) router.refresh();
@@ -199,9 +250,10 @@ export function InteractiveTimetable({
   }
 
   function useCreditInstead() {
-    if (!picking) return;
+    if (picking?.action.type !== "reschedule") return;
+    const lessonId = picking.action.lessonId;
     const fd = new FormData();
-    fd.set("lessonId", picking.lessonId);
+    fd.set("lessonId", lessonId);
     startSubmit(async () => {
       const res = await grantRescheduleCredit(fd);
       setMode({ kind: "idle" });
@@ -242,7 +294,9 @@ export function InteractiveTimetable({
           <div className="text-[13px] font-bold text-brand-800">
             {picking.picked ? (
               <>
-                Move {picking.opts.lesson.subjectName} to{" "}
+                {picking.action.type === "credit" ? "Book" : "Move"}{" "}
+                {picking.subjectName}{" "}
+                {picking.action.type === "credit" ? "make-up at" : "to"}{" "}
                 <span className="tabular-nums">
                   {new Date(
                     `${picking.picked.date}T00:00:00`,
@@ -257,8 +311,10 @@ export function InteractiveTimetable({
               </>
             ) : (
               <>
-                Pick a new time for {picking.opts.lesson.subjectName} - tutor's
-                open slots are highlighted.
+                {picking.action.type === "credit"
+                  ? `Pick a time for your ${picking.subjectName} credit`
+                  : `Pick a new time for ${picking.subjectName}`}{" "}
+                - open slots are highlighted.
               </>
             )}
           </div>
@@ -273,7 +329,11 @@ export function InteractiveTimetable({
                   FOCUS_RING,
                 )}
               >
-                {submitting ? "…" : "Confirm reschedule"}
+                {submitting
+                  ? "…"
+                  : picking.action.type === "credit"
+                    ? "Book with credit"
+                    : "Confirm reschedule"}
               </button>
             )}
             <button
@@ -290,7 +350,7 @@ export function InteractiveTimetable({
         </div>
       )}
 
-      {picking && !picking.opts.hasSlots && (
+      {picking && picking.action.type === "reschedule" && !picking.action.hasSlots && (
         <div className="rounded-[12px] border border-line bg-surface px-4 py-3">
           <div className="text-[13px] text-muted">
             Your tutor has no open slots in the next few weeks. Please contact
@@ -457,6 +517,41 @@ export function InteractiveTimetable({
         </div>
       </div>
 
+      {credits.length > 0 && (
+        <div className="rounded-[14px] border border-line bg-surface">
+          <div className="border-b border-line px-4 py-3.5">
+            <h3 className="m-0 text-[14px] font-bold text-ink">Class credits</h3>
+          </div>
+          <div className="divide-y divide-line">
+            {credits.map((c) => {
+              const active =
+                picking?.action.type === "credit" &&
+                picking.action.creditId === c.id;
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-3 p-4">
+                  <div>
+                    <div className="text-[13px] font-bold text-ink">{c.subjectName}</div>
+                    <div className="text-[12px] text-muted">
+                      Expires {formatDateLong(c.expiresAt)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openCreditRedemption(c.id)}
+                    disabled={loading || submitting || !!picking}
+                    className={cn(
+                      "shrink-0 min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                      FOCUS_RING,
+                    )}
+                  >
+                    {active ? "Picking a slot…" : "Use credit"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { Card, CardHead } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
-import { CreditPanel } from "@/components/reschedule/credit-panel";
 import { requireRole } from "@/lib/auth";
 import {
   MonthCalendar,
@@ -235,11 +234,11 @@ export default async function TimetablePage({
               initialMonth={month}
               lessons={chips}
               homework={hw}
+              credits={credits}
               adminId={adminContact?.id ?? null}
             />
           </div>
         </Card>
-        <CreditPanel credits={credits} adminId={adminContact?.id ?? null} />
       </div>
     );
   }

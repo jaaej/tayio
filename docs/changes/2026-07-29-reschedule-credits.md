@@ -83,8 +83,8 @@ Tick each box after clicking through it as the signed-in role.
 
 ### Student flows (navigate to the month holding the upcoming test lessons)
 
-- [ ] Reschedule a lesson at least 7 days out into an available slot and confirm the chip moves with no approval or pending state, and the Reschedule label reads "N of 3 left" and decrements.
-- [ ] Cancel a lesson at least 24 hours out and confirm the chip turns red with the time and subject struck through and a single "Cancelled" tag, and that opening its menu shows one red "Cancelled" line - not "Reschedule - Cancelled" plus "Cancel - Cancelled".
+- [x] Reschedule a lesson at least 7 days out into an available slot and confirm the chip moves with no approval or pending state, and the Reschedule label reads "N of 3 left" and decrements. (owner-verified 2026-07-30)
+- [x] Cancel a lesson at least 24 hours out and confirm the chip turns red with the time and subject struck through and a single "Cancelled" tag, and that opening its menu shows one red "Cancelled" line - not "Reschedule - Cancelled" plus "Cancel - Cancelled". (owner-verified 2026-07-30)
 - [ ] Reschedule a lesson with no available slot (ask the builder to clear the tutor's availability) and confirm the "Get a class credit instead" action appears.
 - [ ] Open the credit panel, redeem an active credit into a slot, and confirm it books the make-up and the credit leaves the active list.
 - [ ] Reach the cancel cap (3 in a term) and the reschedule cap (3 in a term) and confirm each action then closes to "Message the office".
