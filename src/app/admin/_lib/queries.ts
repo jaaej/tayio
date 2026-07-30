@@ -737,8 +737,13 @@ export type UsageRow = {
 
 export type CreditsOverview = {
   credits: CreditRow[];
+  /** True when the credits list was cut off at the display cap - there are
+   *  older credits not shown below. */
+  creditsTruncated: boolean;
   usage: UsageRow[];
 };
+
+const CREDITS_DISPLAY_CAP = 300;
 
 /**
  * Read-only admin visibility into the class-credits feature: every credit
@@ -751,6 +756,10 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
   const fromLesson = alias(lessons, "credit_from_lesson");
   const redeemedLesson = alias(lessons, "credit_redeemed_lesson");
 
+  // Fetch one row past the display cap so we can tell whether the list was
+  // truncated - credit rows only ever accumulate (never deleted), so a plain
+  // .limit(CREDITS_DISPLAY_CAP) would silently undercount forever once the
+  // total passes the cap, with no signal to the admin that it's cut off.
   const creditRows = await db
     .select({
       id: classCredits.id,
@@ -774,7 +783,10 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
       eq(redeemedLesson.id, classCredits.redeemedOnLessonId),
     )
     .orderBy(desc(classCredits.createdAt))
-    .limit(300);
+    .limit(CREDITS_DISPLAY_CAP + 1);
+
+  const creditsTruncated = creditRows.length > CREDITS_DISPLAY_CAP;
+  if (creditsTruncated) creditRows.length = CREDITS_DISPLAY_CAP;
 
   const todayIso = isoDate(new Date());
   const credits: CreditRow[] = creditRows.map((r) => ({
@@ -865,5 +877,5 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
     }
   }
 
-  return { credits, usage };
+  return { credits, creditsTruncated, usage };
 }

@@ -25,7 +25,7 @@ const REASON_LABEL: Record<"cancellation" | "reschedule_no_slot", string> = {
 
 export default async function AdminReschedulesPage() {
   await requireRole("admin");
-  const [requests, { credits, usage }] = await Promise.all([
+  const [requests, { credits, creditsTruncated, usage }] = await Promise.all([
     listPendingRequests({}),
     getCreditsOverview(),
   ]);
@@ -45,8 +45,18 @@ export default async function AdminReschedulesPage() {
         <CardHead
           title="Class credits"
           eyebrow="Read-only"
-          action={<Pill tone="default">{credits.length}</Pill>}
+          action={
+            <Pill tone="default">
+              {creditsTruncated ? `${credits.length}+` : credits.length}
+            </Pill>
+          }
         />
+        {creditsTruncated && (
+          <p className="px-5 py-2 text-[12px] text-muted border-b border-line bg-surface-2/60">
+            Showing the {credits.length} most recent credits - older credits
+            are not listed.
+          </p>
+        )}
         {credits.length === 0 ? (
           <Empty>No class credits yet.</Empty>
         ) : (
