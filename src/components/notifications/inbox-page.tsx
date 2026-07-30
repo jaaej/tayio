@@ -25,7 +25,7 @@ export async function NotificationsInbox({
   const groups = groupNotifications(items);
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] space-y-5">
+    <div className="w-full space-y-5">
       <header className="relative overflow-hidden rounded-[22px] border border-brand-200 bg-[linear-gradient(135deg,#F3F4FF_0%,#FFFFFF_52%,#EEF0FF_100%)] p-5 shadow-[0_16px_38px_-28px_rgba(31,40,90,0.42)] sm:p-6">
         <div
           aria-hidden

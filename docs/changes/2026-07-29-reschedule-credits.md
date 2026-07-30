@@ -101,6 +101,6 @@ Tick each box after clicking through it as the signed-in role.
 
 ### Admin (`/admin/reschedules`)
 
-- [ ] Confirm the "Class credits" section lists granted, redeemed, and expired credits with reason and source or target lesson.
-- [ ] Confirm the "This term's usage" table shows each student's per-term cancellation and reschedule counts.
+- [x] Confirm the "Class credits" section lists granted, redeemed, and expired credits with reason and source or target lesson. (owner-verified 2026-07-31)
+- [x] Confirm the "This term's usage" table shows each student's per-term cancellation and reschedule counts. (owner-verified 2026-07-31)
 - [ ] Confirm the admin one-off reschedule tool (`/admin/users/[id]/reschedule/[lessonId]`) still works uncapped and is not counted in the student's self-serve totals.
