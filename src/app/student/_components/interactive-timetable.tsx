@@ -499,6 +499,23 @@ export function InteractiveTimetable({
                 ))}
                 {picking &&
                   (slotsByDate.get(d.iso) ?? []).map((s) => {
+                    if (s.taken) {
+                      return (
+                        <div
+                          key={`${s.date}-${s.startTime}`}
+                          aria-disabled="true"
+                          title="This tutor is already booked at this time"
+                          className="block w-full rounded-md px-2 py-1 leading-tight border border-line bg-surface-2 text-muted opacity-70 cursor-not-allowed"
+                        >
+                          <div className="text-[10px] font-extrabold tabular-nums line-through">
+                            {formatTime(s.startTime)}
+                          </div>
+                          <div className="text-[10px] font-bold truncate uppercase tracking-wide">
+                            Taken
+                          </div>
+                        </div>
+                      );
+                    }
                     const active =
                       picking.picked?.date === s.date &&
                       picking.picked?.startTime === s.startTime;

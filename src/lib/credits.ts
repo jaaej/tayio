@@ -25,7 +25,11 @@ import {
   type TermRow,
 } from "@/lib/reschedule-credits";
 import { getAdminIds, markStudentAbsent, studentDisplayName } from "@/lib/reschedule";
-import { expandAvailability, type AvailableSlot } from "@/lib/availability";
+import {
+  expandAvailability,
+  markTakenSlots,
+  type AvailableSlot,
+} from "@/lib/availability";
 
 /** An executor is either `db` directly or a `db.transaction(...)` callback's
  *  `tx` - both expose the same query-builder API, so writes can be pointed at
@@ -470,17 +474,19 @@ export async function getRedemptionSlots(
     .where(eq(profiles.id, origin.tutorId))
     .limit(1);
 
-  const slots = await expandAvailability(
-    [
-      {
-        id: origin.tutorId,
-        firstName: t?.firstName ?? "",
-        lastName: t?.lastName ?? "",
-        isOriginal: true,
-      },
-    ],
-    new Date(),
-    4,
+  const slots = await markTakenSlots(
+    await expandAvailability(
+      [
+        {
+          id: origin.tutorId,
+          firstName: t?.firstName ?? "",
+          lastName: t?.lastName ?? "",
+          isOriginal: true,
+        },
+      ],
+      new Date(),
+      4,
+    ),
   );
   return { ok: true, slots, subjectName: credit.subjectName };
 }

@@ -133,6 +133,7 @@ export async function loadCreditRedemption(
       startTime: s.startTime,
       endTime: s.endTime,
       tutorName: s.tutorName,
+      taken: s.taken,
     })),
   };
 }

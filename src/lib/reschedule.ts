@@ -13,7 +13,11 @@ import {
   subjects,
 } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
-import { expandAvailability, type AvailableSlot } from "@/lib/availability";
+import {
+  expandAvailability,
+  markTakenSlots,
+  type AvailableSlot,
+} from "@/lib/availability";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 
 const HOUR = 3600 * 1000;
@@ -203,7 +207,7 @@ export async function getOneOnOneSlots(
     .from(profiles)
     .where(eq(profiles.id, original.tutorId))
     .limit(1);
-  return expandAvailability(
+  const slots = await expandAvailability(
     [
       {
         id: original.tutorId,
@@ -215,6 +219,7 @@ export async function getOneOnOneSlots(
     now,
     4,
   );
+  return markTakenSlots(slots);
 }
 
 // --- Execution primitives ---------------------------------------------------

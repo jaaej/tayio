@@ -43,6 +43,9 @@ export type RescheduleSlot = {
   startTime: string;
   endTime: string;
   tutorName: string;
+  /** True when the tutor is already booked at this slot - shown as taken
+   *  (greyed/struck), not offered. */
+  taken?: boolean;
 };
 
 export type RescheduleOptions =
@@ -151,6 +154,7 @@ export async function loadRescheduleOptions(
       startTime: s.startTime,
       endTime: s.endTime,
       tutorName: s.tutorName,
+      taken: s.taken,
     })),
   };
 }
