@@ -1,17 +1,44 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { STUDENT_TIERS } from "@/lib/roles";
+import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
+import { formatDateLong } from "@/lib/format";
+import {
+  getCancellationsUsed,
+  getReschedulesUsed,
+  getTerms,
+} from "@/lib/credits";
+import {
+  deriveCreditStatus,
+  resolveTerm,
+  type CreditStatus,
+} from "@/lib/reschedule-credits";
 import {
   announcements,
+  classCredits,
   classes,
   enrollments,
   homeworkAssignments,
   invoices,
+  lessonCancellations,
   lessonNotes,
   lessons,
   profiles,
+  rescheduleRequests,
   subjects,
   type UserRole,
 } from "@/db/schema";
@@ -682,4 +709,161 @@ export async function getDiscontinuedStudents(
   return Array.from(byStudent.values()).sort(
     (a, b) => b.mostRecentWithdraw.getTime() - a.mostRecentWithdraw.getTime(),
   );
+}
+
+export type CreditRow = {
+  id: string;
+  studentId: string;
+  studentFirst: string;
+  studentLast: string;
+  subjectName: string;
+  /** Effective status derived at read time via `deriveCreditStatus`, not the
+   *  raw stored column. */
+  status: CreditStatus;
+  grantReason: "cancellation" | "reschedule_no_slot";
+  grantedFromLabel: string | null;
+  redeemedOnLabel: string | null;
+  expiresAt: string;
+  createdAt: Date;
+};
+
+export type UsageRow = {
+  studentId: string;
+  studentFirst: string;
+  studentLast: string;
+  cancellationsUsed: number;
+  reschedulesUsed: number;
+};
+
+export type CreditsOverview = {
+  credits: CreditRow[];
+  usage: UsageRow[];
+};
+
+/**
+ * Read-only admin visibility into the class-credits feature: every credit
+ * ever granted (newest first, effective status derived at read time) plus a
+ * compact per-student usage summary for the current term. Used by
+ * `/admin/reschedules` - no grant/revoke controls here, that's out of scope.
+ */
+export async function getCreditsOverview(): Promise<CreditsOverview> {
+  const student = alias(profiles, "credit_student");
+  const fromLesson = alias(lessons, "credit_from_lesson");
+  const redeemedLesson = alias(lessons, "credit_redeemed_lesson");
+
+  const creditRows = await db
+    .select({
+      id: classCredits.id,
+      studentId: classCredits.studentId,
+      studentFirst: student.firstName,
+      studentLast: student.lastName,
+      subjectName: subjects.name,
+      status: classCredits.status,
+      grantReason: classCredits.grantReason,
+      expiresAt: classCredits.expiresAt,
+      createdAt: classCredits.createdAt,
+      fromDate: fromLesson.date,
+      redeemedDate: redeemedLesson.date,
+    })
+    .from(classCredits)
+    .innerJoin(student, eq(student.id, classCredits.studentId))
+    .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
+    .leftJoin(fromLesson, eq(fromLesson.id, classCredits.grantedFromLessonId))
+    .leftJoin(
+      redeemedLesson,
+      eq(redeemedLesson.id, classCredits.redeemedOnLessonId),
+    )
+    .orderBy(desc(classCredits.createdAt))
+    .limit(300);
+
+  const todayIso = isoDate(new Date());
+  const credits: CreditRow[] = creditRows.map((r) => ({
+    id: r.id,
+    studentId: r.studentId,
+    studentFirst: r.studentFirst,
+    studentLast: r.studentLast,
+    subjectName: r.subjectName,
+    status: deriveCreditStatus(r.status, r.expiresAt, todayIso),
+    grantReason: r.grantReason,
+    grantedFromLabel: r.fromDate ? formatDateLong(r.fromDate) : null,
+    redeemedOnLabel: r.redeemedDate ? formatDateLong(r.redeemedDate) : null,
+    expiresAt: r.expiresAt,
+    createdAt: r.createdAt,
+  }));
+
+  // Usage is scoped to the term containing today - there is only ever one
+  // (terms don't overlap), or none if today falls between terms.
+  const currentTerm = resolveTerm(todayIso, await getTerms());
+  let usage: UsageRow[] = [];
+
+  if (currentTerm) {
+    const studentIds = new Set<string>();
+
+    const creditStudents = await db
+      .selectDistinct({ studentId: classCredits.studentId })
+      .from(classCredits)
+      .where(eq(classCredits.termId, currentTerm.id));
+    for (const r of creditStudents) studentIds.add(r.studentId);
+
+    const cancelStudents = await db
+      .selectDistinct({ studentId: lessonCancellations.studentId })
+      .from(lessonCancellations)
+      .where(eq(lessonCancellations.termId, currentTerm.id));
+    for (const r of cancelStudents) studentIds.add(r.studentId);
+
+    // Same self-serve-reschedule definition as `getReschedulesUsed`: approved
+    // requests whose original lesson falls in the term and whose requester is
+    // not an admin (admin-initiated moves aren't self-serve usage).
+    const rescheduleStudents = await db
+      .selectDistinct({ studentId: rescheduleRequests.studentId })
+      .from(rescheduleRequests)
+      .innerJoin(lessons, eq(lessons.id, rescheduleRequests.originalLessonId))
+      .innerJoin(profiles, eq(profiles.id, rescheduleRequests.requestedById))
+      .where(
+        and(
+          eq(rescheduleRequests.status, "approved"),
+          gte(lessons.date, currentTerm.startDate),
+          lte(lessons.date, currentTerm.endDate),
+          notInArray(profiles.role, [...ADMIN_TIERS]),
+        ),
+      );
+    for (const r of rescheduleStudents) studentIds.add(r.studentId);
+
+    if (studentIds.size > 0) {
+      const ids = Array.from(studentIds);
+      const studentRows = await db
+        .select({
+          id: profiles.id,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
+        })
+        .from(profiles)
+        .where(inArray(profiles.id, ids));
+      const nameById = new Map(studentRows.map((s) => [s.id, s]));
+
+      usage = await Promise.all(
+        ids.map(async (studentId) => {
+          const [cancellationsUsed, reschedulesUsed] = await Promise.all([
+            getCancellationsUsed(studentId, currentTerm.id),
+            getReschedulesUsed(studentId, currentTerm.id),
+          ]);
+          const name = nameById.get(studentId);
+          return {
+            studentId,
+            studentFirst: name?.firstName ?? "",
+            studentLast: name?.lastName ?? "",
+            cancellationsUsed,
+            reschedulesUsed,
+          };
+        }),
+      );
+      usage.sort((a, b) =>
+        `${a.studentFirst} ${a.studentLast}`.localeCompare(
+          `${b.studentFirst} ${b.studentLast}`,
+        ),
+      );
+    }
+  }
+
+  return { credits, usage };
 }
