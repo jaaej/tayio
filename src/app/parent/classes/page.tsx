@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { ClipboardCheck, UserX, CalendarDays } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { StatusBadge } from "@/components/data/status-badge";
-import { CreditPanel } from "@/components/reschedule/credit-panel";
+import { InteractiveTimetable } from "@/app/student/_components/interactive-timetable";
+import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { getStudentHomework } from "@/app/student/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { listRedeemableCredits } from "@/lib/credits";
@@ -10,33 +11,23 @@ import {
   ATTENDANCE_STATUS_LABEL,
   ATTENDANCE_STATUS_STYLE,
 } from "@/lib/status";
-import {
-  getAdminContact,
-  getAttendance,
-  getClassIdForLesson,
-  getMonthLessons,
-  getRescheduleLessonForParent,
-  getUpcomingLessonsForChild,
-  resolveSelectedChild,
-} from "../_data";
-import { getAvailableSlots } from "../_lib/availability";
+import { getAdminContact, getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import {
-  MonthCalendar,
-  monthBounds,
-  parseMonthParam,
-} from "../_components/month-calendar";
+import { parseMonthParam } from "../_components/month-calendar";
 import { SectionHeader } from "../_components/section-header";
-import { BtnLink } from "../_components/button-link";
-import { submitRescheduleRequest } from "../_actions";
 
 type SearchParams = Promise<{
   child?: string;
   month?: string;
-  reschedule?: string;
-  submitted?: string;
-  error?: string;
 }>;
+
+function isoLocal(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default async function ParentClassesPage({
   searchParams,
@@ -60,17 +51,29 @@ export default async function ParentClassesPage({
   }
 
   const { year, month } = parseMonthParam(params.month);
-  const monthIso = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const { fromIso, toIso } = monthBounds(year, month);
+  // The interactive timetable manages the month client-side, so load a wide
+  // window of data - same window as the student's own timetable.
+  const from = new Date(year, month - 1, 1);
+  const to = new Date(year, month + 3, 1);
 
-  const [monthLessons, attendanceRows, upcomingLessons, credits, admin] =
-    await Promise.all([
-      getMonthLessons(selected.id, fromIso, toIso),
-      getAttendance(selected.id),
-      getUpcomingLessonsForChild(selected.id, 12),
-      listRedeemableCredits(selected.id),
-      getAdminContact(),
-    ]);
+  const [chips, homeworkRows, attendanceRows, credits, admin] = await Promise.all([
+    buildTimetableChips(selected.id, from, to),
+    getStudentHomework(selected.id),
+    getAttendance(selected.id),
+    listRedeemableCredits(selected.id),
+    getAdminContact(),
+  ]);
+
+  const fromIso = isoLocal(from);
+  const toIso = isoLocal(to);
+  const hw = homeworkRows
+    .map((h) => ({
+      id: h.homeworkId,
+      dueDate: isoLocal(h.dueDate),
+      title: h.title,
+      done: h.status === "submitted" || h.status === "marked",
+    }))
+    .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
 
   const total = attendanceRows.length;
   const present = attendanceRows.filter(
@@ -82,40 +85,11 @@ export default async function ParentClassesPage({
   const absent = attendanceRows.filter((r) => r.status === "absent").length;
   const rate = total > 0 ? Math.round((present / total) * 100) : null;
 
-  const isPickLesson = params.reschedule === "pick";
-  const rescheduleLesson =
-    params.reschedule && !isPickLesson
-      ? await getRescheduleLessonForParent(user.id, params.reschedule)
-      : null;
-  const mode: "view" | "pick-lesson" | "pick-slot" = rescheduleLesson
-    ? "pick-slot"
-    : isPickLesson
-      ? "pick-lesson"
-      : "view";
-
-  const rescheduleClassId = rescheduleLesson
-    ? await getClassIdForLesson(rescheduleLesson.id)
-    : null;
-  const availableSlots =
-    rescheduleClassId !== null
-      ? await getAvailableSlots(rescheduleClassId, new Date(), 8)
-      : [];
-
-  const cancelHref = `/parent/classes?child=${selected.id}&month=${monthIso}`;
-  const pickLessonHref = `${cancelHref}&reschedule=pick`;
-
   return (
     <div className="space-y-6">
       <PageHeader
         title={`${selected.firstName}'s classes`}
         sub="Calendar, attendance log and reschedule requests."
-        actions={
-          mode === "view" && upcomingLessons.length > 0 ? (
-            <BtnLink href={pickLessonHref} variant="brand">
-              Reschedule a class
-            </BtnLink>
-          ) : undefined
-        }
       />
 
       {children.length > 1 && (
@@ -126,33 +100,6 @@ export default async function ParentClassesPage({
             basePath="/parent/classes"
           />
         </div>
-      )}
-
-      {params.submitted === "1" && (
-        <Card accent="good" className="rise">
-          <div className="p-5">
-            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-good">
-              Request submitted
-            </div>
-            <p className="mt-1 text-sm text-ink-soft">
-              Your reschedule request has been sent to the admin team. They'll
-              confirm by email.
-            </p>
-          </div>
-        </Card>
-      )}
-
-      {params.error === "1" && (
-        <Card accent="bad" className="rise">
-          <div className="p-5">
-            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad">
-              Couldn't submit request
-            </div>
-            <p className="mt-1 text-sm text-ink-soft">
-              Please pick a slot and try again.
-            </p>
-          </div>
-        </Card>
       )}
 
       <section
@@ -189,150 +136,30 @@ export default async function ParentClassesPage({
         />
       </section>
 
-      {mode === "pick-slot" && rescheduleLesson ? (
-        <form
-          action={submitRescheduleRequest}
-          className="space-y-3 rise"
-          style={{ animationDelay: "60ms" }}
-        >
-          <input type="hidden" name="lessonId" value={rescheduleLesson.id} />
-          <input type="hidden" name="childId" value={selected.id} />
-          <input type="hidden" name="month" value={monthIso} />
-
-          <Card>
-            <div className="px-6 py-5 border-b border-line bg-brand-50">
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-brand-700">
-                    Pick a new time
-                  </div>
-                  <div className="mt-1 text-base text-ink">
-                    Moving <span className="font-medium">{rescheduleLesson.subjectName}</span>{" "}
-                    on {formatDateLong(rescheduleLesson.date)} at{" "}
-                    {formatTime(rescheduleLesson.startTime)}
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">
-                    Click a green slot in the calendar to submit.
-                  </div>
-                </div>
-                <Link
-                  href={pickLessonHref}
-                  className="shrink-0 text-sm text-brand-700 hover:underline"
-                >
-                  Pick a different class
-                </Link>
-              </div>
-              <div className="mt-4">
-                <label
-                  htmlFor="reason"
-                  className="block text-[11px] uppercase tracking-[0.14em] text-muted"
-                >
-                  Reason (optional)
-                </label>
-                <textarea
-                  id="reason"
-                  name="reason"
-                  rows={2}
-                  placeholder="Anything the admin team should know?"
-                  className="mt-1 block w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                />
-              </div>
-              <div className="mt-3">
-                <Link
-                  href={cancelHref}
-                  className="text-xs text-ink-soft hover:text-ink"
-                >
-                  ← Cancel reschedule
-                </Link>
-              </div>
-            </div>
-            {availableSlots.length === 0 && (
-              <div className="px-6 py-4 bg-amber-50 border-b border-amber-200/70 text-sm text-amber-900">
-                No classes available - no tutor teaching{" "}
-                {rescheduleLesson.subjectName} has open slots in the next 8
-                weeks. Pick a different class or contact the office.
-              </div>
-            )}
-            <div className="p-5 bg-gradient-to-b from-brand-50/30 to-transparent">
-              <MonthCalendar
-                year={year}
-                month={month}
-                lessons={monthLessons}
-                basePath="/parent/classes"
-                childId={selected.id}
-                mode="pick-slot"
-                availableSlots={availableSlots}
-                selectedLessonId={rescheduleLesson.id}
-              />
-            </div>
-          </Card>
-        </form>
-      ) : (
-        <div className="rise" style={{ animationDelay: "60ms" }}>
+      <div className="rise" style={{ animationDelay: "60ms" }}>
         <Card>
           <SectionHeader
             title={`${selected.firstName}'s schedule`}
-            description={
-              mode === "pick-lesson"
-                ? "Click a lesson to move it. Then pick a new time on the next screen."
-                : "Click a lesson to request a reschedule."
-            }
+            description="Click a lesson to open it, then choose Go to subject, Reschedule, or Cancel."
           />
-          {mode === "pick-lesson" && (
-            <div className="px-6 py-3 bg-brand-50 border-b border-line flex items-baseline justify-between gap-3">
-              <div className="text-sm text-ink">
-                <span className="font-medium">Pick the class to move.</span>
-                <span className="text-muted ml-2">
-                  Tap any lesson on the calendar below.
-                </span>
-              </div>
-              <Link
-                href={cancelHref}
-                className="shrink-0 text-xs text-ink-soft hover:text-ink"
-              >
-                Cancel
-              </Link>
-            </div>
-          )}
-          {mode === "view" && upcomingLessons.length > 0 && (
-            <div className="px-5 pt-5">
-              <Link
-                href={pickLessonHref}
-                className="group flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-brand-100 via-brand-200 to-brand-100 text-brand-700 px-6 py-3 hover:from-brand-200 hover:via-brand-300 hover:to-brand-200 transition-colors"
-              >
-                <span className="text-base font-bold">Reschedule a class</span>
-                <span
-                  aria-hidden
-                  className="text-xl shrink-0 transition-transform group-hover:translate-x-1"
-                >
-                  →
-                </span>
-              </Link>
-            </div>
-          )}
-          <div className="p-5 bg-gradient-to-b from-brand-50/30 to-transparent">
-            <MonthCalendar
-              year={year}
-              month={month}
-              lessons={monthLessons}
-              basePath="/parent/classes"
-              childId={selected.id}
-              mode={mode === "pick-lesson" ? "pick-lesson" : "view"}
+          <div className="p-4 lg:p-5">
+            <InteractiveTimetable
+              key={selected.id}
+              initialYear={year}
+              initialMonth={month}
+              lessons={chips}
+              homework={hw}
+              credits={credits}
+              adminId={admin?.id ?? null}
+              studentId={selected.id}
+              subjectBase="/parent/subjects"
+              subjectQuery={`?child=${selected.id}`}
+              messageBase="/parent/messages/with"
+              homeworkHref={() => `/parent/homework?child=${selected.id}`}
             />
           </div>
         </Card>
-        </div>
-      )}
-
-      {credits.length > 0 && (
-        <div className="rise" style={{ animationDelay: "70ms" }}>
-          <CreditPanel
-            credits={credits}
-            studentId={selected.id}
-            adminId={admin?.id ?? null}
-          />
-        </div>
-      )}
+      </div>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
         <Card>

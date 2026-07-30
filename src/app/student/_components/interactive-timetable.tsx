@@ -109,6 +109,11 @@ export function InteractiveTimetable({
   homework,
   credits,
   adminId,
+  studentId,
+  subjectBase = "/student/subjects",
+  subjectQuery = "",
+  messageBase = "/student/messages/with",
+  homeworkHref = (h) => `/student/homework/${h.id}`,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -121,6 +126,22 @@ export function InteractiveTimetable({
    *  available. Null if no admin contact is available (empty state
    *  falls back to plain text with no link). */
   adminId: string | null;
+  /** Acting on behalf of this student (parent portal). Undefined on the
+   *  student's own timetable, where every action defaults to the caller. */
+  studentId?: string;
+  /** Base path for the "Go to subject" link - `${subjectBase}/${lesson.subjectId}${subjectQuery}`. */
+  subjectBase?: string;
+  /** Query string appended after the subject id, e.g. `?child=${studentId}` so
+   *  the parent portal's subject page (which otherwise defaults to the
+   *  parent's first child) resolves the same child this timetable is for. */
+  subjectQuery?: string;
+  /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
+  messageBase?: string;
+  /** Href for a homework due-date chip. Defaults to the student's own
+   *  homework detail page - there is no per-item detail page for the parent
+   *  portal, so the parent passes a href to the (child-filtered) homework
+   *  list instead. */
+  homeworkHref?: (h: TimetableHw) => string;
 }) {
   const router = useRouter();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
@@ -189,7 +210,7 @@ export function InteractiveTimetable({
 
   function openReschedule(lessonId: string) {
     startLoad(async () => {
-      const opts = await loadRescheduleOptions(lessonId);
+      const opts = await loadRescheduleOptions(lessonId, studentId);
       if (!opts.ok) {
         setFlash({ ok: false, text: opts.error });
         setMode({ kind: "idle" });
@@ -208,7 +229,7 @@ export function InteractiveTimetable({
 
   function openCreditRedemption(creditId: string) {
     startLoad(async () => {
-      const res = await loadCreditRedemption(creditId);
+      const res = await loadCreditRedemption(creditId, studentId);
       if (!res.ok) {
         setFlash({ ok: false, text: res.error });
         setMode({ kind: "idle" });
@@ -236,11 +257,13 @@ export function InteractiveTimetable({
         const fd = new FormData();
         fd.set("lessonId", action.lessonId);
         fd.set("slot", slot);
+        if (studentId) fd.set("studentId", studentId);
         res = await submitReschedule(fd);
       } else {
         const fd = new FormData();
         fd.set("creditId", action.creditId);
         fd.set("slot", slot);
+        if (studentId) fd.set("studentId", studentId);
         res = await redeemCredit(fd);
       }
       setMode({ kind: "idle" });
@@ -254,6 +277,7 @@ export function InteractiveTimetable({
     const lessonId = picking.action.lessonId;
     const fd = new FormData();
     fd.set("lessonId", lessonId);
+    if (studentId) fd.set("studentId", studentId);
     startSubmit(async () => {
       const res = await grantRescheduleCredit(fd);
       setMode({ kind: "idle" });
@@ -266,6 +290,7 @@ export function InteractiveTimetable({
     if (!cancelConfirming) return;
     const fd = new FormData();
     fd.set("lessonId", cancelConfirming.lessonId);
+    if (studentId) fd.set("studentId", studentId);
     startSubmit(async () => {
       const res = await cancelLesson(fd);
       setMode({ kind: "idle" });
@@ -370,7 +395,7 @@ export function InteractiveTimetable({
             </button>
             {adminId && (
               <Link
-                href={`/student/messages/with/${adminId}`}
+                href={`${messageBase}/${adminId}`}
                 className={cn(
                   "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300",
                   FOCUS_RING,
@@ -459,6 +484,9 @@ export function InteractiveTimetable({
                     loading={loading}
                     cancelling={submitting}
                     adminId={adminId}
+                    subjectBase={subjectBase}
+                    subjectQuery={subjectQuery}
+                    messageBase={messageBase}
                     onOpenMenu={() => setMode({ kind: "menu", lessonId: l.id })}
                     onCloseMenu={() => setMode({ kind: "idle" })}
                     onReschedule={() => openReschedule(l.id)}
@@ -501,7 +529,7 @@ export function InteractiveTimetable({
                 {(hwByDate.get(d.iso) ?? []).map((h) => (
                   <Link
                     key={h.id}
-                    href={`/student/homework/${h.id}`}
+                    href={homeworkHref(h)}
                     className={cn(
                       "block rounded-md px-2 py-1 leading-tight text-[11px] font-bold truncate",
                       picking && "opacity-40",
@@ -565,6 +593,9 @@ function LessonChip({
   loading,
   cancelling,
   adminId,
+  subjectBase,
+  subjectQuery,
+  messageBase,
   onOpenMenu,
   onCloseMenu,
   onReschedule,
@@ -580,6 +611,9 @@ function LessonChip({
   loading: boolean;
   cancelling: boolean;
   adminId: string | null;
+  subjectBase: string;
+  subjectQuery: string;
+  messageBase: string;
   onOpenMenu: () => void;
   onCloseMenu: () => void;
   onReschedule: () => void;
@@ -661,7 +695,7 @@ function LessonChip({
     !!adminId && (!lesson.canReschedule || !lesson.canCancel);
   const messageOfficeLink = showOfficeLink ? (
     <Link
-      href={`/student/messages/with/${adminId}`}
+      href={`${messageBase}/${adminId}`}
       className={cn(
         "flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
         FOCUS_RING,
@@ -682,7 +716,7 @@ function LessonChip({
       {menuOpen && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 origin-top scale-100 rounded-[10px] border border-line bg-surface p-1 shadow-lg">
           <Link
-            href={`/student/subjects/${lesson.subjectId}`}
+            href={`${subjectBase}/${lesson.subjectId}${subjectQuery}`}
             className={cn(
               "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2",
               FOCUS_RING,
