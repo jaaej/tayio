@@ -70,35 +70,37 @@ This mirrors the existing `deriveTrialStatus` pattern used for free-trial studen
 
 ## Browser-QA checklist
 
-The items below are the acceptance gate; everything above this section is machine-verified only (tests, typecheck, build, `db:check-rls`).
-Tick each box after clicking through it in a real browser session with real data, per the project's success-claim rule.
+The backend flows and the data that drives every UI state are verified autonomously (2026-07-30): a headless harness drove the real cancel, redeem, per-term-cap, and double-benefit-guard code against the database and asserted every outcome (credit granted, absent marked, cancellation recorded, cap decremented, make-up booked, credit burned, second-credit and double-redeem blocked, cross-student access blocked).
+Everything else above this section is machine-verified (tests, typecheck, build, `db:check-rls`).
+The items below are the remaining visual and interaction gate - what only a real browser render confirms.
+Tick each box after clicking through it as the signed-in role.
 
-### Student (`student_unrestricted`)
+### Student menu interaction (`student_unrestricted`, `/student/timetable`)
 
-- [ ] Cancel an eligible lesson (at least 24 hours out, under the cap) and confirm it marks the student absent, grants a credit, and the remaining-allowance label decrements.
-- [ ] Attempt to cancel an ineligible lesson (under 24 hours) and confirm the action is replaced by "Message the office," not a silent failure.
-- [ ] Reschedule a lesson at least 7 days out into an available same-tutor slot and confirm it moves directly with no approval step or pending state.
-- [ ] Attempt to reschedule a lesson under 7 days out and confirm "Message the office" appears instead of a slot picker.
-- [ ] Reschedule a lesson at least 7 days out where no same-tutor slot exists and confirm "Get a class credit instead" appears and grants a credit.
-- [ ] Redeem an active credit into a same-tutor slot from the credit panel and confirm it books the makeup and marks the credit redeemed.
-- [ ] Confirm the allowance labels read "N of 3 left" for both cancel and reschedule, and decrement correctly as actions are taken.
-- [ ] Reach the cap on cancellations (3 in a term) and confirm the Cancel action itself closes to "Message the office" rather than showing an error after submission.
-- [ ] Reach the cap on reschedules (3 in a term) and confirm the same office-routing behaviour.
+- [ ] Click any lesson - past, current, or future - and confirm the action menu opens (a past lesson opens it the same as an upcoming one).
+- [ ] On a lesson you cannot act on, confirm Reschedule and Cancel show greyed-out with a short reason ("Passed", "Needs 7 days notice", "Needs 24 hours notice", "Already moved", "No reschedules left this term"), rather than being hidden.
+- [ ] Confirm the menu closes when you click anywhere outside it and when you press Escape, not only via the Close button.
 
-### Parent
+### Student flows (navigate to the month holding the upcoming test lessons)
 
-- [ ] Repeat the cancel, reschedule, no-slot-credit, redeem, and allowance-label checks above for one linked child from `/parent/classes` and `/parent/classes/reschedule/[lessonId]`.
-- [ ] On a parent account linked to 2 or more children, switch between children via the child switcher and confirm each child's allowances, credits, and cancellation/reschedule state are independent and correctly scoped (no cross-child bleed).
-- [ ] Confirm the ineligibility reason shown (no term / notice / cap) matches the actual reason for at least one gated case per child.
+- [ ] Reschedule a lesson at least 7 days out into an available slot and confirm the chip moves with no approval or pending state, and the Reschedule label reads "N of 3 left" and decrements.
+- [ ] Cancel a lesson at least 24 hours out and confirm the chip turns red with the time and subject struck through and a single "Cancelled" tag, and that opening its menu shows one red "Cancelled" line - not "Reschedule - Cancelled" plus "Cancel - Cancelled".
+- [ ] Reschedule a lesson with no available slot (ask the builder to clear the tutor's availability) and confirm the "Get a class credit instead" action appears.
+- [ ] Open the credit panel, redeem an active credit into a slot, and confirm it books the make-up and the credit leaves the active list.
+- [ ] Reach the cancel cap (3 in a term) and the reschedule cap (3 in a term) and confirm each action then closes to "Message the office".
 
-### Tutor
+### Parent (`/parent/classes`, per linked child)
 
-- [ ] Visit `/tutor/reschedules` for a tutor with students who have self-serve rescheduled or cancelled since this change shipped, and confirm no new entries appear in the queue - self-serve actions no longer feed it.
-- [ ] If an admin-initiated one-off reschedule exists for one of the tutor's students, confirm it still appears as before (the queue itself is not broken, only no longer fed by self-serve).
+- [ ] Repeat the cancel, reschedule, no-slot-credit, and redeem visual checks for one linked child, and confirm the allowance labels read correctly.
+- [ ] On a parent with two or more children, switch children and confirm each child's allowances, credits, and cancelled/greyed states are independent with no cross-child bleed.
 
-### Admin
+### Tutor (`/tutor/reschedules`)
 
-- [ ] Visit `/admin/reschedules` and confirm the "Class credits" section lists granted, redeemed, and expired credits with reason and source/target lesson.
-- [ ] Confirm "This term's usage" shows each student's per-term cancellation and reschedule counts.
-- [ ] For a student with more credit rows than the internal display cap, confirm the UI shows a "300+" indicator rather than silently truncating the list with no signal.
-- [ ] Confirm the admin one-off reschedule tool (`/admin/users/[id]/reschedule/[lessonId]`) still works uncapped and ungated, and that it is not counted toward the student's self-serve totals.
+- [ ] Confirm no new self-serve entries appear in the reschedule queue after a student self-serve reschedule or cancel.
+- [ ] Confirm an admin-initiated one-off reschedule still appears in the queue.
+
+### Admin (`/admin/reschedules`)
+
+- [ ] Confirm the "Class credits" section lists granted, redeemed, and expired credits with reason and source or target lesson.
+- [ ] Confirm the "This term's usage" table shows each student's per-term cancellation and reschedule counts.
+- [ ] Confirm the admin one-off reschedule tool (`/admin/users/[id]/reschedule/[lessonId]`) still works uncapped and is not counted in the student's self-serve totals.
