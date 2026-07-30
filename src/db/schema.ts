@@ -299,6 +299,56 @@ export const rescheduleRequests = pgTable(
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type ClassType = (typeof classTypeEnum.enumValues)[number];
 
+export const creditGrantReasonEnum = pgEnum("credit_grant_reason", [
+  "cancellation",
+  "reschedule_no_slot",
+]);
+export const creditStatusEnum = pgEnum("credit_status", [
+  "active",
+  "redeemed",
+  "expired",
+]);
+
+export const classCredits = pgTable(
+  "class_credits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
+    termId: uuid("term_id").notNull().references(() => terms.id, { onDelete: "cascade" }),
+    grantReason: creditGrantReasonEnum("grant_reason").notNull(),
+    grantedFromLessonId: uuid("granted_from_lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    grantedById: uuid("granted_by_id").notNull().references(() => profiles.id),
+    status: creditStatusEnum("status").notNull().default("active"),
+    redeemedOnLessonId: uuid("redeemed_on_lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    redeemedById: uuid("redeemed_by_id").references(() => profiles.id),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    expiresAt: date("expires_at").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("class_credits_student_status_idx").on(t.studentId, t.status),
+    index("class_credits_term_idx").on(t.termId),
+  ],
+);
+export type ClassCredit = typeof classCredits.$inferSelect;
+
+export const lessonCancellations = pgTable(
+  "lesson_cancellations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    cancelledById: uuid("cancelled_by_id").notNull().references(() => profiles.id),
+    termId: uuid("term_id").notNull().references(() => terms.id, { onDelete: "cascade" }),
+    creditId: uuid("credit_id").references(() => classCredits.id, { onDelete: "set null" }),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("lesson_cancellations_student_term_idx").on(t.studentId, t.termId)],
+);
+export type LessonCancellation = typeof lessonCancellations.$inferSelect;
+
 export const homework = pgTable("homework", {
   id: uuid("id").primaryKey().defaultRandom(),
   classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),
