@@ -207,6 +207,7 @@ export default async function TimetablePage({
         cancelRemaining,
         rescheduleReason: rescheduleReasonFor(),
         cancelReason: cancelReasonFor(),
+        cancelled: alreadyCancelled,
       };
     });
     const fromIso = isoLocal(from);

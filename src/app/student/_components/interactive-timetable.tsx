@@ -60,6 +60,9 @@ export type TimetableChip = {
   /** When cancel is unavailable, a short reason shown on the greyed-out
    *  action. null when cancellable. */
   cancelReason: string | null;
+  /** This lesson has been cancelled by the student (a credit was granted).
+   *  Rendered struck-through in red with a single "Cancelled" status. */
+  cancelled: boolean;
 };
 export type TimetableHw = {
   id: string;
@@ -502,17 +505,21 @@ function LessonChip({
     };
   }, [popoverOpen, onCloseMenu]);
 
+  const cancelled = lesson.cancelled;
   const moved = lesson.studentState === "moved_out";
   const makeup = lesson.studentState === "makeup_in";
   const pending =
     lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
-  const tone = moved
-    ? "bg-surface-2 text-muted"
-    : makeup
-      ? "bg-good-bg text-good"
-      : pending
-        ? "bg-warn-bg text-warn border border-dashed border-warn/50"
-        : "bg-brand-50 text-brand-700";
+  const tone = cancelled
+    ? "bg-bad-bg text-bad"
+    : moved
+      ? "bg-surface-2 text-muted"
+      : makeup
+        ? "bg-good-bg text-good"
+        : pending
+          ? "bg-warn-bg text-warn border border-dashed border-warn/50"
+          : "bg-brand-50 text-brand-700";
+  const struck = cancelled || moved;
 
   const chip = (
     <div
@@ -523,17 +530,21 @@ function LessonChip({
         !picking && "cursor-pointer hover:brightness-95",
       )}
     >
-      <div className={cn("text-[10px] font-extrabold tabular-nums", moved && "line-through")}>
+      <div className={cn("text-[10px] font-extrabold tabular-nums", struck && "line-through")}>
         {formatTime(lesson.startTime)}
       </div>
-      <div className={cn("mt-0.5 text-[11px] truncate font-bold", moved && "line-through")}>
+      <div className={cn("mt-0.5 text-[11px] truncate font-bold", struck && "line-through")}>
         {lesson.subjectName}
       </div>
-      {lesson.moveLabel && (
+      {cancelled ? (
+        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
+          Cancelled
+        </div>
+      ) : lesson.moveLabel ? (
         <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide truncate">
           {lesson.moveLabel}
         </div>
-      )}
+      ) : null}
     </div>
   );
 
@@ -576,44 +587,55 @@ function LessonChip({
             Go to subject
           </Link>
 
-          {lesson.canReschedule ? (
-            <button
-              type="button"
-              onClick={onReschedule}
-              disabled={loading}
-              className={cn(
-                "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
-                FOCUS_RING,
-              )}
+          {cancelled ? (
+            <div
+              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-bad"
+              aria-disabled="true"
             >
-              {loading
-                ? "Loading…"
-                : `Reschedule (${lesson.rescheduleRemaining} of ${RESCHEDULE_CAP} left)`}
-            </button>
-          ) : (
-            <div className={disabledRow} aria-disabled="true">
-              Reschedule - {lesson.rescheduleReason ?? "unavailable"}
+              Cancelled
             </div>
-          )}
-
-          {lesson.canCancel ? (
-            <button
-              type="button"
-              onClick={onOpenCancelConfirm}
-              className={cn(
-                "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
-                FOCUS_RING,
+          ) : (
+            <>
+              {lesson.canReschedule ? (
+                <button
+                  type="button"
+                  onClick={onReschedule}
+                  disabled={loading}
+                  className={cn(
+                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
+                    FOCUS_RING,
+                  )}
+                >
+                  {loading
+                    ? "Loading…"
+                    : `Reschedule (${lesson.rescheduleRemaining} of ${RESCHEDULE_CAP} left)`}
+                </button>
+              ) : (
+                <div className={disabledRow} aria-disabled="true">
+                  Reschedule - {lesson.rescheduleReason ?? "unavailable"}
+                </div>
               )}
-            >
-              {`Cancel (${lesson.cancelRemaining} of ${CANCEL_CAP} left)`}
-            </button>
-          ) : (
-            <div className={disabledRow} aria-disabled="true">
-              Cancel - {lesson.cancelReason ?? "unavailable"}
-            </div>
-          )}
 
-          {messageOfficeLink}
+              {lesson.canCancel ? (
+                <button
+                  type="button"
+                  onClick={onOpenCancelConfirm}
+                  className={cn(
+                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
+                    FOCUS_RING,
+                  )}
+                >
+                  {`Cancel (${lesson.cancelRemaining} of ${CANCEL_CAP} left)`}
+                </button>
+              ) : (
+                <div className={disabledRow} aria-disabled="true">
+                  Cancel - {lesson.cancelReason ?? "unavailable"}
+                </div>
+              )}
+
+              {messageOfficeLink}
+            </>
+          )}
 
           <button
             type="button"
