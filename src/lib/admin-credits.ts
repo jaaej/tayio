@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -32,6 +32,10 @@ import {
   getTerms,
   grantCredit,
 } from "@/lib/credits";
+
+/** Thrown inside `undoCancellation`'s transaction when the credit was redeemed
+ *  concurrently, to roll the whole undo back. */
+class CreditRedeemedDuringUndoError extends Error {}
 
 // --- Notifications ----------------------------------------------------------
 
@@ -396,8 +400,26 @@ export async function undoReschedule(p: {
         .where(eq(lessons.id, req.targetLessonId))
         .limit(1);
       if (tl?.status === "makeup") {
-        // Deleting the make-up lesson cascades its attendance rows.
-        await tx.delete(lessons).where(eq(lessons.id, req.targetLessonId));
+        // Pull this student's attendance off the make-up first, then delete
+        // the make-up lesson ONLY if no other student is attending it - a group
+        // switch can place a second student onto the same make-up lesson, and
+        // deleting it would cascade-delete their attendance + request row.
+        await tx
+          .delete(attendance)
+          .where(
+            and(
+              eq(attendance.lessonId, req.targetLessonId),
+              eq(attendance.studentId, req.studentId),
+            ),
+          );
+        const [otherAttendee] = await tx
+          .select({ studentId: attendance.studentId })
+          .from(attendance)
+          .where(eq(attendance.lessonId, req.targetLessonId))
+          .limit(1);
+        if (!otherAttendee) {
+          await tx.delete(lessons).where(eq(lessons.id, req.targetLessonId));
+        }
       } else {
         // A group switch onto an existing lesson: only pull this student's
         // make-up attendance, never the lesson itself.
@@ -473,23 +495,45 @@ export async function undoCancellation(p: {
     };
   }
 
-  await db.transaction(async (tx) => {
-    if (row.creditId) {
-      await tx.delete(classCredits).where(eq(classCredits.id, row.creditId));
+  try {
+    await db.transaction(async (tx) => {
+      if (row.creditId) {
+        // Conditional delete inside the tx: if the credit was redeemed between
+        // the check above and now, this deletes 0 rows - throw to roll the
+        // whole undo back rather than orphan a make-up from its credit.
+        const deleted = await tx
+          .delete(classCredits)
+          .where(
+            and(
+              eq(classCredits.id, row.creditId),
+              ne(classCredits.status, "redeemed"),
+            ),
+          )
+          .returning({ id: classCredits.id });
+        if (deleted.length === 0) throw new CreditRedeemedDuringUndoError();
+      }
+      await tx
+        .delete(lessonCancellations)
+        .where(eq(lessonCancellations.id, row.id));
+      await tx
+        .delete(attendance)
+        .where(
+          and(
+            eq(attendance.lessonId, row.lessonId),
+            eq(attendance.studentId, row.studentId),
+            eq(attendance.status, "absent"),
+          ),
+        );
+    });
+  } catch (err) {
+    if (err instanceof CreditRedeemedDuringUndoError) {
+      return {
+        ok: false,
+        error: "That credit has already been used - undo the redemption first.",
+      };
     }
-    await tx
-      .delete(lessonCancellations)
-      .where(eq(lessonCancellations.id, row.id));
-    await tx
-      .delete(attendance)
-      .where(
-        and(
-          eq(attendance.lessonId, row.lessonId),
-          eq(attendance.studentId, row.studentId),
-          eq(attendance.status, "absent"),
-        ),
-      );
-  });
+    throw err;
+  }
 
   await notifyStudentAndParents(
     row.studentId,

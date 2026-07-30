@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { formatTime, formatDateLong } from "@/lib/format";
-import { CANCEL_CAP, RESCHEDULE_CAP } from "@/lib/reschedule-credits";
 import {
   loadRescheduleOptions,
   submitReschedule,
@@ -58,6 +57,10 @@ export type TimetableChip = {
   /** Remaining cancellations this term, or null if the lesson isn't in a
    *  resolved term. */
   cancelRemaining: number | null;
+  /** Effective per-term caps (base 3 + admin allowance bonus) - the denominator
+   *  shown in the "N of X left" labels. */
+  rescheduleCap: number;
+  cancelCap: number;
   /** When reschedule is unavailable, a short reason ("Passed", "Needs 7 days
    *  notice", ...) shown on the greyed-out action. null when reschedulable. */
   rescheduleReason: string | null;
@@ -763,7 +766,7 @@ function LessonChip({
                 >
                   {loading
                     ? "Loading…"
-                    : `Reschedule (${lesson.rescheduleRemaining} of ${RESCHEDULE_CAP} left)`}
+                    : `Reschedule (${lesson.rescheduleRemaining} of ${lesson.rescheduleCap} left)`}
                 </button>
               ) : (
                 <div className={disabledRow} aria-disabled="true">
@@ -780,7 +783,7 @@ function LessonChip({
                     FOCUS_RING,
                   )}
                 >
-                  {`Cancel (${lesson.cancelRemaining} of ${CANCEL_CAP} left)`}
+                  {`Cancel (${lesson.cancelRemaining} of ${lesson.cancelCap} left)`}
                 </button>
               ) : (
                 <div className={disabledRow} aria-disabled="true">
@@ -807,7 +810,7 @@ function LessonChip({
       {cancelConfirming && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-[10px] border border-bad/40 bg-surface p-2.5 shadow-lg">
           <div className="text-[11px] font-semibold text-ink">
-            This uses 1 of your {CANCEL_CAP} term cancellations and adds a
+            This uses 1 of your {lesson.cancelCap} term cancellations and adds a
             class credit.
           </div>
           <div className="mt-2 flex items-center justify-end gap-2">

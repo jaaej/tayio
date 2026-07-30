@@ -105,11 +105,14 @@ export async function buildTimetableChips(
     const creditGranted = creditGrantedLessonIds.has(l.id);
     const term = termByLessonId.get(l.id) ?? null;
     const usage = term ? usageByTerm.get(term.id) : undefined;
-    const cancelRemaining = usage
-      ? remaining(CANCEL_CAP + usage.cancelBonus, usage.cancelUsed)
-      : null;
+    // Effective per-term caps (base 3 + any admin allowance bonus) - the UI
+    // must show the bonus-aware total, not the hardcoded 3, or it reads
+    // "5 of 3 left" after a top-up.
+    const cancelCap = CANCEL_CAP + (usage?.cancelBonus ?? 0);
+    const rescheduleCap = RESCHEDULE_CAP + (usage?.rescheduleBonus ?? 0);
+    const cancelRemaining = usage ? remaining(cancelCap, usage.cancelUsed) : null;
     const rescheduleRemaining = usage
-      ? remaining(RESCHEDULE_CAP + usage.rescheduleBonus, usage.rescheduleUsed)
+      ? remaining(rescheduleCap, usage.rescheduleUsed)
       : null;
     // Cancel is narrower than the shared "canManage" base: a lesson that's
     // already been moved (moved_out/pending_out) must not also be
@@ -176,6 +179,8 @@ export async function buildTimetableChips(
       canCancel,
       rescheduleRemaining,
       cancelRemaining,
+      rescheduleCap,
+      cancelCap,
       rescheduleReason: rescheduleReasonFor(),
       cancelReason: cancelReasonFor(),
       cancelled: alreadyCancelled,

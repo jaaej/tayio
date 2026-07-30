@@ -76,13 +76,14 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
   // the client submitted that isn't in it - never trust the formData slot as-is.
   const available = await getRedemptionSlots(creditId, studentId);
   if (!available.ok) return available;
-  if (!available.slots.some((s) => s.tutorId === tutorId)) {
-    return { ok: false, error: "That time is no longer available - pick another." };
-  }
-  // Never trust the client's endTime - use the matched server slot's, so the
-  // clash guard and the inserted lesson's duration are both server-derived.
+  // Match tutor + date + start together, never independently - a multi-tutor
+  // admin credit offers several tutors' slots, so validating the tutor and the
+  // time separately would let a client pair a valid tutor with a time that
+  // tutor isn't actually free. Never trust the client's endTime - use the
+  // matched server slot's, so the clash guard and the inserted lesson's
+  // duration are both server-derived.
   const matchedSlot = available.slots.find(
-    (s) => s.date === date && s.startTime === startTime,
+    (s) => s.tutorId === tutorId && s.date === date && s.startTime === startTime,
   );
   if (!matchedSlot) {
     return { ok: false, error: "That time is no longer available - pick another." };
