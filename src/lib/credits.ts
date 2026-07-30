@@ -1,10 +1,12 @@
 import "server-only";
-import { and, eq, gt, gte, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  allowanceAdjustments,
   attendance,
   classCredits,
   classes,
+  enrollments,
   familyLinks,
   lessonCancellations,
   lessons,
@@ -98,13 +100,43 @@ export async function getReschedulesUsed(
   return Number(rescheduleCount) + Number(creditCount);
 }
 
+/** Admin-granted bonus allowance for a student+term, summed per kind. The
+ *  effective per-term cap is the base cap (3) plus the matching bonus. Returns
+ *  zeros when no top-up has been granted. */
+export async function getAllowanceBonus(
+  studentId: string,
+  termId: string,
+): Promise<{ reschedule: number; cancellation: number }> {
+  const rows = await db
+    .select({
+      kind: allowanceAdjustments.kind,
+      total: sql<number>`coalesce(sum(${allowanceAdjustments.bonus}), 0)::int`,
+    })
+    .from(allowanceAdjustments)
+    .where(
+      and(
+        eq(allowanceAdjustments.studentId, studentId),
+        eq(allowanceAdjustments.termId, termId),
+      ),
+    )
+    .groupBy(allowanceAdjustments.kind);
+
+  let reschedule = 0;
+  let cancellation = 0;
+  for (const r of rows) {
+    if (r.kind === "reschedule") reschedule = Number(r.total);
+    else cancellation = Number(r.total);
+  }
+  return { reschedule, cancellation };
+}
+
 export async function grantCredit(
   p: {
     studentId: string;
     subjectId: string;
     termId: string;
-    reason: "cancellation" | "reschedule_no_slot";
-    fromLessonId: string;
+    reason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+    fromLessonId: string | null;
     grantedById: string;
     expiresAt: string;
   },
@@ -227,12 +259,16 @@ export async function cancelLesson(p: {
       error: "Cancellations need at least 24 hours notice - message the office.",
     };
   }
+  const bonus = await getAllowanceBonus(p.studentId, term.id);
   if (
-    remaining(CANCEL_CAP, await getCancellationsUsed(p.studentId, term.id)) <= 0
+    remaining(
+      CANCEL_CAP + bonus.cancellation,
+      await getCancellationsUsed(p.studentId, term.id),
+    ) <= 0
   ) {
     return {
       ok: false,
-      error: "You have used all 3 cancellations this term - message the office.",
+      error: "You have used all your cancellations this term - message the office.",
     };
   }
 
@@ -281,7 +317,7 @@ export type RedeemableCredit = {
   id: string;
   subjectName: string;
   expiresAt: string;
-  grantReason: "cancellation" | "reschedule_no_slot";
+  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
 };
 
 /** The student's currently-redeemable credits (effective status "active").
@@ -425,6 +461,7 @@ async function loadActiveCredit(creditId: string, holderId: string) {
     .select({
       id: classCredits.id,
       studentId: classCredits.studentId,
+      subjectId: classCredits.subjectId,
       status: classCredits.status,
       expiresAt: classCredits.expiresAt,
       subjectName: subjects.name,
@@ -444,10 +481,71 @@ async function loadActiveCredit(creditId: string, holderId: string) {
   ) {
     return { ok: false as const, error: "That credit is no longer available" };
   }
-  if (!credit.grantedFromLessonId) {
-    return { ok: false as const, error: "That credit has no origin lesson" };
-  }
+  // A credit granted from a cancelled/rescheduled lesson carries that origin
+  // lesson (used to source the tutor). An admin-granted credit has no origin
+  // lesson - its redeemable tutors come from the student's active enrolment in
+  // the credit's subject instead (resolved by the callers below).
   return { ok: true as const, credit };
+}
+
+/** Tutors whose availability a credit can be redeemed against: the origin
+ *  lesson's tutor for a cancellation/reschedule credit, or every tutor of the
+ *  student's active same-subject classes for an admin-granted credit. */
+async function creditRedemptionTutors(credit: {
+  studentId: string;
+  subjectId: string;
+  grantedFromLessonId: string | null;
+}): Promise<
+  | { ok: true; tutors: { id: string; firstName: string; lastName: string }[] }
+  | { ok: false; error: string }
+> {
+  if (credit.grantedFromLessonId) {
+    const [origin] = await db
+      .select({ tutorId: lessons.tutorId })
+      .from(lessons)
+      .where(eq(lessons.id, credit.grantedFromLessonId))
+      .limit(1);
+    if (!origin) return { ok: false, error: "Origin lesson not found" };
+    const [t] = await db
+      .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.id, origin.tutorId))
+      .limit(1);
+    return {
+      ok: true,
+      tutors: [
+        {
+          id: origin.tutorId,
+          firstName: t?.firstName ?? "",
+          lastName: t?.lastName ?? "",
+        },
+      ],
+    };
+  }
+
+  const rows = await db
+    .selectDistinct({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(profiles, eq(profiles.id, classes.tutorId))
+    .where(
+      and(
+        eq(enrollments.studentId, credit.studentId),
+        eq(classes.subjectId, credit.subjectId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    );
+  if (rows.length === 0) {
+    return {
+      ok: false,
+      error: "No tutor is available for this credit - message the office.",
+    };
+  }
+  return { ok: true, tutors: rows };
 }
 
 export async function getRedemptionSlots(
@@ -461,29 +559,17 @@ export async function getRedemptionSlots(
   if (!loaded.ok) return loaded;
   const { credit } = loaded;
 
-  const [origin] = await db
-    .select({ tutorId: lessons.tutorId })
-    .from(lessons)
-    .where(eq(lessons.id, credit.grantedFromLessonId!))
-    .limit(1);
-  if (!origin) return { ok: false, error: "Origin lesson not found" };
-
-  const [t] = await db
-    .select({ firstName: profiles.firstName, lastName: profiles.lastName })
-    .from(profiles)
-    .where(eq(profiles.id, origin.tutorId))
-    .limit(1);
+  const resolved = await creditRedemptionTutors(credit);
+  if (!resolved.ok) return resolved;
 
   const slots = await markTakenSlots(
     await expandAvailability(
-      [
-        {
-          id: origin.tutorId,
-          firstName: t?.firstName ?? "",
-          lastName: t?.lastName ?? "",
-          isOriginal: true,
-        },
-      ],
+      resolved.tutors.map((t) => ({
+        id: t.id,
+        firstName: t.firstName,
+        lastName: t.lastName,
+        isOriginal: true,
+      })),
       new Date(),
       4,
     ),
@@ -534,12 +620,37 @@ export async function redeemCreditIntoSlot(p: {
   if (!loaded.ok) return loaded;
   const { credit } = loaded;
 
-  const [origin] = await db
-    .select({ classId: lessons.classId })
-    .from(lessons)
-    .where(eq(lessons.id, credit.grantedFromLessonId!))
-    .limit(1);
-  if (!origin) return { ok: false, error: "Origin lesson not found" };
+  // Which class the new make-up lesson hangs off. For a cancellation/reschedule
+  // credit it's the origin lesson's class; for an admin-granted credit it's the
+  // student's active same-subject class taught by the picked tutor.
+  let classId: string;
+  if (credit.grantedFromLessonId) {
+    const [origin] = await db
+      .select({ classId: lessons.classId })
+      .from(lessons)
+      .where(eq(lessons.id, credit.grantedFromLessonId))
+      .limit(1);
+    if (!origin) return { ok: false, error: "Origin lesson not found" };
+    classId = origin.classId;
+  } else {
+    const [cls] = await db
+      .select({ id: classes.id })
+      .from(enrollments)
+      .innerJoin(classes, eq(classes.id, enrollments.classId))
+      .where(
+        and(
+          eq(enrollments.studentId, credit.studentId),
+          eq(classes.subjectId, credit.subjectId),
+          eq(classes.tutorId, p.tutorId),
+          isNull(enrollments.withdrawnAt),
+        ),
+      )
+      .limit(1);
+    if (!cls) {
+      return { ok: false, error: "That tutor isn't available for this credit - pick another." };
+    }
+    classId = cls.id;
+  }
 
   // Double-booking guard: any lesson for this tutor overlapping the slot?
   const clash = await db
@@ -564,7 +675,7 @@ export async function redeemCreditIntoSlot(p: {
       const [inserted] = await tx
         .insert(lessons)
         .values({
-          classId: origin.classId,
+          classId,
           tutorId: p.tutorId,
           date: p.date,
           startTime: p.startTime,

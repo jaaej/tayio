@@ -49,6 +49,23 @@ describe("notificationGroupFor", () => {
       }),
     ).toBe("learning");
   });
+
+  it("treats admin credit/allowance actions as account updates", () => {
+    // Admin-side credit grants, allowance top-ups, and reversal confirmations
+    // are informational (schedule/account activity), not action items.
+    expect(
+      notificationGroupFor({ title: "Class credit added", href: null }),
+    ).toBe("updates");
+    expect(
+      notificationGroupFor({ title: "Extra allowance granted", href: null }),
+    ).toBe("updates");
+    expect(
+      notificationGroupFor({ title: "Reschedule undone", href: null }),
+    ).toBe("updates");
+    expect(
+      notificationGroupFor({ title: "Cancellation undone", href: null }),
+    ).toBe("updates");
+  });
 });
 
 describe("groupNotifications", () => {

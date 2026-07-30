@@ -12,7 +12,7 @@ export type PanelCredit = {
   id: string;
   subjectName: string;
   expiresAt: string;
-  grantReason: "cancellation" | "reschedule_no_slot";
+  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
 };
 
 type OpenState = {
