@@ -302,7 +302,9 @@ export type ClassType = (typeof classTypeEnum.enumValues)[number];
 export const creditGrantReasonEnum = pgEnum("credit_grant_reason", [
   "cancellation",
   "reschedule_no_slot",
+  "admin_grant",
 ]);
+export type CreditGrantReason = (typeof creditGrantReasonEnum.enumValues)[number];
 export const creditStatusEnum = pgEnum("credit_status", [
   "active",
   "redeemed",
@@ -348,6 +350,34 @@ export const lessonCancellations = pgTable(
   (t) => [index("lesson_cancellations_student_term_idx").on(t.studentId, t.termId)],
 );
 export type LessonCancellation = typeof lessonCancellations.$inferSelect;
+
+export const allowanceKindEnum = pgEnum("allowance_kind", [
+  "reschedule",
+  "cancellation",
+]);
+
+// Admin top-ups to a student's per-term reschedule/cancellation allowance
+// (migration 0032). The effective cap for a kind is 3 + sum(bonus) for that
+// student+term+kind. Server-only (RLS deny-all, no client policies).
+export const allowanceAdjustments = pgTable(
+  "allowance_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    kind: allowanceKindEnum("kind").notNull(),
+    bonus: integer("bonus").notNull(),
+    grantedById: uuid("granted_by_id").notNull().references(() => profiles.id),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("allowance_adjustments_student_term_idx").on(t.studentId, t.termId)],
+);
+export type AllowanceAdjustment = typeof allowanceAdjustments.$inferSelect;
 
 export const homework = pgTable("homework", {
   id: uuid("id").primaryKey().defaultRandom(),

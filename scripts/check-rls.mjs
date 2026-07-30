@@ -25,6 +25,7 @@ const ALLOW_NO_RLS = new Set([
   "reschedule_requests", // role-guarded workflow, migration 0019
   "class_credits", // role-guarded workflow, migration 0031
   "lesson_cancellations", // role-guarded workflow, migration 0031
+  "allowance_adjustments", // admin-only allowance top-ups, migration 0032
 ]);
 
 const sql = postgres(url, { prepare: false, max: 1 });
