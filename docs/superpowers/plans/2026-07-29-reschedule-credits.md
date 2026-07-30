@@ -99,18 +99,15 @@ describe("resolveTerm", () => {
 
 describe("notice gates", () => {
   const now = new Date("2026-08-01T09:00:00");
-  it("cancel needs >= 24h", () => {
+  it("cancel needs at least 24h notice", () => {
     expect(meetsCancelNotice(now, "2026-08-02", "10:00:00")).toBe(true); // 25h
-    expect(meetsCancelNotice(now, "2026-08-02", "08:00:00")).toBe(true); // exactly 23h -> false
-  });
-  it("cancel boundary", () => {
-    expect(meetsCancelNotice(now, "2026-08-02", "08:00:00")).toBe(false); // 23h
     expect(meetsCancelNotice(now, "2026-08-02", "09:00:00")).toBe(true); // exactly 24h
+    expect(meetsCancelNotice(now, "2026-08-02", "08:00:00")).toBe(false); // 23h
   });
-  it("reschedule needs >= 7 days", () => {
-    expect(meetsRescheduleNotice(now, "2026-08-09", "09:00:00")).toBe(true); // exactly 7d
-    expect(meetsRescheduleNotice(now, "2026-08-08", "09:00:00")).toBe(false); // 6d
-    expect(meetsRescheduleNotice(now, "2026-08-10", "09:00:00")).toBe(true); // 9d
+  it("reschedule needs at least 7 days notice", () => {
+    expect(meetsRescheduleNotice(now, "2026-08-08", "09:00:00")).toBe(true); // exactly 7d
+    expect(meetsRescheduleNotice(now, "2026-08-09", "09:00:00")).toBe(true); // 8d
+    expect(meetsRescheduleNotice(now, "2026-08-07", "09:00:00")).toBe(false); // 6d
   });
 });
 
