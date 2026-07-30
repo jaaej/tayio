@@ -333,6 +333,27 @@ export async function isLessonCancelled(
   return rows.length > 0;
 }
 
+/** Of these lesson ids, which has this student already had cancelled (a
+ *  `lessonCancellations` row exists)? Batched form of `isLessonCancelled` for
+ *  a timetable's worth of lessons - used to hide a stale Cancel/Reschedule
+ *  action per lesson; the server re-derives this defensively either way. */
+export async function getCancelledLessonIds(
+  studentId: string,
+  lessonIds: string[],
+): Promise<Set<string>> {
+  if (lessonIds.length === 0) return new Set();
+  const rows = await db
+    .select({ lessonId: lessonCancellations.lessonId })
+    .from(lessonCancellations)
+    .where(
+      and(
+        eq(lessonCancellations.studentId, studentId),
+        inArray(lessonCancellations.lessonId, lessonIds),
+      ),
+    );
+  return new Set(rows.map((r) => r.lessonId));
+}
+
 async function loadActiveCredit(creditId: string, holderId: string) {
   const [credit] = await db
     .select({

@@ -21,6 +21,7 @@ import {
 } from "../_lib/queries";
 import {
   getCancellationsUsed,
+  getCancelledLessonIds,
   getReschedulesUsed,
   getTerms,
   listRedeemableCredits,
@@ -117,9 +118,19 @@ export default async function TimetablePage({
         usageByTerm.set(termId, { cancelUsed, rescheduleUsed });
       }),
     );
+    // A lesson that's already been cancelled (a class credit already granted)
+    // must not also be cancellable or reschedulable - either would double-grant
+    // a credit or create a real makeup for a lesson the student is no longer
+    // attending. `studentState` alone doesn't reflect this (it only tracks
+    // reschedule-based moves), so check `lessonCancellations` directly.
+    const cancelledLessonIds = await getCancelledLessonIds(
+      user.id,
+      lessonRows.map((l) => l.id),
+    );
 
     const chips: TimetableChip[] = lessonRows.map((l) => {
       const canManage = isManageable(l);
+      const alreadyCancelled = cancelledLessonIds.has(l.id);
       const term = termByLessonId.get(l.id) ?? null;
       const usage = term ? usageByTerm.get(term.id) : undefined;
       const cancelRemaining = usage ? remaining(CANCEL_CAP, usage.cancelUsed) : null;
@@ -129,15 +140,18 @@ export default async function TimetablePage({
       // cancellable - that would grant a second credit for the same slot
       // while the make-up lesson still stands. Reschedule intentionally
       // keeps the wider base (re-rescheduling a moved lesson is safe - it
-      // just supersedes the previous move).
+      // just supersedes the previous move) but both exclude an already-
+      // cancelled lesson.
       const canCancel =
         canManage &&
         l.studentState === "normal" &&
+        !alreadyCancelled &&
         term !== null &&
         meetsCancelNotice(now, l.date, l.startTime) &&
         (cancelRemaining ?? 0) > 0;
       const canReschedule =
         canManage &&
+        !alreadyCancelled &&
         term !== null &&
         meetsRescheduleNotice(now, l.date, l.startTime) &&
         (rescheduleRemaining ?? 0) > 0;

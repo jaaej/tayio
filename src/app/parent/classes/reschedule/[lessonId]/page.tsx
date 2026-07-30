@@ -82,7 +82,11 @@ export default async function ParentReschedulePage({
   const cancelNoticeOk = meetsCancelNotice(now, lesson.date, lesson.startTime);
 
   const canReschedule =
-    !started && term !== null && rescheduleNoticeOk && (rescheduleRemaining ?? 0) > 0;
+    !started &&
+    term !== null &&
+    !alreadyCancelled &&
+    rescheduleNoticeOk &&
+    (rescheduleRemaining ?? 0) > 0;
   // Cancel additionally requires the lesson still be in its normal state - a
   // lesson already moved or cancelled must not also be cancelled again (that
   // would grant a second credit for the same slot).
@@ -96,6 +100,7 @@ export default async function ParentReschedulePage({
 
   function rescheduleIneligibleReason(): string {
     if (!term) return "This lesson is outside a known term.";
+    if (alreadyCancelled) return "This lesson has already been moved or cancelled.";
     if (!rescheduleNoticeOk) return "Reschedules need at least 7 days notice.";
     return "You have used all 3 reschedules this term.";
   }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, familyLinks, lessons, notifications, rescheduleRequests } from "@/db/schema";
+import { attendance, classes, familyLinks, lessons, notifications, rescheduleRequests } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
@@ -13,6 +13,7 @@ import {
   getAdminIds,
   getOneOnOneSlots,
   getReschedulableLesson,
+  hasPriorReschedule,
   markStudentAbsent,
   recordDirectMakeup,
   studentDisplayName,
@@ -20,7 +21,7 @@ import {
   approveRescheduleRequest,
   rejectRescheduleRequest,
 } from "@/lib/reschedule";
-import { getReschedulesUsed, getTerms, grantCredit } from "@/lib/credits";
+import { getReschedulesUsed, getTerms, grantCredit, isLessonCancelled } from "@/lib/credits";
 import {
   meetsRescheduleNotice,
   remaining,
@@ -81,6 +82,25 @@ export async function resolveStudent(
     return studentIdArg;
   }
   return user.id;
+}
+
+/** Is the student already marked absent on this lesson? Mirrors the guard in
+ *  `cancelLessonInDb` (src/lib/credits.ts) - a raw "absent" mark (from a
+ *  cancellation, a superseded reschedule, or any other reason) means this
+ *  lesson has already been dealt with. */
+async function isLessonAbsent(lessonId: string, studentId: string): Promise<boolean> {
+  const rows = await db
+    .select({ lessonId: attendance.lessonId })
+    .from(attendance)
+    .where(
+      and(
+        eq(attendance.lessonId, lessonId),
+        eq(attendance.studentId, studentId),
+        eq(attendance.status, "absent"),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /**
@@ -192,6 +212,15 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
       error: "You have used all 3 reschedules this term - message the office.",
     };
   }
+  // A cancelled lesson must not also be rescheduled (would double-grant a
+  // credit while also creating a real makeup). An already-moved lesson stays
+  // reschedulable - `executeMakeupReschedule` supersedes the prior move.
+  if (await isLessonCancelled(lessonId, studentId)) {
+    return {
+      ok: false,
+      error: "That lesson has already been cancelled - message the office.",
+    };
+  }
 
   const done = () => {
     revalidatePath("/student/timetable");
@@ -271,6 +300,20 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
     return {
       ok: false,
       error: "You have used all 3 reschedules this term - message the office.",
+    };
+  }
+  // This lesson must not already have been dealt with - cancelled, moved (a
+  // pending or approved reschedule), or otherwise marked absent - or this
+  // would double-grant a credit for the same slot.
+  const [cancelled, moved, absent] = await Promise.all([
+    isLessonCancelled(lessonId, studentId),
+    hasPriorReschedule(studentId, lessonId),
+    isLessonAbsent(lessonId, studentId),
+  ]);
+  if (cancelled || moved || absent) {
+    return {
+      ok: false,
+      error: "That lesson has already been moved or cancelled - message the office.",
     };
   }
 
