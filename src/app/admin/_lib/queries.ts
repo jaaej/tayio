@@ -18,11 +18,14 @@ import { db } from "@/db/client";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
 import {
+  getAllowanceBonus,
   getCancellationsUsed,
   getReschedulesUsed,
   getTerms,
 } from "@/lib/credits";
 import {
+  CANCEL_CAP,
+  RESCHEDULE_CAP,
   deriveCreditStatus,
   resolveTerm,
   type CreditStatus,
@@ -743,7 +746,7 @@ export type CreditRow = {
   /** Effective status derived at read time via `deriveCreditStatus`, not the
    *  raw stored column. */
   status: CreditStatus;
-  grantReason: "cancellation" | "reschedule_no_slot";
+  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
   grantedFromLabel: string | null;
   redeemedOnLabel: string | null;
   expiresAt: string;
@@ -756,6 +759,9 @@ export type UsageRow = {
   studentLast: string;
   cancellationsUsed: number;
   reschedulesUsed: number;
+  /** Effective per-term caps (base 3 + any admin allowance top-up). */
+  cancellationCap: number;
+  rescheduleCap: number;
 };
 
 export type CreditsOverview = {
@@ -878,9 +884,10 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
 
       usage = await Promise.all(
         ids.map(async (studentId) => {
-          const [cancellationsUsed, reschedulesUsed] = await Promise.all([
+          const [cancellationsUsed, reschedulesUsed, bonus] = await Promise.all([
             getCancellationsUsed(studentId, currentTerm.id),
             getReschedulesUsed(studentId, currentTerm.id),
+            getAllowanceBonus(studentId, currentTerm.id),
           ]);
           const name = nameById.get(studentId);
           return {
@@ -889,6 +896,8 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
             studentLast: name?.lastName ?? "",
             cancellationsUsed,
             reschedulesUsed,
+            cancellationCap: CANCEL_CAP + bonus.cancellation,
+            rescheduleCap: RESCHEDULE_CAP + bonus.reschedule,
           };
         }),
       );

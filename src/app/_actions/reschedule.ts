@@ -22,6 +22,7 @@ import {
   rejectRescheduleRequest,
 } from "@/lib/reschedule";
 import {
+  getAllowanceBonus,
   getReschedulesUsed,
   getTerms,
   grantCredit,
@@ -217,10 +218,16 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
       error: "Reschedules need at least 7 days notice - message the office.",
     };
   }
-  if (remaining(RESCHEDULE_CAP, await getReschedulesUsed(studentId, term.id)) <= 0) {
+  const rescheduleBonus = await getAllowanceBonus(studentId, term.id);
+  if (
+    remaining(
+      RESCHEDULE_CAP + rescheduleBonus.reschedule,
+      await getReschedulesUsed(studentId, term.id),
+    ) <= 0
+  ) {
     return {
       ok: false,
-      error: "You have used all 3 reschedules this term - message the office.",
+      error: "You have used all your reschedules this term - message the office.",
     };
   }
   // A cancelled lesson must not also be rescheduled (would double-grant a
@@ -317,10 +324,16 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
       error: "Reschedules need at least 7 days notice - message the office.",
     };
   }
-  if (remaining(RESCHEDULE_CAP, await getReschedulesUsed(studentId, term.id)) <= 0) {
+  const rescheduleBonus = await getAllowanceBonus(studentId, term.id);
+  if (
+    remaining(
+      RESCHEDULE_CAP + rescheduleBonus.reschedule,
+      await getReschedulesUsed(studentId, term.id),
+    ) <= 0
+  ) {
     return {
       ok: false,
-      error: "You have used all 3 reschedules this term - message the office.",
+      error: "You have used all your reschedules this term - message the office.",
     };
   }
   // This lesson must not already have been dealt with - cancelled, moved (a

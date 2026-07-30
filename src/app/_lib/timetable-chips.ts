@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  getAllowanceBonus,
   getCancellationsUsed,
   getCancelledLessonIds,
   getCreditGrantedLessonIds,
@@ -61,14 +62,28 @@ export async function buildTimetableChips(
         .map((t) => t.id),
     ),
   );
-  const usageByTerm = new Map<string, { cancelUsed: number; rescheduleUsed: number }>();
+  const usageByTerm = new Map<
+    string,
+    {
+      cancelUsed: number;
+      rescheduleUsed: number;
+      cancelBonus: number;
+      rescheduleBonus: number;
+    }
+  >();
   await Promise.all(
     distinctTermIds.map(async (termId) => {
-      const [cancelUsed, rescheduleUsed] = await Promise.all([
+      const [cancelUsed, rescheduleUsed, bonus] = await Promise.all([
         getCancellationsUsed(studentId, termId),
         getReschedulesUsed(studentId, termId),
+        getAllowanceBonus(studentId, termId),
       ]);
-      usageByTerm.set(termId, { cancelUsed, rescheduleUsed });
+      usageByTerm.set(termId, {
+        cancelUsed,
+        rescheduleUsed,
+        cancelBonus: bonus.cancellation,
+        rescheduleBonus: bonus.reschedule,
+      });
     }),
   );
   // A lesson that's already been cancelled (a class credit already granted)
@@ -90,8 +105,12 @@ export async function buildTimetableChips(
     const creditGranted = creditGrantedLessonIds.has(l.id);
     const term = termByLessonId.get(l.id) ?? null;
     const usage = term ? usageByTerm.get(term.id) : undefined;
-    const cancelRemaining = usage ? remaining(CANCEL_CAP, usage.cancelUsed) : null;
-    const rescheduleRemaining = usage ? remaining(RESCHEDULE_CAP, usage.rescheduleUsed) : null;
+    const cancelRemaining = usage
+      ? remaining(CANCEL_CAP + usage.cancelBonus, usage.cancelUsed)
+      : null;
+    const rescheduleRemaining = usage
+      ? remaining(RESCHEDULE_CAP + usage.rescheduleBonus, usage.rescheduleUsed)
+      : null;
     // Cancel is narrower than the shared "canManage" base: a lesson that's
     // already been moved (moved_out/pending_out) must not also be
     // cancellable - that would grant a second credit for the same slot

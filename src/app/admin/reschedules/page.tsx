@@ -3,7 +3,7 @@ import { RescheduleRequestList } from "@/components/reschedule/request-list";
 import { getCreditsOverview } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong } from "@/lib/format";
-import { CANCEL_CAP, RESCHEDULE_CAP, type CreditStatus } from "@/lib/reschedule-credits";
+import { type CreditStatus } from "@/lib/reschedule-credits";
 import { listPendingRequests } from "@/lib/reschedule";
 
 const STATUS_TONE: Record<CreditStatus, PillTone> = {
@@ -18,9 +18,13 @@ const STATUS_LABEL: Record<CreditStatus, string> = {
   expired: "Expired",
 };
 
-const REASON_LABEL: Record<"cancellation" | "reschedule_no_slot", string> = {
+const REASON_LABEL: Record<
+  "cancellation" | "reschedule_no_slot" | "admin_grant",
+  string
+> = {
   cancellation: "Cancellation",
   reschedule_no_slot: "No slot available",
+  admin_grant: "Admin grant",
 };
 
 export default async function AdminReschedulesPage() {
@@ -130,10 +134,10 @@ export default async function AdminReschedulesPage() {
                       {u.studentFirst} {u.studentLast}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-ink-soft">
-                      {u.cancellationsUsed} of {CANCEL_CAP}
+                      {u.cancellationsUsed} of {u.cancellationCap}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-ink-soft">
-                      {u.reschedulesUsed} of {RESCHEDULE_CAP}
+                      {u.reschedulesUsed} of {u.rescheduleCap}
                     </td>
                   </tr>
                 ))}
