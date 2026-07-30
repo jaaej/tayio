@@ -65,6 +65,7 @@ export async function getReschedulesUsed(
     .where(
       and(
         eq(rescheduleRequests.studentId, studentId),
+        eq(rescheduleRequests.status, "approved"),
         gte(lessons.date, term.startDate),
         lte(lessons.date, term.endDate),
         notInArray(profiles.role, [...ADMIN_TIERS]),
