@@ -412,7 +412,6 @@ export async function redeemCreditIntoSlot(p: {
       startTime: p.startTime,
       endTime: p.endTime,
       status: "makeup",
-      rescheduledFrom: credit.grantedFromLessonId,
     })
     .returning({ id: lessons.id });
 
