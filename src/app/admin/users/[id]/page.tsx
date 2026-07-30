@@ -18,8 +18,14 @@ import {
 } from "@/components/admin/ui";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
+import {
+  getStudentActivity,
+  getStudentAllowanceSummary,
+  getStudentEnrolledSubjects,
+} from "@/lib/admin-credits";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
+import { CreditManagement } from "./_components/credit-management";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +42,17 @@ export default async function UserDetailPage({
   const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
   if (!user) notFound();
 
-  const upcomingLessons =
-    coarseRole(user.role) === "student"
-      ? await getStudentUpcomingLessons(id, 21)
-      : [];
+  const isStudent = coarseRole(user.role) === "student";
+  const upcomingLessons = isStudent
+    ? await getStudentUpcomingLessons(id, 21)
+    : [];
+  const [creditActivity, allowanceSummary, enrolledSubjects] = isStudent
+    ? await Promise.all([
+        getStudentActivity(id),
+        getStudentAllowanceSummary(id),
+        getStudentEnrolledSubjects(id),
+      ])
+    : [null, null, null];
 
   const allStudents = await db
     .select({
@@ -213,6 +226,15 @@ export default async function UserDetailPage({
             )}
           </Card>
         </section>
+      )}
+
+      {isStudent && creditActivity && allowanceSummary && enrolledSubjects && (
+        <CreditManagement
+          studentId={user.id}
+          activity={creditActivity}
+          subjects={enrolledSubjects}
+          summary={allowanceSummary}
+        />
       )}
 
       {(coarseRole(user.role) === "parent" || coarseRole(user.role) === "student") && (
