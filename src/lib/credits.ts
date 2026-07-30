@@ -313,6 +313,26 @@ export async function listRedeemableCredits(
   return out;
 }
 
+/** Has this student already had this specific lesson cancelled (a class
+ *  credit already granted via `cancelLesson`)? Used by the UI to hide a stale
+ *  Cancel action - `cancelLesson` re-derives this defensively either way. */
+export async function isLessonCancelled(
+  lessonId: string,
+  studentId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: lessonCancellations.lessonId })
+    .from(lessonCancellations)
+    .where(
+      and(
+        eq(lessonCancellations.lessonId, lessonId),
+        eq(lessonCancellations.studentId, studentId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 async function loadActiveCredit(creditId: string, holderId: string) {
   const [credit] = await db
     .select({

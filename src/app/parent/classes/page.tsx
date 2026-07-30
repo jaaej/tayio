@@ -2,13 +2,16 @@ import Link from "next/link";
 import { ClipboardCheck, UserX, CalendarDays } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { StatusBadge } from "@/components/data/status-badge";
+import { CreditPanel } from "@/components/reschedule/credit-panel";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { listRedeemableCredits } from "@/lib/credits";
 import {
   ATTENDANCE_STATUS_LABEL,
   ATTENDANCE_STATUS_STYLE,
 } from "@/lib/status";
 import {
+  getAdminContact,
   getAttendance,
   getClassIdForLesson,
   getMonthLessons,
@@ -60,11 +63,14 @@ export default async function ParentClassesPage({
   const monthIso = `${year}-${String(month + 1).padStart(2, "0")}`;
   const { fromIso, toIso } = monthBounds(year, month);
 
-  const [monthLessons, attendanceRows, upcomingLessons] = await Promise.all([
-    getMonthLessons(selected.id, fromIso, toIso),
-    getAttendance(selected.id),
-    getUpcomingLessonsForChild(selected.id, 12),
-  ]);
+  const [monthLessons, attendanceRows, upcomingLessons, credits, admin] =
+    await Promise.all([
+      getMonthLessons(selected.id, fromIso, toIso),
+      getAttendance(selected.id),
+      getUpcomingLessonsForChild(selected.id, 12),
+      listRedeemableCredits(selected.id),
+      getAdminContact(),
+    ]);
 
   const total = attendanceRows.length;
   const present = attendanceRows.filter(
@@ -315,6 +321,16 @@ export default async function ParentClassesPage({
             />
           </div>
         </Card>
+        </div>
+      )}
+
+      {credits.length > 0 && (
+        <div className="rise" style={{ animationDelay: "70ms" }}>
+          <CreditPanel
+            credits={credits}
+            studentId={selected.id}
+            adminId={admin?.id ?? null}
+          />
         </div>
       )}
 
