@@ -104,3 +104,25 @@ Tick each box after clicking through it as the signed-in role.
 - [x] Confirm the "Class credits" section lists granted, redeemed, and expired credits with reason and source or target lesson. (owner-verified 2026-07-31)
 - [x] Confirm the "This term's usage" table shows each student's per-term cancellation and reschedule counts. (owner-verified 2026-07-31)
 - [x] Confirm the admin one-off reschedule tool (`/admin/users/[id]/reschedule/[lessonId]`) still works uncapped and is not counted in the student's self-serve totals. (owner-verified 2026-07-31)
+
+## Session follow-ups and QA state (2026-07-31)
+
+Branch `feat/reschedule-credits` is HELD (not merged) pending owner browser QA and the deferred fixes below.
+Migrations 0031 and 0032 are applied to the live DB.
+
+Browser-QA passed (owner-verified): M1-M3 (menu opens on any lesson; greyed-with-reason; click-outside/Escape dismiss), F1-F2 (reschedule into a slot; cancel goes red + struck "Cancelled"), A1-A4 (admin Class-credits view, This-term's-usage, one-off reschedule uncapped/uncounted).
+Browser-QA remaining: F3 (no-slot -> "Get a class credit instead"), F4 (redeem a credit via the calendar overlay), F5 (per-term caps -> office routing), P1-P2 (parent flow + multi-child independence), T1-T2 (tutor queue shows no self-serve entries; admin one-off still shows), and AC1-AC6 (admin grant credit / grant +reschedule / grant +cancellation / activity list / undo reschedule / undo cancellation incl. the redeemed-block case).
+
+UI adjustments shipped during QA: full-page menu on any lesson with greyed-out-with-reason unavailable actions; dismiss on outside-click/Escape; cancelled lessons red + struck "Cancelled"; no-slot-credit lessons grey + struck "Converted to class credit"; allowance labels show "N left" (no "of X" denominator); redeem credits via the same calendar overlay as reschedule; make-up labels "Make-up: from ..." vs "Make-up: booked with credits"; notifications inbox full-width for all four roles; admin one-off reschedule fixed (HH:MM:SS slot parse + double-booking guard + Taken-slot greying + full-width); admin upcoming-lessons excludes past + rescheduled-out lessons; parent timetable/reschedule now uses the shared student InteractiveTimetable per child; already-booked slots shown "Taken" (greyed/struck) in student/parent/admin pickers.
+
+Deferred pre-merge follow-ups (none block QA):
+- Audit-log coverage on the admin undo actions (undoReschedule/undoCancellation delete a lesson/credit/attendance with no who-did-it record; against the PRD audit-log requirement).
+- undoReschedule: add a FOR UPDATE lock on the make-up lesson's attendee check (narrow race; group-switch is dormant).
+- undoCancellation: a concurrent double-undo shows "already used" instead of "not found" (cosmetic).
+- Dormant parent per-lesson reschedule page (/parent/classes/reschedule/[lessonId] + reschedule-form.tsx) still shows hardcoded "of 3" cap strings (unlinked after the parent-timetable port; the live parent timetable is fixed).
+- Admin-granted credit (null origin lesson) redemption resolves tutors from the student's active same-subject enrolment - needs QA on a multi-tutor subject.
+- No-slot reschedule credits (grantRescheduleCredit) are intentionally not in the undo surface.
+- Reviewer architectural note: relocate the shared InteractiveTimetable out of the student portal's _components into a shared location (src/components/timetable/) - the parent currently imports across portals.
+- Group-session capacity booking for reschedule is out of scope (self-serve reschedule is tutor-time-slot based).
+
+Other held sibling branches awaiting QA/merge: feat/term-test, feat/free-trials, feat/curriculum-restyle, feat/operational-reports. Security-checklist row numbering (A14/A15) will collide across branches at merge - renumber then.
