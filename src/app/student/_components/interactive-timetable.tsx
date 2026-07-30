@@ -70,6 +70,10 @@ export type TimetableChip = {
   /** This lesson has been cancelled by the student (a credit was granted).
    *  Rendered struck-through in red with a single "Cancelled" status. */
   cancelled: boolean;
+  /** This lesson was converted to a class credit via a no-slot reschedule
+   *  (credit granted from it, but not a cancellation). Rendered struck-through
+   *  in grey with a "Converted to class credit" status. */
+  convertedToCredit: boolean;
 };
 export type TimetableHw = {
   id: string;
@@ -664,20 +668,23 @@ function LessonChip({
   }, [popoverOpen, onCloseMenu]);
 
   const cancelled = lesson.cancelled;
+  const convertedToCredit = lesson.convertedToCredit;
   const moved = lesson.studentState === "moved_out";
   const makeup = lesson.studentState === "makeup_in";
   const pending =
     lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
   const tone = cancelled
     ? "bg-bad-bg text-bad"
-    : moved
+    : convertedToCredit
       ? "bg-surface-2 text-muted"
-      : makeup
-        ? "bg-good-bg text-good"
-        : pending
-          ? "bg-warn-bg text-warn border border-dashed border-warn/50"
-          : "bg-brand-50 text-brand-700";
-  const struck = cancelled || moved;
+      : moved
+        ? "bg-surface-2 text-muted"
+        : makeup
+          ? "bg-good-bg text-good"
+          : pending
+            ? "bg-warn-bg text-warn border border-dashed border-warn/50"
+            : "bg-brand-50 text-brand-700";
+  const struck = cancelled || convertedToCredit || moved;
 
   const chip = (
     <div
@@ -697,6 +704,10 @@ function LessonChip({
       {cancelled ? (
         <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
           Cancelled
+        </div>
+      ) : convertedToCredit ? (
+        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
+          Converted to class credit
         </div>
       ) : lesson.moveLabel ? (
         <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide truncate">
@@ -752,6 +763,13 @@ function LessonChip({
             >
               Cancelled
             </div>
+          ) : convertedToCredit ? (
+            <div
+              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-muted"
+              aria-disabled="true"
+            >
+              Converted to class credit
+            </div>
           ) : (
             <>
               {lesson.canReschedule ? (
@@ -766,7 +784,7 @@ function LessonChip({
                 >
                   {loading
                     ? "Loading…"
-                    : `Reschedule (${lesson.rescheduleRemaining} of ${lesson.rescheduleCap} left)`}
+                    : `Reschedule (${lesson.rescheduleRemaining} left)`}
                 </button>
               ) : (
                 <div className={disabledRow} aria-disabled="true">
@@ -783,7 +801,7 @@ function LessonChip({
                     FOCUS_RING,
                   )}
                 >
-                  {`Cancel (${lesson.cancelRemaining} of ${lesson.cancelCap} left)`}
+                  {`Cancel (${lesson.cancelRemaining} left)`}
                 </button>
               ) : (
                 <div className={disabledRow} aria-disabled="true">

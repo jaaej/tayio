@@ -184,6 +184,7 @@ export async function buildTimetableChips(
       rescheduleReason: rescheduleReasonFor(),
       cancelReason: cancelReasonFor(),
       cancelled: alreadyCancelled,
+      convertedToCredit: creditGranted && !alreadyCancelled,
     };
   });
 }
