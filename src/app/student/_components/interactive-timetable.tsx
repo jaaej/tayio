@@ -514,7 +514,7 @@ function LessonChip({
     <Link
       href={`/student/messages/with/${adminId}`}
       className={cn(
-        "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
+        "flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
         FOCUS_RING,
       )}
     >
@@ -545,7 +545,7 @@ function LessonChip({
               onClick={onReschedule}
               disabled={loading}
               className={cn(
-                "block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
+                "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
                 FOCUS_RING,
               )}
             >
@@ -562,7 +562,7 @@ function LessonChip({
               type="button"
               onClick={onOpenCancelConfirm}
               className={cn(
-                "block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
+                "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
                 FOCUS_RING,
               )}
             >
@@ -595,7 +595,7 @@ function LessonChip({
               type="button"
               onClick={onAbortCancel}
               className={cn(
-                "rounded-md px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-surface-2",
+                "min-h-11 rounded-md px-3 text-[11px] font-bold text-muted hover:bg-surface-2",
                 FOCUS_RING,
               )}
             >
@@ -606,7 +606,7 @@ function LessonChip({
               onClick={onConfirmCancel}
               disabled={cancelling}
               className={cn(
-                "rounded-md bg-bad px-3 py-1.5 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50",
+                "min-h-11 rounded-md bg-bad px-3 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50",
                 FOCUS_RING,
               )}
             >

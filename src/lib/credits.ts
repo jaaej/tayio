@@ -160,6 +160,47 @@ export async function cancelLesson(p: {
     .limit(1);
   if (!lesson) return { ok: false, error: "Lesson not found" };
 
+  // Defensive guard against a double credit: the client hides Cancel for a
+  // lesson that's already been moved, but a raw lessonId can still reach this
+  // action directly. Reject if this lesson already has a live/approved
+  // reschedule, or the student is already marked absent on it (e.g. from a
+  // prior cancellation or reschedule) - re-derive from the DB, never trust
+  // the caller's state.
+  const [existingReschedule] = await db
+    .select({ id: rescheduleRequests.id })
+    .from(rescheduleRequests)
+    .where(
+      and(
+        eq(rescheduleRequests.originalLessonId, p.lessonId),
+        eq(rescheduleRequests.studentId, p.studentId),
+        inArray(rescheduleRequests.status, ["approved", "pending"]),
+      ),
+    )
+    .limit(1);
+  if (existingReschedule) {
+    return {
+      ok: false,
+      error: "That lesson has already been moved or cancelled - message the office.",
+    };
+  }
+  const [existingAbsence] = await db
+    .select({ lessonId: attendance.lessonId })
+    .from(attendance)
+    .where(
+      and(
+        eq(attendance.lessonId, p.lessonId),
+        eq(attendance.studentId, p.studentId),
+        eq(attendance.status, "absent"),
+      ),
+    )
+    .limit(1);
+  if (existingAbsence) {
+    return {
+      ok: false,
+      error: "That lesson has already been moved or cancelled - message the office.",
+    };
+  }
+
   const term = resolveTerm(lesson.date, await getTerms());
   if (!term) {
     return {

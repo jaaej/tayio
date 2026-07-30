@@ -124,8 +124,15 @@ export default async function TimetablePage({
       const usage = term ? usageByTerm.get(term.id) : undefined;
       const cancelRemaining = usage ? remaining(CANCEL_CAP, usage.cancelUsed) : null;
       const rescheduleRemaining = usage ? remaining(RESCHEDULE_CAP, usage.rescheduleUsed) : null;
+      // Cancel is narrower than the shared "canManage" base: a lesson that's
+      // already been moved (moved_out/pending_out) must not also be
+      // cancellable - that would grant a second credit for the same slot
+      // while the make-up lesson still stands. Reschedule intentionally
+      // keeps the wider base (re-rescheduling a moved lesson is safe - it
+      // just supersedes the previous move).
       const canCancel =
         canManage &&
+        l.studentState === "normal" &&
         term !== null &&
         meetsCancelNotice(now, l.date, l.startTime) &&
         (cancelRemaining ?? 0) > 0;
