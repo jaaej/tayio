@@ -57,7 +57,7 @@ export type RescheduleOptions =
     }
   | { ok: false; error: string };
 
-async function parentLinked(parentId: string, studentId: string): Promise<boolean> {
+export async function parentLinked(parentId: string, studentId: string): Promise<boolean> {
   const rows = await db
     .select({ p: familyLinks.parentId })
     .from(familyLinks)
@@ -71,7 +71,7 @@ async function parentLinked(parentId: string, studentId: string): Promise<boolea
   return rows.length > 0;
 }
 
-async function resolveStudent(
+export async function resolveStudent(
   user: { id: string },
   role: string,
   studentIdArg: string,

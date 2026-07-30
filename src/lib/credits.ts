@@ -1,7 +1,8 @@
 import "server-only";
-import { and, eq, gte, lte, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  attendance,
   classCredits,
   classes,
   familyLinks,
@@ -14,15 +15,17 @@ import {
   terms,
 } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, isoDate } from "@/lib/format";
 import {
   CANCEL_CAP,
+  deriveCreditStatus,
   meetsCancelNotice,
   remaining,
   resolveTerm,
   type TermRow,
 } from "@/lib/reschedule-credits";
 import { getAdminIds, markStudentAbsent, studentDisplayName } from "@/lib/reschedule";
+import { expandAvailability, type AvailableSlot } from "@/lib/availability";
 
 export async function getTerms(): Promise<TermRow[]> {
   return db
@@ -207,4 +210,236 @@ export async function cancelLesson(p: {
   });
 
   return { ok: true, creditId };
+}
+
+// --- Redemption ---------------------------------------------------------
+
+export type RedeemableCredit = {
+  id: string;
+  subjectName: string;
+  expiresAt: string;
+  grantReason: "cancellation" | "reschedule_no_slot";
+};
+
+/** The student's currently-redeemable credits (effective status "active").
+ *  Opportunistically flips any stored-active row past its expiresAt to
+ *  "expired" - best-effort, correctness doesn't depend on it. */
+export async function listRedeemableCredits(
+  studentId: string,
+): Promise<RedeemableCredit[]> {
+  const rows = await db
+    .select({
+      id: classCredits.id,
+      subjectName: subjects.name,
+      status: classCredits.status,
+      expiresAt: classCredits.expiresAt,
+      grantReason: classCredits.grantReason,
+    })
+    .from(classCredits)
+    .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
+    .where(
+      and(eq(classCredits.studentId, studentId), eq(classCredits.status, "active")),
+    );
+
+  const today = isoDate(new Date());
+  const out: RedeemableCredit[] = [];
+  const expiredIds: string[] = [];
+  for (const r of rows) {
+    const effective = deriveCreditStatus(r.status, r.expiresAt, today);
+    if (effective === "active") {
+      out.push({
+        id: r.id,
+        subjectName: r.subjectName,
+        expiresAt: r.expiresAt,
+        grantReason: r.grantReason,
+      });
+    } else if (effective === "expired") {
+      expiredIds.push(r.id);
+    }
+  }
+
+  if (expiredIds.length) {
+    try {
+      await db
+        .update(classCredits)
+        .set({ status: "expired" })
+        .where(inArray(classCredits.id, expiredIds));
+    } catch {
+      // best-effort; a stale "active" row is re-checked (and re-attempted) next read
+    }
+  }
+
+  return out;
+}
+
+async function loadActiveCredit(creditId: string, holderId: string) {
+  const [credit] = await db
+    .select({
+      id: classCredits.id,
+      studentId: classCredits.studentId,
+      status: classCredits.status,
+      expiresAt: classCredits.expiresAt,
+      subjectName: subjects.name,
+      grantedFromLessonId: classCredits.grantedFromLessonId,
+    })
+    .from(classCredits)
+    .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
+    .where(eq(classCredits.id, creditId))
+    .limit(1);
+  if (!credit) return { ok: false as const, error: "Credit not found" };
+  if (credit.studentId !== holderId) {
+    return { ok: false as const, error: "Not your credit" };
+  }
+  if (
+    deriveCreditStatus(credit.status, credit.expiresAt, isoDate(new Date())) !==
+    "active"
+  ) {
+    return { ok: false as const, error: "That credit is no longer available" };
+  }
+  if (!credit.grantedFromLessonId) {
+    return { ok: false as const, error: "That credit has no origin lesson" };
+  }
+  return { ok: true as const, credit };
+}
+
+export async function getRedemptionSlots(
+  creditId: string,
+  holderId: string,
+): Promise<
+  | { ok: true; slots: AvailableSlot[]; subjectName: string }
+  | { ok: false; error: string }
+> {
+  const loaded = await loadActiveCredit(creditId, holderId);
+  if (!loaded.ok) return loaded;
+  const { credit } = loaded;
+
+  const [origin] = await db
+    .select({ tutorId: lessons.tutorId })
+    .from(lessons)
+    .where(eq(lessons.id, credit.grantedFromLessonId!))
+    .limit(1);
+  if (!origin) return { ok: false, error: "Origin lesson not found" };
+
+  const [t] = await db
+    .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+    .from(profiles)
+    .where(eq(profiles.id, origin.tutorId))
+    .limit(1);
+
+  const slots = await expandAvailability(
+    [
+      {
+        id: origin.tutorId,
+        firstName: t?.firstName ?? "",
+        lastName: t?.lastName ?? "",
+        isOriginal: true,
+      },
+    ],
+    new Date(),
+    4,
+  );
+  return { ok: true, slots, subjectName: credit.subjectName };
+}
+
+async function notifyRedemption(o: {
+  studentId: string;
+  tutorId: string;
+  subjectName: string;
+  date: string;
+}) {
+  const recipients = new Set<string>([o.tutorId]);
+  const parents = await db
+    .select({ id: familyLinks.parentId })
+    .from(familyLinks)
+    .where(eq(familyLinks.studentId, o.studentId));
+  for (const p of parents) recipients.add(p.id);
+  for (const a of await getAdminIds()) recipients.add(a);
+
+  const name = await studentDisplayName(o.studentId);
+  const body = `${name}'s ${o.subjectName} credit was redeemed for a lesson on ${formatDateLong(o.date)}.`;
+  const rows = Array.from(recipients).map((userId) => ({
+    userId,
+    channel: "in_app" as const,
+    title: "Credit redeemed",
+    body,
+  }));
+  if (rows.length) await db.insert(notifications).values(rows);
+}
+
+export async function redeemCreditIntoSlot(p: {
+  creditId: string;
+  holderId: string;
+  actorId: string;
+  tutorId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}): Promise<{ ok: true; lessonId: string } | { ok: false; error: string }> {
+  const loaded = await loadActiveCredit(p.creditId, p.holderId);
+  if (!loaded.ok) return loaded;
+  const { credit } = loaded;
+
+  const [origin] = await db
+    .select({ classId: lessons.classId })
+    .from(lessons)
+    .where(eq(lessons.id, credit.grantedFromLessonId!))
+    .limit(1);
+  if (!origin) return { ok: false, error: "Origin lesson not found" };
+
+  // Double-booking guard: any lesson for this tutor overlapping the slot?
+  const clash = await db
+    .select({ id: lessons.id })
+    .from(lessons)
+    .where(
+      and(
+        eq(lessons.tutorId, p.tutorId),
+        eq(lessons.date, p.date),
+        lt(lessons.startTime, p.endTime),
+        gt(lessons.endTime, p.startTime),
+      ),
+    )
+    .limit(1);
+  if (clash.length) {
+    return { ok: false, error: "That slot was just taken - pick another." };
+  }
+
+  const [newLesson] = await db
+    .insert(lessons)
+    .values({
+      classId: origin.classId,
+      tutorId: p.tutorId,
+      date: p.date,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      status: "makeup",
+      rescheduledFrom: credit.grantedFromLessonId,
+    })
+    .returning({ id: lessons.id });
+
+  await db.insert(attendance).values({
+    lessonId: newLesson.id,
+    studentId: credit.studentId,
+    status: "makeup_attended",
+    note: "Credit redeemed",
+    markedBy: p.actorId,
+  });
+
+  await db
+    .update(classCredits)
+    .set({
+      status: "redeemed",
+      redeemedOnLessonId: newLesson.id,
+      redeemedById: p.actorId,
+      redeemedAt: new Date(),
+    })
+    .where(eq(classCredits.id, p.creditId));
+
+  await notifyRedemption({
+    studentId: credit.studentId,
+    tutorId: p.tutorId,
+    subjectName: credit.subjectName,
+    date: p.date,
+  });
+
+  return { ok: true, lessonId: newLesson.id };
 }
