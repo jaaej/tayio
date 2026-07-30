@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -38,8 +38,9 @@ export type TimetableChip = {
     | "pending_in";
   moveLabel: string | null;
   /** Base eligibility - lesson is upcoming, in the future, and in a state
-   *  self-serve actions make sense for. Gates whether the action menu shows
-   *  at all. */
+   *  self-serve actions make sense for. Every lesson opens the action menu;
+   *  this only gates whether the reschedule/cancel actions are live vs shown
+   *  greyed-out with a reason. */
   canManage: boolean;
   /** canManage AND in a resolved term AND 7-day notice met AND reschedule cap
    *  not reached this term. */
@@ -53,6 +54,12 @@ export type TimetableChip = {
   /** Remaining cancellations this term, or null if the lesson isn't in a
    *  resolved term. */
   cancelRemaining: number | null;
+  /** When reschedule is unavailable, a short reason ("Passed", "Needs 7 days
+   *  notice", ...) shown on the greyed-out action. null when reschedulable. */
+  rescheduleReason: string | null;
+  /** When cancel is unavailable, a short reason shown on the greyed-out
+   *  action. null when cancellable. */
+  cancelReason: string | null;
 };
 export type TimetableHw = {
   id: string;
@@ -473,6 +480,28 @@ function LessonChip({
   onAbortCancel: () => void;
   onConfirmCancel: () => void;
 }) {
+  // Dismiss the open menu / cancel-confirm on a click anywhere outside this
+  // cell, or on Escape - not only via the explicit Close button.
+  const popRef = useRef<HTMLDivElement>(null);
+  const popoverOpen = menuOpen || cancelConfirming;
+  useEffect(() => {
+    if (!popoverOpen) return;
+    function onDown(e: MouseEvent) {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+        onCloseMenu();
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseMenu();
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [popoverOpen, onCloseMenu]);
+
   const moved = lesson.studentState === "moved_out";
   const makeup = lesson.studentState === "makeup_in";
   const pending =
@@ -491,7 +520,7 @@ function LessonChip({
         "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
         tone,
         (dimmed || (picking && !menuOpen && !cancelConfirming)) && "opacity-40",
-        lesson.canManage && !picking && "cursor-pointer hover:brightness-95",
+        !picking && "cursor-pointer hover:brightness-95",
       )}
     >
       <div className={cn("text-[10px] font-extrabold tabular-nums", moved && "line-through")}>
@@ -508,9 +537,14 @@ function LessonChip({
     </div>
   );
 
-  if (!lesson.canManage || picking) return chip;
+  if (picking) return chip;
 
-  const messageOfficeLink = adminId ? (
+  // Show the office escape when at least one action is gated for a reason the
+  // office can act on (notice window or cap) - not for a passed/already-done
+  // lesson, where it can't help.
+  const showOfficeLink =
+    !!adminId && (!lesson.canReschedule || !lesson.canCancel);
+  const messageOfficeLink = showOfficeLink ? (
     <Link
       href={`/student/messages/with/${adminId}`}
       className={cn(
@@ -522,8 +556,11 @@ function LessonChip({
     </Link>
   ) : null;
 
+  const disabledRow =
+    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-semibold text-muted opacity-70 cursor-not-allowed";
+
   return (
-    <div className="relative">
+    <div ref={popRef} className="relative">
       <button type="button" onClick={onOpenMenu} className={cn("block w-full text-left", FOCUS_RING)}>
         {chip}
       </button>
@@ -554,7 +591,9 @@ function LessonChip({
                 : `Reschedule (${lesson.rescheduleRemaining} of ${RESCHEDULE_CAP} left)`}
             </button>
           ) : (
-            messageOfficeLink
+            <div className={disabledRow} aria-disabled="true">
+              Reschedule - {lesson.rescheduleReason ?? "unavailable"}
+            </div>
           )}
 
           {lesson.canCancel ? (
@@ -569,8 +608,12 @@ function LessonChip({
               {`Cancel (${lesson.cancelRemaining} of ${CANCEL_CAP} left)`}
             </button>
           ) : (
-            messageOfficeLink
+            <div className={disabledRow} aria-disabled="true">
+              Cancel - {lesson.cancelReason ?? "unavailable"}
+            </div>
           )}
+
+          {messageOfficeLink}
 
           <button
             type="button"

@@ -162,6 +162,33 @@ export default async function TimetablePage({
         term !== null &&
         meetsRescheduleNotice(now, l.date, l.startTime) &&
         (rescheduleRemaining ?? 0) > 0;
+      // Every lesson opens the action menu; when an action is unavailable it is
+      // shown greyed-out with this short reason instead of being hidden.
+      const passed =
+        l.status !== "upcoming" ||
+        new Date(`${l.date}T${l.startTime}`).getTime() <= now.getTime();
+      function rescheduleReasonFor(): string | null {
+        if (canReschedule) return null;
+        if (passed) return "Passed";
+        if (alreadyCancelled) return "Cancelled";
+        if (creditGranted) return "Credit issued";
+        if (!canManage) return "Not reschedulable";
+        if (term === null) return "No term set";
+        if (!meetsRescheduleNotice(now, l.date, l.startTime))
+          return "Needs 7 days notice";
+        return "No reschedules left this term";
+      }
+      function cancelReasonFor(): string | null {
+        if (canCancel) return null;
+        if (passed) return "Passed";
+        if (alreadyCancelled) return "Cancelled";
+        if (creditGranted) return "Credit issued";
+        if (l.studentState !== "normal") return "Already moved";
+        if (term === null) return "No term set";
+        if (!meetsCancelNotice(now, l.date, l.startTime))
+          return "Needs 24 hours notice";
+        return "No cancellations left this term";
+      }
       return {
         id: l.id,
         date: l.date,
@@ -178,6 +205,8 @@ export default async function TimetablePage({
         canCancel,
         rescheduleRemaining,
         cancelRemaining,
+        rescheduleReason: rescheduleReasonFor(),
+        cancelReason: cancelReasonFor(),
       };
     });
     const fromIso = isoLocal(from);
