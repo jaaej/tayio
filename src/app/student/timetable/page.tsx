@@ -228,7 +228,7 @@ export default async function TimetablePage({
           title="Your schedule"
           sub="Click a lesson to open it, then choose Go to subject, Reschedule, or Cancel."
         />
-        <Card className="overflow-hidden">
+        <Card>
           <div className="p-4 lg:p-5">
             <InteractiveTimetable
               initialYear={year}

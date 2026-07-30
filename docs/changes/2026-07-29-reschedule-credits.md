@@ -77,9 +77,9 @@ Tick each box after clicking through it as the signed-in role.
 
 ### Student menu interaction (`student_unrestricted`, `/student/timetable`)
 
-- [ ] Click any lesson - past, current, or future - and confirm the action menu opens (a past lesson opens it the same as an upcoming one).
-- [ ] On a lesson you cannot act on, confirm Reschedule and Cancel show greyed-out with a short reason ("Passed", "Needs 7 days notice", "Needs 24 hours notice", "Already moved", "No reschedules left this term"), rather than being hidden.
-- [ ] Confirm the menu closes when you click anywhere outside it and when you press Escape, not only via the Close button.
+- [x] Click any lesson - past, current, or future - and confirm the action menu opens (a past lesson opens it the same as an upcoming one). (owner-verified 2026-07-30)
+- [x] On a lesson you cannot act on, confirm Reschedule and Cancel show greyed-out with a short reason ("Passed", "Needs 7 days notice", "Needs 24 hours notice", "Already moved", "No reschedules left this term"), rather than being hidden. (owner-verified 2026-07-30)
+- [x] Confirm the menu closes when you click anywhere outside it and when you press Escape, not only via the Close button. (owner-verified 2026-07-30)
 
 ### Student flows (navigate to the month holding the upcoming test lessons)
 

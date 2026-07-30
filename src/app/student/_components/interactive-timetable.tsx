@@ -238,21 +238,55 @@ export function InteractiveTimetable({
       )}
 
       {picking && (
-        <div className="flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5">
+        <div className="sticky top-4 z-30 flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5 shadow-sm">
           <div className="text-[13px] font-bold text-brand-800">
-            Pick a new time for {picking.opts.lesson.subjectName} - tutor's open
-            slots are highlighted.
-          </div>
-          <button
-            type="button"
-            onClick={() => setMode({ kind: "idle" })}
-            className={cn(
-              "shrink-0 text-[12px] font-bold text-brand-700 hover:text-brand-900",
-              FOCUS_RING,
+            {picking.picked ? (
+              <>
+                Move {picking.opts.lesson.subjectName} to{" "}
+                <span className="tabular-nums">
+                  {new Date(
+                    `${picking.picked.date}T00:00:00`,
+                  ).toLocaleDateString("en-AU", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}{" "}
+                  {formatTime(picking.picked.startTime)}
+                </span>
+                ?
+              </>
+            ) : (
+              <>
+                Pick a new time for {picking.opts.lesson.subjectName} - tutor's
+                open slots are highlighted.
+              </>
             )}
-          >
-            Cancel
-          </button>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {picking.picked && (
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={submitting}
+                className={cn(
+                  "min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
+                  FOCUS_RING,
+                )}
+              >
+                {submitting ? "…" : "Confirm reschedule"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode({ kind: "idle" })}
+              className={cn(
+                "min-h-11 rounded-[10px] px-3 text-[12px] font-bold text-brand-700 hover:text-brand-900",
+                FOCUS_RING,
+              )}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -423,31 +457,6 @@ export function InteractiveTimetable({
         </div>
       </div>
 
-      {picking?.picked && (
-        <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-[14px] border border-brand-300 bg-surface px-4 py-3 shadow-lg">
-          <div className="text-[13px] text-ink">
-            Move to{" "}
-            <span className="font-bold">
-              {new Date(`${picking.picked.date}T00:00:00`).toLocaleDateString(
-                "en-AU",
-                { weekday: "short", day: "numeric", month: "short" },
-              )}{" "}
-              {formatTime(picking.picked.startTime)}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={confirm}
-            disabled={submitting}
-            className={cn(
-              "min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
-              FOCUS_RING,
-            )}
-          >
-            {submitting ? "…" : "Confirm reschedule"}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
