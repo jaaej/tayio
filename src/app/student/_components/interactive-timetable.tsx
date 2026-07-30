@@ -5,12 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/format";
+import { CANCEL_CAP, RESCHEDULE_CAP } from "@/lib/reschedule-credits";
 import {
   loadRescheduleOptions,
   submitReschedule,
+  grantRescheduleCredit,
   type RescheduleOptions,
   type RescheduleSlot,
 } from "@/app/_actions/reschedule";
+import { cancelLesson } from "@/app/_actions/credits";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -34,7 +37,22 @@ export type TimetableChip = {
     | "pending_out"
     | "pending_in";
   moveLabel: string | null;
+  /** Base eligibility - lesson is upcoming, in the future, and in a state
+   *  self-serve actions make sense for. Gates whether the action menu shows
+   *  at all. */
+  canManage: boolean;
+  /** canManage AND in a resolved term AND 7-day notice met AND reschedule cap
+   *  not reached this term. */
   canReschedule: boolean;
+  /** canManage AND in a resolved term AND 24h notice met AND cancellation cap
+   *  not reached this term. */
+  canCancel: boolean;
+  /** Remaining reschedules this term, or null if the lesson isn't in a
+   *  resolved term. */
+  rescheduleRemaining: number | null;
+  /** Remaining cancellations this term, or null if the lesson isn't in a
+   *  resolved term. */
+  cancelRemaining: number | null;
 };
 export type TimetableHw = {
   id: string;
@@ -50,10 +68,14 @@ function isoLocal(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1";
+
 type LoadedOptions = Extract<RescheduleOptions, { ok: true }>;
 type Mode =
   | { kind: "idle" }
   | { kind: "menu"; lessonId: string }
+  | { kind: "cancel-confirm"; lessonId: string }
   | {
       kind: "picking";
       lessonId: string;
@@ -85,6 +107,7 @@ export function InteractiveTimetable({
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
 
   const picking = mode.kind === "picking" ? mode : null;
+  const cancelConfirming = mode.kind === "cancel-confirm" ? mode : null;
 
   const lessonsByDate = useMemo(() => {
     const m = new Map<string, TimetableChip[]>();
@@ -165,6 +188,30 @@ export function InteractiveTimetable({
     });
   }
 
+  function useCreditInstead() {
+    if (!picking) return;
+    const fd = new FormData();
+    fd.set("lessonId", picking.lessonId);
+    startSubmit(async () => {
+      const res = await grantRescheduleCredit(fd);
+      setMode({ kind: "idle" });
+      setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function confirmCancel() {
+    if (!cancelConfirming) return;
+    const fd = new FormData();
+    fd.set("lessonId", cancelConfirming.lessonId);
+    startSubmit(async () => {
+      const res = await cancelLesson(fd);
+      setMode({ kind: "idle" });
+      setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+      if (res.ok) router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-4">
       {flash && (
@@ -185,38 +232,50 @@ export function InteractiveTimetable({
           <div className="text-[13px] font-bold text-brand-800">
             Pick a new time for {picking.opts.lesson.subjectName} - tutor's open
             slots are highlighted.
-            {picking.opts.approvalRequired && (
-              <span className="font-semibold text-brand-700">
-                {picking.opts.secondReschedule
-                  ? " Second reschedule - needs tutor/admin approval."
-                  : " This will be sent for approval."}
-              </span>
-            )}
           </div>
           <button
             type="button"
             onClick={() => setMode({ kind: "idle" })}
-            className="shrink-0 text-[12px] font-bold text-brand-700 hover:text-brand-900"
+            className={cn(
+              "shrink-0 text-[12px] font-bold text-brand-700 hover:text-brand-900",
+              FOCUS_RING,
+            )}
           >
             Cancel
           </button>
         </div>
       )}
 
-      {picking && picking.opts.slots.length === 0 && (
+      {picking && !picking.opts.hasSlots && (
         <div className="rounded-[12px] border border-line bg-surface px-4 py-3">
           <div className="text-[13px] text-muted">
             Your tutor has no open slots in the next few weeks. Please contact
-            the office.
+            the office, or convert this lesson to a class credit instead.
           </div>
-          {adminId && (
-            <Link
-              href={`/student/messages/with/${adminId}`}
-              className="mt-3 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={useCreditInstead}
+              disabled={submitting}
+              className={cn(
+                "inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                FOCUS_RING,
+              )}
             >
-              Message the office
-            </Link>
-          )}
+              {submitting ? "Working…" : "Get a class credit instead"}
+            </button>
+            {adminId && (
+              <Link
+                href={`/student/messages/with/${adminId}`}
+                className={cn(
+                  "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300",
+                  FOCUS_RING,
+                )}
+              >
+                Message the office
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
@@ -230,7 +289,10 @@ export function InteractiveTimetable({
             type="button"
             onClick={() => navMonth(-1)}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className={cn(
+              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              FOCUS_RING,
+            )}
           >
             ‹
           </button>
@@ -238,7 +300,10 @@ export function InteractiveTimetable({
             type="button"
             onClick={() => navMonth(1)}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className={cn(
+              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              FOCUS_RING,
+            )}
           >
             ›
           </button>
@@ -284,10 +349,20 @@ export function InteractiveTimetable({
                     dimmed={!d.inMonth}
                     picking={!!picking}
                     menuOpen={mode.kind === "menu" && mode.lessonId === l.id}
+                    cancelConfirming={
+                      mode.kind === "cancel-confirm" && mode.lessonId === l.id
+                    }
                     loading={loading}
+                    cancelling={submitting}
+                    adminId={adminId}
                     onOpenMenu={() => setMode({ kind: "menu", lessonId: l.id })}
                     onCloseMenu={() => setMode({ kind: "idle" })}
                     onReschedule={() => openReschedule(l.id)}
+                    onOpenCancelConfirm={() =>
+                      setMode({ kind: "cancel-confirm", lessonId: l.id })
+                    }
+                    onAbortCancel={() => setMode({ kind: "menu", lessonId: l.id })}
+                    onConfirmCancel={confirmCancel}
                   />
                 ))}
                 {picking &&
@@ -307,6 +382,7 @@ export function InteractiveTimetable({
                           active
                             ? "bg-brand-500 border-brand-500 text-white"
                             : "bg-good-bg border-good/40 text-good hover:brightness-95",
+                          FOCUS_RING,
                         )}
                       >
                         <div className="text-[10px] font-extrabold tabular-nums">
@@ -353,13 +429,12 @@ export function InteractiveTimetable({
             type="button"
             onClick={confirm}
             disabled={submitting}
-            className="rounded-[10px] bg-brand-500 px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+            className={cn(
+              "min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
+              FOCUS_RING,
+            )}
           >
-            {submitting
-              ? "…"
-              : picking.opts.approvalRequired
-                ? "Request reschedule"
-                : "Confirm reschedule"}
+            {submitting ? "…" : "Confirm reschedule"}
           </button>
         </div>
       )}
@@ -372,19 +447,31 @@ function LessonChip({
   dimmed,
   picking,
   menuOpen,
+  cancelConfirming,
   loading,
+  cancelling,
+  adminId,
   onOpenMenu,
   onCloseMenu,
   onReschedule,
+  onOpenCancelConfirm,
+  onAbortCancel,
+  onConfirmCancel,
 }: {
   lesson: TimetableChip;
   dimmed: boolean;
   picking: boolean;
   menuOpen: boolean;
+  cancelConfirming: boolean;
   loading: boolean;
+  cancelling: boolean;
+  adminId: string | null;
   onOpenMenu: () => void;
   onCloseMenu: () => void;
   onReschedule: () => void;
+  onOpenCancelConfirm: () => void;
+  onAbortCancel: () => void;
+  onConfirmCancel: () => void;
 }) {
   const moved = lesson.studentState === "moved_out";
   const makeup = lesson.studentState === "makeup_in";
@@ -403,8 +490,8 @@ function LessonChip({
       className={cn(
         "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
         tone,
-        (dimmed || (picking && !menuOpen)) && "opacity-40",
-        lesson.canReschedule && !picking && "cursor-pointer hover:brightness-95",
+        (dimmed || (picking && !menuOpen && !cancelConfirming)) && "opacity-40",
+        lesson.canManage && !picking && "cursor-pointer hover:brightness-95",
       )}
     >
       <div className={cn("text-[10px] font-extrabold tabular-nums", moved && "line-through")}>
@@ -421,36 +508,111 @@ function LessonChip({
     </div>
   );
 
-  if (!lesson.canReschedule || picking) return chip;
+  if (!lesson.canManage || picking) return chip;
+
+  const messageOfficeLink = adminId ? (
+    <Link
+      href={`/student/messages/with/${adminId}`}
+      className={cn(
+        "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
+        FOCUS_RING,
+      )}
+    >
+      Message the office
+    </Link>
+  ) : null;
 
   return (
     <div className="relative">
-      <button type="button" onClick={onOpenMenu} className="block w-full text-left">
+      <button type="button" onClick={onOpenMenu} className={cn("block w-full text-left", FOCUS_RING)}>
         {chip}
       </button>
       {menuOpen && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 origin-top scale-100 rounded-[10px] border border-line bg-surface p-1 shadow-lg">
           <Link
             href={`/student/subjects/${lesson.subjectId}`}
-            className="block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2"
+            className={cn(
+              "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2",
+              FOCUS_RING,
+            )}
           >
             Go to subject
           </Link>
-          <button
-            type="button"
-            onClick={onReschedule}
-            disabled={loading}
-            className="block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50"
-          >
-            {loading ? "Loading…" : "Reschedule"}
-          </button>
+
+          {lesson.canReschedule ? (
+            <button
+              type="button"
+              onClick={onReschedule}
+              disabled={loading}
+              className={cn(
+                "block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
+                FOCUS_RING,
+              )}
+            >
+              {loading
+                ? "Loading…"
+                : `Reschedule (${lesson.rescheduleRemaining} of ${RESCHEDULE_CAP} left)`}
+            </button>
+          ) : (
+            messageOfficeLink
+          )}
+
+          {lesson.canCancel ? (
+            <button
+              type="button"
+              onClick={onOpenCancelConfirm}
+              className={cn(
+                "block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
+                FOCUS_RING,
+              )}
+            >
+              {`Cancel (${lesson.cancelRemaining} of ${CANCEL_CAP} left)`}
+            </button>
+          ) : (
+            messageOfficeLink
+          )}
+
           <button
             type="button"
             onClick={onCloseMenu}
-            className="block w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold text-muted hover:bg-surface-2"
+            className={cn(
+              "block w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold text-muted hover:bg-surface-2",
+              FOCUS_RING,
+            )}
           >
-            Cancel
+            Close
           </button>
+        </div>
+      )}
+      {cancelConfirming && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-[10px] border border-bad/40 bg-surface p-2.5 shadow-lg">
+          <div className="text-[11px] font-semibold text-ink">
+            This uses 1 of your {CANCEL_CAP} term cancellations and adds a
+            class credit.
+          </div>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onAbortCancel}
+              className={cn(
+                "rounded-md px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-surface-2",
+                FOCUS_RING,
+              )}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmCancel}
+              disabled={cancelling}
+              className={cn(
+                "rounded-md bg-bad px-3 py-1.5 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50",
+                FOCUS_RING,
+              )}
+            >
+              {cancelling ? "Cancelling…" : "Cancel lesson"}
+            </button>
+          </div>
         </div>
       )}
     </div>

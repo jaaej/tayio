@@ -1,5 +1,6 @@
 import { Card, CardHead } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
+import { CreditPanel } from "@/components/reschedule/credit-panel";
 import { requireRole } from "@/lib/auth";
 import {
   MonthCalendar,
@@ -18,6 +19,21 @@ import {
   getStudentHomework,
   getStudentTimetableLessons,
 } from "../_lib/queries";
+import {
+  getCancellationsUsed,
+  getReschedulesUsed,
+  getTerms,
+  listRedeemableCredits,
+} from "@/lib/credits";
+import {
+  CANCEL_CAP,
+  RESCHEDULE_CAP,
+  meetsCancelNotice,
+  meetsRescheduleNotice,
+  remaining,
+  resolveTerm,
+  type TermRow,
+} from "@/lib/reschedule-credits";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -58,32 +74,84 @@ export default async function TimetablePage({
   if (isUnrestricted) {
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month + 3, 1);
-    const [lessonRows, homeworkRows, adminContact] = await Promise.all([
+    const [lessonRows, homeworkRows, adminContact, terms, credits] = await Promise.all([
       getStudentTimetableLessons(user.id, { from, to }),
       getStudentHomework(user.id),
       getAdminContactForStudent(),
+      getTerms(),
+      listRedeemableCredits(user.id),
     ]);
-    const chips: TimetableChip[] = lessonRows.map((l) => ({
-      id: l.id,
-      date: l.date,
-      startTime: l.startTime,
-      endTime: l.endTime,
-      status: l.status,
-      subjectId: l.subjectId,
-      subjectName: l.subjectName,
-      className: l.className,
-      studentState: l.studentState,
-      moveLabel: l.moveLabel,
-      // A moved-out lesson (or one with a pending request) can be rescheduled
-      // again - a second move needs approval (enforced server-side) and a new
-      // request supersedes the pending one.
-      canReschedule:
+
+    // Base self-serve eligibility: lesson is upcoming, in the future, and in
+    // a state a cancel/reschedule makes sense for (a moved-out or
+    // pending-out lesson can still be re-actioned; a make-up/pending-in chip
+    // cannot). Resolve each eligible lesson's term once, then fetch that
+    // term's used counts once per distinct term (not once per lesson).
+    function isManageable(l: (typeof lessonRows)[number]) {
+      return (
         l.status === "upcoming" &&
         (l.studentState === "normal" ||
           l.studentState === "moved_out" ||
           l.studentState === "pending_out") &&
-        new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime(),
-    }));
+        new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime()
+      );
+    }
+    const termByLessonId = new Map<string, TermRow | null>();
+    for (const l of lessonRows) {
+      if (isManageable(l)) termByLessonId.set(l.id, resolveTerm(l.date, terms));
+    }
+    const distinctTermIds = Array.from(
+      new Set(
+        Array.from(termByLessonId.values())
+          .filter((t): t is TermRow => t !== null)
+          .map((t) => t.id),
+      ),
+    );
+    const usageByTerm = new Map<string, { cancelUsed: number; rescheduleUsed: number }>();
+    await Promise.all(
+      distinctTermIds.map(async (termId) => {
+        const [cancelUsed, rescheduleUsed] = await Promise.all([
+          getCancellationsUsed(user.id, termId),
+          getReschedulesUsed(user.id, termId),
+        ]);
+        usageByTerm.set(termId, { cancelUsed, rescheduleUsed });
+      }),
+    );
+
+    const chips: TimetableChip[] = lessonRows.map((l) => {
+      const canManage = isManageable(l);
+      const term = termByLessonId.get(l.id) ?? null;
+      const usage = term ? usageByTerm.get(term.id) : undefined;
+      const cancelRemaining = usage ? remaining(CANCEL_CAP, usage.cancelUsed) : null;
+      const rescheduleRemaining = usage ? remaining(RESCHEDULE_CAP, usage.rescheduleUsed) : null;
+      const canCancel =
+        canManage &&
+        term !== null &&
+        meetsCancelNotice(now, l.date, l.startTime) &&
+        (cancelRemaining ?? 0) > 0;
+      const canReschedule =
+        canManage &&
+        term !== null &&
+        meetsRescheduleNotice(now, l.date, l.startTime) &&
+        (rescheduleRemaining ?? 0) > 0;
+      return {
+        id: l.id,
+        date: l.date,
+        startTime: l.startTime,
+        endTime: l.endTime,
+        status: l.status,
+        subjectId: l.subjectId,
+        subjectName: l.subjectName,
+        className: l.className,
+        studentState: l.studentState,
+        moveLabel: l.moveLabel,
+        canManage,
+        canReschedule,
+        canCancel,
+        rescheduleRemaining,
+        cancelRemaining,
+      };
+    });
     const fromIso = isoLocal(from);
     const toIso = isoLocal(to);
     const hw: TimetableHw[] = homeworkRows
@@ -100,7 +168,7 @@ export default async function TimetablePage({
         <PageHead
           eyebrow="Timetable"
           title="Your schedule"
-          sub="Click a lesson to open it, then choose Go to subject or Reschedule."
+          sub="Click a lesson to open it, then choose Go to subject, Reschedule, or Cancel."
         />
         <Card className="overflow-hidden">
           <div className="p-4 lg:p-5">
@@ -113,6 +181,7 @@ export default async function TimetablePage({
             />
           </div>
         </Card>
+        <CreditPanel credits={credits} adminId={adminContact?.id ?? null} />
       </div>
     );
   }
