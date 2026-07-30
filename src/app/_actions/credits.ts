@@ -72,6 +72,19 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
   if (parts.length !== 4) return { ok: false, error: "Pick a time first." };
   const [tutorId, date, startTime, endTime] = parts;
 
+  // Re-derive the credit's real availability server-side and reject anything
+  // the client submitted that isn't in it - never trust the formData slot as-is.
+  const available = await getRedemptionSlots(creditId, studentId);
+  if (!available.ok) return available;
+  if (!available.slots.some((s) => s.tutorId === tutorId)) {
+    return { ok: false, error: "That time is no longer available - pick another." };
+  }
+  if (
+    !available.slots.some((s) => s.date === date && s.startTime === startTime)
+  ) {
+    return { ok: false, error: "That time is no longer available - pick another." };
+  }
+
   const res = await redeemCreditIntoSlot({
     creditId,
     holderId: studentId,
