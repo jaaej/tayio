@@ -29,6 +29,7 @@ import {
 } from "@/lib/reschedule-credits";
 import {
   announcements,
+  attendance,
   classCredits,
   classes,
   enrollments,
@@ -555,12 +556,17 @@ export async function getStudentUpcomingLessons(
   studentId: string,
   days = 21,
 ): Promise<StudentLesson[]> {
-  const today = new Date();
+  const now = new Date();
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const horizon = new Date(today);
   horizon.setDate(today.getDate() + days);
+  // Local calendar date (isoDate is UTC-based, which shifts the day boundary
+  // and lets yesterday's lessons through in UTC+ timezones).
+  const localIso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-  return db
+  const rows = await db
     .select({
       id: lessons.id,
       date: lessons.date,
@@ -585,11 +591,28 @@ export async function getStudentUpcomingLessons(
       and(
         eq(enrollments.studentId, studentId),
         isNull(enrollments.withdrawnAt),
-        gte(lessons.date, isoDate(today)),
-        lt(lessons.date, isoDate(horizon)),
+        gte(lessons.date, localIso(today)),
+        lt(lessons.date, localIso(horizon)),
       ),
     )
     .orderBy(asc(lessons.date), asc(lessons.startTime));
+
+  // Exclude lessons the student has been rescheduled or cancelled OUT of (they
+  // hold an `absent` attendance on them), and any lesson that has already
+  // started - neither is genuinely "upcoming" for this student.
+  const absentRows = await db
+    .select({ lessonId: attendance.lessonId })
+    .from(attendance)
+    .where(
+      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
+    );
+  const absentIds = new Set(absentRows.map((a) => a.lessonId));
+
+  return rows.filter(
+    (l) =>
+      !absentIds.has(l.id) &&
+      new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime(),
+  );
 }
 
 /**
