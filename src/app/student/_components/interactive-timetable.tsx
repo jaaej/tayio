@@ -80,6 +80,10 @@ export type TimetableHw = {
   dueDate: string;
   title: string;
   done: boolean;
+  /** Precomputed link for the due-date chip. Built server-side per portal
+   *  (the student's per-item detail page vs the parent's child-filtered
+   *  list) so no function crosses the server/client boundary. */
+  href: string;
 };
 
 function isoLocal(d: Date) {
@@ -120,7 +124,6 @@ export function InteractiveTimetable({
   subjectBase = "/student/subjects",
   subjectQuery = "",
   messageBase = "/student/messages/with",
-  homeworkHref = (h) => `/student/homework/${h.id}`,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -144,11 +147,6 @@ export function InteractiveTimetable({
   subjectQuery?: string;
   /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
   messageBase?: string;
-  /** Href for a homework due-date chip. Defaults to the student's own
-   *  homework detail page - there is no per-item detail page for the parent
-   *  portal, so the parent passes a href to the (child-filtered) homework
-   *  list instead. */
-  homeworkHref?: (h: TimetableHw) => string;
 }) {
   const router = useRouter();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
@@ -553,7 +551,7 @@ export function InteractiveTimetable({
                 {(hwByDate.get(d.iso) ?? []).map((h) => (
                   <Link
                     key={h.id}
-                    href={homeworkHref(h)}
+                    href={h.href}
                     className={cn(
                       "block rounded-md px-2 py-1 leading-tight text-[11px] font-bold truncate",
                       picking && "opacity-40",

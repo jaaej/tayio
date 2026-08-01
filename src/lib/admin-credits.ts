@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import {
   allowanceAdjustments,
   attendance,
+  auditLogs,
   classCredits,
   classes,
   enrollments,
@@ -36,6 +37,40 @@ import {
 /** Thrown inside `undoCancellation`'s transaction when the credit was redeemed
  *  concurrently, to roll the whole undo back. */
 class CreditRedeemedDuringUndoError extends Error {}
+
+/** Thrown inside `undoRedemption`'s transaction when the credit is no longer
+ *  redeemed onto the expected make-up (a concurrent undo/redeem), to roll back. */
+class RedemptionChangedDuringUndoError extends Error {}
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Write one audit row for an admin credit/reschedule action. The trigger-based
+ * audit (migration 0006) only covers profiles/enrollments/invoices/etc - these
+ * lessons/credits/cancellations tables are not trigger-audited, so admin undos
+ * and grants are logged explicitly here. Pass `tx` inside a transaction so the
+ * audit row rolls back with the action if the action does; pass `db` for the
+ * non-transactional grants.
+ */
+async function logAdminAudit(
+  exec: typeof db | DbTx,
+  entry: {
+    actorId: string;
+    action: string;
+    tableName: string;
+    oldData?: Record<string, unknown>;
+    newData?: Record<string, unknown>;
+  },
+): Promise<void> {
+  await exec.insert(auditLogs).values({
+    actorId: entry.actorId,
+    actorRole: "admin",
+    action: entry.action,
+    tableName: entry.tableName,
+    oldData: entry.oldData ?? null,
+    newData: entry.newData ?? null,
+  });
+}
 
 // --- Notifications ----------------------------------------------------------
 
@@ -82,6 +117,15 @@ export type RescheduleActivity = {
   targetLessonId: string | null;
 };
 
+/** The make-up a redeemed credit was spent on - surfaced under a blocked
+ *  cancellation so the admin can see (and undo) what's holding the credit. */
+export type RedemptionInfo = {
+  creditId: string;
+  lessonId: string;
+  label: string;
+  subjectName: string;
+};
+
 export type CancellationActivity = {
   id: string;
   subjectName: string;
@@ -90,6 +134,8 @@ export type CancellationActivity = {
   createdAt: Date;
   creditId: string | null;
   creditStatus: CreditStatus | null;
+  /** Set only when the linked credit is redeemed: the make-up it paid for. */
+  redemption: RedemptionInfo | null;
 };
 
 export type StudentActivity = {
@@ -152,6 +198,12 @@ export async function getStudentActivity(
     };
   });
 
+  // The make-up a redeemed credit was spent on (credit.redeemedOnLessonId),
+  // aliased so it doesn't collide with the cancelled lesson's joins above.
+  const redeemLesson = alias(lessons, "redeem_lesson");
+  const redeemClass = alias(classes, "redeem_class");
+  const redeemSubject = alias(subjects, "redeem_subject");
+
   const today = isoDate(new Date());
   const cancelRows = await db
     .select({
@@ -164,27 +216,52 @@ export async function getStudentActivity(
       lessonStart: lessons.startTime,
       creditStatus: classCredits.status,
       creditExpiresAt: classCredits.expiresAt,
+      redeemLessonId: classCredits.redeemedOnLessonId,
+      redeemDate: redeemLesson.date,
+      redeemStart: redeemLesson.startTime,
+      redeemSubjectName: redeemSubject.name,
     })
     .from(lessonCancellations)
     .innerJoin(lessons, eq(lessons.id, lessonCancellations.lessonId))
     .innerJoin(classes, eq(classes.id, lessons.classId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .leftJoin(classCredits, eq(classCredits.id, lessonCancellations.creditId))
+    .leftJoin(redeemLesson, eq(redeemLesson.id, classCredits.redeemedOnLessonId))
+    .leftJoin(redeemClass, eq(redeemClass.id, redeemLesson.classId))
+    .leftJoin(redeemSubject, eq(redeemSubject.id, redeemClass.subjectId))
     .where(eq(lessonCancellations.studentId, studentId))
     .orderBy(desc(lessonCancellations.createdAt));
 
-  const cancellations: CancellationActivity[] = cancelRows.map((r) => ({
-    id: r.id,
-    subjectName: r.subjectName,
-    lessonLabel: `${formatDateLong(r.lessonDate)} ${formatTime(r.lessonStart)}`,
-    reason: r.reason,
-    createdAt: r.createdAt,
-    creditId: r.creditId,
-    creditStatus:
+  const cancellations: CancellationActivity[] = cancelRows.map((r) => {
+    const creditStatus =
       r.creditStatus && r.creditExpiresAt
         ? deriveCreditStatus(r.creditStatus, r.creditExpiresAt, today)
-        : null,
-  }));
+        : null;
+    // Only redeemed credits point at a real make-up lesson worth surfacing.
+    const redemption: RedemptionInfo | null =
+      creditStatus === "redeemed" &&
+      r.creditId &&
+      r.redeemLessonId &&
+      r.redeemDate &&
+      r.redeemStart
+        ? {
+            creditId: r.creditId,
+            lessonId: r.redeemLessonId,
+            label: `${formatDateLong(r.redeemDate)} ${formatTime(r.redeemStart)}`,
+            subjectName: r.redeemSubjectName ?? r.subjectName,
+          }
+        : null;
+    return {
+      id: r.id,
+      subjectName: r.subjectName,
+      lessonLabel: `${formatDateLong(r.lessonDate)} ${formatTime(r.lessonStart)}`,
+      reason: r.reason,
+      createdAt: r.createdAt,
+      creditId: r.creditId,
+      creditStatus,
+      redemption,
+    };
+  });
 
   return { reschedules, cancellations };
 }
@@ -314,6 +391,18 @@ export async function grantCreditAsAdmin(p: {
     expiresAt: term.endDate,
   });
 
+  await logAdminAudit(db, {
+    actorId: p.grantedById,
+    action: "admin_grant_credit",
+    tableName: "class_credits",
+    newData: {
+      creditId,
+      studentId: p.studentId,
+      subjectId: p.subjectId,
+      termId: term.id,
+    },
+  });
+
   await notifyStudentAndParents(
     p.studentId,
     "Class credit added",
@@ -342,6 +431,18 @@ export async function grantAllowance(p: {
     bonus: p.bonus,
     grantedById: p.grantedById,
     reason: p.reason?.trim().slice(0, 2000) || null,
+  });
+
+  await logAdminAudit(db, {
+    actorId: p.grantedById,
+    action: "admin_grant_allowance",
+    tableName: "allowance_adjustments",
+    newData: {
+      studentId: p.studentId,
+      termId: p.termId,
+      kind: p.kind,
+      bonus: p.bonus,
+    },
   });
 
   const label = p.kind === "reschedule" ? "reschedule" : "cancellation";
@@ -449,6 +550,18 @@ export async function undoReschedule(p: {
     await tx
       .delete(rescheduleRequests)
       .where(eq(rescheduleRequests.id, req.id));
+
+    await logAdminAudit(tx, {
+      actorId: p.adminId,
+      action: "admin_undo_reschedule",
+      tableName: "reschedule_requests",
+      oldData: {
+        rescheduleRequestId: req.id,
+        studentId: req.studentId,
+        originalLessonId: req.originalLessonId,
+        targetLessonId: req.targetLessonId,
+      },
+    });
   });
 
   if (orig) {
@@ -524,6 +637,18 @@ export async function undoCancellation(p: {
             eq(attendance.status, "absent"),
           ),
         );
+
+      await logAdminAudit(tx, {
+        actorId: p.adminId,
+        action: "admin_undo_cancellation",
+        tableName: "lesson_cancellations",
+        oldData: {
+          cancellationId: row.id,
+          studentId: row.studentId,
+          lessonId: row.lessonId,
+          creditId: row.creditId,
+        },
+      });
     });
   } catch (err) {
     if (err instanceof CreditRedeemedDuringUndoError) {
@@ -540,5 +665,118 @@ export async function undoCancellation(p: {
     "Cancellation undone",
     `${await studentName(row.studentId)}'s cancellation of the ${row.subjectName} lesson on ${formatDateLong(row.lessonDate)} at ${formatTime(row.lessonStart)} was undone by the office. The class credit was removed and they're back on the lesson.`,
   );
+  return { ok: true };
+}
+
+/** Reverse a credit redemption: flip the credit back to active and tear down
+ *  the make-up lesson it paid for (the student's attendance always; the lesson
+ *  itself only when no other student is on it). This is the "undo the
+ *  redemption first" step that unblocks undoing a cancellation whose credit was
+ *  spent. Reverses exactly what `redeemCreditIntoSlot` created. */
+export async function undoRedemption(p: {
+  creditId: string;
+  adminId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const [credit] = await db
+    .select({
+      id: classCredits.id,
+      status: classCredits.status,
+      studentId: classCredits.studentId,
+      redeemedOnLessonId: classCredits.redeemedOnLessonId,
+      subjectName: subjects.name,
+    })
+    .from(classCredits)
+    .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
+    .where(eq(classCredits.id, p.creditId))
+    .limit(1);
+  if (!credit) return { ok: false, error: "Credit not found." };
+  if (credit.status !== "redeemed" || !credit.redeemedOnLessonId) {
+    return {
+      ok: false,
+      error: "That credit hasn't been redeemed, so there's no make-up to undo.",
+    };
+  }
+  const makeupLessonId = credit.redeemedOnLessonId;
+
+  // Label the make-up for the notification before it is deleted.
+  const [makeup] = await db
+    .select({ date: lessons.date, startTime: lessons.startTime })
+    .from(lessons)
+    .where(eq(lessons.id, makeupLessonId))
+    .limit(1);
+
+  try {
+    await db.transaction(async (tx) => {
+      // Flip the credit back to active FIRST, guarded on it still being
+      // redeemed onto this same make-up. `redeemed_on_lesson_id` is
+      // `on delete set null`, so clearing it before deleting the lesson keeps
+      // the credit consistent. Zero rows -> a concurrent undo/redeem changed
+      // it; throw to roll back.
+      const restored = await tx
+        .update(classCredits)
+        .set({
+          status: "active",
+          redeemedOnLessonId: null,
+          redeemedById: null,
+          redeemedAt: null,
+        })
+        .where(
+          and(
+            eq(classCredits.id, credit.id),
+            eq(classCredits.status, "redeemed"),
+            eq(classCredits.redeemedOnLessonId, makeupLessonId),
+          ),
+        )
+        .returning({ id: classCredits.id });
+      if (restored.length === 0) throw new RedemptionChangedDuringUndoError();
+
+      // Pull this student's attendance off the make-up, then delete the make-up
+      // lesson only if no other student is attending it - a credit make-up is
+      // normally single-student, but never cascade-delete a shared lesson.
+      await tx
+        .delete(attendance)
+        .where(
+          and(
+            eq(attendance.lessonId, makeupLessonId),
+            eq(attendance.studentId, credit.studentId),
+          ),
+        );
+      const [otherAttendee] = await tx
+        .select({ studentId: attendance.studentId })
+        .from(attendance)
+        .where(eq(attendance.lessonId, makeupLessonId))
+        .limit(1);
+      if (!otherAttendee) {
+        await tx.delete(lessons).where(eq(lessons.id, makeupLessonId));
+      }
+
+      await logAdminAudit(tx, {
+        actorId: p.adminId,
+        action: "admin_undo_redemption",
+        tableName: "class_credits",
+        oldData: {
+          creditId: credit.id,
+          studentId: credit.studentId,
+          redeemedOnLessonId: makeupLessonId,
+        },
+      });
+    });
+  } catch (err) {
+    if (err instanceof RedemptionChangedDuringUndoError) {
+      return {
+        ok: false,
+        error: "That make-up just changed - refresh and try again.",
+      };
+    }
+    throw err;
+  }
+
+  if (makeup) {
+    await notifyStudentAndParents(
+      credit.studentId,
+      "Make-up booking undone",
+      `${await studentName(credit.studentId)}'s ${credit.subjectName} make-up on ${formatDateLong(makeup.date)} at ${formatTime(makeup.startTime)} was undone by the office. The class credit is available again.`,
+    );
+  }
   return { ok: true };
 }

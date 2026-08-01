@@ -55,11 +55,15 @@ Before this change, a self-serve reschedule either moved directly (group lessons
 Under the new rules, a self-serve reschedule either passes its gates (7-day notice, under the cap, and a slot exists) and executes directly, or it fails a gate and routes to "Message the office."
 No self-serve reschedule produces a pending approval request any more.
 
-We deliberately did not delete the approval-queue code (surgical-changes rule; this is a routing change, not a removal of a subsystem).
-`reschedulePath`, `hasPriorReschedule`, and `createRescheduleRequest` stay exported from `src/lib/reschedule.ts` but are now dormant - nothing self-serve calls them.
-The tutor and admin queues (`/tutor/reschedules`, `/admin/reschedules`) still exist, still render `RescheduleRequestList`, and still work for the one case that keeps feeding them: an admin-initiated one-off reschedule.
-They will simply show zero self-serve entries from now on.
-The office-mediated escape hatch for a gated or capped student is the admin one-off reschedule tool plus the existing messages thread, not the approval queue.
+We deliberately did not delete the approval-queue *logic* (surgical-changes rule; this is a routing change, not a removal of a subsystem).
+`reschedulePath`, `hasPriorReschedule`, `createRescheduleRequest`, `listPendingRequests`, `approveRescheduleRequest`, `rejectRescheduleRequest`, and `RescheduleRequestList` stay exported but are now dormant - nothing calls `createRescheduleRequest`, so no code path ever writes a `status: 'pending'` row again.
+
+Correction (2026-07-31, found during browser QA): an earlier draft of this section claimed the admin one-off reschedule "keeps feeding" the approval queue. That is wrong.
+The admin one-off tool (`src/app/admin/_lib/actions-reschedule.ts`) books the make-up **directly** - it inserts a `makeup` lesson, the two attendance rows, and a notification, and never touches `reschedule_requests`.
+So with self-serve executing directly and the admin one-off executing directly, **nothing** creates a pending request, and the approval queue is permanently empty.
+Because of that, the now-dead `/tutor/reschedules` page and its nav item (tutor shell + shared portal shell) were removed on 2026-07-31.
+The `/admin/reschedules` page stays - it also hosts the read-only Class-credits and This-term's-usage views - but no longer renders the always-empty pending list and is retitled "Reschedule credits".
+The office-mediated escape hatch for a gated or capped student is the admin one-off reschedule tool plus the existing messages thread, not an approval queue.
 
 ## Lazy expiry, no scheduler
 
@@ -85,19 +89,19 @@ Tick each box after clicking through it as the signed-in role.
 
 - [x] Reschedule a lesson at least 7 days out into an available slot and confirm the chip moves with no approval or pending state, and the Reschedule label reads "N of 3 left" and decrements. (owner-verified 2026-07-30)
 - [x] Cancel a lesson at least 24 hours out and confirm the chip turns red with the time and subject struck through and a single "Cancelled" tag, and that opening its menu shows one red "Cancelled" line - not "Reschedule - Cancelled" plus "Cancel - Cancelled". (owner-verified 2026-07-30)
-- [ ] Reschedule a lesson with no available slot (ask the builder to clear the tutor's availability) and confirm the "Get a class credit instead" action appears.
-- [ ] Open the credit panel, redeem an active credit into a slot, and confirm it books the make-up and the credit leaves the active list.
-- [ ] Reach the cancel cap (3 in a term) and the reschedule cap (3 in a term) and confirm each action then closes to "Message the office".
+- [x] Reschedule a lesson with no available slot (ask the builder to clear the tutor's availability) and confirm the "Get a class credit instead" action appears. (owner-verified 2026-07-31; Aug 8 lesson -> "Get a class credit instead" granted a reschedule_no_slot credit, chip went grey + struck "Converted to class credit"; tutor availability cleared for the test then restored)
+- [x] Open the credit panel, redeem an active credit into a slot, and confirm it books the make-up and the credit leaves the active list. (owner-verified 2026-07-31; redeemed a cancellation-derived credit into the Aug 6 slot - makeup booked, credit flipped active -> redeemed, "Make-up: booked with credits" label)
+- [x] Reach the cancel cap (3 in a term) and the reschedule cap (3 in a term) and confirm each action then closes to "Message the office". (owner-verified 2026-07-31; reschedule cap exercised: usage 3/3 -> menu showed greyed "Reschedule - No reschedules left this term" + "Message the office" link. Cancel-to-cap not exercised in data (usage stayed 1/3), but the cancel row renders through the identical office-routing code path - `showOfficeLink` fires when either action is unavailable.)
 
 ### Parent (`/parent/classes`, per linked child)
 
-- [ ] Repeat the cancel, reschedule, no-slot-credit, and redeem visual checks for one linked child, and confirm the allowance labels read correctly.
-- [ ] On a parent with two or more children, switch children and confirm each child's allowances, credits, and cancelled/greyed states are independent with no cross-child bleed.
+- [x] Repeat the cancel, reschedule, no-slot-credit, and redeem visual checks for one linked child, and confirm the allowance labels read correctly. (owner-verified 2026-07-31; Pat's child Sarah - cancel + reschedule + redeem all worked, labels read correctly)
+- [x] On a parent with two or more children, switch children and confirm each child's allowances, credits, and cancelled/greyed states are independent with no cross-child bleed. (owner-verified 2026-07-31; Sarah had 1 cancel/1 reschedule/1 redeemed credit while Noah stayed 0/0/0 - no cross-child bleed)
 
 ### Tutor (`/tutor/reschedules`)
 
-- [ ] Confirm no new self-serve entries appear in the reschedule queue after a student self-serve reschedule or cancel.
-- [ ] Confirm an admin-initiated one-off reschedule still appears in the queue.
+- [x] Confirm no new self-serve entries appear in the reschedule queue after a student self-serve reschedule or cancel. (verified in data 2026-07-31; self-serve writes `approved` reschedule rows / no row for cancels, and `listPendingRequests` is pending-only - 2 approved self-serve reschedules exist, 0 pending, so the queue is empty of self-serve entries)
+- [x] Confirm an admin-initiated one-off reschedule still appears in the queue. (resolved 2026-07-31 - premise was wrong: the admin one-off books the make-up directly (inserts a `makeup` lesson + attendance + notification, no `reschedule_requests` row), and `createRescheduleRequest` (the only writer of `status: 'pending'`) has zero callers. So nothing creates pending requests anymore and the approval queue is permanently empty. Owner decision: removed the dead `/tutor/reschedules` page + its nav item (tutor + portal shells); the `/admin/reschedules` page keeps its Class-credits and This-term's-usage views but no longer renders the always-empty pending list, and is retitled "Reschedule credits".)
 
 ### Admin (`/admin/reschedules`)
 
@@ -110,13 +114,26 @@ Tick each box after clicking through it as the signed-in role.
 Branch `feat/reschedule-credits` is HELD (not merged) pending owner browser QA and the deferred fixes below.
 Migrations 0031 and 0032 are applied to the live DB.
 
-Browser-QA passed (owner-verified): M1-M3 (menu opens on any lesson; greyed-with-reason; click-outside/Escape dismiss), F1-F2 (reschedule into a slot; cancel goes red + struck "Cancelled"), A1-A4 (admin Class-credits view, This-term's-usage, one-off reschedule uncapped/uncounted).
-Browser-QA remaining: F3 (no-slot -> "Get a class credit instead"), F4 (redeem a credit via the calendar overlay), F5 (per-term caps -> office routing), P1-P2 (parent flow + multi-child independence), T1-T2 (tutor queue shows no self-serve entries; admin one-off still shows), and AC1-AC6 (admin grant credit / grant +reschedule / grant +cancellation / activity list / undo reschedule / undo cancellation incl. the redeemed-block case).
+Browser-QA passed (owner-verified): M1-M3 (menu opens on any lesson; greyed-with-reason; click-outside/Escape dismiss), F1-F2 (reschedule into a slot; cancel goes red + struck "Cancelled"), F3 (no-slot -> "Get a class credit instead" -> grey struck "Converted to class credit"), F4 (redeem a credit via the calendar overlay - makeup booked, credit consumed, "booked with credits" label), A1-A4 (admin Class-credits view, This-term's-usage, one-off reschedule uncapped/uncounted).
+Browser-QA passed (cont.): F5 (reschedule cap -> office routing; cancel-cap shares the code path, not separately exercised in data), P1-P2 (parent flow on Sarah + Sarah/Noah independence), T1 (verified in data - self-serve never creates pending rows).
+Browser-QA resolved (not a browser check): T2 - the approval queue is now permanently empty (nothing creates pending requests), so the dead tutor queue page + nav were removed and the admin page's empty pending list was dropped. See the "Retired" section correction.
+Browser-QA passed (cont. 2026-08-01): AC1-AC6 (admin grant credit / grant +reschedule / grant +cancellation / activity list / undo reschedule / undo cancellation incl. the redeemed-block, and the full redemption -> cancellation undo chain via the new "Undo redemption"). All browser QA groups (M/F/P/T/A/AC) now owner-verified.
+
+Built during QA (2026-08-01): admin "Undo redemption".
+The blocked-cancellation message ("undo the redemption first") was previously a dead-end - the make-up a redeemed credit paid for was not shown anywhere and there was no action to undo it.
+`getStudentActivity` now resolves the redemption make-up (via `class_credits.redeemed_on_lesson_id`) and attaches it to the cancellation as `redemption`, and a new `undoRedemption(creditId)` server action (in `src/lib/admin-credits.ts` + `actions-credits.ts`) reverses exactly what `redeemCreditIntoSlot` created: it flips the credit back to active (guarded on it still being redeemed onto that same make-up), pulls the student's attendance off the make-up, and deletes the make-up lesson only when no other student is on it.
+The admin profile's activity card now renders the redemption grouped under the blocked cancellation with an "Undo redemption" button; undoing it frees the credit, after which the cancellation's own Undo enables.
+This closes the AC6 chain end-to-end. `tsc` clean; data path verified read-only against the live DB (not mutated, so the owner can still click through AC6).
+
+Bug fixed during QA (2026-07-31): `/parent/classes` 500'd - the parent page passed `homeworkHref={() => ...}` (a function) into the client `InteractiveTimetable`, which RSC cannot serialize (the student route never passed it, so the crash only surfaced on the parent route after the timetable port). Fixed by making the homework link serializable data: `TimetableHw` gained a precomputed `href` field (student `/student/homework/{id}`, parent `/parent/homework?child={childId}`), and the `homeworkHref` function prop was removed. tsc clean.
 
 UI adjustments shipped during QA: full-page menu on any lesson with greyed-out-with-reason unavailable actions; dismiss on outside-click/Escape; cancelled lessons red + struck "Cancelled"; no-slot-credit lessons grey + struck "Converted to class credit"; allowance labels show "N left" (no "of X" denominator); redeem credits via the same calendar overlay as reschedule; make-up labels "Make-up: from ..." vs "Make-up: booked with credits"; notifications inbox full-width for all four roles; admin one-off reschedule fixed (HH:MM:SS slot parse + double-booking guard + Taken-slot greying + full-width); admin upcoming-lessons excludes past + rescheduled-out lessons; parent timetable/reschedule now uses the shared student InteractiveTimetable per child; already-booked slots shown "Taken" (greyed/struck) in student/parent/admin pickers.
 
+Done 2026-08-01: audit-log coverage on the admin credit/reschedule actions.
+The trigger-based audit (migration 0006) covers profiles/enrollments/invoices/etc but not lessons/credits/cancellations/reschedule_requests/allowance_adjustments, so the admin undo + grant actions were writing no audit trail.
+`src/lib/admin-credits.ts` now writes one explicit `audit_logs` row per action via a `logAdminAudit` helper: `admin_undo_reschedule`, `admin_undo_cancellation`, `admin_undo_redemption` (each inside the action's transaction, so it rolls back with the action), plus `admin_grant_credit` and `admin_grant_allowance` (after the write). Each row carries the admin `actorId`, `actorRole: "admin"`, and the relevant old/new ids. No migration - `audit_logs` already existed; verified the app connection can insert (RLS does not block server-side writes). tsc clean, 55 tests pass.
+
 Deferred pre-merge follow-ups (none block QA):
-- Audit-log coverage on the admin undo actions (undoReschedule/undoCancellation delete a lesson/credit/attendance with no who-did-it record; against the PRD audit-log requirement).
 - undoReschedule: add a FOR UPDATE lock on the make-up lesson's attendee check (narrow race; group-switch is dormant).
 - undoCancellation: a concurrent double-undo shows "already used" instead of "not found" (cosmetic).
 - Dormant parent per-lesson reschedule page (/parent/classes/reschedule/[lessonId] + reschedule-form.tsx) still shows hardcoded "of 3" cap strings (unlinked after the parent-timetable port; the live parent timetable is fixed).

@@ -58,6 +58,7 @@ export async function resolveSelectedChild(
 export type DashboardData = {
   attendanceRate: number | null;
   attendanceCount: number;
+  absenceCount: number;
   homeworkCompleted: number;
   homeworkTotal: number;
   nextLesson: {
@@ -90,6 +91,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   const presentLike = attendanceRows.filter(
     (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
   ).length;
+  const absenceCount = attendanceRows.filter((r) => r.status === "absent").length;
   const attendanceRate =
     attendanceCount > 0 ? Math.round((presentLike / attendanceCount) * 100) : null;
 
@@ -171,6 +173,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   return {
     attendanceRate,
     attendanceCount,
+    absenceCount,
     homeworkCompleted,
     homeworkTotal,
     nextLesson,

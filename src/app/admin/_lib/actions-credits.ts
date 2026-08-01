@@ -7,6 +7,7 @@ import {
   grantAllowance,
   grantCreditAsAdmin,
   undoCancellation,
+  undoRedemption,
   undoReschedule,
 } from "@/lib/admin-credits";
 
@@ -100,6 +101,25 @@ export async function undoCancellationForStudent(input: {
 
   const res = await undoCancellation({
     cancellationId: parsed.data.cancellationId,
+    adminId: admin.id,
+  });
+  if (!res.ok) return res;
+  revalidate(parsed.data.studentId);
+  return { ok: true };
+}
+
+export async function undoRedemptionForStudent(input: {
+  creditId: string;
+  studentId: string;
+}): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({ creditId: uuid, studentId: uuid })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid request." };
+
+  const res = await undoRedemption({
+    creditId: parsed.data.creditId,
     adminId: admin.id,
   });
   if (!res.ok) return res;

@@ -7,6 +7,7 @@ import {
   grantAllowanceToStudent,
   grantCreditToStudent,
   undoCancellationForStudent,
+  undoRedemptionForStudent,
   undoRescheduleForStudent,
 } from "@/app/admin/_lib/actions-credits";
 
@@ -20,12 +21,20 @@ type RescheduleActivity = {
   reason: string | null;
 };
 
+type Redemption = {
+  creditId: string;
+  lessonId: string;
+  label: string;
+  subjectName: string;
+};
+
 type CancellationActivity = {
   id: string;
   subjectName: string;
   lessonLabel: string;
   reason: string | null;
   creditStatus: CreditStatus | null;
+  redemption: Redemption | null;
 };
 
 type Summary = {
@@ -103,6 +112,22 @@ export function CreditManagement({
         studentId,
       });
       if (!res.ok) setRowError({ id, text: res.error });
+    });
+  }
+
+  function undoRedemption(creditId: string, label: string) {
+    if (
+      !confirm(
+        `Undo this make-up booking?\n\n${label}\n\nThe make-up lesson is removed and the class credit becomes available again. You can then undo the cancellation.`,
+      )
+    ) {
+      return;
+    }
+    setRowError(null);
+    setActionMsg(null);
+    start(async () => {
+      const res = await undoRedemptionForStudent({ creditId, studentId });
+      if (!res.ok) setRowError({ id: creditId, text: res.error });
     });
   }
 
@@ -229,7 +254,49 @@ export function CreditManagement({
                           Reason: {c.reason}
                         </div>
                       )}
-                      {blocked && (
+                      {blocked && c.redemption && (
+                        <div className="mt-2 rounded-[10px] border border-line bg-surface-2/60 px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <div className="text-[10px] uppercase tracking-[0.14em] font-bold text-muted-2">
+                                Credit redeemed on
+                              </div>
+                              <div className="mt-0.5 text-[13px] font-bold text-ink">
+                                {c.redemption.subjectName} make-up
+                              </div>
+                              <div className="text-[12px] text-ink-soft tabular-nums">
+                                {c.redemption.label}
+                              </div>
+                              <div className="mt-1 text-[12px] text-muted">
+                                Undo this make-up to free the credit, then the
+                                cancellation can be undone.
+                              </div>
+                              {rowError?.id === c.redemption.creditId && (
+                                <div
+                                  role="alert"
+                                  className="mt-1.5 text-[12px] font-semibold text-bad"
+                                >
+                                  {rowError.text}
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pending}
+                              onClick={() =>
+                                undoRedemption(
+                                  c.redemption!.creditId,
+                                  `${c.redemption!.subjectName} make-up, ${c.redemption!.label}`,
+                                )
+                              }
+                            >
+                              Undo redemption
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {blocked && !c.redemption && (
                         <div className="mt-1 text-[12px] text-muted">
                           Credit already used - undo the redemption first.
                         </div>

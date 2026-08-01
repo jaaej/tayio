@@ -1,4 +1,10 @@
-import { TrendingUp, Medal, AlertTriangle, ClipboardCheck } from "lucide-react";
+import {
+  TrendingUp,
+  Medal,
+  AlertTriangle,
+  ClipboardCheck,
+  UserX,
+} from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
@@ -102,7 +108,7 @@ export default async function ParentProgressPage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
+        className="grid grid-cols-2 lg:grid-cols-5 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
@@ -133,7 +139,7 @@ export default async function ParentProgressPage({
           deltaTone={needsWorkCount === 0 ? "up" : "down"}
         />
         <StatTile
-          label="Attendance"
+          label="Attendance rate"
           value={
             dashboard.attendanceRate !== null
               ? `${dashboard.attendanceRate}%`
@@ -142,8 +148,28 @@ export default async function ParentProgressPage({
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
-          delta="Last 4 weeks"
+          delta="All logged lessons"
+          deltaTone={
+            dashboard.attendanceRate === null
+              ? "flat"
+              : dashboard.attendanceRate >= 90
+                ? "up"
+                : dashboard.attendanceRate < 75
+                  ? "down"
+                  : "flat"
+          }
         />
+        <div className="max-lg:col-span-2">
+          <StatTile
+            label="Absences"
+            value={dashboard.absenceCount.toString()}
+            icon={<UserX className="h-5 w-5" />}
+            tone={dashboard.absenceCount === 0 ? "good" : "coral"}
+            accent
+            delta="Marked absent"
+            deltaTone={dashboard.absenceCount === 0 ? "up" : "down"}
+          />
+        </div>
       </section>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>

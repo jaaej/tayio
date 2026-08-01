@@ -58,7 +58,6 @@ const NAV_BY_ROLE: Record<CoarseRole, NavItem[]> = {
     { label: "Today", href: "/tutor", icon: <Sunrise className={ICON_CLASS} /> },
     { label: "Classes", href: "/tutor/classes", icon: <BookOpen className={ICON_CLASS} /> },
     { label: "Students", href: "/tutor/students", icon: <Users className={ICON_CLASS} /> },
-    { label: "Reschedules", href: "/tutor/reschedules", icon: <CalendarClock className={ICON_CLASS} /> },
     { label: "Notes", href: "/tutor/notes", icon: <FileText className={ICON_CLASS} /> },
     { label: "Discussions", href: "/tutor/discussions", icon: <MessagesSquare className={ICON_CLASS} /> },
     { label: "Messages", href: "/tutor/messages", icon: <MessageCircle className={ICON_CLASS} /> },

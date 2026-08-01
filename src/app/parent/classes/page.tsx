@@ -1,6 +1,5 @@
-import { ClipboardCheck, UserX, CalendarDays } from "lucide-react";
-import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
-import { StatusBadge } from "@/components/data/status-badge";
+import { CalendarDays } from "lucide-react";
+import { Card, PageHeader, Empty } from "@/components/parent/ui";
 import { InteractiveTimetable } from "@/app/student/_components/interactive-timetable";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { getStudentHomework } from "@/app/student/_lib/queries";
@@ -15,6 +14,7 @@ import { getAdminContact, getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { parseMonthParam } from "../_components/month-calendar";
 import { SectionHeader } from "../_components/section-header";
+import { StatusPill } from "../_components/status-pill";
 
 type SearchParams = Promise<{
   child?: string;
@@ -72,18 +72,9 @@ export default async function ParentClassesPage({
       dueDate: isoLocal(h.dueDate),
       title: h.title,
       done: h.status === "submitted" || h.status === "marked",
+      href: `/parent/homework?child=${selected.id}`,
     }))
     .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
-
-  const total = attendanceRows.length;
-  const present = attendanceRows.filter(
-    (r) =>
-      r.status === "present" ||
-      r.status === "late" ||
-      r.status === "makeup_attended",
-  ).length;
-  const absent = attendanceRows.filter((r) => r.status === "absent").length;
-  const rate = total > 0 ? Math.round((present / total) * 100) : null;
 
   return (
     <div className="space-y-6">
@@ -102,41 +93,7 @@ export default async function ParentClassesPage({
         </div>
       )}
 
-      <section
-        className="grid grid-cols-3 gap-4 rise"
-        style={{ animationDelay: "40ms" }}
-      >
-        <StatTile
-          label="Attendance rate"
-          value={rate !== null ? `${rate}%` : "-"}
-          icon={<ClipboardCheck className="h-5 w-5" />}
-          tone="mint"
-          accent
-          delta="All logged lessons"
-          deltaTone={
-            rate === null ? "flat" : rate >= 90 ? "up" : rate < 75 ? "down" : "flat"
-          }
-        />
-        <StatTile
-          label="Absences"
-          value={absent.toString()}
-          icon={<UserX className="h-5 w-5" />}
-          tone={absent === 0 ? "good" : "coral"}
-          accent
-          delta="Marked absent"
-          deltaTone={absent === 0 ? "up" : "down"}
-        />
-        <StatTile
-          label="Lessons logged"
-          value={total.toString()}
-          icon={<CalendarDays className="h-5 w-5" />}
-          tone="sky"
-          accent
-          delta="This term"
-        />
-      </section>
-
-      <div className="rise" style={{ animationDelay: "60ms" }}>
+      <div className="rise" style={{ animationDelay: "40ms" }}>
         <Card>
           <SectionHeader
             title={`${selected.firstName}'s schedule`}
@@ -155,13 +112,12 @@ export default async function ParentClassesPage({
               subjectBase="/parent/subjects"
               subjectQuery={`?child=${selected.id}`}
               messageBase="/parent/messages/with"
-              homeworkHref={() => `/parent/homework?child=${selected.id}`}
             />
           </div>
         </Card>
       </div>
 
-      <div className="rise" style={{ animationDelay: "80ms" }}>
+      <div className="rise" style={{ animationDelay: "60ms" }}>
         <Card>
           <SectionHeader
             title="Lesson Log"
@@ -173,38 +129,51 @@ export default async function ParentClassesPage({
             </Empty>
           ) : (
             <div className="divide-y divide-line/70">
-              {attendanceRows.map((r) => (
-                <div
-                  key={r.lessonId}
-                  className="grid grid-cols-12 items-center gap-4 px-6 py-4"
-                >
-                  <div className="col-span-4 min-w-0">
-                    <div className="text-base text-ink">
-                      {formatDateLong(r.date)}
-                    </div>
-                    <div className="text-xs text-muted mt-0.5">
-                      {formatTime(r.startTime)}
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-sm text-ink-soft min-w-0 truncate">
-                    {r.subjectName ?? "-"}
-                  </div>
-                  <div className="col-span-2 text-sm text-ink-soft min-w-0 truncate">
-                    {r.tutorName}
-                  </div>
-                  <div className="col-span-3 flex items-center justify-end gap-3">
-                    {r.note && (
-                      <span className="text-xs text-muted truncate max-w-[10rem]">
-                        {r.note}
-                      </span>
-                    )}
-                    <StatusBadge
-                      label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
-                      className={ATTENDANCE_STATUS_STYLE[r.status]}
+              {attendanceRows.map((r) => {
+                const meta = [r.subjectName, r.tutorName]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <div
+                    key={r.lessonId}
+                    className="flex items-start gap-3 px-5 py-3.5"
+                  >
+                    <CalendarDays
+                      className="h-[18px] w-[18px] text-muted shrink-0 mt-[3px]"
+                      aria-hidden
                     />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-ink truncate">
+                            {formatDateLong(r.date)}
+                          </div>
+                          <div className="text-[11px] font-semibold text-muted tabular-nums mt-0.5">
+                            {formatTime(r.startTime)}
+                          </div>
+                        </div>
+                        <span className="shrink-0">
+                          <StatusPill
+                            label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
+                            className={ATTENDANCE_STATUS_STYLE[r.status]}
+                          />
+                        </span>
+                      </div>
+                      <div
+                        className="mt-1.5 text-[13px] text-ink-soft truncate"
+                        title={meta || undefined}
+                      >
+                        {meta || "-"}
+                      </div>
+                      {r.note && (
+                        <p className="mt-1 text-xs text-muted leading-relaxed line-clamp-2">
+                          {r.note}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

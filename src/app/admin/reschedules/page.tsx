@@ -1,10 +1,8 @@
 import { Card, CardHead, Empty, PageHeader, Pill, type PillTone } from "@/components/admin/ui";
-import { RescheduleRequestList } from "@/components/reschedule/request-list";
 import { getCreditsOverview } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong } from "@/lib/format";
 import { type CreditStatus } from "@/lib/reschedule-credits";
-import { listPendingRequests } from "@/lib/reschedule";
 
 const STATUS_TONE: Record<CreditStatus, PillTone> = {
   active: "good",
@@ -29,21 +27,16 @@ const REASON_LABEL: Record<
 
 export default async function AdminReschedulesPage() {
   await requireRole("admin");
-  const [requests, { credits, creditsTruncated, usage }] = await Promise.all([
-    listPendingRequests({}),
-    getCreditsOverview(),
-  ]);
+  const { credits, creditsTruncated, usage } = await getCreditsOverview();
 
   return (
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
         className="rise"
         eyebrow="Reschedules"
-        title="Reschedule requests"
-        sub="All pending reschedule requests across classes. Approve or decline below."
+        title="Reschedule credits"
+        sub="Class credits and this term's cancellation and reschedule usage across all students. Self-serve and admin reschedules apply directly, so there is no approval queue."
       />
-
-      <RescheduleRequestList requests={requests} />
 
       <Card className="rise">
         <CardHead

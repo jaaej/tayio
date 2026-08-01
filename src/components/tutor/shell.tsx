@@ -7,7 +7,6 @@ import {
   FileText,
   SquarePen,
   CalendarDays,
-  CalendarClock,
   ClipboardCheck,
   ListChecks,
   Library,
@@ -44,7 +43,6 @@ const SECTIONS: NavSection[] = [
     heading: "Schedule",
     items: [
       { label: "Timetable",   href: "/tutor/timetable",   icon: <CalendarDays className={IC} /> },
-      { label: "Reschedules", href: "/tutor/reschedules", icon: <CalendarClock className={IC} /> },
     ],
   },
   {

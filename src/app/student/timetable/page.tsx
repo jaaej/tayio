@@ -74,6 +74,7 @@ export default async function TimetablePage({
         dueDate: isoLocal(h.dueDate),
         title: h.title,
         done: h.status === "submitted" || h.status === "marked",
+        href: `/student/homework/${h.homeworkId}`,
       }))
       .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
 

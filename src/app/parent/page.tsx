@@ -154,7 +154,7 @@ export default async function ParentDashboard({
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
-          delta="Last 4 weeks"
+          delta="All logged lessons"
           deltaTone={
             data.attendanceRate !== null && data.attendanceRate >= 90
               ? "up"
