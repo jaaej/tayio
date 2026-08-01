@@ -177,7 +177,7 @@ export default async function StudentDashboard() {
           </Card>
 
           <div>
-            <SectionHead title="Your quests" actionHref="/student/subjects" actionLabel="All homework →" />
+            <SectionHead title="Your quests" actionHref="/student/homework" actionLabel="All homework →" />
             <Card flat accent="var(--mint)" className="overflow-hidden">
               {openHomework.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted">

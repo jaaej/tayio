@@ -12,6 +12,7 @@ import {
   LogOut,
   Search,
   Gamepad2,
+  Library,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -30,6 +31,7 @@ const SECTIONS: NavSection[] = [
       { label: "My subjects", href: "/student/subjects",   icon: <BookOpen className={IC} /> },
       { label: "Timetable",   href: "/student/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Progress",    href: "/student/progress",   icon: <TrendingUp className={IC} /> },
+      { label: "Resources",   href: "/student/resources",  icon: <Library className={IC} /> },
       { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={IC} /> },
     ],
   },
