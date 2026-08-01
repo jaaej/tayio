@@ -101,6 +101,22 @@ When the user asks for a design or style change ("make this more engaging", "fol
 
 When the user gives a reference (zip, screenshot, URL), extract the exact tokens from it (radii, gradient stops, shadow values, font weight, tile sizes) and use them. Don't substitute with `rounded-lg` / `shadow-md` defaults.
 
+## Intuitive navigation & information architecture (non-negotiable)
+
+Apply this lens to **every** UI/navigation decision, in every role and portal - not only when a request explicitly mentions it.
+The goal: a first-time, non-technical user can find and complete any task without training.
+Remove the skill/experience barrier to traversing the portal.
+
+- **Optimise for zero-training discoverability.** Before shipping any UI change, ask: "Could someone who has never seen this portal find and finish this task without being told where to look?" If not, rework it.
+- **Fewer, clearer destinations beat many overlapping tabs.** If two tabs surface the same data or the same task lives in more than one place, combine them. Question every new tab/page: does this belong inside an existing surface instead?
+- **One obvious home per task.** Don't scatter a single workflow across separate tabs (e.g. "today's class" in one tab and "mark attendance" in another). Put the action where the user already is, in context.
+- **Separate summary surfaces from working surfaces.** A home/dashboard *summarises and routes* (glanceable tiles that link out); deeper pages *do the work*. Don't blur the two.
+- **Surface time-relevant actions in context.** Put the action the user needs *now* one tap away (e.g. a "View class" action on the day of a class), instead of making them hunt through a menu.
+- **Gate, don't dangle.** Hide or lock things that aren't actionable yet rather than showing a dead tab or empty page (e.g. quiz editing locked until an admin requests it; route the request as a notification, not a standalone tab).
+- **Match labels to the user's mental model,** not the database schema or internal role names.
+
+When a change touches navigation or IA, briefly state how it reduces steps or ambiguity for a first-time user. If it adds steps or a new place to look, justify why or find a simpler path.
+
 ## Karpathy Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
