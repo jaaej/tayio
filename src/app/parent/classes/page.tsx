@@ -117,7 +117,7 @@ export default async function ParentClassesPage({
         </Card>
       </div>
 
-      <div id="attendance" className="rise scroll-mt-6" style={{ animationDelay: "60ms" }}>
+      <div id="attendance" className="rise scroll-mt-[104px] lg:scroll-mt-20" style={{ animationDelay: "60ms" }}>
         <Card>
           <SectionHeader
             title="Attendance"
