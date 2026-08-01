@@ -71,7 +71,7 @@ export default async function AdminAttendancePage({
     .limit(200);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Attendance"

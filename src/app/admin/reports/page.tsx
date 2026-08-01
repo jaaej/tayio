@@ -31,7 +31,7 @@ export default async function ReportsPage({
   const terms = await listTerms();
   if (terms.length === 0) {
     return (
-      <div className="space-y-6 max-w-[1400px]">
+      <div className="space-y-6">
         <PageHeader eyebrow="Reports" title="Operational reports" />
         <Card>
           <Empty>No terms defined yet. Create a term to see reports.</Empty>
@@ -52,7 +52,7 @@ export default async function ReportsPage({
   const org = rollupOrgWide(metricRows);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Reports"
         title="Operational reports"

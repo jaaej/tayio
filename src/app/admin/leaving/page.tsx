@@ -92,7 +92,7 @@ export default async function StudentsLeavingPage() {
   );
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Retention"

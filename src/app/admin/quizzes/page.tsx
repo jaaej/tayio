@@ -20,7 +20,7 @@ export default async function AdminQuizzesPage() {
   const [rows, targets] = await Promise.all([listQuizzesForAdmin(), listQuizTargets()]);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Curriculum"
         title="Quizzes"

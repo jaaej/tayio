@@ -40,7 +40,7 @@ export default async function AdminSubjectCurriculumPage({
 
   if (!currentTerm) {
     return (
-      <div className="space-y-6 max-w-[1200px]">
+      <div className="space-y-6">
         <BackLink href="/admin/classes">Back to classes</BackLink>
         <Hero
           eyebrow="Curriculum"
@@ -87,7 +87,7 @@ export default async function AdminSubjectCurriculumPage({
     : weeks[0];
 
   return (
-    <div className="space-y-6 max-w-[1200px]">
+    <div className="space-y-6">
       <BackLink href="/admin/classes">Back to classes</BackLink>
 
       <Hero

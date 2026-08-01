@@ -50,7 +50,7 @@ export default async function UsersPage({
   const tab = tabParam === "discontinued" ? "discontinued" : "all";
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="People"

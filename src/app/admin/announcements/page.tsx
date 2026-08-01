@@ -35,7 +35,7 @@ export default async function AnnouncementsPage() {
     .orderBy(classes.name);
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Communications"

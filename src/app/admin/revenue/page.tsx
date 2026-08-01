@@ -31,7 +31,7 @@ export default async function RevenuePage() {
   // reach the DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
   if (!canView) {
     return (
-      <div className="space-y-6 max-w-[1400px]">
+      <div className="space-y-6">
         <PageHeader className="rise" eyebrow="Finance" title="Revenue" />
         <Card className="rise">
           <div className="flex flex-col items-start gap-3 p-6">
@@ -66,7 +66,7 @@ export default async function RevenuePage() {
       : null;
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Finance"
