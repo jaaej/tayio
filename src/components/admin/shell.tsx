@@ -24,9 +24,15 @@ import {
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
+import { isUnrestrictedAdmin } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
+
+// Owner-only destinations - reception (admin_restricted) is redirected away by
+// requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
+const OWNER_ONLY_HREFS = new Set(["/admin/revenue", "/admin/settings"]);
 
 const IC = "h-[18px] w-[18px]";
 
@@ -126,14 +132,19 @@ export async function AdminShell({
       notifUnread = 0;
     }
   }
+  const canSeeOwnerNav = isUnrestrictedAdmin(
+    user?.app_metadata?.role as UserRole | undefined,
+  );
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
-    items: s.items.map((item) => {
-      if (item.href === "/admin/messages") return { ...item, badge: unread };
-      if (item.href === "/admin/notifications") return { ...item, badge: notifUnread };
-      return item;
-    }),
-  }));
+    items: s.items
+      .filter((item) => canSeeOwnerNav || !OWNER_ONLY_HREFS.has(item.href))
+      .map((item) => {
+        if (item.href === "/admin/messages") return { ...item, badge: unread };
+        if (item.href === "/admin/notifications") return { ...item, badge: notifUnread };
+        return item;
+      }),
+  })).filter((s) => s.items.length > 0);
   const initial = userName.charAt(0).toUpperCase();
 
   return (
