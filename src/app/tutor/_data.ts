@@ -71,6 +71,76 @@ export async function getTutorClasses(tutorId: string) {
   return rows;
 }
 
+/**
+ * Everything the single-page class hub (`/tutor/classes/[id]`) needs: the class
+ * header, its next (or today's) lesson for the attendance callout, and its
+ * active roster. Verifies the tutor owns the class (404 otherwise).
+ */
+export async function getClassHubForTutor(tutorId: string, classId: string) {
+  const [cls] = await db
+    .select({
+      id: classes.id,
+      name: classes.name,
+      subjectId: classes.subjectId,
+      subjectName: subjects.name,
+      subjectYear: subjects.yearLevel,
+      weekday: classes.weekday,
+      startTime: classes.startTime,
+      endTime: classes.endTime,
+      location: classes.location,
+      onlineLink: classes.onlineLink,
+      capacity: classes.capacity,
+    })
+    .from(classes)
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
+    .limit(1);
+  if (!cls) notFound();
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  const [nextLesson] = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+    })
+    .from(lessons)
+    .where(
+      and(
+        eq(lessons.classId, classId),
+        sql`${lessons.date} >= ${todayStr}`,
+        sql`${lessons.status} <> 'cancelled'`,
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime))
+    .limit(1);
+
+  const roster = await db
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      yearLevel: profiles.yearLevel,
+    })
+    .from(enrollments)
+    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
+    .where(
+      and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+    )
+    .orderBy(asc(profiles.lastName));
+
+  return {
+    class: cls,
+    nextLesson: nextLesson ?? null,
+    isToday: !!nextLesson && nextLesson.date === todayStr,
+    roster,
+  };
+}
+
 async function getTutorClassIds(tutorId: string): Promise<string[]> {
   const rows = await db
     .select({ id: classes.id })

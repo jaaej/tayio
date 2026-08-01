@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Users, BookOpen } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
@@ -111,7 +110,12 @@ export default async function TutorClassesPage() {
               const enrolled = c.enrolledCount ?? 0;
               const full = capacity > 0 && enrolled >= capacity;
               return (
-                <Card key={c.id} className="overflow-hidden">
+                <Link
+                  key={c.id}
+                  href={`/tutor/classes/${c.id}`}
+                  className="block group h-full"
+                >
+                <Card className="overflow-hidden h-full transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)]">
                   <div
                     className="px-4 py-3 flex items-center gap-3 border-b border-line"
                     style={{
@@ -165,45 +169,14 @@ export default async function TutorClassesPage() {
                         </Pill>
                       </dd>
                     </dl>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-line">
-                      {[
-                        {
-                          href: `/tutor/classes/${c.id}/students`,
-                          label: "Students",
-                          Icon: Users,
-                        },
-                        {
-                          href: `/tutor/classes/${c.id}/curriculum`,
-                          label: "Curriculum",
-                          Icon: BookOpen,
-                        },
-                      ].map(({ href, label, Icon }) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          className="group/tile flex flex-col items-center gap-1.5 rounded-[14px] border border-line bg-surface-2 px-2 py-3 text-center transition-all duration-150 hover:-translate-y-[3px] hover:border-brand-200 hover:bg-brand-50 hover:shadow-[0_10px_20px_-12px_rgba(31,40,90,0.4)]"
-                        >
-                          <span
-                            className="grid place-items-center h-9 w-9 rounded-[10px]"
-                            style={{
-                              background: accent.pillBg,
-                              color: accent.pillText,
-                            }}
-                          >
-                            <Icon
-                              className="h-[18px] w-[18px]"
-                              strokeWidth={2.2}
-                              aria-hidden
-                            />
-                          </span>
-                          <span className="text-[12px] font-bold leading-tight text-ink-soft group-hover/tile:text-brand-700">
-                            {label}
-                          </span>
-                        </Link>
-                      ))}
+                    <div className="mt-3 pt-3 border-t border-line flex items-center justify-end">
+                      <span className="text-[13px] font-bold text-brand-700 group-hover:text-brand-800">
+                        Open class →
+                      </span>
                     </div>
                   </CardBody>
                 </Card>
+                </Link>
               );
             })}
           </div>
