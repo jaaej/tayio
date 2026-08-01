@@ -379,6 +379,32 @@ export const allowanceAdjustments = pgTable(
 );
 export type AllowanceAdjustment = typeof allowanceAdjustments.$inferSelect;
 
+/**
+ * Per-student leave / holiday periods. A contiguous date range [startDate,
+ * endDate] (inclusive) during which the student is away from ALL their classes
+ * - so tutors don't mark them absent every day of a known holiday. Multiple
+ * separate holidays = multiple rows. Admin-managed; read server-side only.
+ */
+export const studentLeave = pgTable(
+  "student_leave",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    note: text("note"),
+    createdById: uuid("created_by_id").notNull().references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("student_leave_student_idx").on(t.studentId),
+    index("student_leave_dates_idx").on(t.startDate, t.endDate),
+  ],
+);
+export type StudentLeave = typeof studentLeave.$inferSelect;
+
 export const homework = pgTable("homework", {
   id: uuid("id").primaryKey().defaultRandom(),
   classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),

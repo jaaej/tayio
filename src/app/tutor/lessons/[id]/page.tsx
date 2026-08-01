@@ -106,6 +106,11 @@ export default async function LessonDetailPage({
                             {DELIVERY_BADGE[s.deliveryMode].label}
                           </Pill>
                         )}
+                        {s.onLeave && (
+                          <Pill tone="warn" className="translate-y-[1px]">
+                            On leave
+                          </Pill>
+                        )}
                       </div>
                       {movedOutById.has(s.id) && (
                         <span className="inline-flex items-center rounded-full border border-warn/40 bg-warn-bg px-2.5 py-1 text-[11px] font-bold text-warn">

@@ -43,6 +43,7 @@ import {
   lessons,
   profiles,
   rescheduleRequests,
+  studentLeave,
   subjects,
   tutorAvailability,
   type UserRole,
@@ -911,6 +912,29 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
   }
 
   return { credits, creditsTruncated, usage };
+}
+
+export type StudentLeaveRow = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  note: string | null;
+};
+
+/** A student's leave/holiday periods, most recent first. */
+export async function getStudentLeave(
+  studentId: string,
+): Promise<StudentLeaveRow[]> {
+  return db
+    .select({
+      id: studentLeave.id,
+      startDate: studentLeave.startDate,
+      endDate: studentLeave.endDate,
+      note: studentLeave.note,
+    })
+    .from(studentLeave)
+    .where(eq(studentLeave.studentId, studentId))
+    .orderBy(desc(studentLeave.startDate));
 }
 
 export type TutorAvailabilitySlot = {

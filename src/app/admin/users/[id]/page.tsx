@@ -18,7 +18,10 @@ import {
   Empty,
 } from "@/components/admin/ui";
 import { formatDateLong, formatTime } from "@/lib/format";
-import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
+import {
+  getStudentUpcomingLessons,
+  getStudentLeave,
+} from "@/app/admin/_lib/queries";
 import {
   getStudentActivity,
   getStudentAllowanceSummary,
@@ -27,6 +30,7 @@ import {
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
+import { StudentLeaveManager } from "./_components/student-leave-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -52,13 +56,15 @@ export default async function UserDetailPage({
   const upcomingLessons = isStudent
     ? await getStudentUpcomingLessons(id, 21)
     : [];
-  const [creditActivity, allowanceSummary, enrolledSubjects] = isStudent
-    ? await Promise.all([
-        getStudentActivity(id),
-        getStudentAllowanceSummary(id),
-        getStudentEnrolledSubjects(id),
-      ])
-    : [null, null, null];
+  const [creditActivity, allowanceSummary, enrolledSubjects, leavePeriods] =
+    isStudent
+      ? await Promise.all([
+          getStudentActivity(id),
+          getStudentAllowanceSummary(id),
+          getStudentEnrolledSubjects(id),
+          getStudentLeave(id),
+        ])
+      : [null, null, null, null];
 
   const allStudents = await db
     .select({
@@ -231,6 +237,27 @@ export default async function UserDetailPage({
                 ))}
               </div>
             )}
+          </Card>
+        </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "110ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Leave / holidays"
+              action={
+                <span className="text-[12px] text-muted">
+                  Away from all classes
+                </span>
+              }
+            />
+            <CardBody>
+              <StudentLeaveManager
+                studentId={user.id}
+                periods={leavePeriods ?? []}
+              />
+            </CardBody>
           </Card>
         </section>
       )}

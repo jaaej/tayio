@@ -13,6 +13,7 @@ import {
   familyLinks,
   profiles,
   subjects,
+  studentLeave,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
@@ -312,7 +313,28 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       and(eq(lessonNotes.lessonId, lessonId), eq(lessonNotes.tutorId, tutorId)),
     );
 
-  return { lesson, roster, notes: existingNotes };
+  // Flag students on a known leave/holiday spanning this lesson's date, so the
+  // tutor doesn't mark them absent. Leave is per-student (all classes).
+  const rosterIds = roster.map((r) => r.id);
+  const leaveRows = rosterIds.length
+    ? await db
+        .select({ studentId: studentLeave.studentId })
+        .from(studentLeave)
+        .where(
+          and(
+            inArray(studentLeave.studentId, rosterIds),
+            sql`${studentLeave.startDate} <= ${lesson.date}`,
+            sql`${studentLeave.endDate} >= ${lesson.date}`,
+          ),
+        )
+    : [];
+  const onLeaveIds = new Set(leaveRows.map((r) => r.studentId));
+  const rosterWithLeave = roster.map((r) => ({
+    ...r,
+    onLeave: onLeaveIds.has(r.id),
+  }));
+
+  return { lesson, roster: rosterWithLeave, notes: existingNotes };
 }
 
 export async function getTutorHomework(tutorId: string) {
