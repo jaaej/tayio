@@ -7,7 +7,7 @@ import {
   Pill,
   Empty,
 } from "@/components/admin/ui";
-import { requireRole } from "@/lib/auth";
+import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { formatMoney, relativeTime } from "@/lib/format";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { getRevenueSummary, getRecentPayments } from "@/app/admin/_lib/queries";
@@ -16,7 +16,7 @@ import { AdminPinPrompt } from "@/components/admin/pin-gate";
 export const dynamic = "force-dynamic";
 
 export default async function RevenuePage() {
-  await requireRole("admin");
+  await requireUnrestrictedAdmin();
   const { unlocked, pinSet } = await getAdminSecurityState();
 
   // Locked: never query or render any figure - the number must not reach the

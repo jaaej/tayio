@@ -1,12 +1,13 @@
 import { Card, CardHead, PageHeader, Pill } from "@/components/admin/ui";
-import { requireRole } from "@/lib/auth";
+import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
+import { AdminPinPrompt } from "@/components/admin/pin-gate";
 import { PinSettingsForm } from "./_components/pin-settings-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
-  await requireRole("admin");
+  await requireUnrestrictedAdmin();
   const { pinSet, unlocked } = await getAdminSecurityState();
 
   return (
@@ -22,11 +23,18 @@ export default async function AdminSettingsPage() {
             </Pill>
           }
         />
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-4">
           <p className="text-[13px] text-muted">
-            The PIN protects sensitive actions - changing a user&apos;s role and
-            deactivating accounts. One unlock lasts about 30 minutes.
+            The PIN protects sensitive actions - viewing revenue, changing a
+            user&apos;s role, and deactivating accounts. One unlock lasts about
+            30 minutes.
           </p>
+          {pinSet && !unlocked && (
+            <AdminPinPrompt
+              pinSet={pinSet}
+              label="Enter admin PIN to unlock sensitive actions"
+            />
+          )}
           <PinSettingsForm pinSet={pinSet} />
         </div>
       </Card>

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/db/schema";
-import { coarseRole, isCoarseRole } from "@/lib/roles";
+import { coarseRole, isCoarseRole, isUnrestrictedAdmin } from "@/lib/roles";
 
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -45,5 +45,17 @@ export async function requireUnrestrictedStudent() {
   const user = await requireRole("student");
   const role = user.app_metadata?.role as UserRole | undefined;
   if (role !== "student_unrestricted") redirect("/student");
+  return user;
+}
+
+/**
+ * Guard for owner-only admin pages (revenue, PIN/settings, role management).
+ * Accepts any admin tier first, then sends a restricted (reception) admin back
+ * to the admin dashboard. See the admin-tier matrix in docs/checklist.md.
+ */
+export async function requireUnrestrictedAdmin() {
+  const user = await requireRole("admin");
+  const role = user.app_metadata?.role as UserRole | undefined;
+  if (!isUnrestrictedAdmin(role)) redirect("/admin");
   return user;
 }

@@ -8,7 +8,36 @@ import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
-import { coarseRole } from "@/lib/roles";
+import { coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import { getPinHash, isAdminUnlocked } from "@/lib/admin-lock";
+import type { UserRole } from "@/db/schema";
+
+/** The signed-in admin's tiered role (from server-only app_metadata). */
+function currentAdminRole(
+  user: Awaited<ReturnType<typeof requireAdmin>>,
+): UserRole | undefined {
+  return (user.app_metadata as Record<string, unknown> | undefined)?.role as
+    | UserRole
+    | undefined;
+}
+
+/**
+ * PIN step-up gate. When an admin PIN is configured, sensitive actions
+ * (role change, account deactivation) require an active unlock; when no PIN is
+ * set yet, the gate is a no-op so the owner is never locked out of their own
+ * account management.
+ */
+async function pinStepUp() {
+  const pinHash = await getPinHash();
+  if (pinHash && !(await isAdminUnlocked())) {
+    return {
+      ok: false as const,
+      error:
+        "Enter the admin PIN in Settings to unlock this action (stays unlocked ~30 min).",
+    };
+  }
+  return { ok: true as const };
+}
 
 // Accepts tiered roles; legacy coarse values kept for safety on any un-migrated
 // caller. New/edited accounts should always use a tiered value.
@@ -35,8 +64,18 @@ const createUserSchema = z.object({
 });
 
 export async function createUser(input: z.infer<typeof createUserSchema>) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const data = createUserSchema.parse(input);
+
+  // Creating a privileged account (any admin tier or tutor) is owner-only.
+  const targetPrivileged =
+    coarseRole(data.role) === "admin" || data.role === "tutor";
+  if (targetPrivileged && !isUnrestrictedAdmin(currentAdminRole(user))) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can create admin or tutor accounts.",
+    };
+  }
 
   const admin = createAdminClient();
   // Role goes into app_metadata (server-only). user_metadata is user-mutable
@@ -95,6 +134,24 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   const user = await requireAdmin();
   const data = updateUserSchema.parse(input);
 
+  // Changing a user's role is owner-only and behind the PIN step-up. Editing
+  // the other profile fields (name/phone/school) stays open to reception.
+  const [existing] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, data.id));
+  const roleChanging = !!existing && existing.role !== data.role;
+  if (roleChanging) {
+    if (!isUnrestrictedAdmin(currentAdminRole(user))) {
+      return {
+        ok: false as const,
+        error: "Only an owner-level admin can change a user's role.",
+      };
+    }
+    const gate = await pinStepUp();
+    if (!gate.ok) return gate;
+  }
+
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
       .update(profiles)
@@ -126,6 +183,13 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
 export async function setUserActive(id: string, isActive: boolean) {
   const user = await requireAdmin();
   z.string().uuid().parse(id);
+
+  // Deactivating (banning) an account is behind the PIN step-up. Reactivation
+  // is left open so a lockout mistake can always be reversed.
+  if (!isActive) {
+    const gate = await pinStepUp();
+    if (!gate.ok) return gate;
+  }
 
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx

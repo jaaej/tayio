@@ -16,6 +16,7 @@ export function EditUserForm(props: {
   yearLevel: string;
   school: string;
   role: UserRole;
+  canManageRoles: boolean;
 }) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>(props.role);
@@ -76,6 +77,7 @@ export function EditUserForm(props: {
           id="role"
           name="role"
           value={role}
+          disabled={!props.canManageRoles}
           onChange={(e) => setRole(e.target.value as UserRole)}
         >
           {ROLE_OPTIONS.map((r) => (
@@ -84,6 +86,11 @@ export function EditUserForm(props: {
             </option>
           ))}
         </Select>
+        {!props.canManageRoles && (
+          <p className="text-[11px] text-muted">
+            Only an owner-level admin can change a user&apos;s role.
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="yearLevel">Year level</Label>

@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { CalendarClock } from "lucide-react";
 import { db } from "@/db/client";
-import { familyLinks, profiles } from "@/db/schema";
-import { STUDENT_TIERS, coarseRole } from "@/lib/roles";
+import { familyLinks, profiles, type UserRole } from "@/db/schema";
+import { STUDENT_TIERS, coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/auth";
 import { alias } from "drizzle-orm/pg-core";
 import {
   Card,
@@ -41,6 +42,11 @@ export default async function UserDetailPage({
 
   const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
   if (!user) notFound();
+
+  const me = await getCurrentUser();
+  const canManageRoles = isUnrestrictedAdmin(
+    me?.app_metadata?.role as UserRole | undefined,
+  );
 
   const isStudent = coarseRole(user.role) === "student";
   const upcomingLessons = isStudent
@@ -154,6 +160,7 @@ export default async function UserDetailPage({
               yearLevel={user.yearLevel ?? ""}
               school={user.school ?? ""}
               role={user.role}
+              canManageRoles={canManageRoles}
             />
           </CardBody>
         </Card>

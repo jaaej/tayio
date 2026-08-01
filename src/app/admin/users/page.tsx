@@ -2,8 +2,9 @@ import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { Users, GraduationCap, UserCog, Baby } from "lucide-react";
 import { db } from "@/db/client";
-import { profiles } from "@/db/schema";
-import { coarseRole } from "@/lib/roles";
+import { profiles, type UserRole } from "@/db/schema";
+import { coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/auth";
 import {
   getDiscontinuedStudents,
   type DiscontinuedStudent,
@@ -119,6 +120,11 @@ async function AllAccountsTab() {
     admin: rows.filter((r) => coarseRole(r.role) === "admin").length,
   };
 
+  const me = await getCurrentUser();
+  const canManageRoles = isUnrestrictedAdmin(
+    me?.app_metadata?.role as UserRole | undefined,
+  );
+
   return (
     <>
       <section
@@ -141,7 +147,7 @@ async function AllAccountsTab() {
         <Card accent="brand">
           <CardHead title="Create user" />
           <CardBody>
-            <CreateUserForm />
+            <CreateUserForm canManagePrivilegedRoles={canManageRoles} />
           </CardBody>
         </Card>
       </section>

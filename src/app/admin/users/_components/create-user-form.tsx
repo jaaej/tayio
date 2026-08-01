@@ -8,11 +8,23 @@ import { createUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
 import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
 
-export function CreateUserForm() {
+export function CreateUserForm({
+  canManagePrivilegedRoles,
+}: {
+  canManagePrivilegedRoles: boolean;
+}) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>("student_restricted");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+
+  // Reception (restricted admin) cannot create admin or tutor accounts, so the
+  // form never offers those roles. The server re-checks this regardless.
+  const roleOptions = canManagePrivilegedRoles
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter(
+        (r) => coarseRole(r.value) !== "admin" && r.value !== "tutor",
+      );
 
   return (
     <form
@@ -73,7 +85,7 @@ export function CreateUserForm() {
           value={role}
           onChange={(e) => setRole(e.target.value as UserRole)}
         >
-          {ROLE_OPTIONS.map((r) => (
+          {roleOptions.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
