@@ -41,7 +41,7 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Operations",
     items: [
-      { label: "Operations", href: "/admin", icon: <LayoutDashboard className={IC} /> },
+      { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className={IC} /> },
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
       { label: "Quizzes", href: "/admin/quizzes", icon: <HelpCircle className={IC} /> },
