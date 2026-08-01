@@ -7,7 +7,9 @@ import {
   Pill,
   Empty,
 } from "@/components/admin/ui";
-import { requireUnrestrictedAdmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
+import { isUnrestrictedAdmin } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
 import { formatMoney, relativeTime } from "@/lib/format";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { getRevenueSummary, getRecentPayments } from "@/app/admin/_lib/queries";
@@ -16,12 +18,18 @@ import { AdminPinPrompt } from "@/components/admin/pin-gate";
 export const dynamic = "force-dynamic";
 
 export default async function RevenuePage() {
-  await requireUnrestrictedAdmin();
+  // The owner sees revenue with no PIN. Reception (admin_restricted) must enter
+  // the PIN the owner set - the PIN's only job is to gate reception from money.
+  const user = await requireRole("admin");
+  const owner = isUnrestrictedAdmin(
+    user.app_metadata?.role as UserRole | undefined,
+  );
   const { unlocked, pinSet } = await getAdminSecurityState();
+  const canView = owner || unlocked;
 
-  // Locked: never query or render any figure - the number must not reach the
-  // DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
-  if (!unlocked) {
+  // Locked reception: never query or render any figure - the number must not
+  // reach the DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
+  if (!canView) {
     return (
       <div className="space-y-6 max-w-[1400px]">
         <PageHeader className="rise" eyebrow="Finance" title="Revenue" />

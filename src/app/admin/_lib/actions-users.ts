@@ -9,7 +9,6 @@ import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
 import { coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
-import { getPinHash, isAdminUnlocked } from "@/lib/admin-lock";
 import type { UserRole } from "@/db/schema";
 
 /** The signed-in admin's tiered role (from server-only app_metadata). */
@@ -19,24 +18,6 @@ function currentAdminRole(
   return (user.app_metadata as Record<string, unknown> | undefined)?.role as
     | UserRole
     | undefined;
-}
-
-/**
- * PIN step-up gate. When an admin PIN is configured, sensitive actions
- * (role change, account deactivation) require an active unlock; when no PIN is
- * set yet, the gate is a no-op so the owner is never locked out of their own
- * account management.
- */
-async function pinStepUp() {
-  const pinHash = await getPinHash();
-  if (pinHash && !(await isAdminUnlocked())) {
-    return {
-      ok: false as const,
-      error:
-        "Enter the admin PIN in Settings to unlock this action (stays unlocked ~30 min).",
-    };
-  }
-  return { ok: true as const };
 }
 
 // Accepts tiered roles; legacy coarse values kept for safety on any un-migrated
@@ -141,15 +122,11 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
     .from(profiles)
     .where(eq(profiles.id, data.id));
   const roleChanging = !!existing && existing.role !== data.role;
-  if (roleChanging) {
-    if (!isUnrestrictedAdmin(currentAdminRole(user))) {
-      return {
-        ok: false as const,
-        error: "Only an owner-level admin can change a user's role.",
-      };
-    }
-    const gate = await pinStepUp();
-    if (!gate.ok) return gate;
+  if (roleChanging && !isUnrestrictedAdmin(currentAdminRole(user))) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can change a user's role.",
+    };
   }
 
   await withActor({ id: user.id, role: "admin" }, (tx) =>
@@ -183,13 +160,6 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
 export async function setUserActive(id: string, isActive: boolean) {
   const user = await requireAdmin();
   z.string().uuid().parse(id);
-
-  // Deactivating (banning) an account is behind the PIN step-up. Reactivation
-  // is left open so a lockout mistake can always be reversed.
-  if (!isActive) {
-    const gate = await pinStepUp();
-    if (!gate.ok) return gate;
-  }
 
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx

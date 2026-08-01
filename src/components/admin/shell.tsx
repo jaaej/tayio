@@ -32,7 +32,8 @@ import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links
 
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
-const OWNER_ONLY_HREFS = new Set(["/admin/revenue", "/admin/settings"]);
+// Revenue is NOT here: reception can open it and enter the PIN to view figures.
+const OWNER_ONLY_HREFS = new Set(["/admin/settings"]);
 
 const IC = "h-[18px] w-[18px]";
 
