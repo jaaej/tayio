@@ -3,12 +3,14 @@ import {
   ArrowRight,
   BellRing,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   Flame,
   Inbox,
   Send,
 } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
+import { SectionHead } from "@/components/student/page-head";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
@@ -118,6 +120,11 @@ export default async function TutorDashboard() {
     href: `/tutor/lessons/${l.id}`,
   }));
 
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayLessons = weekLessons.filter(
+    (l) => String(l.date).slice(0, 10) === todayStr,
+  );
+
   const dateLabel = now.toLocaleDateString("en-AU", {
     weekday: "long",
     day: "numeric",
@@ -165,6 +172,49 @@ export default async function TutorDashboard() {
           </div>
         </div>
       </section>
+
+      {todayLessons.length > 0 && (
+        <section className="space-y-2.5">
+          <SectionHead title="Today's classes" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {todayLessons.map((l) => (
+              <Link
+                key={l.id}
+                href={`/tutor/lessons/${l.id}`}
+                className="block group"
+              >
+                <Card className="border-brand-200 transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)]">
+                  <CardBody>
+                    <div className="flex items-center gap-3">
+                      <span className="grid place-items-center h-11 w-11 rounded-[12px] bg-brand-100 text-brand-700 shrink-0">
+                        <ClipboardCheck
+                          className="h-[22px] w-[22px]"
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-muted">
+                          {l.subjectName}
+                        </div>
+                        <div className="text-[14px] font-extrabold text-ink leading-tight truncate">
+                          {l.className}
+                        </div>
+                        <div className="text-[12px] text-muted tabular-nums">
+                          {formatTime(l.startTime)}–{formatTime(l.endTime)}
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-bold text-brand-700 shrink-0">
+                        View class →
+                      </span>
+                    </div>
+                  </CardBody>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="space-y-5 min-w-0">
           <Card className="overflow-hidden">
