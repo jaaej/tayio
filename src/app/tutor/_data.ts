@@ -23,13 +23,14 @@ export async function requireTutor() {
   return { id: user.id, email: user.email ?? "" };
 }
 
+/** Local calendar date `YYYY-MM-DD` - matches the local dates stored in the
+ * `lessons.date` column. Using toISOString() would shift a day on AEST. */
+function isoDateLocal(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 function todayDateString() {
-  // The rest of the codebase (seed, MiniWeekCalendar, shared isoDate) keys
-  // dates as `local-midnight → toISOString`. In AEST this is "previous day in UTC".
-  // Match that convention so date comparisons line up with stored lesson rows.
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return isoDateLocal(new Date());
 }
 
 export async function getTutorClasses(tutorId: string) {
@@ -557,8 +558,8 @@ export async function getTutorWeekLessons(
   weekStart: Date,
   weekEnd: Date,
 ) {
-  const start = weekStart.toISOString().slice(0, 10);
-  const end = weekEnd.toISOString().slice(0, 10);
+  const start = isoDateLocal(weekStart);
+  const end = isoDateLocal(weekEnd);
   return db
     .select({
       id: lessons.id,
@@ -626,8 +627,8 @@ export async function getTutorAttendanceOverview(
   since.setDate(since.getDate() - daysBack);
   const until = new Date(today);
   until.setDate(until.getDate() + daysAhead);
-  const sinceIso = since.toISOString().slice(0, 10);
-  const untilIso = until.toISOString().slice(0, 10);
+  const sinceIso = isoDateLocal(since);
+  const untilIso = isoDateLocal(until);
 
   const lessonRows = await db
     .select({
@@ -747,7 +748,7 @@ export async function getLessonsMissingNotes(tutorId: string, limit = 6) {
   const today = todayDateString();
   const sevenAgo = new Date();
   sevenAgo.setDate(sevenAgo.getDate() - 7);
-  const since = sevenAgo.toISOString().slice(0, 10);
+  const since = isoDateLocal(sevenAgo);
   return db
     .select({
       id: lessons.id,

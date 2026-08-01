@@ -54,7 +54,10 @@ function startOfMondayWeek(d: Date) {
 }
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  // Local calendar date, not UTC - matches the local dates stored in lesson
+  // rows; toISOString() shifts a day on timezones ahead of UTC (e.g. AEST).
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 function formatTime12(t: string) {
