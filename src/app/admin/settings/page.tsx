@@ -10,7 +10,7 @@ export default async function AdminSettingsPage() {
   const { pinSet } = await getAdminSecurityState();
 
   return (
-    <div className="space-y-6 max-w-[900px]">
+    <div className="space-y-6">
       <PageHeader className="rise" eyebrow="Settings" title="Settings" />
 
       <Card className="rise">
