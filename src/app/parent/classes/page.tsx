@@ -117,10 +117,10 @@ export default async function ParentClassesPage({
         </Card>
       </div>
 
-      <div className="rise" style={{ animationDelay: "60ms" }}>
+      <div id="attendance" className="rise scroll-mt-6" style={{ animationDelay: "60ms" }}>
         <Card>
           <SectionHeader
-            title="Lesson Log"
+            title="Attendance"
             link={{ href: "/parent/feedback", label: "Tutor feedback" }}
           />
           {attendanceRows.length === 0 ? (
