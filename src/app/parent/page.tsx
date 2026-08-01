@@ -162,7 +162,7 @@ export default async function ParentDashboard({
                 ? "down"
                 : "flat"
           }
-          href={`/parent/attendance${childQs}`}
+          href={`/parent/classes${childQs}#attendance`}
         />
         <StatTile
           label="Homework"

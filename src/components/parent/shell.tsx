@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
-  ClipboardCheck,
   ClipboardList,
   MessageSquareText,
   TrendingUp,
@@ -29,7 +28,6 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Overview",   href: "/parent",            icon: <LayoutDashboard className={IC} /> },
       { label: "Classes",    href: "/parent/classes",    icon: <CalendarDays className={IC} /> },
-      { label: "Attendance", href: "/parent/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Homework",   href: "/parent/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Feedback",   href: "/parent/feedback",   icon: <MessageSquareText className={IC} /> },
       { label: "Progress",   href: "/parent/progress",   icon: <TrendingUp className={IC} /> },
