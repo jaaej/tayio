@@ -111,6 +111,35 @@ export async function setDeliveryMode(input: z.infer<typeof deliverySchema>) {
   return { ok: true as const };
 }
 
+const adminNotesInput = z.object({
+  classId: z.string().uuid(),
+  studentId: z.string().uuid(),
+  notes: z.string().max(2000),
+});
+
+/**
+ * Set a single student's per-enrolment admin notes (internal, never shown to the
+ * student or parent). Empty/whitespace clears the note back to null.
+ */
+export async function setAdminNotes(input: z.infer<typeof adminNotesInput>) {
+  const user = await requireAdmin();
+  const data = adminNotesInput.parse(input);
+  const trimmed = data.notes.trim();
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(enrollments)
+      .set({ adminNotes: trimmed.length > 0 ? trimmed : null })
+      .where(
+        and(
+          eq(enrollments.classId, data.classId),
+          eq(enrollments.studentId, data.studentId),
+        ),
+      ),
+  );
+  revalidatePath(`/admin/classes/${data.classId}`);
+  return { ok: true as const };
+}
+
 export async function removeEnrollment(input: z.infer<typeof pair>) {
   const user = await requireAdmin();
   const data = pair.parse(input);

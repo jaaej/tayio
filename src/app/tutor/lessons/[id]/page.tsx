@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonReschedules } from "@/lib/reschedule";
@@ -14,6 +15,14 @@ const ATTENDANCE_OPTIONS = [
   { value: "absent", label: "Absent" },
   { value: "makeup_attended", label: "Make-up" },
 ] as const;
+
+// Read-only per-enrolment delivery mode (admin-set). Only render an explicit
+// badge when a student deviates from the class default (online / in person);
+// a null/default mode shows nothing so the roster row stays uncluttered.
+const DELIVERY_BADGE = {
+  online: { label: "Online", tone: "info" },
+  in_person: { label: "In person", tone: "neutral" },
+} as const;
 
 const INPUT_CLS =
   "h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
@@ -76,8 +85,8 @@ export default async function LessonDetailPage({
                 const current = s.attendanceStatus ?? "";
                 return (
                   <li key={s.id} className="px-4 py-3 space-y-2">
-                    <div className="flex items-baseline justify-between">
-                      <div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <div className="flex items-baseline gap-3">
                         <Link
                           href={`/tutor/students/${s.id}`}
                           className="text-[13px] font-bold text-ink hover:text-brand-700"
@@ -85,9 +94,17 @@ export default async function LessonDetailPage({
                           {s.firstName} {s.lastName}
                         </Link>
                         {s.yearLevel && (
-                          <span className="ml-3 text-[11px] text-muted">
+                          <span className="text-[11px] text-muted">
                             {s.yearLevel}
                           </span>
+                        )}
+                        {s.deliveryMode && (
+                          <Pill
+                            tone={DELIVERY_BADGE[s.deliveryMode].tone}
+                            className="translate-y-[1px]"
+                          >
+                            {DELIVERY_BADGE[s.deliveryMode].label}
+                          </Pill>
                         )}
                       </div>
                       {movedOutById.has(s.id) && (

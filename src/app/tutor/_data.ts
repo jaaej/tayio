@@ -284,6 +284,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       yearLevel: profiles.yearLevel,
+      deliveryMode: enrollments.deliveryMode,
       attendanceStatus: attendance.status,
       attendanceNote: attendance.note,
     })

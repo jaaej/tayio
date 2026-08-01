@@ -44,6 +44,7 @@ import {
   profiles,
   rescheduleRequests,
   subjects,
+  tutorAvailability,
   type UserRole,
 } from "@/db/schema";
 
@@ -910,4 +911,94 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
   }
 
   return { credits, creditsTruncated, usage };
+}
+
+export type TutorAvailabilitySlot = {
+  /** 0 = Sunday … 6 = Saturday (JS getDay convention, matching expandAvailability). */
+  weekday: number;
+  startTime: string;
+  endTime: string;
+};
+
+export type TutorWeeklyAvailability = {
+  tutorId: string;
+  firstName: string;
+  lastName: string;
+  slots: TutorAvailabilitySlot[];
+};
+
+/**
+ * Every active tutor with their recurring weekly availability, for the admin
+ * read-only roster board at /admin/tutors/availability.
+ *
+ * Only the recurring weekly rules are surfaced (weekday not null, isAvailable
+ * true) - the standing pattern reception coordinates cover against. Per-date
+ * overrides / day-isolation sentinels are deliberately excluded: they are a
+ * concrete-date concept and do not belong on a weekly recurring board.
+ *
+ * Tutors with no availability rows are still returned (empty `slots`) so gaps
+ * in the roster are visible rather than silently dropped.
+ */
+export async function getTutorWeeklyAvailabilityBoard(): Promise<
+  TutorWeeklyAvailability[]
+> {
+  const rows = await db
+    .select({
+      tutorId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      weekday: tutorAvailability.weekday,
+      startTime: tutorAvailability.startTime,
+      endTime: tutorAvailability.endTime,
+    })
+    .from(profiles)
+    .leftJoin(
+      tutorAvailability,
+      and(
+        eq(tutorAvailability.tutorId, profiles.id),
+        isNull(tutorAvailability.date),
+        eq(tutorAvailability.isAvailable, true),
+      ),
+    )
+    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
+    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
+
+  const byTutor = new Map<string, TutorWeeklyAvailability>();
+  for (const r of rows) {
+    let tutor = byTutor.get(r.tutorId);
+    if (!tutor) {
+      tutor = {
+        tutorId: r.tutorId,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        slots: [],
+      };
+      byTutor.set(r.tutorId, tutor);
+    }
+    if (r.weekday === null || r.startTime === null || r.endTime === null) {
+      continue;
+    }
+    // Dedup identical (weekday, start, end) rows so a duplicated rule renders once.
+    const dup = tutor.slots.some(
+      (s) =>
+        s.weekday === r.weekday &&
+        s.startTime === r.startTime &&
+        s.endTime === r.endTime,
+    );
+    if (!dup) {
+      tutor.slots.push({
+        weekday: r.weekday,
+        startTime: r.startTime,
+        endTime: r.endTime,
+      });
+    }
+  }
+
+  for (const tutor of byTutor.values()) {
+    tutor.slots.sort(
+      (a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime),
+    );
+  }
+
+  return Array.from(byTutor.values());
 }
