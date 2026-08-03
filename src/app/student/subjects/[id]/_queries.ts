@@ -57,6 +57,7 @@ export type StudentCurriculumData = {
   subjectName: string;
   className: string;
   classId: string;
+  lessonPlan: string | null;
   currentTerm: {
     id: string;
     year: number;
@@ -81,6 +82,7 @@ export async function getStudentCurriculum(
       className: classes.name,
       subjectName: subjects.name,
       tutorId: classes.tutorId,
+      lessonPlan: classes.lessonPlan,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -246,6 +248,7 @@ export async function getStudentCurriculum(
     subjectName: enrollment.subjectName,
     className: enrollment.className,
     classId: enrollment.classId,
+    lessonPlan: enrollment.lessonPlan,
     currentTerm: {
       id: term.id,
       year: term.year,

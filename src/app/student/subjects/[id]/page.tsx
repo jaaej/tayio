@@ -118,6 +118,21 @@ export default async function StudentSubjectPage({
         </div>
       </div>
 
+      {data.lessonPlan && (
+        <div className="px-5 lg:px-7 pt-3">
+          <Card>
+            <CardBody>
+              <div className="text-[11px] uppercase tracking-[0.12em] font-bold text-muted mb-1.5">
+                What's coming up
+              </div>
+              <p className="text-[13px] text-ink-soft whitespace-pre-wrap">
+                {data.lessonPlan}
+              </p>
+            </CardBody>
+          </Card>
+        </div>
+      )}
+
       {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
       <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
         <WeekStrip
