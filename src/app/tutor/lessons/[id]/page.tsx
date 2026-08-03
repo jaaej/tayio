@@ -5,7 +5,11 @@ import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonReschedules } from "@/lib/reschedule";
-import { saveAttendance, saveLessonNote } from "../../_actions";
+import {
+  saveAttendance,
+  saveLessonNote,
+  saveLessonRecording,
+} from "../../_actions";
 import { getLessonForTutor, requireTutor } from "../../_data";
 
 const ATTENDANCE_OPTIONS = [
@@ -176,6 +180,57 @@ export default async function LessonDetailPage({
             </ul>
           </div>
         )}
+      </Card>
+
+      {/* Recording link - a hosted video the class's students can watch back */}
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Recording"
+          action={
+            lesson.recordingUrl ? (
+              <span className="text-good">Link added</span>
+            ) : (
+              <span className="text-muted">Optional</span>
+            )
+          }
+        />
+        <CardBody>
+          <form action={saveLessonRecording} className="space-y-2.5">
+            <input type="hidden" name="lessonId" value={lesson.id} />
+            <Label htmlFor="recording-url">Video link</Label>
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <input
+                id="recording-url"
+                name="recordingUrl"
+                type="url"
+                inputMode="url"
+                defaultValue={lesson.recordingUrl ?? ""}
+                placeholder="https://youtube.com/… or Vimeo / Drive link"
+                className={INPUT_CLS}
+              />
+              <button
+                type="submit"
+                className="h-10 shrink-0 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
+              >
+                Save link
+              </button>
+            </div>
+            <p className="text-[12px] text-muted">
+              Paste a hosted video URL; students watch it from their Recorded
+              lessons. Leave blank and save to remove.
+            </p>
+            {lesson.recordingUrl && (
+              <a
+                href={lesson.recordingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[12px] font-bold text-brand-600 hover:text-brand-700"
+              >
+                Open current link ↗
+              </a>
+            )}
+          </form>
+        </CardBody>
       </Card>
 
       <div>

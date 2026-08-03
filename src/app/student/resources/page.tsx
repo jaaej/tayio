@@ -81,13 +81,15 @@ async function RecordedLessonsTab({ studentId }: { studentId: string }) {
                     className={LESSON_STATUS_STYLE[l.status]}
                   />
                 </div>
-                <div
-                  className={
-                    "md:justify-self-end text-xs " +
-                    (l.hasNote ? "text-brand-700" : "text-muted")
-                  }
-                >
-                  {l.hasNote ? "Recap ready →" : "No recap yet"}
+                <div className="md:justify-self-end text-xs text-right space-y-0.5">
+                  {l.recordingUrl && (
+                    <div className="font-semibold text-brand-700">
+                      ▶ Recording
+                    </div>
+                  )}
+                  <div className={l.hasNote ? "text-brand-700" : "text-muted"}>
+                    {l.hasNote ? "Recap ready →" : "No recap yet"}
+                  </div>
                 </div>
               </Link>
             </li>

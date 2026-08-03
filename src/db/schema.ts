@@ -212,6 +212,7 @@ export const lessons = pgTable(
     status: lessonStatusEnum("status").notNull().default("upcoming"),
     location: text("location"),
     onlineLink: text("online_link"),
+    recordingUrl: text("recording_url"),
     rescheduledFrom: uuid("rescheduled_from"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

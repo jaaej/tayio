@@ -354,6 +354,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       status: lessons.status,
       location: lessons.location,
       onlineLink: lessons.onlineLink,
+      recordingUrl: lessons.recordingUrl,
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,

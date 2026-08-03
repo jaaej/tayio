@@ -874,6 +874,7 @@ export type LessonRecap = {
   struggles: string | null;
   nextLessonFocus: string | null;
   parentVisibleComment: string | null;
+  recordingUrl: string | null;
   // internalNote intentionally excluded - never expose to students.
 };
 
@@ -902,6 +903,7 @@ export async function getLessonRecap(
       struggles: lessonNotes.struggles,
       nextLessonFocus: lessonNotes.nextLessonFocus,
       parentVisibleComment: lessonNotes.parentVisibleComment,
+      recordingUrl: lessons.recordingUrl,
       classId: lessons.classId,
     })
     .from(lessons)
@@ -933,6 +935,7 @@ export type LessonWithNoteListItem = {
   className: string;
   subjectName: string;
   hasNote: boolean;
+  recordingUrl: string | null;
 };
 
 export async function getStudentLessonsWithNotes(
@@ -949,6 +952,7 @@ export async function getStudentLessonsWithNotes(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      recordingUrl: lessons.recordingUrl,
       noteId: lessonNotes.id,
     })
     .from(lessons)

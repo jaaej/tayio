@@ -176,6 +176,42 @@ export async function saveLessonNote(formData: FormData) {
 }
 
 /**
+ * Attach (or clear) a recording link for a lesson - a hosted video URL
+ * (YouTube/Vimeo/Drive/etc.) that the class's students watch from their
+ * "Recorded lessons" tab. Link-based, so there is no upload/storage cost.
+ * Empty input clears the link; a non-empty value must be an http(s) URL.
+ */
+export async function saveLessonRecording(formData: FormData) {
+  const tutor = await requireTutor();
+  const lessonId = String(formData.get("lessonId") ?? "");
+  if (!lessonId) throw new Error("Missing lessonId");
+  await assertOwnsLesson(tutor.id, lessonId);
+
+  const raw = String(formData.get("recordingUrl") ?? "").trim();
+  let recordingUrl: string | null = null;
+  if (raw) {
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error("Enter a valid link starting with https://");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("Enter a valid link starting with https://");
+    }
+    recordingUrl = raw.slice(0, 2000);
+  }
+
+  await db
+    .update(lessons)
+    .set({ recordingUrl })
+    .where(eq(lessons.id, lessonId));
+
+  revalidatePath(`/tutor/lessons/${lessonId}`);
+  revalidatePath("/student/resources");
+}
+
+/**
  * Update a class's forward-looking lesson plan ("what's coming up"). Visible to
  * the class's students and their parents. Tutor must own the class. Empty text
  * clears the plan.
