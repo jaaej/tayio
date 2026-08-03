@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { and, eq, inArray, sql, desc, isNull, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  announcements,
   classes,
   enrollments,
   lessons,
@@ -135,11 +136,24 @@ export async function getClassHubForTutor(tutorId: string, classId: string) {
     )
     .orderBy(asc(profiles.lastName));
 
+  const classAnnouncements = await db
+    .select({
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      publishedAt: announcements.publishedAt,
+    })
+    .from(announcements)
+    .where(eq(announcements.audienceClassId, classId))
+    .orderBy(desc(announcements.publishedAt))
+    .limit(20);
+
   return {
     class: cls,
     nextLesson: nextLesson ?? null,
     isToday: !!nextLesson && nextLesson.date === todayStr,
     roster,
+    announcements: classAnnouncements,
   };
 }
 

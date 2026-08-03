@@ -6,6 +6,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
+  announcements,
   attendance,
   attendanceStatusEnum,
   classes,
@@ -15,6 +16,7 @@ import {
   homeworkStatusEnum,
   lessonNotes,
   lessons,
+  notifications,
   resources,
   subjectWeeks,
   tutorAvailability,
@@ -26,6 +28,7 @@ import { requireRole } from "@/lib/auth";
 import { uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
 import { validateUpload, HOMEWORK_POLICY } from "@/lib/upload-validation";
 import { optionalText, requiredText } from "@/lib/validation";
+import { withActor } from "@/lib/with-actor";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
@@ -192,6 +195,93 @@ export async function updateLessonPlan(input: {
     .where(eq(classes.id, classId));
   revalidatePath(`/tutor/classes/${classId}`);
   return { ok: true as const };
+}
+
+/**
+ * Post a class announcement (tutor -> the students in one of their classes).
+ * Reuses the shared `announcements` table with a class audience - students
+ * already surface class-audience announcements on their dashboard - and, per
+ * the notification non-negotiables, drops an in-app notification to every
+ * enrolled (non-withdrawn) student. The title carries the word "announcement"
+ * so it lands in the shared inbox's Announcements group
+ * (see src/lib/notification-groups.ts).
+ */
+export async function createClassAnnouncement(formData: FormData) {
+  const tutor = await requireTutor();
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) throw new Error("Class required");
+
+  const [cls] = await db
+    .select({ id: classes.id, name: classes.name })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutor.id)))
+    .limit(1);
+  if (!cls) throw new Error("Class not found");
+
+  const title = requiredText(formData.get("title"), 200, "Title");
+  const body = requiredText(formData.get("body"), 10000, "Message");
+
+  const students = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(
+      and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+    );
+
+  await withActor({ id: tutor.id, role: "tutor" }, async (tx) => {
+    await tx.insert(announcements).values({
+      authorId: tutor.id,
+      title,
+      body,
+      audienceClassId: classId,
+    });
+    if (students.length) {
+      await tx.insert(notifications).values(
+        students.map((s) => ({
+          userId: s.studentId,
+          channel: "in_app" as const,
+          title: `New announcement in ${cls.name}`,
+          body: title,
+          href: "/student",
+        })),
+      );
+    }
+  });
+
+  revalidatePath(`/tutor/classes/${classId}`);
+  revalidatePath("/student");
+}
+
+/**
+ * Delete a class announcement the tutor authored. Scoped to announcements
+ * this tutor authored for a class they own; leaves the delivered
+ * notifications in place (they are historical).
+ */
+export async function deleteClassAnnouncement(formData: FormData) {
+  const tutor = await requireTutor();
+  const announcementId = String(formData.get("announcementId") ?? "");
+  const classId = String(formData.get("classId") ?? "");
+  if (!announcementId || !classId) throw new Error("Missing announcement");
+
+  await assertOwnsClass(tutor.id, classId);
+  const [row] = await db
+    .select({ id: announcements.id })
+    .from(announcements)
+    .where(
+      and(
+        eq(announcements.id, announcementId),
+        eq(announcements.authorId, tutor.id),
+        eq(announcements.audienceClassId, classId),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new Error("Announcement not found");
+
+  await withActor({ id: tutor.id, role: "tutor" }, (tx) =>
+    tx.delete(announcements).where(eq(announcements.id, announcementId)),
+  );
+
+  revalidatePath(`/tutor/classes/${classId}`);
 }
 
 export async function createHomework(formData: FormData) {

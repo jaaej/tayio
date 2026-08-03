@@ -23,6 +23,18 @@ describe("notificationGroupFor", () => {
     ).toBe("announcements");
   });
 
+  it("routes a tutor class announcement by title even when the href is the dashboard", () => {
+    // Tutor class announcements notify students with an href to /student
+    // (where the announcement surfaces), so the "announcement" title keyword -
+    // not the href - must land it in the Announcements group.
+    expect(
+      notificationGroupFor({
+        title: "New announcement in Year 9 Maths",
+        href: "/student",
+      }),
+    ).toBe("announcements");
+  });
+
   it("prioritises requests as action items", () => {
     expect(
       notificationGroupFor({
