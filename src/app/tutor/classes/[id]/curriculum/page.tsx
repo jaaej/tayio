@@ -116,7 +116,7 @@ export default async function TutorClassCurriculumPage({
                 {selected.editableQuiz ? (
                   <Link
                     href={`/tutor/quizzes/${selected.editableQuiz.id}`}
-                    className="shrink-0 inline-flex items-center rounded-[10px] bg-brand-600 px-3.5 py-2 text-[13px] font-bold text-white hover:bg-brand-700 transition-colors"
+                    className="shrink-0 inline-flex items-center rounded-full bg-brand-600 px-3.5 py-2 text-[13px] font-bold text-white hover:bg-brand-700 transition-colors"
                   >
                     Edit quiz →
                   </Link>

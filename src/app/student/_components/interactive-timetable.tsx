@@ -355,7 +355,7 @@ export function InteractiveTimetable({
                 onClick={confirm}
                 disabled={submitting}
                 className={cn(
-                  "min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
+                  "min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
                   FOCUS_RING,
                 )}
               >
@@ -590,7 +590,7 @@ export function InteractiveTimetable({
                     onClick={() => openCreditRedemption(c.id)}
                     disabled={loading || submitting || !!picking}
                     className={cn(
-                      "shrink-0 min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                      "shrink-0 min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
                       FOCUS_RING,
                     )}
                   >

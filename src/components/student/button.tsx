@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * Kept separate from the shared @/components/ui/button.
  */
 const button = cva(
-  "inline-flex items-center justify-center gap-1.5 font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap rounded-[8px]",
+  "inline-flex items-center justify-center gap-1.5 font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap rounded-full",
   {
     variants: {
       variant: {

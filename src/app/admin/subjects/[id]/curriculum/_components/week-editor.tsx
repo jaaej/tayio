@@ -179,7 +179,7 @@ function FileSlot({
         </div>
         <label
           htmlFor={inputId}
-          className="shrink-0 cursor-pointer rounded-lg bg-brand-500 px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
+          className="shrink-0 cursor-pointer rounded-full bg-brand-500 px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
         >
           {currentPath ? "Replace" : "Upload"}
         </label>

@@ -136,7 +136,7 @@ export function CreditPanel({
                       onClick={() => openCredit(c.id)}
                       disabled={loading}
                       className={cn(
-                        "shrink-0 min-h-11 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                        "shrink-0 min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
                         FOCUS_RING,
                       )}
                     >
@@ -243,7 +243,7 @@ export function CreditPanel({
                             onClick={confirmRedeem}
                             disabled={!open.picked || submitting}
                             className={cn(
-                              "min-h-11 shrink-0 rounded-[10px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                              "min-h-11 shrink-0 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
                               FOCUS_RING,
                             )}
                           >

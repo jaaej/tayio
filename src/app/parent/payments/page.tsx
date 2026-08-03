@@ -84,7 +84,7 @@ export default async function ParentPaymentsPage() {
               </div>
               <Link
                 href="/parent/messages"
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-brand-500 px-4 text-sm font-bold text-white hover:bg-brand-600 transition-colors"
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-brand-500 px-4 text-sm font-bold text-white hover:bg-brand-600 transition-colors"
               >
                 Contact the office
               </Link>
