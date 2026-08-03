@@ -1,5 +1,5 @@
-import { CalendarDays } from "lucide-react";
-import { Card, PageHeader, Empty } from "@/components/parent/ui";
+import { CalendarDays, ClipboardCheck, UserX } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { InteractiveTimetable } from "@/app/student/_components/interactive-timetable";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { getStudentHomework } from "@/app/student/_lib/queries";
@@ -76,6 +76,17 @@ export default async function ParentClassesPage({
     }))
     .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
 
+  // Attendance summary (folded in from the retired /parent/attendance page).
+  const attTotal = attendanceRows.length;
+  const attPresent = attendanceRows.filter(
+    (r) =>
+      r.status === "present" ||
+      r.status === "late" ||
+      r.status === "makeup_attended",
+  ).length;
+  const attAbsent = attendanceRows.filter((r) => r.status === "absent").length;
+  const attRate = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -128,7 +139,44 @@ export default async function ParentClassesPage({
               No attendance has been recorded yet for {selected.firstName}.
             </Empty>
           ) : (
-            <div className="divide-y divide-line/70">
+            <>
+              <div className="grid grid-cols-3 gap-3 p-4 lg:p-5">
+                <StatTile
+                  label="Attendance rate"
+                  value={attRate !== null ? `${attRate}%` : "-"}
+                  icon={<ClipboardCheck className="h-5 w-5" />}
+                  tone="mint"
+                  accent
+                  delta="All logged lessons"
+                  deltaTone={
+                    attRate === null
+                      ? "flat"
+                      : attRate >= 90
+                        ? "up"
+                        : attRate < 75
+                          ? "down"
+                          : "flat"
+                  }
+                />
+                <StatTile
+                  label="Absences"
+                  value={attAbsent.toString()}
+                  icon={<UserX className="h-5 w-5" />}
+                  tone={attAbsent === 0 ? "good" : "coral"}
+                  accent
+                  delta="Marked absent"
+                  deltaTone={attAbsent === 0 ? "up" : "down"}
+                />
+                <StatTile
+                  label="Lessons logged"
+                  value={attTotal.toString()}
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  tone="sky"
+                  accent
+                  delta="This term"
+                />
+              </div>
+              <div className="divide-y divide-line/70 border-t border-line">
               {attendanceRows.map((r) => {
                 const meta = [r.subjectName, r.tutorName]
                   .filter(Boolean)
@@ -174,7 +222,8 @@ export default async function ParentClassesPage({
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </Card>
       </div>
