@@ -50,7 +50,9 @@ import {
 } from "@/db/schema";
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  // Local calendar date, not UTC - matches local dates in lesson/date columns.
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 export type OpsStats = {

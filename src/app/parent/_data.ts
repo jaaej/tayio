@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { isoDate } from "@/lib/format";
 import {
   announcements,
   attendance,
@@ -105,7 +106,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   ).length;
 
   const tutorProfile = profiles;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
   const nextLessonRows = await db
     .select({
       date: lessons.date,

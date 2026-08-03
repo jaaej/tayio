@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
+import { isoDate } from "@/lib/format";
 import { Card, CardHead, StatTile, PageHeader, Pill, Empty } from "@/components/admin/ui";
 import { requireAdmin } from "@/app/admin/_lib/guard";
 import {
@@ -40,7 +41,7 @@ export default async function ReportsPage({
     );
   }
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = isoDate(new Date());
   const currentTermId = await getCurrentTermId(todayIso);
   const selected =
     terms.find((t) => t.id === termParam) ??

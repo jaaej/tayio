@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { isoDate } from "@/lib/format";
 import {
   announcements,
   attendance,
@@ -188,7 +189,7 @@ export async function getStudentSubjects(studentId: string): Promise<SubjectSumm
 
   const classIds = enrolled.map((e) => e.classId);
   const subjectIds = enrolled.map((e) => e.subjectId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
 
   // Next upcoming lesson per class
   const nextLessons = await db
@@ -693,10 +694,10 @@ export async function getStudentLessons(
 
   const conditions = [inArray(lessons.classId, enrolledClassIds)];
   if (opts.from) {
-    conditions.push(gte(lessons.date, opts.from.toISOString().slice(0, 10)));
+    conditions.push(gte(lessons.date, isoDate(opts.from)));
   }
   if (opts.to) {
-    conditions.push(lt(lessons.date, opts.to.toISOString().slice(0, 10)));
+    conditions.push(lt(lessons.date, isoDate(opts.to)));
   }
 
   const query = db
@@ -996,8 +997,8 @@ export async function getStudentTimetableLessons(
   opts: { from?: Date; to?: Date } = {},
 ): Promise<TimetableLesson[]> {
   const enrolledClassIds = await getEnrolledClassIds(studentId);
-  const fromIso = opts.from ? opts.from.toISOString().slice(0, 10) : undefined;
-  const toIso = opts.to ? opts.to.toISOString().slice(0, 10) : undefined;
+  const fromIso = opts.from ? isoDate(opts.from) : undefined;
+  const toIso = opts.to ? isoDate(opts.to) : undefined;
   const range = () => {
     const c = [];
     if (fromIso) c.push(gte(lessons.date, fromIso));

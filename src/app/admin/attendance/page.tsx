@@ -11,7 +11,7 @@ import {
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatTime } from "@/lib/format";
+import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 
 type SearchParams = Promise<{ from?: string }>;
 
@@ -29,7 +29,7 @@ export default async function AdminAttendancePage({
   const fromIso =
     from && /^\d{4}-\d{2}-\d{2}$/.test(from)
       ? from
-      : cutoff.toISOString().slice(0, 10);
+      : isoDate(cutoff);
 
   const rows = await db
     .select({
