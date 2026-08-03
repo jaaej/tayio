@@ -35,6 +35,10 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 
 ## Pending manual verification (2026-07-25 session)
 
+> **2026-08-03 handoff:** the CURRENT pending manual QA + the next task live in
+> `docs/changes/2026-08-01-session-changelog-and-backlog.md` (Part C = next task, Part D = pending QA, Part A = full revert guide).
+> Start there. The list below is the older 2026-07-25 backlog.
+
 Everything below is code-complete with typecheck + unit tests green, but NOT yet clicked through in a browser with real data. Per the success-claim rule, these stay 🔶 (not ✅) until the browser checks are ticked. Run the dev server and tick each box as you confirm it.
 
 **Operational reports** - `/admin/reports`

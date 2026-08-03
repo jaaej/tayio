@@ -137,10 +137,57 @@ Each is optional. For each: the problem, the proposed fix, effort, risk, and my 
 
 ---
 
-## Part C - suggested next steps (my recommended order)
-1. **You QA** the merged changes (tutor 5-tab nav + class hub + "View class" + correct "today"; admin "Dashboard"; student Resources nav; parent Attendance-in-Classes). Tell me anything off.
-2. **B1 (hide dead search)** + **B6 (date sweep)** - two low-risk correctness/consistency fixes I can do without decisions.
-3. **B2 + B3 (student homework home + restyle)** - after you pick the canonical homework page.
-4. **B7 (remaining tutor features)** - lesson plan first (cleanest), once the portal work is settled.
-5. Leave B4 (admin) and B5 (parent route) unless you want them.
-</content>
+## Part C - NEXT TASK (start here)
+
+**Immediate next task: finish B7 - the PARENT display of the lesson plan.**
+The tutor edit (`/tutor/classes/[id]`) and student display (`/student/subjects/[id]` "What's coming up" banner) are built (A14).
+Only the parent view is left: surface a class's `classes.lesson_plan` to the parent for the selected child.
+Suggested placement: a "What's coming up" card on the parent progress page or the parent classes view, per the selected child's class(es).
+The data helper to model on: `getStudentCurriculum` (student side) threads `lessonPlan` from `classes.lessonPlan`; do the parent equivalent via the parent's child -> enrollment -> class.
+No migration needed.
+
+**After that, in rough priority:**
+1. B3 - restyle `/student/homework` + `/student/resources` to the student v2 card kit (DEFERRED - do with the dev server up so you can see it; the homework page is already an elaborate design, so this is a judgment call, not a swap).
+2. Other tutor checklist features (B7 group): tutor -> student announcements (touches shared notifications); homework EDIT flow (fully tutor-side, closes the "Class test/booklet mark" gap); video upload (needs a Storage-bucket + pipeline decision - do not start without that decision).
+3. Optional / owner-choice: B4 (admin bolder IA cuts - agent found no real redundancy, leave unless wanted), B5 (retire dormant `/parent/attendance`; attendance-rate strip on Classes).
+4. Old TODO unrelated to this session: `/parent/classes/[classId]` per-class page does not exist (parent feedback deep-link).
+
+## Part D - PENDING MANUAL QA (browser checks - none of this is verified in a browser yet)
+
+Run the dev server (owner starts it; do not start it unsolicited) and log in with the seeded accounts:
+owner `admin@taiyo.com`/`admin`, reception `reception@taiyo.com`/`reception`, tutor `tutor@taiyo.com`/`tutor`, student `student@taiyo.com`/`student`, student-unrestricted `student.pro@taiyo.com`/`student`, parent `parent@taiyo.com`/`parent`.
+
+### Tutor
+- [ ] Nav shows exactly 5 main items: Today, Classes, Students, Marking, Resources (no Attendance/Quizzes/Notes; no search box in the top bar).
+- [ ] Today: on a class day a "Today's classes" callout shows the class; "View class" opens the lesson to mark attendance. "Today" resolves correctly (date fix - was off by one on AEST).
+- [ ] Classes -> a class opens the hub `/tutor/classes/[id]`: this-lesson attendance callout, a "Lesson plan" card (type -> blur -> "Saved" -> reload persists), Curriculum + Homework actions, and the student roster.
+- [ ] Delivery mode: set a student to Online in `/admin/classes/[id]`; on `/tutor/lessons/[id]` that student shows an "Online" pill; a default student shows none.
+- [ ] Leave: add a leave period on a student in `/admin/users/[id]` covering a lesson date; the tutor lesson page shows an amber "On leave" pill for that student.
+- [ ] Quiz: a curriculum week with no requested quiz shows a greyed "Edit quiz". As admin, request a quiz for that subject-week -> tutor gets a "Quiz requested" notification -> that week's "Edit quiz" is now enabled and opens the maker.
+
+### Admin
+- [ ] Owner (`admin@taiyo.com`): set a PIN in `/admin/settings`; then view `/admin/revenue` (no prompt), change a user's role, deactivate/reactivate an account - all with NO PIN prompt.
+- [ ] Reception (`reception@taiyo.com`): no "Settings" nav item; `/admin/settings` redirects to `/admin`; "Revenue" IS in nav and shows a PIN prompt (enter the owner's PIN to view); create-user form has no Admin/Tutor role options; a user's Role dropdown is disabled with the owner-only note (stays disabled even after entering the revenue PIN).
+- [ ] Nav item for `/admin` reads "Dashboard" (not "Operations").
+- [ ] Data pages (Users, Classes, etc.) fill the screen width (no big empty gap on the right).
+- [ ] `/admin/classes/[id]`: per-enrolment "Admin notes" (type -> blur -> Saved -> reload persists; not visible to student/parent).
+- [ ] `/admin/tutors/availability`: tutor x weekday board renders with per-day "N free" counts.
+- [ ] `/admin/users/[id]` (student): "Leave / holidays" add/remove works.
+
+### Student
+- [ ] Nav has "Homework" (-> `/student/homework`) and "Resources" items; no search box.
+- [ ] `/student/subjects` ("My subjects") no longer shows duplicate Overdue/Marked homework list cards; it has a "Homework due dates" calendar overview that links to the homework list.
+- [ ] `/student/subjects/[id]`: when the tutor set a lesson plan, a "What's coming up" banner shows it.
+- [ ] Timetable / "this week" and "today" resolve to the correct dates (date fix).
+
+### Parent
+- [ ] No "Attendance" nav tab; `/parent/classes` has an "Attendance" section; from Overview, clicking the attendance KPI scrolls to it with the "Attendance" heading fully visible (not clipped under the sticky header).
+
+### Cross-cutting
+- [ ] Tutor and admin timetables agree (same day + time per class; Year 9 Maths is Saturday 10:00). No off-grid times, no phantom lessons.
+- [ ] Notification inbox renders the same grouped layout across all four roles.
+
+### Database state already applied (no action needed, just be aware)
+- Migration `0033_student_leave.sql` applied to Supabase; `db:check-rls` green (43/43).
+- Lesson data cleaned + regenerated timezone-safe (see A6).
+- Test account `reception@taiyo.com` created.
