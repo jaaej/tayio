@@ -37,6 +37,23 @@ These apply to every agent working in this repo, ahead of everything below.
 - New notification types must be classified in `src/lib/notification-groups.ts` and covered by its unit tests.
 - A notification UI change is incomplete until its behaviour and styling are checked across admin, tutor, student, and parent routes.
 
+## Cross-role UI & feature consistency (non-negotiable)
+
+The notification rule above is one instance of a general law: **any feature or surface that appears in more than one role's portal (student / parent / tutor / admin) must look and behave the same in every role it appears in.**
+This covers discussions, calendars and timetables, resource libraries, cards, tables, stat tiles, page headers, buttons, empty states, and any other shared concept.
+
+- **One feature, one implementation.**
+  A shared feature must be built as a single shared component and reused across roles, never reimplemented per role.
+  If the same feature renders differently in different roles (e.g. a rich designed page for one role and a bare list for another), that is a bug to fix, not a per-role style choice.
+- **Audit by feature, not just by token.**
+  When reviewing or changing UI, open the SAME feature in all four roles and compare them directly.
+  "The design tokens match" (fonts, colours, radii) is NOT the same as "the feature matches" - a token-only audit will miss a page that is elaborate in one role and skeletal in another. Always do the feature-parity pass.
+- **Match each role's mental model (ties to the IA rule below).**
+  A layout that is unintuitive for how a role actually works - e.g. a flat student list for a tutor who thinks in classes - is a defect even if it "works". Group and label by the real workflow.
+- **Never silently defer a known inconsistency.**
+  If you find a cross-role inconsistency you are not fixing in this pass, say so explicitly and record it. Do not quietly ship the inconsistent state, and do not report "consistent / done" when you only unified tokens and left the structure divergent.
+- A cross-role UI change is incomplete until the same feature is verified to look and behave the same across admin, tutor, student, and parent.
+
 **About the user:** solo builder shipping the portal as a personal/startup product. **Building toward the FINAL, deploy-ready product - not a throwaway MVP. Every change must be production-quality and shippable** (proper error handling, security, edge cases, no stubs/placeholders left behind). Still values function over decorative polish, but "it's just an MVP" is no longer an acceptable reason to cut corners. Wants honest engineering judgment over agreeable hedging, and wants to understand WHY something works or fails - not just the fix. Gets frustrated by recommendation flip-flops, repeated failed approaches, padded tradeoff tables, claims of "it works" before real testing, and destructive suggestions made without first naming what gets lost.
 
 **What the rules below enforce:** (1) recommendations driven by technical merit, not the direction of the user's last question; (2) a one-level-up premise check before drilling into A/B/C tradeoffs - especially important here, where role/permission decisions cascade across all four portals; (3) success claims tied to verified evidence (passing build, working dev server, an actual request against the route under the right role - not "the code looks right"); (4) destructive actions (dropping tables, `drizzle-kit push` against prod, deleting Supabase rows containing student/parent/payment data, `rm -rf`) gated behind explicit disclosure of what data is lost and whether it is recoverable.
