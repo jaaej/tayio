@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/select";
 import { Card, CardHead, CardBody, Button, Empty, Pill } from "@/components/admin/ui";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   grantAllowanceToStudent,
   grantCreditToStudent,
@@ -77,6 +78,7 @@ export function CreditManagement({
   summary: Summary;
 }) {
   const [pending, start] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
   // Per-row error keyed by activity row id; a single flash for grants.
   const [rowError, setRowError] = useState<{ id: string; text: string } | null>(null);
   const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -85,10 +87,15 @@ export function CreditManagement({
   const noActivity =
     activity.reschedules.length === 0 && activity.cancellations.length === 0;
 
-  function undoReschedule(id: string, label: string) {
-    if (!confirm(`Undo this reschedule?\n\n${label}\n\nThe student returns to the original lesson.`)) {
+  async function undoReschedule(id: string, label: string) {
+    if (
+      !(await confirm({
+        title: "Undo this reschedule?",
+        body: `${label}\n\nThe student returns to the original lesson.`,
+        confirmLabel: "Undo",
+      }))
+    )
       return;
-    }
     setRowError(null);
     setActionMsg(null);
     start(async () => {
@@ -100,10 +107,15 @@ export function CreditManagement({
     });
   }
 
-  function undoCancellation(id: string, label: string) {
-    if (!confirm(`Undo this cancellation?\n\n${label}\n\nThe class credit is removed and the student is back on the lesson.`)) {
+  async function undoCancellation(id: string, label: string) {
+    if (
+      !(await confirm({
+        title: "Undo this cancellation?",
+        body: `${label}\n\nThe class credit is removed and the student is back on the lesson.`,
+        confirmLabel: "Undo",
+      }))
+    )
       return;
-    }
     setRowError(null);
     setActionMsg(null);
     start(async () => {
@@ -115,14 +127,15 @@ export function CreditManagement({
     });
   }
 
-  function undoRedemption(creditId: string, label: string) {
+  async function undoRedemption(creditId: string, label: string) {
     if (
-      !confirm(
-        `Undo this make-up booking?\n\n${label}\n\nThe make-up lesson is removed and the class credit becomes available again. You can then undo the cancellation.`,
-      )
-    ) {
+      !(await confirm({
+        title: "Undo this make-up booking?",
+        body: `${label}\n\nThe make-up lesson is removed and the class credit becomes available again. You can then undo the cancellation.`,
+        confirmLabel: "Undo",
+      }))
+    )
       return;
-    }
     setRowError(null);
     setActionMsg(null);
     start(async () => {
@@ -431,6 +444,7 @@ export function CreditManagement({
           </CardBody>
         </Card>
       </section>
+      {confirmDialog}
     </>
   );
 }
