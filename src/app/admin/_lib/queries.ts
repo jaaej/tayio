@@ -684,9 +684,9 @@ export type DiscontinuedStudent = {
 
 /**
  * Students with at least one withdrawn enrolment, grouped so a student
- * withdrawn from N classes appears once with all N classes listed. Mirrors
- * the query in `src/app/admin/leaving/page.tsx` - used by the "Discontinued"
- * tab on `/admin/users`.
+ * withdrawn from N classes appears once with all N classes listed. Powers the
+ * "Discontinued" tab on `/admin/users` (the sole home for withdrawn students;
+ * the old standalone `/admin/leaving` page was retired 2026-08-03).
  */
 export async function getDiscontinuedStudents(
   limit = 200,

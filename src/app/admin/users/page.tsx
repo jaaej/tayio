@@ -18,7 +18,6 @@ import {
   StatTile,
   PageHeader,
   Empty,
-  Button,
   type PillTone,
   type StatTone,
 } from "@/components/admin/ui";
@@ -55,14 +54,7 @@ export default async function UsersPage({
         className="rise"
         eyebrow="People"
         title="Users"
-        sub="Accounts across all four portals."
-        actions={
-          <Link href="/admin/leaving">
-            <Button variant="outline" size="md">
-              Students leaving →
-            </Button>
-          </Link>
-        }
+        sub="Accounts across all four portals. The Discontinued tab lists withdrawn students."
       />
 
       <div className="flex items-center gap-1 border-b border-line rise" role="tablist">
