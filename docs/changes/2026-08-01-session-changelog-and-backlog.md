@@ -85,6 +85,11 @@ This predates this session's list but note: the admin credit-management on `/adm
 - `abd3cd2` - added a "Homework" item to the student nav pointing at `/student/homework` (previously the actionable homework list had no nav entry). Removed the duplicate Overdue + Marked homework list cards from `/student/subjects`; that page keeps its due-date calendar as an at-a-glance overview (relabelled "Homework due dates", links to the homework list).
 - Revert: `git revert abd3cd2`. Restores the old state (no Homework nav item; duplicate homework lists back on My subjects).
 
+### A14. Lesson plan - tutor edit + student display (B7)
+- `a6f79ad` - tutors edit a per-class forward-looking plan on /tutor/classes/[id] (wires the dead classes.lesson_plan column; updateLessonPlan action; no migration).
+- `(this commit)` - students see it as a "What.s coming up" banner on /student/subjects/[id].
+- Parent display deferred (needs a considered slot). Revert: `git revert` the two commits.
+
 ---
 
 ## Part B - potential fixes (flagged, NOT done)
