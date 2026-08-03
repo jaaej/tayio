@@ -91,6 +91,7 @@ export async function getClassHubForTutor(tutorId: string, classId: string) {
       location: classes.location,
       onlineLink: classes.onlineLink,
       capacity: classes.capacity,
+      lessonPlan: classes.lessonPlan,
     })
     .from(classes)
     .innerJoin(subjects, eq(classes.subjectId, subjects.id))

@@ -172,6 +172,28 @@ export async function saveLessonNote(formData: FormData) {
   revalidatePath("/tutor/notes");
 }
 
+/**
+ * Update a class's forward-looking lesson plan ("what's coming up"). Visible to
+ * the class's students and their parents. Tutor must own the class. Empty text
+ * clears the plan.
+ */
+export async function updateLessonPlan(input: {
+  classId: string;
+  plan: string;
+}) {
+  const tutor = await requireTutor();
+  const classId = String(input.classId ?? "");
+  if (!classId) return { ok: false as const, error: "Missing class" };
+  await assertOwnsClass(tutor.id, classId);
+  const plan = String(input.plan ?? "").trim().slice(0, 4000);
+  await db
+    .update(classes)
+    .set({ lessonPlan: plan.length > 0 ? plan : null })
+    .where(eq(classes.id, classId));
+  revalidatePath(`/tutor/classes/${classId}`);
+  return { ok: true as const };
+}
+
 export async function createHomework(formData: FormData) {
   const tutor = await requireTutor();
   const title = requiredText(formData.get("title"), 200, "Title");

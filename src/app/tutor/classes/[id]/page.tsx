@@ -10,6 +10,7 @@ import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getClassHubForTutor, requireTutor } from "../../_data";
+import { LessonPlanEditor } from "./_components/lesson-plan-editor";
 
 const WEEKDAY = [
   "Sunday",
@@ -106,6 +107,17 @@ export default async function TutorClassHubPage({
           </CardBody>
         </Card>
       )}
+
+      {/* Lesson plan - forward-looking, visible to students + parents */}
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Lesson plan"
+          action={<span className="text-[12px] text-muted">What's coming up</span>}
+        />
+        <CardBody>
+          <LessonPlanEditor classId={cls.id} initial={cls.lessonPlan ?? ""} />
+        </CardBody>
+      </Card>
 
       {/* Curriculum + Homework */}
       <div className="grid sm:grid-cols-2 gap-3.5">
