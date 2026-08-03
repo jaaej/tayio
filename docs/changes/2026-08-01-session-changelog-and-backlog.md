@@ -81,6 +81,10 @@ This predates this session's list but note: the admin credit-management on `/adm
 - `a543242` - "today"/date-range query keys now use local calendar dates instead of `toISOString().slice(0,10)` (off-by-one on AEST). Files: admin queries/reports/attendance, parent/_data, student queries, shared `curriculum.ts` term resolution. `reports-queries.dayAfter` left as intentional UTC arithmetic.
 - Revert: `git revert a543242` restores the old UTC-keyed convention (dev-only off-by-one on AEST).
 
+### A13. Student homework consolidation (B2)
+- `abd3cd2` - added a "Homework" item to the student nav pointing at `/student/homework` (previously the actionable homework list had no nav entry). Removed the duplicate Overdue + Marked homework list cards from `/student/subjects`; that page keeps its due-date calendar as an at-a-glance overview (relabelled "Homework due dates", links to the homework list).
+- Revert: `git revert abd3cd2`. Restores the old state (no Homework nav item; duplicate homework lists back on My subjects).
+
 ---
 
 ## Part B - potential fixes (flagged, NOT done)
@@ -94,14 +98,15 @@ Each is optional. For each: the problem, the proposed fix, effort, risk, and my 
 - Effort: hide = ~15 min. Build = a separate project.
 - Risk: hiding is near-zero. Recommendation: **hide now**, build later if wanted.
 
-### B2. Student's two homework homes  (recommended: decide, then I implement)
+### B2. Student.s two homework homes  (DONE - commit abd3cd2)
 - Problem: `/student/subjects` and `/student/homework` are both full homework surfaces - duplicate "homes" for one task, which the "one home per task" rule says to resolve.
 - Proposed fix: pick a canonical homework page, point all "homework" links + the nav at it, and either retire or repurpose the other (e.g. `/student/subjects` becomes purely subject/progress, `/student/homework` owns homework).
 - Effort: ~1-2 hrs once you pick the canonical page.
 - Risk: medium - changes what students click; needs your choice of which page wins.
 - Recommendation: make `/student/homework` the homework home; make `/student/subjects` subjects-only. Confirm and I will do it.
 
-### B3. Student restyle follow-up  (recommended: do when convenient)
+### B3. Student restyle follow-up  (DEFERRED - see note)
+- DEFERRAL NOTE: on inspection /student/homework is already an elaborate, intentional design (subject-coloured cards, stat tiles, custom title strip) - not a plain legacy page. Restyling it to the student v2 card kit is a design decision (which aesthetic wins), not a mechanical import swap, and needs visual review in a browser. Do it as a deliberate pass, not a rushed edit.
 - Problem: `/student/resources` and `/student/homework` still use the legacy `@/components/ui/card` kit, not the restyled `@/components/student/card` - visible inconsistency now that both are promoted in the nav.
 - Proposed fix: restyle both pages to the student v2 card kit.
 - Effort: ~1 hr. Risk: low (visual only). Recommendation: bundle with B2.
