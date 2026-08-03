@@ -73,13 +73,21 @@ This predates this session's list but note: the admin credit-management on `/adm
 - Created `reception@taiyo.com` / `reception` (role `admin_restricted`) so you can QA the reception tier.
 - Remove it any time from `/admin/users` (deactivate) or ask me to delete it.
 
+### A11. Remove dead search box from all shells (B1)
+- `6903fc3` - removed the non-functional "Search... Cmd+K" input from the admin/tutor/parent/student shells (+ each unused `Search` import).
+- Revert: `git revert 6903fc3` restores the (dead) search boxes.
+
+### A12. Date-convention sweep - student/parent/admin/curriculum (B6)
+- `a543242` - "today"/date-range query keys now use local calendar dates instead of `toISOString().slice(0,10)` (off-by-one on AEST). Files: admin queries/reports/attendance, parent/_data, student queries, shared `curriculum.ts` term resolution. `reports-queries.dayAfter` left as intentional UTC arithmetic.
+- Revert: `git revert a543242` restores the old UTC-keyed convention (dev-only off-by-one on AEST).
+
 ---
 
 ## Part B - potential fixes (flagged, NOT done)
 
 Each is optional. For each: the problem, the proposed fix, effort, risk, and my recommendation.
 
-### B1. Dead search box in all shells  (recommended: do it)
+### B1. Dead search box in all shells  (DONE - commit 6903fc3)
 - Problem: the top-bar "Search... Cmd+K" input in the admin, tutor, parent, and student shells does nothing. It is a dead affordance - the exact "gate, don't dangle" case the new CLAUDE.md rule names.
 - Proposed fix (minimal): hide the search box until it is wired. One small edit per shell (4 shells), or a shared change if the shells share a header (they mostly do not).
 - Proposed fix (full): build real search - a feature, larger, needs a design.
@@ -107,7 +115,7 @@ Each is optional. For each: the problem, the proposed fix, effort, risk, and my 
 - Optional: an attendance-rate summary strip on `/parent/classes` would make attendance fully discoverable there.
 - Recommendation: optional; low priority.
 
-### B6. Date-convention sweep (student/parent/admin)  (recommended: do it)
+### B6. Date-convention sweep (student/parent/admin)  (DONE - commit a543242)
 - Problem: student/parent/admin query files still key "today"/date-ranges via `toISOString().slice(0,10)`, which is off-by-one on your AEST dev machine (correct on a UTC production server). Tutor + shared calendars are already fixed.
 - Proposed fix: replace those sites with the local-date helper, consistent with the tutor fix.
 - Effort: ~30-45 min. Risk: low-medium (touches query bounds; I will verify). Recommendation: **do it** for local-QA correctness and production-robustness.
