@@ -189,6 +189,92 @@ export async function getTutorStudents(tutorId: string) {
     .orderBy(asc(profiles.lastName), asc(profiles.firstName));
 }
 
+export type TutorClassRoster = {
+  classId: string;
+  className: string;
+  subjectName: string;
+  weekday: number | null;
+  startTime: string | null;
+  students: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    yearLevel: string | null;
+  }>;
+};
+
+/**
+ * The tutor's students grouped by the class they're in - the roster the way a
+ * tutor thinks about it. A student enrolled in two of the tutor's classes
+ * appears under each. Empty classes are still listed so the tutor sees every
+ * class they teach.
+ */
+export async function getTutorStudentsByClass(
+  tutorId: string,
+): Promise<{ classes: TutorClassRoster[]; totalStudents: number }> {
+  const rows = await db
+    .select({
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+      weekday: classes.weekday,
+      startTime: classes.startTime,
+      studentId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      yearLevel: profiles.yearLevel,
+    })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(
+      enrollments,
+      and(
+        eq(enrollments.classId, classes.id),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
+    .leftJoin(
+      profiles,
+      and(
+        eq(profiles.id, enrollments.studentId),
+        inArray(profiles.role, STUDENT_TIERS),
+      ),
+    )
+    .where(eq(classes.tutorId, tutorId))
+    .orderBy(asc(classes.name), asc(profiles.lastName), asc(profiles.firstName));
+
+  const byClass = new Map<string, TutorClassRoster>();
+  const distinctStudents = new Set<string>();
+  for (const r of rows) {
+    let group = byClass.get(r.classId);
+    if (!group) {
+      group = {
+        classId: r.classId,
+        className: r.className,
+        subjectName: r.subjectName,
+        weekday: r.weekday,
+        startTime: r.startTime,
+        students: [],
+      };
+      byClass.set(r.classId, group);
+    }
+    if (r.studentId) {
+      group.students.push({
+        id: r.studentId,
+        firstName: r.firstName ?? "",
+        lastName: r.lastName ?? "",
+        yearLevel: r.yearLevel,
+      });
+      distinctStudents.add(r.studentId);
+    }
+  }
+
+  return {
+    classes: Array.from(byClass.values()),
+    totalStudents: distinctStudents.size,
+  };
+}
+
 export type TutorDmContacts = {
   students: { id: string; name: string; meta?: string }[];
   parents: { id: string; name: string }[];
