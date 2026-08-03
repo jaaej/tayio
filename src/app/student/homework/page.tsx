@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
 import { ScoreBadge } from "@/components/data/score-badge";
 import { StatTile } from "@/components/data/stat-tile";
 import { StatusBadge } from "@/components/data/status-badge";
@@ -73,37 +74,17 @@ export default async function HomeworkListPage() {
   const done = submitted.length + marked.length;
   const openCount = overdue.length + openSoon.length + openLater.length;
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   return (
-    <div className="space-y-6">
-      {/* Title strip */}
-      <header className="flex items-baseline justify-between rise">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
-          </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Homework
-          </h1>
-        </div>
-        {total > 0 && (
-          <div className="hidden md:flex items-center gap-3 text-sm">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-              Completion
-            </span>
-            <span className="text-ink font-medium tabular-nums">
-              {done}/{total}
-            </span>
-          </div>
-        )}
-      </header>
+    <div className="space-y-5">
+      <PageHead
+        eyebrow="Homework"
+        title="Your homework"
+        sub={
+          total === 0
+            ? "Nothing assigned yet."
+            : `${openCount} open · ${done}/${total} done`
+        }
+      />
 
       {/* Stat strip */}
       <section
@@ -130,48 +111,56 @@ export default async function HomeworkListPage() {
 
       {total === 0 ? (
         <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            No homework assigned yet.
-          </div>
+          <CardBody>
+            <div className="text-sm text-muted">
+              No homework assigned yet.
+            </div>
+          </CardBody>
         </Card>
       ) : (
         <div
-          className="space-y-6 rise"
+          className="space-y-5 rise"
           style={{ animationDelay: "100ms" } as React.CSSProperties}
         >
           <Card>
-            <Section
-              title="Overdue"
-              tone="warn"
-              items={overdue}
-              today={startOfToday}
-              emptyLabel="Nothing overdue - nice."
-            />
+            <CardBody>
+              <Section
+                title="Overdue"
+                tone="warn"
+                items={overdue}
+                today={startOfToday}
+                emptyLabel="Nothing overdue - nice."
+              />
+            </CardBody>
           </Card>
-          <Card className="space-y-8">
-            <Section
-              title="Due This Week"
-              items={openSoon}
-              today={startOfToday}
-              emptyLabel="Nothing due this week."
-            />
-            <Section
-              title="Submitted"
-              tone="muted"
-              items={submitted}
-              today={startOfToday}
-              emptyLabel="No submissions yet."
-            />
-            <MarkedSection items={marked} />
+          <Card>
+            <CardBody className="space-y-8">
+              <Section
+                title="Due This Week"
+                items={openSoon}
+                today={startOfToday}
+                emptyLabel="Nothing due this week."
+              />
+              <Section
+                title="Submitted"
+                tone="muted"
+                items={submitted}
+                today={startOfToday}
+                emptyLabel="No submissions yet."
+              />
+              <MarkedSection items={marked} />
+            </CardBody>
           </Card>
           {openLater.length > 0 && (
             <Card>
-              <Section
-                title="Coming Up"
-                items={openLater}
-                today={startOfToday}
-                emptyLabel="Nothing coming up."
-              />
+              <CardBody>
+                <Section
+                  title="Coming Up"
+                  items={openLater}
+                  today={startOfToday}
+                  emptyLabel="Nothing coming up."
+                />
+              </CardBody>
             </Card>
           )}
         </div>
