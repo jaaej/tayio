@@ -24,9 +24,11 @@ export function Card({
       className={cn(
         "rounded-[14px] border border-line bg-surface",
         accent && "relative overflow-hidden",
+        // Default cards share the admin/parent elevation so a card looks the
+        // same across all four roles; `flat` still opts a card out.
         flat
           ? ""
-          : "shadow-[0_1px_0_rgba(15,17,30,0.04),0_1px_2px_rgba(15,17,30,0.04)]",
+          : "shadow-[0_1px_2px_rgba(15,17,30,0.05),0_8px_24px_-12px_rgba(31,40,90,0.10)]",
         className,
       )}
       {...props}
