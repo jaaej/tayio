@@ -115,6 +115,11 @@ export default async function LessonDetailPage({
                             On leave
                           </Pill>
                         )}
+                        {s.onTrial && (
+                          <Pill tone="info" className="translate-y-[1px]">
+                            Free trial
+                          </Pill>
+                        )}
                       </div>
                       {movedOutById.has(s.id) && (
                         <span className="inline-flex items-center rounded-full border border-warn/40 bg-warn-bg px-2.5 py-1 text-[11px] font-bold text-warn">

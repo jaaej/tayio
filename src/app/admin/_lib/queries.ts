@@ -44,6 +44,7 @@ import {
   profiles,
   rescheduleRequests,
   studentLeave,
+  studentTrials,
   subjects,
   terms,
   tutorAvailability,
@@ -1283,4 +1284,26 @@ export async function getReportTerms(): Promise<ReportTerm[]> {
     startDate: t.startDate,
     endDate: t.endDate,
   }));
+}
+
+export type StudentTrialRow = {
+  startDate: string;
+  endDate: string;
+  note: string | null;
+};
+
+/** A student's free-trial period, or null if none is set. */
+export async function getStudentTrial(
+  studentId: string,
+): Promise<StudentTrialRow | null> {
+  const [row] = await db
+    .select({
+      startDate: studentTrials.startDate,
+      endDate: studentTrials.endDate,
+      note: studentTrials.note,
+    })
+    .from(studentTrials)
+    .where(eq(studentTrials.studentId, studentId))
+    .limit(1);
+  return row ?? null;
 }

@@ -489,6 +489,21 @@ export const announcements = pgTable("announcements", {
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Per-student free-trial period (1:1), migration 0037. Admin-set; tutors see a
+// "Free trial" pill on lessons in range. Server-written only (deny-all RLS).
+export const studentTrials = pgTable("student_trials", {
+  studentId: uuid("student_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  note: text("note"),
+  createdById: uuid("created_by_id").references(() => profiles.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const adminSettings = pgTable("admin_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   pinHash: text("pin_hash"),

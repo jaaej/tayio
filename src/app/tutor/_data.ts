@@ -15,6 +15,7 @@ import {
   profiles,
   subjects,
   studentLeave,
+  studentTrials,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
@@ -416,12 +417,29 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
         )
     : [];
   const onLeaveIds = new Set(leaveRows.map((r) => r.studentId));
-  const rosterWithLeave = roster.map((r) => ({
+
+  // Flag students on a free trial spanning this lesson's date.
+  const trialRows = rosterIds.length
+    ? await db
+        .select({ studentId: studentTrials.studentId })
+        .from(studentTrials)
+        .where(
+          and(
+            inArray(studentTrials.studentId, rosterIds),
+            sql`${studentTrials.startDate} <= ${lesson.date}`,
+            sql`${studentTrials.endDate} >= ${lesson.date}`,
+          ),
+        )
+    : [];
+  const onTrialIds = new Set(trialRows.map((r) => r.studentId));
+
+  const rosterWithFlags = roster.map((r) => ({
     ...r,
     onLeave: onLeaveIds.has(r.id),
+    onTrial: onTrialIds.has(r.id),
   }));
 
-  return { lesson, roster: rosterWithLeave, notes: existingNotes };
+  return { lesson, roster: rosterWithFlags, notes: existingNotes };
 }
 
 export async function getTutorHomework(tutorId: string) {

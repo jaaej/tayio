@@ -32,7 +32,8 @@ import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
 import { StudentLeaveManager } from "./_components/student-leave-manager";
 import { StudentReportControls } from "./_components/student-report-controls";
-import { getReportTerms } from "@/app/admin/_lib/queries";
+import { StudentTrialManager } from "./_components/student-trial-manager";
+import { getReportTerms, getStudentTrial } from "@/app/admin/_lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -58,16 +59,23 @@ export default async function UserDetailPage({
   const upcomingLessons = isStudent
     ? await getStudentUpcomingLessons(id, 21)
     : [];
-  const [creditActivity, allowanceSummary, enrolledSubjects, leavePeriods, reportTerms] =
-    isStudent
-      ? await Promise.all([
-          getStudentActivity(id),
-          getStudentAllowanceSummary(id),
-          getStudentEnrolledSubjects(id),
-          getStudentLeave(id),
-          getReportTerms(),
-        ])
-      : [null, null, null, null, []];
+  const [
+    creditActivity,
+    allowanceSummary,
+    enrolledSubjects,
+    leavePeriods,
+    reportTerms,
+    trial,
+  ] = isStudent
+    ? await Promise.all([
+        getStudentActivity(id),
+        getStudentAllowanceSummary(id),
+        getStudentEnrolledSubjects(id),
+        getStudentLeave(id),
+        getReportTerms(),
+        getStudentTrial(id),
+      ])
+    : [null, null, null, null, [], null];
 
   const allStudents = await db
     .select({
@@ -260,6 +268,24 @@ export default async function UserDetailPage({
                 studentId={user.id}
                 periods={leavePeriods ?? []}
               />
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "115ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Free trial"
+              action={
+                <span className="text-[12px] text-muted">
+                  Tutors see a trial pill
+                </span>
+              }
+            />
+            <CardBody>
+              <StudentTrialManager studentId={user.id} trial={trial ?? null} />
             </CardBody>
           </Card>
         </section>
