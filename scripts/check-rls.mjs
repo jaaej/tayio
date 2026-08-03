@@ -28,6 +28,7 @@ const ALLOW_NO_RLS = new Set([
   "allowance_adjustments", // admin-only allowance top-ups, migration 0032
   "student_leave", // admin-managed leave/holiday periods, migration 0033
   "tutor_bank_details", // owner-only tutor payroll PII, migration 0035
+  "quiz_attempts", // server-written practice quiz scores, migration 0036
 ]);
 
 const sql = postgres(url, { prepare: false, max: 1 });

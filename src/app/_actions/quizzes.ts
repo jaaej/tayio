@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import {
   quizzes,
   quizAttachments,
+  quizAttempts,
   quizQuestions,
   quizOptions,
   notifications,
@@ -906,5 +907,20 @@ export async function gradePracticeQuiz(input: {
   }
 
   const result = gradeQuizAnswers(answerKeys, parsed.data.answers);
-  return result.ok ? { ok: true, grade: result.grade } : result;
+  if (!result.ok) return result;
+
+  // Persist the score (practice is unranked but tracked - one row per attempt;
+  // reports use the latest). Never block returning the grade to the student.
+  try {
+    await db.insert(quizAttempts).values({
+      quizId: parsed.data.quizId,
+      studentId: user.id,
+      correctCount: result.grade.correctCount,
+      total: result.grade.total,
+    });
+  } catch (err) {
+    console.error("quiz attempt persist failed", err);
+  }
+
+  return { ok: true, grade: result.grade };
 }

@@ -1043,6 +1043,31 @@ export const quizAttachments = pgTable(
   ],
 );
 
+// Persisted student quiz scores (practice quizzes are unranked but tracked),
+// migration 0036. One row per submission; latest by submittedAt is the current
+// score. Server-written only (deny-all RLS).
+export const quizAttempts = pgTable(
+  "quiz_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quizId: uuid("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    correctCount: integer("correct_count").notNull(),
+    total: integer("total").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("quiz_attempts_student_idx").on(t.studentId),
+    index("quiz_attempts_quiz_idx").on(t.quizId),
+  ],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Homework = typeof homework.$inferSelect;
