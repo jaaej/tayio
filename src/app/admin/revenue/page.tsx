@@ -12,8 +12,13 @@ import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { formatMoney, relativeTime } from "@/lib/format";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
-import { getRevenueSummary, getRecentPayments } from "@/app/admin/_lib/queries";
+import {
+  getRevenueSummary,
+  getRecentPayments,
+  getReportTerms,
+} from "@/app/admin/_lib/queries";
 import { AdminPinPrompt } from "@/components/admin/pin-gate";
+import { RevenueReportDownload } from "./_components/report-download";
 
 export const dynamic = "force-dynamic";
 
@@ -51,9 +56,10 @@ export default async function RevenuePage() {
   }
 
   const now = new Date();
-  const [summary, payments] = await Promise.all([
+  const [summary, payments, reportTerms] = await Promise.all([
     getRevenueSummary(now),
     getRecentPayments(8),
+    getReportTerms(),
   ]);
 
   const delta =
@@ -109,6 +115,17 @@ export default async function RevenuePage() {
           {summary.overdueCount === 1 ? "" : "s"}
         </p>
       )}
+
+      <Card className="rise">
+        <CardHead title="Financial report" />
+        <div className="p-5 space-y-2.5">
+          <p className="text-[13px] text-muted">
+            Download a branded PDF of revenue collected and overdue invoices for
+            a month, term, or custom range.
+          </p>
+          <RevenueReportDownload terms={reportTerms} />
+        </div>
+      </Card>
 
       <Card className="rise">
         <CardHead

@@ -45,6 +45,7 @@ import {
   rescheduleRequests,
   studentLeave,
   subjects,
+  terms,
   tutorAvailability,
   tutorBankDetails,
   type UserRole,
@@ -1132,4 +1133,154 @@ export async function getTutorDirectory(): Promise<TutorDirectoryEntry[]> {
         : null,
     };
   });
+}
+
+export type FinancialReportLine = {
+  id: string;
+  parentName: string;
+  amount: string;
+  currency: string;
+  date: string | null;
+  status: string;
+  description: string | null;
+};
+
+export type FinancialReport = {
+  fromIso: string;
+  toIso: string;
+  revenueTotal: number;
+  paymentCount: number;
+  overdueTotal: number;
+  overdueCount: number;
+  currency: string;
+  payments: FinancialReportLine[];
+  overdue: FinancialReportLine[];
+};
+
+/**
+ * Financial figures for the downloadable revenue report over a date range.
+ * `from` is the inclusive start (local midnight); `to` is the EXCLUSIVE end
+ * (local midnight of the day after the last day). Revenue = invoices whose
+ * payment landed (paidAt) in [from, to); overdue = still-owing invoices past
+ * their due date as of the end. The returned `toIso` is the inclusive last day
+ * (to - 1 day) for display. Caller must already be behind the revenue PIN gate.
+ */
+export async function getFinancialReport(
+  from: Date,
+  to: Date,
+): Promise<FinancialReport> {
+  const parent = alias(profiles, "invoice_parent");
+  const toExclusiveIso = isoDate(to);
+  const displayToIso = isoDate(new Date(to.getTime() - 86400000));
+
+  const paymentRows = await db
+    .select({
+      id: invoices.id,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      date: invoices.paidAt,
+      status: invoices.status,
+      description: invoices.description,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .where(
+      and(
+        eq(invoices.status, "paid"),
+        gte(invoices.paidAt, from),
+        lt(invoices.paidAt, to),
+      ),
+    )
+    .orderBy(desc(invoices.paidAt));
+
+  const overdueRows = await db
+    .select({
+      id: invoices.id,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      date: invoices.dueDate,
+      status: invoices.status,
+      description: invoices.description,
+      parentFirst: parent.firstName,
+      parentLast: parent.lastName,
+    })
+    .from(invoices)
+    .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .where(
+      and(
+        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
+        lt(invoices.dueDate, toExclusiveIso),
+      ),
+    )
+    .orderBy(asc(invoices.dueDate));
+
+  const toLine = (r: {
+    id: string;
+    amount: string;
+    currency: string;
+    date: Date | string | null;
+    status: string;
+    description: string | null;
+    parentFirst: string;
+    parentLast: string;
+  }): FinancialReportLine => ({
+    id: r.id,
+    parentName: `${r.parentFirst} ${r.parentLast}`.trim(),
+    amount: r.amount,
+    currency: r.currency,
+    date:
+      r.date instanceof Date
+        ? isoDate(r.date)
+        : typeof r.date === "string"
+          ? r.date
+          : null,
+    status: r.status,
+    description: r.description,
+  });
+
+  const payments = paymentRows.map(toLine);
+  const overdue = overdueRows.map(toLine);
+  const revenueTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const overdueTotal = overdue.reduce((s, p) => s + Number(p.amount), 0);
+
+  return {
+    fromIso: isoDate(from),
+    toIso: displayToIso,
+    revenueTotal,
+    paymentCount: payments.length,
+    overdueTotal,
+    overdueCount: overdue.length,
+    currency: payments[0]?.currency ?? overdue[0]?.currency ?? "AUD",
+    payments,
+    overdue,
+  };
+}
+
+export type ReportTerm = {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+};
+
+/** Terms (newest first) for the financial-report period picker. */
+export async function getReportTerms(): Promise<ReportTerm[]> {
+  const rows = await db
+    .select({
+      id: terms.id,
+      year: terms.year,
+      termNumber: terms.termNumber,
+      startDate: terms.startDate,
+      endDate: terms.endDate,
+    })
+    .from(terms)
+    .orderBy(desc(terms.year), desc(terms.termNumber));
+  return rows.map((t) => ({
+    id: t.id,
+    label: `${t.year} · Term ${t.termNumber}`,
+    startDate: t.startDate,
+    endDate: t.endDate,
+  }));
 }
