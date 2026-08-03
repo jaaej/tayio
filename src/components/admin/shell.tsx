@@ -18,7 +18,6 @@ import {
   Wallet,
   Settings,
   LogOut,
-  Search,
   FolderOpen,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
@@ -154,16 +153,6 @@ export async function AdminShell({
       <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
         <div className="w-[222px] pr-2 flex items-center">
           <BrandMark />
-        </div>
-
-        <div className="flex-1 max-w-[520px] flex items-center gap-2 bg-surface-2 border border-line rounded-full px-3.5 py-[7px] text-muted">
-          <Search className="h-4 w-4 shrink-0" />
-          <input
-            type="search"
-            placeholder="Search users, classes, payments…"
-            className="flex-1 bg-transparent border-0 outline-none text-[13px] text-ink placeholder:text-muted-2"
-          />
-          <span className="text-[11px] font-mono text-muted-2 shrink-0">⌘K</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">
