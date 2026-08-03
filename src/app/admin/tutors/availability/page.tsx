@@ -2,6 +2,7 @@ import { Card, CardHead, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { getTutorWeeklyAvailabilityBoard } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatTime } from "@/lib/format";
+import { TutorAvailabilityEditor } from "./_components/availability-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function AdminTutorAvailabilityPage() {
         className="rise"
         eyebrow="Scheduling"
         title="Tutor availability"
-        sub="Every tutor's standing weekly availability in one view. Scan a day column for gaps when coordinating cover. This board is read-only."
+        sub="Every tutor's standing weekly availability in one view. Scan a day column for gaps when coordinating cover, then add or remove a tutor's recurring slots below."
       />
 
       <Card className="rise">
@@ -136,6 +137,46 @@ export default async function AdminTutorAvailabilityPage() {
           </div>
         )}
       </Card>
+
+      {tutors.length > 0 && (
+        <Card className="rise">
+          <CardHead
+            title="Manage availability"
+            action={
+              <span className="text-[12px] text-muted">
+                Recurring weekly slots
+              </span>
+            }
+          />
+          <div className="divide-y divide-line">
+            {tutors.map((tutor) => (
+              <details key={tutor.tutorId} className="group">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-3.5 [&::-webkit-details-marker]:hidden">
+                  <span className="text-[14px] font-bold text-ink">
+                    {tutor.firstName} {tutor.lastName}
+                  </span>
+                  <span className="flex items-center gap-2 text-[12px] text-muted">
+                    {tutor.slots.length} slot
+                    {tutor.slots.length === 1 ? "" : "s"}
+                    <span className="text-brand-600 font-semibold group-open:hidden">
+                      Edit ↓
+                    </span>
+                    <span className="hidden text-muted group-open:inline">
+                      Close ↑
+                    </span>
+                  </span>
+                </summary>
+                <div className="px-5 pb-4">
+                  <TutorAvailabilityEditor
+                    tutorId={tutor.tutorId}
+                    slots={tutor.slots}
+                  />
+                </div>
+              </details>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
