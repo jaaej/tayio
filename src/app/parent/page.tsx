@@ -118,10 +118,10 @@ export default async function ParentDashboard({
         right={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Link
-              href={`/parent/classes${childQs}&reschedule=pick`}
+              href={`/parent/classes${childQs}`}
               className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-lg bg-white/[0.14] border border-white/30 text-white hover:bg-white/[0.22] transition-colors"
             >
-              Reschedule a class
+              View timetable
             </Link>
             <Link
               href="/parent/payments"

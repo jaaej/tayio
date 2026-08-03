@@ -124,7 +124,7 @@ export default async function ParentReschedulePage({
   const admin = await getAdminContact();
 
   return (
-    <div className="space-y-6 max-w-[820px]">
+    <div className="space-y-6 max-w-[820px] mx-auto">
       <BackLink href={backHref}>Back to {selected.firstName}'s classes</BackLink>
 
       <PageHeader

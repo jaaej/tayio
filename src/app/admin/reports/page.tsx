@@ -55,6 +55,7 @@ export default async function ReportsPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        className="rise"
         eyebrow="Reports"
         title="Operational reports"
         sub="Attendance, homework completion, and class fill for the selected term."

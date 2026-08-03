@@ -115,20 +115,12 @@ export default async function StudentDashboard() {
     });
   }
 
-  // Static gamification placeholders.
-  const level = 1;
-  const xpCurrent = 0;
-  const xpToNext = 500;
-
   return (
     <div className="space-y-5">
       <StudentHero
         firstName={firstName}
         initials={initials}
         yearLevel={yearLevel}
-        level={level}
-        xpCurrent={xpCurrent}
-        xpToNext={xpToNext}
       />
 
       <div className="grid lg:grid-cols-[2fr_1fr] gap-5 items-start">
@@ -191,7 +183,6 @@ export default async function StudentDashboard() {
                       title={h.title}
                       subject={h.className ?? "Homework"}
                       meta={`due ${relativeTime(new Date(h.dueDate))}`}
-                      xp={50}
                       done={false}
                       href={`/student/homework/${h.homeworkId}`}
                     />

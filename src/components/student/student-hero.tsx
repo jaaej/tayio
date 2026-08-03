@@ -1,33 +1,23 @@
-import { Star, Medal } from "lucide-react";
+import { Medal } from "lucide-react";
 
 /**
- * Hero block - blue gradient with avatar, level/year chips, and XP bar.
+ * Hero block - blue gradient with avatar and year / class-rank chips.
  *
- * Gamification numbers are static placeholders until the schema tracks
- * XP / levels. Real props: firstName, initials, yearLevel.
+ * Real props only: firstName, initials, yearLevel, and (when available) the
+ * student's class rank. XP / levels were removed - there is no schema behind
+ * them, so showing frozen placeholder numbers is not shipped.
  */
 export function StudentHero({
   firstName,
   initials,
   yearLevel,
-  level = 1,
   rank,
-  xpCurrent = 0,
-  xpToNext = 500,
 }: {
   firstName: string;
   initials: string;
   yearLevel?: string | null;
-  level?: number;
   rank?: number;
-  xpCurrent?: number;
-  xpToNext?: number;
 }) {
-  const xpPct = Math.max(
-    0,
-    Math.min(100, (xpCurrent / Math.max(1, xpToNext)) * 100),
-  );
-
   return (
     <section
       className="relative overflow-hidden rounded-[28px] px-7 py-6 text-white flex items-center gap-6 shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
@@ -60,32 +50,11 @@ export function StudentHero({
                 {yearLevel}
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 bg-white/[0.18] border border-white/25 px-2.5 py-1 rounded-full text-[12px] font-bold">
-              <Star className="h-3.5 w-3.5" /> Level {level}
-            </span>
             {typeof rank === "number" && (
               <span className="inline-flex items-center gap-1.5 bg-white/[0.18] border border-white/25 px-2.5 py-1 rounded-full text-[12px] font-bold">
                 <Medal className="h-3.5 w-3.5" /> Rank #{rank} in class
               </span>
             )}
-          </div>
-
-          <div className="mt-3.5 max-w-[360px]">
-            <div className="flex justify-between text-[11px] font-bold mb-1.5 opacity-95">
-              <span>Level {level}</span>
-              <span>
-                {xpCurrent} / {xpToNext} XP
-              </span>
-            </div>
-            <div className="h-[9px] rounded-full bg-white/[0.22] overflow-hidden">
-              <div
-                className="h-full rounded-full shadow-[0_0_12px_rgba(255,255,255,0.6)]"
-                style={{
-                  width: `${xpPct}%`,
-                  background: "linear-gradient(90deg, #FFE9C7, #FFFFFF)",
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>

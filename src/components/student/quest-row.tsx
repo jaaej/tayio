@@ -22,7 +22,7 @@ export function QuestRow({
   title: string;
   subject: string;
   meta: string;
-  xp: number;
+  xp?: number;
   done?: boolean;
   href?: string;
 }) {
@@ -58,10 +58,12 @@ export function QuestRow({
           <Pill tone="neutral">{meta}</Pill>
         </div>
       </div>
-      <span className="ml-auto inline-flex items-center gap-1 bg-brand-50 text-brand-600 text-[11px] font-extrabold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
-        <Zap className="h-3 w-3" />
-        {xp} XP
-      </span>
+      {typeof xp === "number" && (
+        <span className="ml-auto inline-flex items-center gap-1 bg-brand-50 text-brand-600 text-[11px] font-extrabold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+          <Zap className="h-3 w-3" />
+          {xp} XP
+        </span>
+      )}
     </div>
   );
   if (href) {

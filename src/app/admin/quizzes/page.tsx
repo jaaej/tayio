@@ -22,6 +22,7 @@ export default async function AdminQuizzesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        className="rise"
         eyebrow="Curriculum"
         title="Quizzes"
         sub="Author a quiz directly or request one from a tutor, then review before approving."

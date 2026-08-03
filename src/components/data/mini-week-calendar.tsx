@@ -116,10 +116,10 @@ export function MiniWeekCalendar({
               className={cn(
                 "rounded-xl overflow-hidden flex flex-col min-h-[210px] border transition-colors",
                 d.isToday
-                  ? "border-navy-800/30 bg-gradient-to-b from-brand-50 to-white shadow-[0_6px_20px_-14px_rgba(29,41,81,0.28)]"
+                  ? "border-brand-300 bg-gradient-to-b from-brand-50 to-surface shadow-[0_6px_20px_-14px_rgba(31,40,90,0.28)]"
                   : d.isWeekend
-                    ? "border-hairline/40 bg-brand-50/40"
-                    : "border-hairline/40 bg-card",
+                    ? "border-line bg-brand-50/40"
+                    : "border-line bg-surface",
               )}
             >
               {/* Day header */}
@@ -127,21 +127,21 @@ export function MiniWeekCalendar({
                 className={cn(
                   "px-2 py-2 border-b text-center",
                   d.isToday
-                    ? "bg-navy-800 text-white border-navy-800"
-                    : "bg-white border-hairline/40",
+                    ? "bg-brand-500 text-white border-brand-500"
+                    : "bg-surface border-line",
                 )}
               >
                 <div
                   className={cn(
                     "text-[9px] uppercase tracking-[0.18em]",
-                    d.isToday ? "text-white/70" : "text-muted",
+                    d.isToday ? "text-white/75" : "text-muted",
                   )}
                 >
                   {d.label}
                 </div>
                 <div
                   className={cn(
-                    "text-lg font-medium tabular-nums leading-none mt-0.5",
+                    "text-lg font-bold tabular-nums leading-none mt-0.5",
                     d.isToday ? "text-white" : "text-ink",
                   )}
                 >
@@ -166,7 +166,7 @@ export function MiniWeekCalendar({
         })}
       </div>
 
-      <div className="flex items-center gap-5 pt-2 border-t border-hairline/60 text-[10px] uppercase tracking-[0.14em] text-muted">
+      <div className="flex items-center gap-5 pt-2 border-t border-line text-[10px] uppercase tracking-[0.14em] text-muted">
         <LegendDot color="bg-brand-600" label="Lesson" />
         <LegendDot color="bg-amber-500" label="Homework" />
         <LegendDot color="bg-emerald-500" label="Event" />

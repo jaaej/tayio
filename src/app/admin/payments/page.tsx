@@ -115,7 +115,7 @@ export default async function PaymentsPage() {
         className="rise"
         eyebrow="Invoices"
         title="Who has paid, who hasn't"
-        sub="Manual invoice tracking for the MVP. Stripe integration arrives in Phase 3 - mark payments here as they clear in your bank."
+        sub="Track invoices and mark payments as they clear in your bank."
       />
 
       <section className="grid sm:grid-cols-3 gap-4 rise">

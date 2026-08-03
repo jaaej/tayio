@@ -27,10 +27,13 @@ const MASTERY_PILL: Record<Mastery, string> = {
   not_started: "bg-surface-2 text-ink-soft",
 };
 
-const MASTERY_PCT: Record<Mastery, number> = {
-  strong: 92,
-  improving: 64,
-  needs_work: 34,
+// Coarse 4-step bar widths for a visual sense of level. These are NOT measured
+// percentages (there is no per-topic score), so no numeric % is ever shown -
+// the category pill is the honest label.
+const MASTERY_STEP: Record<Mastery, number> = {
+  strong: 100,
+  improving: 66,
+  needs_work: 33,
   not_started: 8,
 };
 
@@ -202,16 +205,11 @@ export default async function ParentProgressPage({
                         <SubjectPill name={t.subjectName} />
                       </Td>
                       <Td>
-                        <div className="flex items-center gap-3">
-                          <div className="h-2 flex-1 rounded-full bg-surface-2 overflow-hidden">
-                            <span
-                              className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
-                              style={{ width: `${MASTERY_PCT[m]}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-bold text-ink-soft tabular-nums w-9 text-right">
-                            {MASTERY_PCT[m]}%
-                          </span>
+                        <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                          <span
+                            className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
+                            style={{ width: `${MASTERY_STEP[m]}%` }}
+                          />
                         </div>
                       </Td>
                       <Td>

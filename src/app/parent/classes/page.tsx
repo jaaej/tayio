@@ -140,7 +140,7 @@ export default async function ParentClassesPage({
             </Empty>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3 p-4 lg:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 lg:p-5">
                 <StatTile
                   label="Attendance rate"
                   value={attRate !== null ? `${attRate}%` : "-"}

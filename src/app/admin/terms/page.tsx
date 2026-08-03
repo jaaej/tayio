@@ -15,6 +15,7 @@ export default async function AdminTermsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        className="rise"
         eyebrow="Academic Calendar"
         title="Terms"
         sub="Define academic terms. Curriculum is organised per subject per term."

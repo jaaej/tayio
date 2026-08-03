@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Play } from "lucide-react";
 import { Card } from "@/components/student/card";
 import { StatusBadge } from "@/components/data/status-badge";
 import { requireRole } from "@/lib/auth";
@@ -83,8 +84,9 @@ async function RecordedLessonsTab({ studentId }: { studentId: string }) {
                 </div>
                 <div className="md:justify-self-end text-xs text-right space-y-0.5">
                   {l.recordingUrl && (
-                    <div className="font-semibold text-brand-700">
-                      ▶ Recording
+                    <div className="flex items-center justify-end gap-1 font-semibold text-brand-700">
+                      <Play className="h-3 w-3 fill-current" aria-hidden />
+                      Recording
                     </div>
                   )}
                   <div className={l.hasNote ? "text-brand-700" : "text-muted"}>

@@ -1,4 +1,4 @@
-import { FileText, Link2 as LinkIcon } from "lucide-react";
+import { FileText, Link2 as LinkIcon, CheckCircle2, Circle } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { formatDueDate, relativeTime } from "@/lib/format";
 import { httpHref } from "@/lib/safe-url";
@@ -163,9 +163,27 @@ export async function WeekContentParent({
         )}
       </section>
 
-      <section className="rounded-xl border border-line bg-brand-50/40 px-4 py-3 text-sm text-ink-soft">
-        Progress: {videoDone ? "✓" : "○"} Video · {bookletDone ? "✓" : "○"}{" "}
-        Booklet · {homeworkDone}/{week.homework.length || 0} homework
+      <section className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line bg-brand-50/40 px-4 py-3 text-sm text-ink-soft">
+        <span className="font-semibold text-muted">Progress</span>
+        <span className="inline-flex items-center gap-1.5">
+          {videoDone ? (
+            <CheckCircle2 className="h-4 w-4 text-good" aria-hidden />
+          ) : (
+            <Circle className="h-4 w-4 text-muted-2" aria-hidden />
+          )}
+          Video
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          {bookletDone ? (
+            <CheckCircle2 className="h-4 w-4 text-good" aria-hidden />
+          ) : (
+            <Circle className="h-4 w-4 text-muted-2" aria-hidden />
+          )}
+          Booklet
+        </span>
+        <span>
+          {homeworkDone}/{week.homework.length || 0} homework
+        </span>
       </section>
     </div>
   );

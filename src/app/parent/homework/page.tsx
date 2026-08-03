@@ -91,7 +91,7 @@ export default async function ParentHomeworkPage({
       )}
 
       <section
-        className="grid grid-cols-3 gap-4 rise"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
         <StatTile
