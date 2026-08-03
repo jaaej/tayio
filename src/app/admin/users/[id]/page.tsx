@@ -31,6 +31,8 @@ import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
 import { StudentLeaveManager } from "./_components/student-leave-manager";
+import { StudentReportControls } from "./_components/student-report-controls";
+import { getReportTerms } from "@/app/admin/_lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -56,15 +58,16 @@ export default async function UserDetailPage({
   const upcomingLessons = isStudent
     ? await getStudentUpcomingLessons(id, 21)
     : [];
-  const [creditActivity, allowanceSummary, enrolledSubjects, leavePeriods] =
+  const [creditActivity, allowanceSummary, enrolledSubjects, leavePeriods, reportTerms] =
     isStudent
       ? await Promise.all([
           getStudentActivity(id),
           getStudentAllowanceSummary(id),
           getStudentEnrolledSubjects(id),
           getStudentLeave(id),
+          getReportTerms(),
         ])
-      : [null, null, null, null];
+      : [null, null, null, null, []];
 
   const allStudents = await db
     .select({
@@ -256,6 +259,28 @@ export default async function UserDetailPage({
               <StudentLeaveManager
                 studentId={user.id}
                 periods={leavePeriods ?? []}
+              />
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "120ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Term reports"
+              action={
+                <span className="text-[12px] text-muted">PDF + notify family</span>
+              }
+            />
+            <CardBody>
+              <StudentReportControls
+                studentId={user.id}
+                terms={(reportTerms ?? []).map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                }))}
               />
             </CardBody>
           </Card>

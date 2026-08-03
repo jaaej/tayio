@@ -53,6 +53,15 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("groups a student term report as a learning update", () => {
+    expect(
+      notificationGroupFor({
+        title: "Term report ready",
+        href: "/reports/student-1/term-1",
+      }),
+    ).toBe("learning");
+  });
+
   it("groups routine quiz activity as learning updates", () => {
     expect(
       notificationGroupFor({

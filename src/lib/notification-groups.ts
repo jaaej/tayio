@@ -74,9 +74,11 @@ export function notificationGroupFor(
     href.includes("/discussions") ||
     href.includes("/resources") ||
     href.includes("/progress") ||
+    href.includes("/reports") ||
     title.includes("quiz") ||
     title.includes("homework") ||
-    title.includes("feedback")
+    title.includes("feedback") ||
+    title.includes("report")
   ) {
     return "learning";
   }
