@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   BookOpen,
+  ClipboardList,
   CalendarDays,
   TrendingUp,
   MessagesSquare,
@@ -28,6 +29,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard",   href: "/student",            icon: <LayoutDashboard className={IC} /> },
       { label: "My subjects", href: "/student/subjects",   icon: <BookOpen className={IC} /> },
+      { label: "Homework",    href: "/student/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Timetable",   href: "/student/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Progress",    href: "/student/progress",   icon: <TrendingUp className={IC} /> },
       { label: "Resources",   href: "/student/resources",  icon: <Library className={IC} /> },

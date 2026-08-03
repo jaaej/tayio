@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { SubjectCard } from "@/components/student/subject-card";
-import { HomeworkRow } from "@/components/student/homework-row";
 import {
   Card,
   CardHead,
@@ -10,7 +9,6 @@ import {
 import { Badge } from "@/components/student/pill";
 import { SubjectPill } from "@/components/student/subject-pill";
 import { PageHead, SectionHead } from "@/components/student/page-head";
-import { formatDueDate, relativeTime } from "@/lib/format";
 import {
   MonthCalendar,
   WeekCalendar,
@@ -28,7 +26,6 @@ import {
   getStudentHomework,
   getStudentProgressBySubject,
   getStudentSubjects,
-  type HomeworkRow as HomeworkRowData,
 } from "../_lib/queries";
 
 export default async function StudentSubjectsIndex({
@@ -43,10 +40,6 @@ export default async function StudentSubjectsIndex({
     getStudentHomework(user.id),
     searchParams,
   ]);
-
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
 
   // Due-date calendar, timetable-styled. Defaults to a single week
   // (?week=YYYY-MM-DD to navigate); ?month=YYYY-MM enlarges to the full
@@ -84,12 +77,6 @@ export default async function StudentSubjectsIndex({
       className: h.className,
     }))
     .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
-  const overdue = open
-    .filter((h) => h.dueDate < startOfToday || h.status === "late")
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  const marked = allHomework
-    .filter((h) => h.status === "marked" || h.status === "returned")
-    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
 
   // De-duped tutors
   const tutorRows = (() => {
@@ -159,9 +146,13 @@ export default async function StudentSubjectsIndex({
             </div>
           </div>
 
-          {/* Homework - full-month due-date calendar (timetable style) */}
+          {/* Homework - at-a-glance due-date calendar; the full list lives on /student/homework */}
           <div>
-            <SectionHead title="Homework" />
+            <SectionHead
+              title="Homework due dates"
+              actionHref="/student/homework"
+              actionLabel="All homework →"
+            />
             {allHomework.length === 0 ? (
               <Card>
                 <CardBody>
@@ -232,59 +223,6 @@ export default async function StudentSubjectsIndex({
 
         {/* RIGHT */}
         <div className="space-y-5 min-w-0">
-          {/* Overdue homework */}
-          {overdue.length > 0 && (
-            <Card className="overflow-hidden">
-              <CardHead
-                title="Overdue"
-                action={
-                  <span className="text-bad">
-                    {overdue.length} item{overdue.length === 1 ? "" : "s"}
-                  </span>
-                }
-              />
-              <HomeworkList items={overdue} />
-            </Card>
-          )}
-
-          {/* Marked homework */}
-          {marked.length > 0 && (
-            <Card className="overflow-hidden">
-              <CardHead
-                title="Marked"
-                action={
-                  <Link
-                    href="/student/homework"
-                    className="hover:text-brand-700"
-                  >
-                    All homework →
-                  </Link>
-                }
-              />
-              <ul className="divide-y divide-line">
-                {marked.slice(0, 6).map((h) => (
-                  <li key={h.homeworkId}>
-                    <HomeworkRow
-                      title={h.title}
-                      subject={h.className ?? "Homework"}
-                      meta={
-                        h.score
-                          ? `score ${h.score}`
-                          : `marked · due ${formatDueDate(h.dueDate)}`
-                      }
-                      href={`/student/homework/${h.homeworkId}`}
-                    />
-                  </li>
-                ))}
-              </ul>
-              {marked.length > 6 && (
-                <div className="border-t border-line px-4 py-2.5 text-[12px] text-muted">
-                  {marked.length - 6} more in your homework list
-                </div>
-              )}
-            </Card>
-          )}
-
           {/* Your tutors */}
           <Card>
             <CardHead title="Your tutors" />
@@ -332,21 +270,4 @@ function isoLocal(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function HomeworkList({ items }: { items: HomeworkRowData[] }) {
-  return (
-    <ul className="divide-y divide-line">
-      {items.map((h) => (
-        <li key={h.homeworkId}>
-          <HomeworkRow
-            title={h.title}
-            subject={h.className ?? "Homework"}
-            meta={`due ${formatDueDate(h.dueDate)}`}
-            href={`/student/homework/${h.homeworkId}`}
-          />
-        </li>
-      ))}
-    </ul>
-  );
 }
