@@ -68,7 +68,6 @@ export async function createClass(input: z.infer<typeof classSchema>) {
     return r;
   });
   revalidatePath("/admin/classes");
-  revalidatePath("/admin/enrolments");
   revalidatePath("/admin");
   return { ok: true as const, id: row.id };
 }
@@ -97,7 +96,6 @@ export async function updateClass(input: z.infer<typeof updateClassSchema>) {
       .where(eq(classes.id, data.id)),
   );
   revalidatePath("/admin/classes");
-  revalidatePath("/admin/enrolments");
   return { ok: true as const };
 }
 
@@ -108,6 +106,5 @@ export async function deleteClass(id: string) {
     tx.delete(classes).where(eq(classes.id, id)),
   );
   revalidatePath("/admin/classes");
-  revalidatePath("/admin/enrolments");
   return { ok: true as const };
 }

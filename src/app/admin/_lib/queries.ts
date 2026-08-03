@@ -392,6 +392,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       studentFirst: student.firstName,
       studentLast: student.lastName,
       className: classes.name,
+      classId: classes.id,
     })
     .from(enrollments)
     .innerJoin(student, eq(student.id, enrollments.studentId))
@@ -435,7 +436,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       at: r.at,
       title: `${r.studentFirst} ${r.studentLast} enrolled`,
       meta: r.className,
-      href: "/admin/enrolments",
+      href: `/admin/classes/${r.classId}`,
     });
   }
   for (const r of paymentRows) {

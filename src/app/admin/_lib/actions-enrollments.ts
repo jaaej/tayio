@@ -56,7 +56,6 @@ export async function enrollStudent(input: z.infer<typeof pair>) {
     }
   });
 
-  revalidatePath("/admin/enrolments");
   revalidatePath("/admin/classes");
   revalidatePath(`/admin/classes/${data.classId}`);
   return { ok: true as const };
@@ -77,7 +76,6 @@ export async function withdrawStudent(input: z.infer<typeof pair>) {
         ),
       ),
   );
-  revalidatePath("/admin/enrolments");
   revalidatePath(`/admin/classes/${data.classId}`);
   return { ok: true as const };
 }
@@ -140,19 +138,3 @@ export async function setAdminNotes(input: z.infer<typeof adminNotesInput>) {
   return { ok: true as const };
 }
 
-export async function removeEnrollment(input: z.infer<typeof pair>) {
-  const user = await requireAdmin();
-  const data = pair.parse(input);
-  await withActor({ id: user.id, role: "admin" }, (tx) =>
-    tx
-      .delete(enrollments)
-      .where(
-        and(
-          eq(enrollments.classId, data.classId),
-          eq(enrollments.studentId, data.studentId),
-        ),
-      ),
-  );
-  revalidatePath("/admin/enrolments");
-  return { ok: true as const };
-}
