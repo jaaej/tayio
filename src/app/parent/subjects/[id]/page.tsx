@@ -94,6 +94,17 @@ export default async function ParentSubjectPage({
           </p>
         </div>
 
+        {data.lessonPlan && (
+          <div className="px-6 py-5 border-b border-line bg-brand-50/60">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-700">
+              What's coming up
+            </div>
+            <p className="mt-2 text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">
+              {data.lessonPlan}
+            </p>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
           <WeekStripParent
             subjectId={subjectId}
