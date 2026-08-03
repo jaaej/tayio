@@ -287,6 +287,94 @@ export async function createHomework(formData: FormData) {
   redirect(`/tutor/homework/${created.id}`);
 }
 
+/**
+ * Edit an existing homework's own fields (title, description, due date,
+ * resubmission/test flags, attachment). Student assignments are left
+ * untouched - this only changes the task definition, so it is safe to run
+ * after students have already submitted. Attachment can be replaced (upload
+ * a new file) or removed; the old storage object is deleted best-effort.
+ */
+export async function updateHomework(formData: FormData) {
+  const tutor = await requireTutor();
+  const homeworkId = String(formData.get("homeworkId") ?? "");
+  if (!homeworkId) throw new Error("Homework required");
+
+  const [existing] = await db
+    .select()
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.tutorId, tutor.id)))
+    .limit(1);
+  if (!existing) throw new Error("Homework not found");
+
+  const title = requiredText(formData.get("title"), 200, "Title");
+  const description = optionalText(formData.get("description"), 5000);
+  const dueDateRaw = String(formData.get("dueDate") ?? "");
+  if (!dueDateRaw) throw new Error("Due date required");
+  const dueDate = new Date(dueDateRaw);
+  if (Number.isNaN(dueDate.getTime())) throw new Error("Invalid due date");
+  const allowResubmission = formData.get("allowResubmission") === "on";
+  const isTest = formData.get("isTest") === "on";
+  const removeAttachment = formData.get("removeAttachment") === "on";
+
+  let attachmentUrl = existing.attachmentUrl;
+  const oldPath = existing.attachmentUrl;
+  const file = formData.get("attachment");
+  const hasNewFile = file instanceof File && file.size > 0;
+
+  if (hasNewFile) {
+    const validated = await validateUpload(file, HOMEWORK_POLICY);
+    if (!validated.ok) throw new Error(validated.error);
+    const supabase = await createClient();
+    const path = `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`;
+    const { error } = await supabase.storage
+      .from(HOMEWORK_BUCKET)
+      .upload(path, file, {
+        contentType: validated.file.contentType,
+        upsert: false,
+      });
+    if (error) {
+      console.error("homework upload failed", error.message);
+    } else {
+      attachmentUrl = path;
+    }
+  } else if (removeAttachment) {
+    attachmentUrl = null;
+  }
+
+  // Best-effort cleanup of the replaced/removed object (only for stored paths,
+  // never external links). Never blocks the metadata update.
+  if (
+    (hasNewFile || removeAttachment) &&
+    oldPath &&
+    oldPath !== attachmentUrl &&
+    !oldPath.startsWith("http")
+  ) {
+    try {
+      const supabase = await createClient();
+      await supabase.storage.from(HOMEWORK_BUCKET).remove([oldPath]);
+    } catch (err) {
+      console.error("homework old attachment cleanup failed", err);
+    }
+  }
+
+  await db
+    .update(homework)
+    .set({
+      title,
+      description: description || null,
+      dueDate,
+      allowResubmission,
+      isTest,
+      attachmentUrl,
+    })
+    .where(eq(homework.id, homeworkId));
+
+  revalidatePath(`/tutor/homework/${homeworkId}`);
+  revalidatePath("/tutor/homework");
+  revalidatePath("/tutor");
+  redirect(`/tutor/homework/${homeworkId}`);
+}
+
 export async function markSubmission(formData: FormData) {
   const tutor = await requireTutor();
   const homeworkId = String(formData.get("homeworkId") ?? "");
