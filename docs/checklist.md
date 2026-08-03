@@ -268,7 +268,7 @@ Note: the self-serve reschedule approval queue is now retired. Self-serve resche
 
 | Item | FE | BE | Notes |
 |---|---|---|---|
-| All-tutors admin tab | ⬜ | ⬜ | A dedicated admin tab listing every tutor with BSB/account number, account details, subjects they can tutor, and class schedule. [PII] tutor bank details need a schema + access decision (likely `admin_unrestricted` only). Overlaps the existing "view others' availability" gap. |
+| All-tutors admin tab | ✅ | 🔶 | **Built 2026-08-03 (owner-only).** `/admin/tutors` (`src/app/admin/tutors/page.tsx`, gated by `requireUnrestrictedAdmin` - reception is bounced) lists every active tutor with the subjects they teach (derived from assigned classes), their class schedule, and editable payroll bank details (account name / BSB / account number / note) via `TutorBankForm` + `setTutorBankDetails` (`admin/_lib/actions-tutor-bank.ts`, owner-only, audited). Nav item added to Operations (owner-only via `OWNER_ONLY_HREFS`). `getTutorDirectory` in `admin/_lib/queries.ts`. **BE 🔶: needs migration `0035_tutor_bank_details.sql` applied** (new owner-only PII table, RLS-on/no-policies like `student_leave`; added to `check-rls.mjs`). Typecheck + build + 72/72 tests green; browser click-through pending owner QA. Bank details are isolated in their own table (never joined into any student/parent/tutor query). |
 
 ### Cross-cutting UI
 

@@ -19,6 +19,7 @@ import {
   Settings,
   LogOut,
   FolderOpen,
+  GraduationCap,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -32,7 +33,7 @@ import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
 // Revenue is NOT here: reception can open it and enter the PIN to view figures.
-const OWNER_ONLY_HREFS = new Set(["/admin/settings"]);
+const OWNER_ONLY_HREFS = new Set(["/admin/settings", "/admin/tutors"]);
 
 const IC = "h-[18px] w-[18px]";
 
@@ -46,6 +47,7 @@ const SECTIONS: NavSection[] = [
       { label: "Quizzes", href: "/admin/quizzes", icon: <HelpCircle className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
+      { label: "Tutors", href: "/admin/tutors", icon: <GraduationCap className={IC} /> },
       { label: "Tutor availability", href: "/admin/tutors/availability", icon: <CalendarCheck className={IC} /> },
     ],
   },

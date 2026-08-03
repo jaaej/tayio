@@ -499,6 +499,23 @@ export const adminSettings = pgTable("admin_settings", {
     .defaultNow(),
 });
 
+// Owner-only tutor payroll/reference details (PII), migration 0035. One
+// optional row per tutor; read/written only by the owner-gated /admin/tutors
+// page. Isolated from public.profiles so it never leaks into other queries.
+export const tutorBankDetails = pgTable("tutor_bank_details", {
+  tutorId: uuid("tutor_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  accountName: text("account_name"),
+  bsb: text("bsb"),
+  accountNumber: text("account_number"),
+  note: text("note"),
+  updatedById: uuid("updated_by_id").references(() => profiles.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const notifications = pgTable(
   "notifications",
   {
