@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
@@ -329,16 +330,16 @@ function MonthView({
           <Link
             href={`/admin/classes?view=month&m=${mKey(prevMonth)}`}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
-            ‹
+            <ChevronLeft className="h-[18px] w-[18px]" aria-hidden />
           </Link>
           <Link
             href={`/admin/classes?view=month&m=${mKey(nextMonth)}`}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-lg text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface text-ink-soft hover:border-brand-400 hover:bg-surface-2 hover:text-ink transition-colors"
           >
-            ›
+            <ChevronRight className="h-[18px] w-[18px]" aria-hidden />
           </Link>
         </div>
         <div className="text-[14px] font-bold text-ink tabular-nums">
@@ -366,23 +367,31 @@ function MonthView({
               <div
                 key={d.iso}
                 className={cn(
-                  "rounded-[14px] border min-h-[140px] p-2 flex flex-col gap-1.5",
-                  d.inMonth
-                    ? "bg-surface border-line"
-                    : "bg-surface-2/50 border-line/60",
-                  d.isWeekend && d.inMonth && "bg-brand-50/30",
-                  d.isToday &&
-                    "ring-2 ring-brand-300 ring-offset-0 border-brand-400",
+                  "rounded-xl border min-h-[140px] p-2 flex flex-col gap-1.5",
+                  d.isToday
+                    ? "bg-surface border-brand-400 ring-1 ring-brand-300/40"
+                    : d.inMonth
+                      ? d.isWeekend
+                        ? "bg-brand-50/30 border-line"
+                        : "bg-surface border-line"
+                      : "bg-surface-2/50 border-line/60",
                 )}
               >
-                <div
-                  className={cn(
-                    "text-xs tabular-nums font-bold px-1",
-                    d.inMonth ? "text-ink" : "text-muted-2",
-                    d.isToday && "text-brand-700",
+                <div className="px-0.5">
+                  {d.isToday ? (
+                    <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-brand-500 text-white text-[12px] font-extrabold tabular-nums leading-none">
+                      {d.dayNum}
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "text-[15px] tabular-nums font-bold leading-none",
+                        d.inMonth ? "text-ink" : "text-muted-2",
+                      )}
+                    >
+                      {d.dayNum}
+                    </span>
                   )}
-                >
-                  {d.dayNum}
                 </div>
                 <div className="space-y-1 overflow-hidden">
                   {dayClasses.slice(0, 3).map((c) => (

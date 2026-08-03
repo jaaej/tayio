@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { and, asc, eq, gte, isNotNull, lt } from "drizzle-orm";
 import { Card } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
@@ -260,16 +261,16 @@ export default async function TutorTimetablePage({
             <Link
               href={navHref(prev)}
               aria-label="Previous month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-muted hover:border-brand-300 hover:text-ink transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
             >
-              ‹
+              <ChevronLeft className="h-4 w-4" aria-hidden />
             </Link>
             <Link
               href={navHref(next)}
               aria-label="Next month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-muted hover:border-brand-300 hover:text-ink transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
             >
-              ›
+              <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>
@@ -380,24 +381,33 @@ function DayCell({
   return (
     <div
       className={cn(
-        "rounded-[10px] border p-1.5 flex flex-col gap-1.5",
+        "rounded-xl border p-1.5 flex flex-col gap-1.5",
         isEdit ? "min-h-[260px]" : "min-h-[150px]",
-        day.inMonth ? "bg-surface border-line" : "bg-surface-2 border-line",
-        day.isIsolated && "bg-grape-bg border-grape/50",
-        day.isToday && "ring-2 ring-brand-400 ring-offset-0",
+        day.isIsolated
+          ? "bg-grape-bg border-grape/50"
+          : day.isToday
+            ? "bg-surface border-brand-400 ring-1 ring-brand-300/40"
+            : day.inMonth
+              ? "bg-surface border-line"
+              : "bg-surface-2 border-line",
       )}
     >
       <div className="flex items-center justify-between gap-1 px-0.5">
-        <span
-          className={cn(
-            "text-[11px] tabular-nums font-bold",
-            day.inMonth ? "text-ink" : "text-muted-2",
-            day.isToday && "text-brand-600",
-            day.isIsolated && "text-grape",
-          )}
-        >
-          {day.dayNum}
-        </span>
+        {day.isToday ? (
+          <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-brand-500 text-white text-[12px] font-extrabold tabular-nums leading-none">
+            {day.dayNum}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "text-[13px] tabular-nums font-bold leading-none",
+              day.inMonth ? "text-ink" : "text-muted-2",
+              day.isIsolated && "text-grape",
+            )}
+          >
+            {day.dayNum}
+          </span>
+        )}
         {canToggleIsolation && (
           <form action={toggleDayIsolation} className="contents">
             <input type="hidden" name="date" value={day.iso} />
