@@ -11,7 +11,7 @@ import {
   getAccentTokens,
 } from "@/lib/subject-colors";
 import { getStudentCurriculum } from "./_queries";
-import { WeekStrip } from "./_components/week-strip";
+import { WeekStrip } from "@/components/subjects/week-strip";
 import { WeekContent } from "./_components/week-content";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
@@ -136,7 +136,7 @@ export default async function StudentSubjectPage({
       {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
       <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
         <WeekStrip
-          subjectId={subjectId}
+          basePath={`/student/subjects/${subjectId}`}
           currentTermId={data.currentTerm.id}
           termsAvailable={data.termsAvailable}
           weeks={weekStripItems}

@@ -1,3 +1,4 @@
+import { Wallet } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { Badge } from "@/components/student/pill";
 import { StudentHero } from "@/components/student/student-hero";
@@ -199,8 +200,11 @@ export default async function StudentDashboard() {
             <StatTile
               label="Outstanding balance"
               value={formatMoney(outstanding)}
-              accent={outstanding > 0 ? "warn" : "success"}
+              icon={<Wallet className="h-5 w-5" aria-hidden />}
+              tone={outstanding > 0 ? "bad" : "good"}
+              accent
               sub={outstanding > 0 ? "View invoices →" : "All settled"}
+              subTone={outstanding > 0 ? "down" : "up"}
               href="/student/payments"
             />
           )}

@@ -4,8 +4,9 @@ import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { resolveSelectedChild } from "@/app/parent/_data";
 import { currentWeekNumber } from "@/lib/curriculum";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { getParentCurriculum } from "./_queries";
-import { WeekStripParent } from "./_components/week-strip";
+import { WeekStrip } from "@/components/subjects/week-strip";
 import { WeekContentParent } from "./_components/week-content";
 
 type SearchParams = Promise<{ child?: string; term?: string; week?: string }>;
@@ -106,14 +107,15 @@ export default async function ParentSubjectPage({
         )}
 
         <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
-          <WeekStripParent
-            subjectId={subjectId}
+          <WeekStrip
+            basePath={`/parent/subjects/${subjectId}`}
             childId={resolved.selected.id}
             currentTermId={data.currentTerm.id}
             termsAvailable={data.termsAvailable}
             weeks={weekStripItems}
             selectedWeekId={selected?.subjectWeekId ?? null}
             currentWeekIdHint={currentWeekHint}
+            accent={getAccentTokens(colorFamilyForSubject(data.subjectName))}
           />
           <div className="lg:border-l lg:border-line lg:pl-6">
             {selected && <WeekContentParent week={selected} />}

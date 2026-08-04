@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { AccentTokens } from "@/lib/subject-colors";
 
 /**
- * Vertical week rail - sits on the left of the subject page.
- * Themed with the subject's accent color: the rail's frame, the active
- * pill, and the hover state all use shades from getAccentTokens.
+ * Vertical week rail on the left of the subject page. Shared by the student and
+ * parent portals so the feature looks identical in both - themed with the
+ * subject's accent colour (rail frame, active pill, hover), lucide Check for a
+ * completed week. Role differences are only the link target: pass `basePath`
+ * (e.g. /student/subjects/ID or /parent/subjects/ID) and, for parent, the
+ * viewed child's id (added as ?child=).
  */
 export function WeekStrip({
-  subjectId,
+  basePath,
+  childId,
   currentTermId,
   termsAvailable,
   weeks,
@@ -18,7 +23,9 @@ export function WeekStrip({
   currentWeekIdHint,
   accent,
 }: {
-  subjectId: string;
+  basePath: string;
+  /** Parent portal: the viewed child's id, threaded into every link as ?child=. */
+  childId?: string;
   currentTermId: string;
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: Array<{
@@ -35,19 +42,10 @@ export function WeekStrip({
   selectedWeekId: string | null;
   currentWeekIdHint: string | null;
   /** Subject color tokens - drives the entire rail's theming. */
-  accent: {
-    bgFrom: string;
-    bgTo: string;
-    title: string;
-    meta: string;
-    arrow: string;
-    ring: string;
-    pillBg: string;
-    pillText: string;
-  };
+  accent: AccentTokens;
 }) {
   const active = selectedWeekId ?? currentWeekIdHint ?? weeks[0]?.subjectWeekId;
-  const base = `/student/subjects/${subjectId}`;
+  const childQ = childId ? `child=${childId}&` : "";
 
   return (
     <aside
@@ -62,7 +60,7 @@ export function WeekStrip({
         <select
           defaultValue={currentTermId}
           onChange={(e) => {
-            window.location.href = `${base}?term=${e.target.value}`;
+            window.location.href = `${basePath}?${childQ}term=${e.target.value}`;
           }}
           aria-label="Select term"
           className="w-full appearance-none rounded-[10px] border bg-white/90 backdrop-blur pl-3 pr-8 py-2 text-[12px] font-bold cursor-pointer shadow-[0_1px_2px_rgba(15,17,30,0.05)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0"
@@ -121,7 +119,7 @@ export function WeekStrip({
                   return (
                     <Link
                       key={w.subjectWeekId}
-                      href={`${base}?term=${currentTermId}&week=${w.subjectWeekId}`}
+                      href={`${basePath}?${childQ}term=${currentTermId}&week=${w.subjectWeekId}`}
                       className={cn(
                         "block rounded-[13px] px-3 py-2.5 transition-all border",
                         isActive
@@ -141,9 +139,7 @@ export function WeekStrip({
                     >
                       <div className="flex items-center justify-between gap-1.5">
                         <span
-                          className={cn(
-                            "text-[10px] uppercase tracking-[0.12em] font-extrabold",
-                          )}
+                          className="text-[10px] uppercase tracking-[0.12em] font-extrabold"
                           style={{
                             color: isActive ? "rgba(255,255,255,0.85)" : accent.meta,
                           }}
@@ -170,9 +166,7 @@ export function WeekStrip({
                         )}
                       </div>
                       <div
-                        className={cn(
-                          "mt-0.5 text-[14px] font-bold leading-snug line-clamp-2",
-                        )}
+                        className="mt-0.5 text-[14px] font-bold leading-snug line-clamp-2"
                         style={{
                           color: isActive ? "#fff" : accent.title,
                         }}
@@ -216,4 +210,3 @@ export function WeekStrip({
     </aside>
   );
 }
-
