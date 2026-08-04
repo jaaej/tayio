@@ -39,6 +39,14 @@ Things marked **(extra)** are implemented in the portal but weren't in the origi
 > `docs/changes/2026-08-01-session-changelog-and-backlog.md` (Part C = next task, Part D = pending QA, Part A = full revert guide).
 > Start there. The list below is the older 2026-07-25 backlog.
 
+> **2026-08-04 self-QA:** a runtime self-QA pass (by Claude, NOT owner-verified) was
+> run against a live dev server for the pending-QA features - recordings, B7 lesson
+> plan (3 roles), tutor roster pills, admin leave/trial managers, tier gates - by
+> server-rendering each route and seeding+reverting real data. All passed. These stay
+> 🔶 (owner spot-check still welcome) but are no longer unverified. Also this session:
+> discussions board+thread detail unified across roles + tutor timetable chip parity +
+> UI polish. Full record: `docs/changes/2026-08-04-self-qa-and-ui-consistency-audit.md`.
+
 Everything below is code-complete with typecheck + unit tests green, but NOT yet clicked through in a browser with real data. Per the success-claim rule, these stay 🔶 (not ✅) until the browser checks are ticked. Run the dev server and tick each box as you confirm it.
 
 **Operational reports** - `/admin/reports`
