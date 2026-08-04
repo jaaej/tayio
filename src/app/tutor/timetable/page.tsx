@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatTime } from "@/lib/format";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { cn } from "@/lib/utils";
 import { requireTutor } from "../_data";
 import { getWeeklyRules } from "../_lib/availability";
@@ -296,10 +297,7 @@ export default async function TutorTimetablePage({
           </div>
 
           <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-line text-[10px] uppercase tracking-[0.12em] text-muted font-bold">
-            <Legend
-              color="bg-sun-100 border border-sun-300"
-              label="Teaching"
-            />
+            <Legend color="bg-brand-500" label="Teaching" />
             <Legend
               color="bg-grape-bg border border-grape/50"
               label="Isolated day"
@@ -444,21 +442,31 @@ function DayCell({
 
       {day.lessons.length > 0 && (
         <div className="space-y-1">
-          {day.lessons.slice(0, 2).map((l) => (
-            <Link
-              key={l.id}
-              href={`/tutor/lessons/${l.id}`}
-              className="block rounded-[6px] px-1.5 py-0.5 text-[10px] leading-tight bg-sun-100 hover:bg-sun-200 transition-colors border border-sun-300"
-              title={`${l.className} · ${formatTime(l.startTime)}-${formatTime(l.endTime)}`}
-            >
-              <div className="font-bold text-sun-ink truncate">
-                {l.subjectName}
-              </div>
-              <div className="text-sun-ink/80 tabular-nums">
-                {formatTime(l.startTime)}
-              </div>
-            </Link>
-          ))}
+          {day.lessons.slice(0, 2).map((l) => {
+            // Subject-accent chip, matching the shared MonthCalendar's lesson
+            // chips (and the tutor classes hub) so a subject reads the same
+            // colour everywhere - not a flat amber.
+            const t = getAccentTokens(colorFamilyForSubject(l.subjectName));
+            return (
+              <Link
+                key={l.id}
+                href={`/tutor/lessons/${l.id}`}
+                className="relative block rounded-md pl-2 pr-1.5 py-0.5 text-[10px] leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]"
+                style={{ backgroundColor: t.pillBg, color: t.pillText }}
+                title={`${l.className} · ${formatTime(l.startTime)}-${formatTime(l.endTime)}`}
+              >
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
+                  style={{ backgroundColor: t.arrow }}
+                />
+                <div className="font-bold truncate">{l.subjectName}</div>
+                <div className="tabular-nums opacity-80">
+                  {formatTime(l.startTime)}
+                </div>
+              </Link>
+            );
+          })}
           {day.lessons.length > 2 && (
             <div className="text-[10px] text-muted px-0.5">
               +{day.lessons.length - 2} more
@@ -562,7 +570,7 @@ function DayCell({
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={cn("h-3 w-3 rounded-sm", color)} aria-hidden />
+      <span className={cn("h-2 w-2 rounded-full", color)} aria-hidden />
       {label}
     </span>
   );
