@@ -119,13 +119,13 @@ export default async function ParentDashboard({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Link
               href={`/parent/classes${childQs}`}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-lg bg-white/[0.14] border border-white/30 text-white hover:bg-white/[0.22] transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-bold rounded-full bg-white/[0.14] border border-white/30 text-white hover:bg-white/[0.22] transition-colors"
             >
               View timetable
             </Link>
             <Link
               href="/parent/payments"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-lg bg-white text-brand-700 hover:bg-brand-50 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-bold rounded-full bg-white text-brand-700 hover:bg-brand-50 transition-colors"
             >
               Payments
             </Link>
@@ -390,7 +390,7 @@ function ContactRow({
       </div>
       <Link
         href={`/parent/messages/with/${userId}`}
-        className="shrink-0 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100 transition-colors"
+        className="shrink-0 rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100 transition-colors"
       >
         Message
       </Link>

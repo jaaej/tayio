@@ -239,7 +239,7 @@ export default async function UserDetailPage({
                     )}
                     <Link
                       href={`/admin/users/${id}/reschedule/${l.id}`}
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
                     >
                       <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                       Reschedule

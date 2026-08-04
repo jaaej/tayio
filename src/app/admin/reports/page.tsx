@@ -64,7 +64,7 @@ export default async function ReportsPage({
             <TermSelect terms={terms} selectedId={selected.id} />
             <Link
               href={`/admin/reports/export?term=${selected.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-2 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
             >
               <Download className="h-4 w-4" /> CSV
             </Link>

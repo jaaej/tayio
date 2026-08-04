@@ -12,7 +12,7 @@ import {
 } from "@/lib/status";
 import { getAdminContact, getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
-import { parseMonthParam } from "../_components/month-calendar";
+import { parseMonthParam } from "../_components/month-param";
 import { SectionHeader } from "../_components/section-header";
 import { StatusPill } from "../_components/status-pill";
 

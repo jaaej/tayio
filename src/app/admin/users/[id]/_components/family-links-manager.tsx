@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Check } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/admin/ui";
 import {
@@ -77,7 +78,14 @@ export function FamilyLinksManager({
                     });
                   }}
                 >
-                  {p.isPrimaryContact ? "Primary ✓" : "Make primary"}
+                  {p.isPrimaryContact ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                      Primary
+                    </>
+                  ) : (
+                    "Make primary"
+                  )}
                 </Button>
                 <Button
                   size="sm"

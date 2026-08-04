@@ -25,7 +25,7 @@ export default async function AdminTutorsPage() {
         actions={
           <Link
             href="/admin/tutors/availability"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-[12px] font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-2 text-[12px] font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
           >
             <CalendarCheck className="h-4 w-4" aria-hidden />
             Availability board
