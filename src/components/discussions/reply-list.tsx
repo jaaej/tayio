@@ -9,18 +9,26 @@ import {
   AttachmentList,
   AttachmentPicker,
 } from "@/components/discussions/attachments";
-import { initialOf, isStaffRole, relativeShort, roleColor } from "./role-tone";
+import {
+  initialOf,
+  isStaffRole,
+  relativeShort,
+  roleColor,
+  type DiscussionRole,
+} from "./role-tone";
 
 type Reply = ThreadDetail["replies"][number];
 
-export function StudentReplyList({
+export function ReplyList({
   replies,
   threadId,
   tokens,
+  rolePrefix,
 }: {
   replies: Reply[];
   threadId: string;
   tokens: AccentTokens;
+  rolePrefix: DiscussionRole;
 }) {
   const topLevel = replies.filter((r) => r.parentReplyId === null);
   const childrenByParent = new Map<string, Reply[]>();
@@ -49,6 +57,7 @@ export function StudentReplyList({
             childReplies={childrenByParent.get(r.id) ?? []}
             threadId={threadId}
             tokens={tokens}
+            rolePrefix={rolePrefix}
           />
         </li>
       ))}
@@ -61,11 +70,13 @@ function ReplyRow({
   childReplies,
   threadId,
   tokens,
+  rolePrefix,
 }: {
   reply: Reply;
   childReplies: Reply[];
   threadId: string;
   tokens: AccentTokens;
+  rolePrefix: DiscussionRole;
 }) {
   const [showComposer, setShowComposer] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -159,7 +170,7 @@ function ReplyRow({
           action={(fd) => {
             fd.append("threadId", threadId);
             fd.append("parentReplyId", reply.id);
-            fd.append("rolePrefix", "student");
+            fd.append("rolePrefix", rolePrefix);
             startTransition(async () => {
               await postReply(fd);
               formRef.current?.reset();

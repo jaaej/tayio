@@ -7,20 +7,22 @@ import type { AccentTokens } from "@/lib/subject-colors";
 import type { ThreadSummary } from "@/lib/discussions-queries";
 import { createThread } from "@/app/_actions/discussions";
 import { AttachmentPicker } from "@/components/discussions/attachments";
-import { initialOf, relativeShort, roleColor } from "./role-tone";
+import { initialOf, relativeShort, roleColor, type DiscussionRole } from "./role-tone";
 
-export function BoardInteractive({
+export function BoardThreads({
   threads,
   hrefPrefix,
   boardSegment,
   tokens,
   userFirstName,
+  rolePrefix,
 }: {
   threads: ThreadSummary[];
   hrefPrefix: string;
   boardSegment: string;
   tokens: AccentTokens;
   userFirstName: string;
+  rolePrefix: DiscussionRole;
 }) {
   const [query, setQuery] = useState("");
 
@@ -40,6 +42,7 @@ export function BoardInteractive({
         boardSegment={boardSegment}
         tokens={tokens}
         userFirstName={userFirstName}
+        rolePrefix={rolePrefix}
       />
 
       {threads.length >= 5 && (
@@ -102,10 +105,12 @@ function AskPrompt({
   boardSegment,
   tokens,
   userFirstName,
+  rolePrefix,
 }: {
   boardSegment: string;
   tokens: AccentTokens;
   userFirstName: string;
+  rolePrefix: DiscussionRole;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -143,7 +148,7 @@ function AskPrompt({
       ref={formRef}
       action={(fd) => {
         fd.append("boardSegment", boardSegment);
-        fd.append("rolePrefix", "student");
+        fd.append("rolePrefix", rolePrefix);
         startTransition(() => {
           void createThread(fd);
         });

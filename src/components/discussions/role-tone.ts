@@ -31,3 +31,6 @@ export function relativeShort(d: Date): string {
   if (days < 30) return `${Math.floor(days / 7)}w ago`;
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }
+
+// Discussions exist for students, tutors and admins (parents have no board).
+export type DiscussionRole = "student" | "tutor" | "admin";
