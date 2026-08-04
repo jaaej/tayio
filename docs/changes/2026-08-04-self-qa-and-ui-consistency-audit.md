@@ -64,7 +64,17 @@ The real problem was shared FEATURES reimplemented per role at the DETAIL level.
    dead code (encourage-banner, parent button-link, never-rendered parent MonthCalendar;
    its parseMonthParam helper moved to `parent/_components/month-param.ts`).
 
-### Deferred (recorded, not silently dropped - per the cross-role non-negotiable)
+### Cleared next (follow-up, same session)
+
+- **Stat tiles (student vs parent)** - DONE (commit `9e1d9e8`). Rebuilt the student KPI
+  tile to the parent/admin rich design (icon tile + accent stripe + hover lift + neutral
+  value); the two student call sites now carry status via `tone` + a lucide icon.
+- **Subject week-strip (student vs parent)** - DONE (commit `9e1d9e8`). Promoted the
+  student's subject-accent rail to shared `components/subjects/week-strip.tsx`
+  (parameterised by `basePath` + optional `childId`); both roles consume it, both local
+  copies deleted, the "✓" glyph is gone.
+
+### Still deferred (recorded, not silently dropped - per the cross-role non-negotiable)
 
 - **Full structural consolidation of the tutor timetable onto the shared
   MonthCalendar component.** The tutor timetable's per-cell availability editing
@@ -73,10 +83,8 @@ The real problem was shared FEATURES reimplemented per role at the DETAIL level.
   regressing three surfaces. Visual parity (chip colour + legend) was done instead;
   full "one component" consolidation would mean giving MonthCalendar a per-day overlay
   render slot and re-verifying all four consumers.
-- **Stat tiles (student vs parent)** - parent StatTile is richer (icon tile + accent
-  stripe + delta + hover lift) than the student KPI tile. MED.
-- **Subject week-strip (student vs parent)** - parent reimplements it with brand-only
-  colours + a "✓" glyph vs the student's per-subject accent + lucide Check. MED.
+- **Subject week-CONTENT (right pane) parent-vs-student** was not touched this round -
+  only the week-STRIP (left rail) was shared. WeekContentParent still exists.
 - Remaining LOW token-drift/glyph items (student resources download button old tokens;
   tutor edit-mode ✕/· glyphs; parent back-arrow/→ glyphs; admin form-input radii).
 
