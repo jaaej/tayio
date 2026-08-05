@@ -34,7 +34,6 @@ export default async function ResourcesIndexPage({
       <PageHead
         eyebrow="Resources"
         title="Your resources"
-        sub="Class booklets and worksheets, plus recaps from past lessons."
       />
 
       <Tabs items={tabs} />

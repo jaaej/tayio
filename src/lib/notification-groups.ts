@@ -14,33 +14,12 @@ export type NotificationLike = {
 export const NOTIFICATION_GROUPS: Array<{
   key: NotificationGroupKey;
   label: string;
-  description: string;
 }> = [
-  {
-    key: "messages",
-    label: "Messages",
-    description: "Direct messages from tutors, admins, students, and families",
-  },
-  {
-    key: "action",
-    label: "Action needed",
-    description: "Requests, changes, deadlines, and decisions",
-  },
-  {
-    key: "learning",
-    label: "Learning updates",
-    description: "Quizzes, homework, feedback, and discussions",
-  },
-  {
-    key: "announcements",
-    label: "Announcements",
-    description: "General news and notices",
-  },
-  {
-    key: "updates",
-    label: "Other updates",
-    description: "Schedule and account activity",
-  },
+  { key: "messages", label: "Messages" },
+  { key: "action", label: "Action needed" },
+  { key: "learning", label: "Learning updates" },
+  { key: "announcements", label: "Announcements" },
+  { key: "updates", label: "Other updates" },
 ];
 
 export function notificationGroupFor(
@@ -90,7 +69,6 @@ export function groupNotifications<T extends NotificationLike>(
 ): Array<{
   key: NotificationGroupKey;
   label: string;
-  description: string;
   unread: number;
   items: T[];
 }> {

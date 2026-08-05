@@ -26,7 +26,6 @@ export default async function ParentHomeworkPage({
       <div className="space-y-6">
         <PageHeader
           title="Homework"
-          sub="Your children's homework and their submission status."
         />
         <EmptyChildrenNotice />
       </div>
@@ -77,7 +76,6 @@ export default async function ParentHomeworkPage({
     <div className="space-y-6">
       <PageHeader
         title={`${selected.firstName}'s homework`}
-        sub="Tasks set by the tutor and their submission status."
       />
 
       {children.length > 1 && (

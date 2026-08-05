@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes, homework, quizzes, resources, subjectTopics, subjectWeeks, subjects, terms,
+  classes, homework, resources, subjectTopics, subjectWeeks, subjects, terms,
   tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
@@ -35,8 +35,6 @@ export type TutorCurriculumWeek = {
     title: string;
     questionCount: number;
   } | null;
-  /** A quiz an admin has REQUESTED from this tutor for this week (editable now). */
-  editableQuiz: { id: string; status: string } | null;
 };
 
 export type TutorCurriculumData = {
@@ -98,31 +96,6 @@ export async function getTutorCurriculum(
   const quizRows = await listApprovedQuizSummariesForWeeks(weekIds);
   const quizByWeek = new Map(
     quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
-  );
-
-  // Quizzes an admin has requested from THIS tutor for these weeks - the only
-  // ones the tutor may edit. Approved quizzes above are view-only for the tutor.
-  const editableQuizRows = weekIds.length
-    ? await db
-        .select({
-          id: quizzes.id,
-          subjectWeekId: quizzes.subjectWeekId,
-          status: quizzes.status,
-        })
-        .from(quizzes)
-        .where(
-          and(
-            inArray(quizzes.subjectWeekId, weekIds),
-            eq(quizzes.assignedTutorId, tutorId),
-            inArray(quizzes.status, ["requested", "changes_requested"]),
-          ),
-        )
-    : [];
-  const editableQuizByWeek = new Map(
-    editableQuizRows.map((q) => [
-      q.subjectWeekId,
-      { id: q.id, status: q.status as string },
-    ]),
   );
 
   const topicRows = await db
@@ -220,7 +193,6 @@ export async function getTutorCurriculum(
       hasSection: Boolean(s?.note) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
       quiz: quizByWeek.get(tpl.id) ?? null,
-      editableQuiz: editableQuizByWeek.get(tpl.id) ?? null,
     };
   });
 

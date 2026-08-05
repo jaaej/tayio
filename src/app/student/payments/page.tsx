@@ -25,7 +25,6 @@ export default async function StudentPaymentsPage() {
       <PageHead
         eyebrow="Payments"
         title="Invoices & balance"
-        sub="Your invoice history and anything still outstanding."
       />
 
       <div className="grid grid-cols-3 gap-3.5">

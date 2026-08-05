@@ -8,14 +8,13 @@ const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default async function TutorStudentsPage() {
   const tutor = await requireTutor();
-  const { classes, totalStudents } = await getTutorStudentsByClass(tutor.id);
+  const { classes } = await getTutorStudentsByClass(tutor.id);
 
   return (
     <div className="space-y-5">
       <PageHead
         eyebrow="Your roster"
         title="Students"
-        sub={`${totalStudents} student${totalStudents === 1 ? "" : "s"} across ${classes.length} class${classes.length === 1 ? "" : "es"} you teach.`}
       />
 
       {classes.length === 0 ? (

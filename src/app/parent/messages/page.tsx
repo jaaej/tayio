@@ -33,7 +33,6 @@ export default async function ParentMessagesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Messages"
-        sub="Conversations with your child's tutors and the admin office."
       />
       <InboxCompose
         threads={threads}

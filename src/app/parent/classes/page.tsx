@@ -43,7 +43,6 @@ export default async function ParentClassesPage({
       <div className="space-y-6">
         <PageHeader
           title="Classes"
-          sub="Your children's lessons and reschedule requests."
         />
         <EmptyChildrenNotice />
       </div>
@@ -91,7 +90,6 @@ export default async function ParentClassesPage({
     <div className="space-y-6">
       <PageHeader
         title={`${selected.firstName}'s classes`}
-        sub="Calendar, attendance log and reschedule requests."
       />
 
       {children.length > 1 && (

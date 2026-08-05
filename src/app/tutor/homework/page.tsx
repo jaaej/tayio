@@ -34,11 +34,6 @@ export default async function TutorHomeworkPage() {
       <PageHead
         eyebrow="Marking"
         title="Marking queue"
-        sub={
-          rows.length === 0
-            ? "Nothing waiting to mark"
-            : `${rows.length} submission${rows.length === 1 ? "" : "s"} to mark across ${groups.length} subject${groups.length === 1 ? "" : "s"}`
-        }
       />
 
       {rows.length === 0 ? (

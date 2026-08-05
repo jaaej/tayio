@@ -60,7 +60,6 @@ export default async function ParentProgressPage({
       <div className="space-y-6">
         <PageHeader
           title="Progress"
-          sub="How your child is tracking across subjects and topics."
         />
         <EmptyChildrenNotice />
       </div>

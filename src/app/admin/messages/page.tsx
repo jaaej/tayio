@@ -32,7 +32,6 @@ export default async function AdminMessagesPage() {
         className="rise"
         eyebrow="Direct messages"
         title="Messages"
-        sub="Your direct conversations with parents, students, and tutors."
       />
       <InboxCompose
         threads={threads}

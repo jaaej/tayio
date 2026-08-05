@@ -134,6 +134,16 @@ Remove the skill/experience barrier to traversing the portal.
 
 When a change touches navigation or IA, briefly state how it reduces steps or ambiguity for a first-time user. If it adds steps or a new place to look, justify why or find a simpler path.
 
+## Microcopy: no redundant subtitles or state-narration (non-negotiable)
+
+Do not add explanatory microcopy that restates what a UI element already makes obvious, or that narrates the UI's own state back to the user. This clutters the interface and reads as filler. Let labels and content speak.
+
+- **No descriptive subtitles under section/page headings that just list or paraphrase the contents.** E.g. under a "Learning updates" heading, do NOT add "Quizzes, homework, feedback, and discussions"; under "Action needed", do NOT add "Requests, changes, deadlines, and decisions". The heading is enough.
+- **No meta-count / state narration.** E.g. "8 unread across 3 sections", "Showing 12 of 40", "You have 3 items in 2 groups". A single functional count is fine where it's actionable (a badge on an item, "3 to mark"); a sentence that summarizes the UI's own layout is not.
+- **Allowed:** a genuine empty-state message ("Nothing here yet"), a real instruction the user needs to act ("Click a pill to mark yourself available"), a status that conveys new information ("An admin requested changes"). The test: does the text tell the user something they can't already see from the labels and content? If not, cut it.
+
+When you add or edit any header/section, apply this test and omit the subtitle rather than inventing one. When you spot an existing violation, remove it.
+
 ## Karpathy Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.

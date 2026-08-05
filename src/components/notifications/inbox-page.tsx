@@ -43,11 +43,6 @@ export async function NotificationsInbox({
               <h1 className="mt-0.5 text-[28px] font-extrabold tracking-[-0.025em] text-ink sm:text-[34px]">
                 Inbox
               </h1>
-              <p className="mt-1 text-[13px] font-semibold text-muted">
-                {unread > 0
-                  ? `${unread} unread across ${groups.length} ${groups.length === 1 ? "section" : "sections"}`
-                  : "All caught up."}
-              </p>
             </div>
           </div>
 
@@ -104,9 +99,6 @@ export async function NotificationsInbox({
                       </span>
                     )}
                   </div>
-                  <p className="truncate text-[11px] font-semibold text-muted">
-                    {group.description}
-                  </p>
                 </div>
                 <div aria-hidden className="h-px min-w-8 flex-1 bg-line" />
               </div>

@@ -30,7 +30,6 @@ export default async function TutorMessagesPage() {
       <PageHead
         eyebrow="Messages"
         title="Direct messages"
-        sub="Conversations with your students, their parents, and the admin office."
       />
       <InboxCompose
         threads={threads}

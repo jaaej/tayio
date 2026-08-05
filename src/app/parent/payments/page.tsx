@@ -30,7 +30,6 @@ export default async function ParentPaymentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Payments & invoices"
-        sub="Your invoice history and upcoming payments."
       />
 
       <section

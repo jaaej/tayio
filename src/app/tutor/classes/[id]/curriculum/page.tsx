@@ -215,34 +215,6 @@ export default async function TutorClassCurriculumPage({
           />
           {selected && (
             <div className="space-y-3 min-w-0">
-              <div className="rounded-[14px] border border-line bg-surface px-4 py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[13px] font-bold text-ink">Quiz</div>
-                  <div className="text-[12px] text-muted">
-                    {selected.editableQuiz
-                      ? selected.editableQuiz.status === "changes_requested"
-                        ? "An admin requested changes to this week's quiz."
-                        : "An admin requested a quiz for this week."
-                      : "No quiz requested for this week."}
-                  </div>
-                </div>
-                {selected.editableQuiz ? (
-                  <Link
-                    href={`/tutor/quizzes/${selected.editableQuiz.id}`}
-                    className="shrink-0 inline-flex items-center rounded-full bg-brand-600 px-3.5 py-2 text-[13px] font-bold text-white hover:bg-brand-700 transition-colors"
-                  >
-                    Edit quiz →
-                  </Link>
-                ) : (
-                  <span
-                    aria-disabled="true"
-                    title="Locked until an admin requests a quiz for this week"
-                    className="shrink-0 inline-flex items-center rounded-[10px] border border-line bg-surface-2 px-3.5 py-2 text-[13px] font-bold text-muted cursor-not-allowed"
-                  >
-                    Edit quiz
-                  </span>
-                )}
-              </div>
               <SectionEditor
                 classId={classId}
                 week={selected}
