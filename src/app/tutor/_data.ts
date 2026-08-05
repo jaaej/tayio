@@ -75,87 +75,75 @@ export async function getTutorClasses(tutorId: string) {
 }
 
 /**
- * Everything the single-page class hub (`/tutor/classes/[id]`) needs: the class
- * header, its next (or today's) lesson for the attendance callout, and its
- * active roster. Verifies the tutor owns the class (404 otherwise).
+ * The tutor's today's-or-next lesson across ALL their classes - the one-tap
+ * attendance entry on the classes list. `null` when nothing is scheduled ahead.
  */
-export async function getClassHubForTutor(tutorId: string, classId: string) {
-  const [cls] = await db
-    .select({
-      id: classes.id,
-      name: classes.name,
-      subjectId: classes.subjectId,
-      subjectName: subjects.name,
-      subjectYear: subjects.yearLevel,
-      weekday: classes.weekday,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-      location: classes.location,
-      onlineLink: classes.onlineLink,
-      capacity: classes.capacity,
-      lessonPlan: classes.lessonPlan,
-    })
-    .from(classes)
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
-    .limit(1);
-  if (!cls) notFound();
+export async function getTutorNextLesson(tutorId: string) {
+  const today = todayDateString();
 
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-  const [nextLesson] = await db
+  const [next] = await db
     .select({
       id: lessons.id,
       date: lessons.date,
       startTime: lessons.startTime,
       endTime: lessons.endTime,
-      status: lessons.status,
+      className: classes.name,
+      subjectName: subjects.name,
     })
     .from(lessons)
+    .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
     .where(
       and(
-        eq(lessons.classId, classId),
-        sql`${lessons.date} >= ${todayStr}`,
+        eq(classes.tutorId, tutorId),
+        sql`${lessons.date} >= ${today}`,
         sql`${lessons.status} <> 'cancelled'`,
       ),
     )
     .orderBy(asc(lessons.date), asc(lessons.startTime))
     .limit(1);
 
-  const roster = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      yearLevel: profiles.yearLevel,
-    })
-    .from(enrollments)
-    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-    .where(
-      and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
-    )
-    .orderBy(asc(profiles.lastName));
+  if (!next) return null;
+  return { ...next, isToday: next.date === today };
+}
 
-  const classAnnouncements = await db
-    .select({
-      id: announcements.id,
-      title: announcements.title,
-      body: announcements.body,
-      publishedAt: announcements.publishedAt,
-    })
-    .from(announcements)
-    .where(eq(announcements.audienceClassId, classId))
-    .orderBy(desc(announcements.publishedAt))
-    .limit(20);
+/**
+ * A class's announcements (newest first) plus its active roster size, for the
+ * announcements card on the class curriculum page. Verifies the tutor owns the
+ * class (404 otherwise).
+ */
+export async function getClassAnnouncementsForTutor(
+  tutorId: string,
+  classId: string,
+) {
+  const [cls] = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
+    .limit(1);
+  if (!cls) notFound();
 
-  return {
-    class: cls,
-    nextLesson: nextLesson ?? null,
-    isToday: !!nextLesson && nextLesson.date === todayStr,
-    roster,
-    announcements: classAnnouncements,
-  };
+  const [rows, [rosterRow]] = await Promise.all([
+    db
+      .select({
+        id: announcements.id,
+        title: announcements.title,
+        body: announcements.body,
+        publishedAt: announcements.publishedAt,
+      })
+      .from(announcements)
+      .where(eq(announcements.audienceClassId, classId))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(20),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(enrollments)
+      .where(
+        and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+      ),
+  ]);
+
+  return { announcements: rows, rosterCount: rosterRow?.count ?? 0 };
 }
 
 async function getTutorClassIds(tutorId: string): Promise<string[]> {
@@ -444,6 +432,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       recordingUrl: lessons.recordingUrl,
       classId: classes.id,
       className: classes.name,
+      lessonPlan: classes.lessonPlan,
       subjectName: subjects.name,
     })
     .from(lessons)

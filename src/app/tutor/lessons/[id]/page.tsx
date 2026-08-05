@@ -5,6 +5,7 @@ import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonReschedules } from "@/lib/reschedule";
+import { LessonPlanEditor } from "@/app/tutor/_components/lesson-plan-editor";
 import {
   saveAttendance,
   saveLessonNote,
@@ -185,6 +186,20 @@ export default async function LessonDetailPage({
             </ul>
           </div>
         )}
+      </Card>
+
+      {/* Lesson plan - forward-looking, visible to students + parents */}
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Lesson plan"
+          action={<span className="text-[12px] text-muted">What's coming up</span>}
+        />
+        <CardBody>
+          <LessonPlanEditor
+            classId={lesson.classId}
+            initial={lesson.lessonPlan ?? ""}
+          />
+        </CardBody>
       </Card>
 
       {/* Recording link - a hosted video the class's students can watch back */}

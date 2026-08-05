@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateLessonPlan } from "../../../_actions";
+import { updateLessonPlan } from "../_actions";
 
 export function LessonPlanEditor({
   classId,

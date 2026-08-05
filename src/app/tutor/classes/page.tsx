@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClipboardCheck } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
@@ -6,13 +7,14 @@ import {
   MiniWeekCalendar,
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
-import { startOfMondayWeek } from "@/lib/format";
+import { formatDateLong, formatTime, startOfMondayWeek } from "@/lib/format";
 import {
   colorFamilyForSubject,
   getAccentTokens,
 } from "@/lib/subject-colors";
 import {
   getTutorClasses,
+  getTutorNextLesson,
   getTutorStudents,
   getTutorWeekLessons,
   requireTutor,
@@ -40,10 +42,11 @@ export default async function TutorClassesPage() {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 7);
 
-  const [list, weekLessons, students] = await Promise.all([
+  const [list, weekLessons, students, nextLesson] = await Promise.all([
     getTutorClasses(tutor.id),
     getTutorWeekLessons(tutor.id, weekStart, weekEnd),
     getTutorStudents(tutor.id),
+    getTutorNextLesson(tutor.id),
   ]);
 
   const events: CalendarEvent[] = weekLessons.map((l) => ({
@@ -100,6 +103,54 @@ export default async function TutorClassesPage() {
         </Card>
       ) : (
         <div>
+          {/* Upcoming class - the one-tap attendance entry, in context */}
+          {nextLesson && (
+            <Link
+              href={`/tutor/lessons/${nextLesson.id}`}
+              className="block group mb-5"
+            >
+              <Card
+                className={`overflow-hidden transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)] ${nextLesson.isToday ? "border-brand-300" : ""}`}
+              >
+                <CardBody>
+                  <div className="flex items-center gap-4">
+                    <span className="grid place-items-center h-11 w-11 rounded-[12px] bg-brand-100 text-brand-700 shrink-0">
+                      <ClipboardCheck
+                        className="h-[22px] w-[22px]"
+                        strokeWidth={2.2}
+                        aria-hidden
+                      />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
+                          {nextLesson.isToday ? "Today's class" : "Next class"}
+                        </span>
+                        {nextLesson.isToday && <Pill tone="brand">Now</Pill>}
+                      </div>
+                      <div className="text-[15px] font-extrabold text-ink leading-tight mt-0.5 truncate">
+                        {formatDateLong(nextLesson.date)} ·{" "}
+                        <span className="tabular-nums">
+                          {formatTime(nextLesson.startTime)}–
+                          {formatTime(nextLesson.endTime)}
+                        </span>
+                      </div>
+                      <div className="text-[12px] text-muted mt-0.5 truncate">
+                        {nextLesson.className} · {nextLesson.subjectName} ·{" "}
+                        {nextLesson.isToday
+                          ? "Open to mark attendance and write notes"
+                          : "Open the lesson"}
+                      </div>
+                    </div>
+                    <span className="text-[13px] font-bold text-brand-700 shrink-0">
+                      View class →
+                    </span>
+                  </div>
+                </CardBody>
+              </Card>
+            </Link>
+          )}
+
           <SectionHead title="All classes" />
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {list.map((c) => {
@@ -112,7 +163,7 @@ export default async function TutorClassesPage() {
               return (
                 <Link
                   key={c.id}
-                  href={`/tutor/classes/${c.id}`}
+                  href={`/tutor/classes/${c.id}/curriculum`}
                   className="block group h-full"
                 >
                 <Card className="overflow-hidden h-full transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)]">
@@ -171,7 +222,7 @@ export default async function TutorClassesPage() {
                     </dl>
                     <div className="mt-3 pt-3 border-t border-line flex items-center justify-end">
                       <span className="text-[13px] font-bold text-brand-700 group-hover:text-brand-800">
-                        Open class →
+                        Open curriculum →
                       </span>
                     </div>
                   </CardBody>
