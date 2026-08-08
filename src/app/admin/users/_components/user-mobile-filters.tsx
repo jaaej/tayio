@@ -9,6 +9,10 @@ import { ChevronDown, SlidersHorizontal } from "lucide-react";
  * with the table, so this collapsible panel is the one reachable home for them
  * below `lg`. Same URL search params as the header controls - no divergent
  * state - so switching viewport keeps the active filter.
+ *
+ * Role is deliberately absent: its pill row sits above the table and is always
+ * visible at every width, so duplicating it here would give one filter two
+ * homes.
  */
 const SELECT =
   "w-full rounded-[10px] border border-line-field bg-surface px-3 py-2 text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500";
@@ -28,11 +32,10 @@ export function UserMobileFilters({ schools }: { schools: string[] }) {
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  const role = searchParams.get("role") ?? "";
   const school = searchParams.get("school") ?? "";
   const status = searchParams.get("status") ?? "";
   const nameSort = searchParams.get("name") === "desc" ? "desc" : "asc";
-  const activeCount = [role, school, status].filter(Boolean).length;
+  const activeCount = [school, status].filter(Boolean).length;
 
   return (
     <details className="group lg:hidden">
@@ -49,20 +52,6 @@ export function UserMobileFilters({ schools }: { schools: string[] }) {
         <ChevronDown className="h-4 w-4 text-muted transition-transform group-open:rotate-180" />
       </summary>
       <div className="mt-2 grid gap-3 rounded-[10px] border border-line bg-surface p-3">
-        <label className={LABEL}>
-          Role
-          <select
-            className={SELECT}
-            value={role}
-            onChange={(e) => update("role", e.target.value)}
-          >
-            <option value="">All roles</option>
-            <option value="admin">Admins</option>
-            <option value="tutor">Tutors</option>
-            <option value="parent">Parents</option>
-            <option value="student">Students</option>
-          </select>
-        </label>
         <label className={LABEL}>
           Year / school
           <select

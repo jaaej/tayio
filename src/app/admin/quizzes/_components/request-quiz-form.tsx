@@ -1,107 +1,109 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { requestQuiz } from "@/app/_actions/quizzes";
+import type { QuizTargetWeek } from "@/lib/quiz-queries";
+import { SubjectWeekFields } from "./subject-week-fields";
 
+export type RequestQuizValues = {
+  subjectWeekId: string;
+  title: string;
+  tutorId: string;
+  note?: string;
+};
+
+/**
+ * Body of the "Ask a tutor" tab of the new-quiz slide-over. Same field
+ * structure as `NewQuizForm` plus the tutor it goes to and an optional brief.
+ */
 export function RequestQuizForm({
+  formId,
   tutors,
   weeks,
+  disabled,
+  error,
+  onSubmit,
 }: {
+  formId: string;
   tutors: { id: string; name: string }[];
-  weeks: { id: string; label: string }[];
+  weeks: QuizTargetWeek[];
+  disabled: boolean;
+  error: string | null;
+  onSubmit: (values: RequestQuizValues) => void;
 }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  if (tutors.length === 0 || weeks.length === 0) {
-    return (
-      <p className="text-[13px] text-muted">
-        {tutors.length === 0
-          ? "Add an active tutor account before requesting a quiz."
-          : "No unused subject weeks are available. Add a curriculum week or edit its existing quiz."}
-      </p>
-    );
-  }
+  const titleId = `${formId}-title`;
+  const tutorId = `${formId}-tutor`;
+  const noteId = `${formId}-note`;
 
   return (
     <form
-      className="space-y-4"
+      id={formId}
+      className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        setError(null);
         const fd = new FormData(e.currentTarget);
-        start(async () => {
-          const note = String(fd.get("note") || "").trim();
-          const res = await requestQuiz({
-            subjectWeekId: String(fd.get("subjectWeekId") || ""),
-            title: String(fd.get("title") || ""),
-            tutorId: String(fd.get("tutorId") || ""),
-            note: note.length > 0 ? note : undefined,
-          });
-          if (res.ok) {
-            router.push(`/admin/quizzes/${res.id}`);
-          } else {
-            setError(res.error);
-          }
+        const note = String(fd.get("note") ?? "").trim();
+        onSubmit({
+          subjectWeekId: String(fd.get("subjectWeekId") ?? ""),
+          title: String(fd.get("title") ?? "").trim(),
+          tutorId: String(fd.get("tutorId") ?? ""),
+          note: note.length > 0 ? note : undefined,
         });
       }}
     >
-      <div className="space-y-1.5">
-        <Label htmlFor="req-quiz-tutor">Tutor</Label>
-        <Select id="req-quiz-tutor" name="tutorId" required defaultValue="">
-          <option value="" disabled>
-            Pick a tutor
-          </option>
-          {tutors.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
+      <fieldset disabled={disabled} className="space-y-5">
+        <div className="space-y-1.5">
+          <Label htmlFor={titleId} className="block font-bold">
+            Title
+          </Label>
+          <Input
+            id={titleId}
+            name="title"
+            required
+            maxLength={200}
+            placeholder="Week 4 quiz"
+            autoComplete="off"
+          />
+        </div>
+
+        <SubjectWeekFields idPrefix={formId} weeks={weeks} />
+
+        <div className="space-y-1.5">
+          <Label htmlFor={tutorId} className="block font-bold">
+            Tutor
+          </Label>
+          <Select id={tutorId} name="tutorId" required defaultValue="">
+            <option value="" disabled>
+              Pick a tutor
             </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="req-quiz-week">Subject &amp; week</Label>
-        <Select id="req-quiz-week" name="subjectWeekId" required defaultValue="">
-          <option value="" disabled>
-            Pick a subject week
-          </option>
-          {weeks.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="req-quiz-title">Title</Label>
-        <Input id="req-quiz-title" name="title" required maxLength={200} placeholder="Week 4 quiz" />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="req-quiz-note">Note (optional)</Label>
-        <textarea
-          id="req-quiz-note"
-          name="note"
-          rows={3}
-          maxLength={5000}
-          placeholder="Anything the tutor should know before building this quiz"
-          className="w-full rounded-xl border border-hairline/60 bg-card px-4 py-2.5 text-sm text-ink placeholder:text-muted/70 transition-colors focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20"
-        />
-      </div>
-      <div className="flex items-center gap-3 pt-1">
-        <Button type="submit" variant="brand" disabled={pending}>
-          {pending ? "Sending…" : "Request quiz"}
-        </Button>
-        {error && (
-          <span role="alert" className="text-[12px] font-semibold text-bad">
-            {error}
-          </span>
-        )}
-      </div>
+            {tutors.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={noteId} className="block font-bold">
+            Note (optional)
+          </Label>
+          <textarea
+            id={noteId}
+            name="note"
+            rows={3}
+            maxLength={5000}
+            placeholder="Anything the tutor should know before building this quiz"
+            className="w-full rounded-[10px] border border-line-field bg-card px-4 py-2.5 text-sm text-ink placeholder:text-muted/70 transition-colors focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20"
+          />
+        </div>
+      </fieldset>
+
+      {error && (
+        <p role="alert" className="text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

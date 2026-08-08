@@ -283,12 +283,12 @@ export function QuizMaker({
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <main className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700">
                 Question canvas
               </div>
-              <h2 className="mt-1 text-[20px] font-extrabold tracking-[-0.02em] text-ink">
+              <h2 className="mt-2 text-[20px] font-extrabold tracking-[-0.02em] text-ink">
                 Build the quiz
               </h2>
             </div>
@@ -306,7 +306,7 @@ export function QuizMaker({
                 <h3 className="mt-4 text-[18px] font-extrabold text-ink">
                   Start with your first question
                 </h3>
-                <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
+                <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted">
                   Use the builder tools to add multiple-choice, true/false, or a
                   context set with its own sub-questions. Attach supporting files
                   to any question.
@@ -361,7 +361,7 @@ export function QuizMaker({
                   Quiz files (legacy)
                 </h2>
               </div>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-muted">
+              <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted">
                 Older quiz-level files. New files attach to a specific question.
               </p>
               <div className="mt-3 space-y-2">
@@ -446,7 +446,7 @@ function TitleEditor({
     <div className="mt-4">
       <label
         htmlFor={`quiz-title-${quizId}`}
-        className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted"
+        className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted"
       >
         Quiz name
       </label>
@@ -473,18 +473,18 @@ function TitleEditor({
               },
             );
           }}
-          className="mt-1 min-h-12 w-full max-w-3xl rounded-[14px] border border-brand-200 bg-white/90 px-4 py-2 text-[22px] font-extrabold tracking-[-0.02em] text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 sm:text-[26px]"
+          className="mt-2 min-h-12 w-full max-w-3xl rounded-[14px] border border-brand-200 bg-white/90 px-4 py-2 text-[22px] font-extrabold tracking-[-0.02em] text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 sm:text-[26px]"
         />
       ) : (
         <h1
           id={`quiz-title-${quizId}`}
-          className="mt-1 text-[26px] font-extrabold tracking-[-0.025em] text-ink sm:text-[30px]"
+          className="mt-2 text-[26px] font-extrabold tracking-[-0.025em] text-ink sm:text-[30px]"
         >
           {title}
         </h1>
       )}
       {error && (
-        <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">
+        <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
@@ -498,7 +498,7 @@ function Metric({ value, label }: { value: string | number; label: string }) {
       <div className="text-[20px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
         {value}
       </div>
-      <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted">
+      <div className="mt-1.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted">
         {label}
       </div>
     </div>
@@ -524,7 +524,7 @@ function BuilderTools({
         <Plus className="h-4 w-4 text-brand-600" />
         <h2 className="text-[14px] font-extrabold text-ink">Add a question</h2>
       </div>
-      <p className="mt-1 text-[11px] font-semibold leading-relaxed text-muted">
+      <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted">
         Pick a format. New questions appear at the end of the canvas.
       </p>
       <div className="mt-3 grid gap-2">
@@ -852,6 +852,10 @@ function QuestionCard({
   const { error, pending, run } = useActionRunner();
   const isTrueFalse = question.type === "true_false";
   const promptId = `quiz-prompt-${question.id}`;
+  // With reorder and/or delete controls present the header row cannot fit the
+  // prompt alongside them on a phone, so the prompt drops to its own full-width
+  // line and the 44px controls share a toolbar row with the number badge.
+  const hasSideControls = Boolean(reorder) || editable;
 
   return (
     <article
@@ -862,14 +866,21 @@ function QuestionCard({
       }
     >
       <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         {reorder && (
           <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
         )}
-        <span className="grid h-10 min-w-10 shrink-0 place-items-center rounded-[12px] bg-brand-100 px-1 text-[13px] font-extrabold text-brand-ink">
+        <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-[12px] bg-brand-100 px-1 text-[13px] font-extrabold text-brand-ink">
           {displayLabel}
         </span>
-        <div className="min-w-0 flex-1">
+        <div
+          className={
+            "min-w-0 flex-1" +
+            (hasSideControls
+              ? " order-last basis-full sm:order-none sm:basis-0"
+              : "")
+          }
+        >
           <div className="flex flex-wrap items-center gap-2">
             <label
               htmlFor={promptId}
@@ -907,7 +918,7 @@ function QuestionCard({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {reorder && <MoveButtons label={`question ${displayLabel}`} reorder={reorder} />}
           {editable && (
             <button
@@ -936,7 +947,7 @@ function QuestionCard({
         <legend className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
           Answers - choose the correct option
         </legend>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {question.options.map((option, optionIndex) => (
             <OptionRow
               key={option.id}
@@ -961,7 +972,7 @@ function QuestionCard({
       />
 
       {error && (
-        <p role="alert" className="mt-3 text-[12px] font-semibold text-bad">
+        <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
@@ -1000,6 +1011,7 @@ function ContextCard({
   const { error, pending, run } = useActionRunner();
   const passageId = `quiz-passage-${context.id}`;
   const contextNumber = index + 1;
+  const hasSideControls = Boolean(reorder) || editable;
 
   const childIds = subQuestions.map((child) => child.id);
   const childReorder = useReorder(quizId, context.id, childIds);
@@ -1013,14 +1025,21 @@ function ContextCard({
       }
     >
       <div className="border-b border-line bg-brand-50/40 p-5 sm:p-6">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           {reorder && (
             <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
           )}
-          <span className="grid h-10 min-w-10 shrink-0 place-items-center rounded-[12px] bg-brand-600 px-1 text-[13px] font-extrabold text-white">
+          <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-[12px] bg-brand-600 px-1 text-[13px] font-extrabold text-white">
             {contextNumber}
           </span>
-          <div className="min-w-0 flex-1">
+          <div
+            className={
+              "min-w-0 flex-1" +
+              (hasSideControls
+                ? " order-last basis-full sm:order-none sm:basis-0"
+                : "")
+            }
+          >
             <div className="flex flex-wrap items-center gap-2">
               <label
                 htmlFor={passageId}
@@ -1060,7 +1079,7 @@ function ContextCard({
               </p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             {reorder && (
               <MoveButtons label={`context set ${contextNumber}`} reorder={reorder} />
             )}
@@ -1095,7 +1114,7 @@ function ContextCard({
           totalCount={totalAttachmentCount}
         />
         {error && (
-          <p role="alert" className="mt-3 text-[12px] font-semibold text-bad">
+          <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
             {error}
           </p>
         )}
@@ -1177,7 +1196,7 @@ function AddOptionButton({ questionId }: { questionId: string }) {
         <Plus className="h-4 w-4" /> Add option
       </button>
       {error && (
-        <p role="alert" className="mt-1 text-[11px] font-semibold text-bad">
+        <p role="alert" className="mt-2 text-[11px] font-semibold text-bad">
           {error}
         </p>
       )}
@@ -1279,7 +1298,7 @@ function OptionRow({
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-1 text-[10px] font-semibold text-bad">
+        <p role="alert" className="mt-2 text-[10px] font-semibold text-bad">
           {error}
         </p>
       )}

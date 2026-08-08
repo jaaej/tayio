@@ -45,22 +45,10 @@ export function UserTableHeaderRow({ schools }: { schools: string[] }) {
         Email
       </th>
 
+      {/* Role has no column filter: the always-visible pill row above the table
+          is its one home, so the same task never lives in two places. */}
       <th scope="col" className={TH}>
-        <span className="inline-flex items-center gap-2">
-          Role
-          <ColumnFilter
-            label="Filter by role"
-            value={searchParams.get("role") ?? ""}
-            onChange={(v) => update("role", v)}
-            options={[
-              { value: "", label: "All roles" },
-              { value: "admin", label: "Admins" },
-              { value: "tutor", label: "Tutors" },
-              { value: "parent", label: "Parents" },
-              { value: "student", label: "Students" },
-            ]}
-          />
-        </span>
+        Role
       </th>
 
       <th scope="col" className={TH}>

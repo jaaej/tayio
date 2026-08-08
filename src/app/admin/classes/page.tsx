@@ -6,8 +6,8 @@ import { classes, enrollments, profiles, subjects } from "@/db/schema";
 import { Card, CardHead, CardBody, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CreateClassForm } from "./_components/create-class-form";
-import { CreateSubjectForm } from "./_components/create-subject-form";
+import { CreateClassPanel } from "./_components/create-class-panel";
+import { CreateSubjectPanel } from "./_components/create-subject-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -111,63 +111,79 @@ export default async function ClassesPage({
         className="rise"
         eyebrow="Operations"
         title="Class Management"
+        actions={<CreateClassPanel tutors={tutors} subjects={subjectList} />}
       />
 
-      <section className="grid lg:grid-cols-2 gap-5 rise">
+      {/* Subjects lead: they are the shortest surface on the page and a class
+          cannot exist without one, so they sit above the tall schedule grid. */}
+      <section className="rise" style={{ animationDelay: "40ms" }}>
         <Card>
-          <CardHead title="Create class" />
-          <CardBody>
-            <CreateClassForm tutors={tutors} subjects={subjectList} />
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHead title="Subjects" action={<CreateSubjectForm />} />
+          <CardHead title="Subjects" action={<CreateSubjectPanel />} />
           {subjectList.length === 0 ? (
             <Empty>No subjects yet.</Empty>
           ) : (
-            <div className="divide-y divide-line">
-              {subjectList.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/admin/subjects/${s.id}/curriculum`}
-                  className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface-2 transition-colors"
-                >
-                  <span className="text-[14px] font-bold text-ink truncate">
-                    {s.name}
-                  </span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    {s.yearLevel && <Pill tone="sky">Yr {s.yearLevel}</Pill>}
-                    <span className="text-[12px] font-bold text-brand-600">
-                      Curriculum →
+            <CardBody>
+              {/* Tiles rather than full-width rows: a subject is a short label,
+                  and a wrapped grid uses the page width instead of stretching
+                  one name across it. */}
+              <div
+                className="grid gap-3"
+                style={{
+                  // `min(240px, 100%)` keeps a single tile from overflowing the
+                  // card on the narrowest phones, where the body is under 240px.
+                  gridTemplateColumns:
+                    "repeat(auto-fill, minmax(min(240px, 100%), 1fr))",
+                }}
+              >
+                {subjectList.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/admin/subjects/${s.id}/curriculum`}
+                    className="flex flex-col gap-2 rounded-[14px] border border-line bg-surface px-4 py-3.5 transition-colors hover:border-brand-400 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  >
+                    <span className="text-[14px] font-bold text-ink truncate">
+                      {s.name}
                     </span>
-                  </span>
-                </Link>
-              ))}
-            </div>
+                    <span className="flex items-center justify-between gap-2">
+                      {s.yearLevel ? (
+                        <Pill tone="sky">Yr {s.yearLevel}</Pill>
+                      ) : (
+                        <span aria-hidden />
+                      )}
+                      <span className="text-[12px] font-bold text-brand-600 shrink-0">
+                        Curriculum →
+                      </span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </CardBody>
           )}
         </Card>
       </section>
 
-      <section className="rise" style={{ animationDelay: "120ms" }}>
+      <section className="rise" style={{ animationDelay: "80ms" }}>
         <Card>
           <CardHead
             title={isMonth ? "Monthly Schedule" : "Weekly Schedule"}
             action={
-              <div className="flex items-center gap-3">
-                <Link
-                  href={isMonth ? "/admin/classes" : `/admin/classes?view=month`}
-                  className="text-[12px] font-bold text-brand-600 hover:underline"
-                >
-                  {isMonth ? "← Back to weekly" : "Open monthly →"}
-                </Link>
-                <Pill>
-                  {rows.length} class{rows.length === 1 ? "" : "es"}
-                </Pill>
-              </div>
+              <Link
+                href={isMonth ? "/admin/classes" : `/admin/classes?view=month`}
+                className="text-[12px] font-bold text-brand-600 hover:underline"
+              >
+                {isMonth ? "← Back to weekly" : "Open monthly →"}
+              </Link>
             }
           />
           {rows.length === 0 ? (
-            <Empty>No classes yet - create your first above.</Empty>
+            <Empty className="flex flex-col items-center gap-4">
+              No classes yet.
+              <CreateClassPanel
+                tutors={tutors}
+                subjects={subjectList}
+                triggerSize="lg"
+              />
+            </Empty>
           ) : isMonth ? (
             <MonthView rows={rows} monthParam={m} />
           ) : (
@@ -216,8 +232,10 @@ function WeekView({
 
   return (
     <div className="space-y-3">
-      <div className="px-5 pt-4 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      {/* The period label is the grid's heading, so on narrow widths it takes
+          its own line rather than squeezing the controls either side of it. */}
+      <div className="px-5 pt-4 flex flex-wrap items-center justify-between gap-y-2">
+        <div className="order-2 sm:order-none flex items-center gap-1.5">
           <Link
             href={`/admin/classes?w=${isoLocal(prevWeek)}`}
             aria-label="Previous week"
@@ -233,12 +251,12 @@ function WeekView({
             ›
           </Link>
         </div>
-        <div className="text-[14px] font-bold text-ink tabular-nums">
-          {shortDate(weekStart)} – {shortDate(weekEnd)}
-        </div>
+        <h4 className="order-1 sm:order-none w-full sm:w-auto text-center text-[20px] lg:text-[22px] font-extrabold tracking-[-0.01em] text-ink tabular-nums">
+          {shortDate(weekStart)} - {shortDate(weekEnd)}
+        </h4>
         <Link
           href="/admin/classes"
-          className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
+          className="order-3 sm:order-none text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
         >
           This week
         </Link>
@@ -320,8 +338,9 @@ function MonthView({
 
   return (
     <div className="space-y-3">
-      <div className="px-5 pt-4 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      {/* Same nav shape as the weekly view - see the note there. */}
+      <div className="px-5 pt-4 flex flex-wrap items-center justify-between gap-y-2">
+        <div className="order-2 sm:order-none flex items-center gap-1.5">
           <Link
             href={`/admin/classes?view=month&m=${mKey(prevMonth)}`}
             aria-label="Previous month"
@@ -337,12 +356,12 @@ function MonthView({
             <ChevronRight className="h-[18px] w-[18px]" aria-hidden />
           </Link>
         </div>
-        <div className="text-[14px] font-bold text-ink tabular-nums">
+        <h4 className="order-1 sm:order-none w-full sm:w-auto text-center text-[20px] lg:text-[22px] font-extrabold tracking-[-0.01em] text-ink tabular-nums">
           {MONTH_NAMES[month]} {year}
-        </div>
+        </h4>
         <Link
           href="/admin/classes?view=month"
-          className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
+          className="order-3 sm:order-none text-[11px] uppercase tracking-[0.16em] font-bold text-brand-600 hover:underline"
         >
           This month
         </Link>

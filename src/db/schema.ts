@@ -963,6 +963,9 @@ export const quizStatusEnum = pgEnum("quiz_status", [
   "pending_review",
   "changes_requested",
   "approved",
+  // Admin-written and admin-published. Live exactly like "approved"; last in
+  // the list because ALTER TYPE ... ADD VALUE appended it in the DB (0039).
+  "admin",
 ]);
 
 export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [

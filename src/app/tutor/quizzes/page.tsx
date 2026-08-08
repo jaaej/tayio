@@ -43,7 +43,9 @@ function QuizRows({ rows }: { rows: QuizListRow[] }) {
 const GROUPS: { key: string; heading: string; statuses: string[] }[] = [
   { key: "todo", heading: "To do", statuses: ["requested", "changes_requested"] },
   { key: "submitted", heading: "Submitted", statuses: ["pending_review"] },
-  { key: "done", heading: "Done", statuses: ["approved"] },
+  // "admin" belongs here too: it is live in the tutor's subject exactly like
+  // "approved", and a status with no group would drop off the page entirely.
+  { key: "done", heading: "Done", statuses: ["approved", "admin"] },
 ];
 
 export default async function TutorQuizzesPage() {
