@@ -73,6 +73,11 @@
   --muted-2:   #9094a1;
   --line:        #e1e7f5;
   --line-strong: #cdd6ec;
+  /* Form-control boundary. --line-strong is only 1.46:1 on white, so an input
+   * outlined with it reads as "white on white". This sits at 3.16:1, the WCAG
+   * 1.4.11 minimum for non-text UI boundaries. Not theme-overridden: a field
+   * edge has to stay visible in every portal scope. */
+  --line-field:  #8790ad;
 
   --radius-sm: 9px;
   --radius:    14px;
@@ -136,6 +141,7 @@
   --color-hairline: var(--hairline);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-line-field: var(--line-field);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);

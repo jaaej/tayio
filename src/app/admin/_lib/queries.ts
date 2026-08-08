@@ -6,7 +6,6 @@ import {
   eq,
   gte,
   inArray,
-  isNotNull,
   isNull,
   lt,
   lte,
@@ -666,83 +665,77 @@ export async function getLessonContextForStudent(
   return rows[0] ?? null;
 }
 
-export type DiscontinuedClass = {
-  classId: string;
-  className: string;
-  subjectName: string;
-  withdrawnAt: Date;
-};
-
-export type DiscontinuedStudent = {
-  studentId: string;
+export type DirectoryUser = {
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string | null;
-  mostRecentWithdraw: Date;
-  classes: DiscontinuedClass[];
+  role: UserRole;
+  yearLevel: string | null;
+  school: string | null;
+  isActive: boolean;
+  /** Enrolments still live. Always 0 for non-students. */
+  activeClasses: number;
+  /** Enrolments the student has been withdrawn from. Always 0 for non-students. */
+  withdrawnClasses: number;
+  /** Most recent withdrawal date, or null if they have never withdrawn. */
+  lastWithdrawnAt: Date | null;
 };
 
 /**
- * Students with at least one withdrawn enrolment, grouped so a student
- * withdrawn from N classes appears once with all N classes listed. Powers the
- * "Discontinued" tab on `/admin/users` (the sole home for withdrawn students;
- * the old standalone `/admin/leaving` page was retired 2026-08-03).
+ * Every account plus the enrolment counts the directory needs to derive a
+ * status. Powers `/admin/users`, whose Status filter replaced the old
+ * "Discontinued" tab (and, before that, the standalone `/admin/leaving` page).
  */
-export async function getDiscontinuedStudents(
-  limit = 200,
-): Promise<DiscontinuedStudent[]> {
-  const rows = await db
-    .select({
-      studentId: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-      classId: classes.id,
-      className: classes.name,
-      subjectName: subjects.name,
-      withdrawnAt: enrollments.withdrawnAt,
-    })
-    .from(enrollments)
-    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(isNotNull(enrollments.withdrawnAt))
-    .orderBy(desc(enrollments.withdrawnAt))
-    .limit(limit);
+export async function getUserDirectory(): Promise<DirectoryUser[]> {
+  const [people, enrolmentTotals] = await Promise.all([
+    db
+      .select({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+        email: profiles.email,
+        role: profiles.role,
+        yearLevel: profiles.yearLevel,
+        school: profiles.school,
+        isActive: profiles.isActive,
+      })
+      .from(profiles),
+    db
+      .select({
+        studentId: enrollments.studentId,
+        activeClasses: sql<number>`count(*) filter (where ${enrollments.withdrawnAt} is null)`,
+        withdrawnClasses: sql<number>`count(*) filter (where ${enrollments.withdrawnAt} is not null)`,
+        lastWithdrawnAt: sql<Date | null>`max(${enrollments.withdrawnAt})`,
+      })
+      .from(enrollments)
+      .groupBy(enrollments.studentId),
+  ]);
 
-  const byStudent = new Map<string, DiscontinuedStudent>();
-  for (const r of rows) {
-    if (!r.withdrawnAt) continue;
-    const classRecord: DiscontinuedClass = {
-      classId: r.classId,
-      className: r.className,
-      subjectName: r.subjectName,
-      withdrawnAt: r.withdrawnAt,
+  const totals = new Map(enrolmentTotals.map((t) => [t.studentId, t]));
+
+  return people.map((p) => {
+    const t = totals.get(p.id);
+    return {
+      ...p,
+      activeClasses: Number(t?.activeClasses ?? 0),
+      withdrawnClasses: Number(t?.withdrawnClasses ?? 0),
+      lastWithdrawnAt: t?.lastWithdrawnAt ? new Date(t.lastWithdrawnAt) : null,
     };
-    const existing = byStudent.get(r.studentId);
-    if (existing) {
-      existing.classes.push(classRecord);
-      if (r.withdrawnAt > existing.mostRecentWithdraw) {
-        existing.mostRecentWithdraw = r.withdrawnAt;
-      }
-    } else {
-      byStudent.set(r.studentId, {
-        studentId: r.studentId,
-        firstName: r.firstName,
-        lastName: r.lastName,
-        email: r.email,
-        phone: r.phone,
-        mostRecentWithdraw: r.withdrawnAt,
-        classes: [classRecord],
-      });
-    }
-  }
+  });
+}
 
-  return Array.from(byStudent.values()).sort(
-    (a, b) => b.mostRecentWithdraw.getTime() - a.mostRecentWithdraw.getTime(),
-  );
+/**
+ * An account is discontinued when it has been deactivated, or - for a student -
+ * when every one of their enrolments has been withdrawn. A student withdrawn
+ * from one class but still attending another stays active; their withdrawal is
+ * surfaced on the row rather than in the status.
+ */
+export function directoryStatus(u: DirectoryUser): "active" | "discontinued" {
+  if (!u.isActive) return "discontinued";
+  return u.withdrawnClasses > 0 && u.activeClasses === 0
+    ? "discontinued"
+    : "active";
 }
 
 export type CreditRow = {

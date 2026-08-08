@@ -5,3 +5,4 @@ export { PageHeader, BackLink } from "./page-header";
 export { Hero, HeroChip } from "./hero";
 export { Button, type ButtonProps } from "./button";
 export { Empty } from "./empty";
+export { FilterSelect, type FilterOption } from "./filter-select";
