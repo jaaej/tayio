@@ -35,7 +35,6 @@ export default async function AdminReschedulesPage() {
         className="rise"
         eyebrow="Reschedules"
         title="Reschedule credits"
-        sub="Class credits and this term's cancellation and reschedule usage across all students. Self-serve and admin reschedules apply directly, so there is no approval queue."
       />
 
       <Card className="rise">

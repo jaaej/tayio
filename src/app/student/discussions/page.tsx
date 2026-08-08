@@ -11,7 +11,6 @@ export default async function StudentDiscussionsPage() {
       boards={boards}
       hrefPrefix="/student/discussions"
       title="Ask. Answer. Level up."
-      subtitle="Subject boards for class questions, plus a general help board for everything else."
     />
   );
 }

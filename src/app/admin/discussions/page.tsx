@@ -11,7 +11,6 @@ export default async function AdminDiscussionsPage() {
       boards={boards}
       hrefPrefix="/admin/discussions"
       title="Oversee every board."
-      subtitle="All subject boards and the general help board in one place."
     />
   );
 }

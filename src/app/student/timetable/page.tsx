@@ -1,4 +1,4 @@
-import { Card, CardHead } from "@/components/student/card";
+import { Card } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { requireRole } from "@/lib/auth";
 import {
@@ -43,10 +43,6 @@ export default async function TimetablePage({
   const user = await requireRole("student");
   const isUnrestricted =
     (user.app_metadata?.role as string | undefined) === "student_unrestricted";
-  const firstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "Your";
   const params = await searchParams;
   const { year, month } = parseMonthParam(params.month);
   const now = new Date();
@@ -83,7 +79,6 @@ export default async function TimetablePage({
         <PageHead
           eyebrow="Timetable"
           title="Your schedule"
-          sub="Click a lesson to open it, then choose Go to subject, Reschedule, or Cancel."
         />
         <Card>
           <div className="p-4 lg:p-5">
@@ -140,17 +135,8 @@ export default async function TimetablePage({
       <PageHead
         eyebrow="Timetable"
         title={isCurrentMonth ? "Your schedule" : `${MONTH_NAMES[month]} ${year}`}
-        sub={
-          isCurrentMonth
-            ? "Browse upcoming lessons and homework due dates."
-            : undefined
-        }
       />
       <Card className="overflow-hidden">
-        <CardHead
-          title={`${firstName}'s schedule`}
-          action={`${lessons.length} lesson${lessons.length === 1 ? "" : "s"}`}
-        />
         <div className="p-4 lg:p-5">
           <MonthCalendar
             year={year}

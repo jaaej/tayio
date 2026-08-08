@@ -49,11 +49,6 @@ export default async function TutorResourcesPage() {
       <PageHead
         eyebrow="Resource library"
         title="Resources"
-        sub={
-          subjectList.length === 0
-            ? "You aren't assigned to any classes yet"
-            : `Add past papers, worksheets, and other materials for ${subjectList.length} subject${subjectList.length === 1 ? "" : "s"} you teach`
-        }
       />
 
       {subjectList.length === 0 ? (

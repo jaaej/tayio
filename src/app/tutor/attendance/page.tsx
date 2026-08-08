@@ -49,7 +49,6 @@ export default async function TutorAttendancePage() {
       <PageHead
         eyebrow="Attendance"
         title="Mark + review"
-        sub={`Last 4 weeks · ${past.length} past lesson${past.length === 1 ? "" : "s"} · ${unmarkedPast.length} still need marking`}
       />
 
       {today.length > 0 && (

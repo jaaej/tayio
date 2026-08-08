@@ -76,7 +76,6 @@ export default async function AdminAttendancePage({
         className="rise"
         eyebrow="Attendance"
         title="Attendance"
-        sub={`Lessons since ${formatDateLong(fromIso)}. Tutors mark attendance at their lesson page; admin can correct here.`}
       />
 
       <Card className="rise">

@@ -122,7 +122,6 @@ export default async function TutorClassStudentsPage({
       <PageHead
         eyebrow={cls.subjectName}
         title={`${cls.name} - Students`}
-        sub={`${students.length} enrolled`}
       />
 
       {todaysLesson ? (

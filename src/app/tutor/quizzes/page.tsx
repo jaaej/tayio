@@ -61,11 +61,6 @@ export default async function TutorQuizzesPage() {
       <PageHead
         eyebrow="Quiz maker"
         title="Quizzes"
-        sub={
-          totalShown === 0
-            ? "No quizzes assigned to you yet"
-            : `${totalShown} quiz${totalShown === 1 ? "" : "zes"} assigned to you`
-        }
       />
 
       {totalShown === 0 ? (

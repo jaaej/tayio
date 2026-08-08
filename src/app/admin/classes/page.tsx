@@ -111,11 +111,6 @@ export default async function ClassesPage({
         className="rise"
         eyebrow="Operations"
         title="Class Management"
-        actions={
-          <Pill tone="brand">
-            {rows.length} class{rows.length === 1 ? "" : "es"}
-          </Pill>
-        }
       />
 
       <section className="grid lg:grid-cols-2 gap-5 rise">

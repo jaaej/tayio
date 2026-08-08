@@ -13,7 +13,6 @@ export default async function TutorNotesPage() {
       <PageHead
         eyebrow="Lesson notes"
         title="Your most recent notes"
-        sub="Notes are written from the lesson page after each class."
       />
 
       {notes.length === 0 ? (

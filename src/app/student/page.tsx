@@ -144,11 +144,6 @@ export default async function StudentDashboard() {
                     key={s.classId}
                     name={s.subjectName}
                     mastery={s.masteryPercent}
-                    nextLabel={
-                      nextLesson && nextLesson.subjectName === s.subjectName
-                        ? `${formatWeekday(nextLesson.date, "short")} ${formatTime(nextLesson.startTime)}`
-                        : undefined
-                    }
                     href={`/student/subjects/${s.subjectId}`}
                   />
                 ))}

@@ -131,7 +131,6 @@ export default async function ParentReschedulePage({
         className="rise"
         eyebrow="Reschedule lesson"
         title={`${selected.firstName} · ${lesson.subjectName}`}
-        sub="Pick an open slot with the tutor to move to, or cancel for a class credit."
       />
 
       <section className="rise" style={{ animationDelay: "60ms" }}>

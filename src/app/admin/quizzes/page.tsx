@@ -25,12 +25,6 @@ export default async function AdminQuizzesPage() {
         className="rise"
         eyebrow="Curriculum"
         title="Quizzes"
-        sub="Author a quiz directly or request one from a tutor, then review before approving."
-        actions={
-          <Pill tone="brand">
-            {rows.length} {rows.length === 1 ? "quiz" : "quizzes"}
-          </Pill>
-        }
       />
 
       <section className="grid lg:grid-cols-2 gap-5">
