@@ -104,6 +104,22 @@ export function WeekEditor({
             className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink"
           />
         </label>
+        <label className="block text-sm">
+          <div className="text-[12px] font-bold text-ink-soft mb-1">
+            Learning objectives
+          </div>
+          <textarea
+            name="objectives"
+            defaultValue={existing?.objectives ?? ""}
+            rows={4}
+            placeholder={"One objective per line, e.g.\nUse alternate and co-interior angle rules\nSolve multi-step angle chases"}
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink placeholder:text-muted"
+          />
+          <p className="mt-1 text-[12px] text-muted">
+            Shown to students, parents, and tutors as a "By the end of this week
+            you can" checklist. One per line.
+          </p>
+        </label>
         <div className="flex gap-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : existing ? "Save" : "Create week"}

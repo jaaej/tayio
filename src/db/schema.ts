@@ -777,6 +777,8 @@ export const subjectWeeks = pgTable(
     weekNumber: integer("week_number").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    /** Learning objectives, one per line ("By the end of this week you can"). */
+    objectives: text("objectives"),
     videoUrl: text("video_url"),
     bookletUrl: text("booklet_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

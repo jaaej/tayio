@@ -18,6 +18,7 @@ import {
 } from "@/lib/subject-colors";
 import { Pill } from "@/components/student/pill";
 import { ProgressRing } from "@/components/student/progress-ring";
+import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { VideoPlayer } from "./video-player";
 import { BookletLink } from "./booklet-link";
 import type { StudentCurriculumWeek } from "../_queries";
@@ -51,9 +52,10 @@ export async function WeekContent({
 
   return (
     <div className="space-y-3.5">
-      {/* HERO - compact, vibrant, subject-coloured */}
+      {/* HERO - full-bleed rectangular banner, subject-coloured: flush from the
+          weeks rail on the left to the screen edge on the right. */}
       <section
-        className="relative overflow-hidden rounded-[22px] px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
+        className="relative overflow-hidden rounded-none -mt-3 -mr-3 lg:-mr-4 lg:-ml-4 px-5 py-4 lg:px-7 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
         style={{
           background: `radial-gradient(140% 160% at 0% 0%, ${withAlpha(tokens.bgFrom, 0.65)} 0%, transparent 45%), radial-gradient(120% 140% at 100% 0%, ${withAlpha(tokens.bgFrom, 0.4)} 0%, transparent 55%), linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
         }}
@@ -68,7 +70,6 @@ export async function WeekContent({
           <circle cx="70" cy="30" r="22" fill="rgba(255,255,255,0.10)" />
           <circle cx="70" cy="30" r="11" fill="rgba(255,255,255,0.14)" />
         </svg>
-
         <div className="relative z-10 flex items-center justify-between gap-5 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
@@ -119,301 +120,266 @@ export async function WeekContent({
         </div>
       </section>
 
-      {/* OVERVIEW - what this week covers */}
-      {week.description && (
-        <section>
-          <SectionHead title="Overview" />
-          <div className="rounded-[18px] border border-line bg-surface p-4 text-[14px] text-ink leading-relaxed whitespace-pre-wrap shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
-            {week.description}
-          </div>
-        </section>
-      )}
-
-      {/* VIDEO + BOOKLET - side-by-side */}
-      <div className="grid md:grid-cols-[1.6fr_1fr] gap-4">
-        {/* Video */}
-        <div className="rounded-[20px] border border-line bg-surface overflow-hidden shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-16px_rgba(31,40,90,0.16)]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <div className="flex items-center gap-2">
-              <span
-                className="h-7 w-7 rounded-[9px] grid place-items-center"
-                style={{ background: tokens.bgFrom, color: tokens.arrow }}
-              >
-                <PlayCircle className="h-4 w-4" />
-              </span>
-              <h3 className="m-0 text-[14px] font-bold text-ink">
-                Recorded lesson
-              </h3>
-            </div>
-            {videoDone ? (
-              <Pill tone="good">Watched · {relativeTime(week.videoWatchedAt!)}</Pill>
-            ) : (
-              <Pill tone="muted">Not watched</Pill>
+      {/* ONE connected block - every part of the week, split by dividers */}
+      <div className="overflow-hidden rounded-[20px] border border-line bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)] divide-y divide-line">
+        {/* Overview */}
+        {(week.description || week.objectives?.trim()) && (
+          <section className="p-4 lg:p-5 space-y-3">
+            <SectionHead title="Overview" />
+            {week.description && (
+              <p className="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">
+                {week.description}
+              </p>
             )}
-          </div>
-          <div className="p-3.5">
-            {videoSignedUrl ? (
-              <VideoPlayer
-                src={videoSignedUrl}
-                subjectWeekId={week.subjectWeekId}
-                alreadyWatched={videoDone}
-              />
-            ) : (
-              <div
-                className="rounded-[14px] grid place-items-center min-h-[180px] text-center"
-                style={{
-                  background: `linear-gradient(135deg, ${tokens.bgFrom} 0%, ${tokens.bgTo} 100%)`,
-                  color: tokens.meta,
-                }}
-              >
-                <div>
-                  <PlayCircle
-                    className="h-12 w-12 mx-auto mb-2 opacity-60"
-                    style={{ color: tokens.arrow }}
-                  />
-                  <div className="text-[13px] font-semibold">
-                    No video uploaded yet
-                  </div>
+            <WeekObjectives objectives={week.objectives} />
+          </section>
+        )}
+
+        {/* Lesson + booklet */}
+        <section className="p-4 lg:p-5">
+          <SectionHead title="Lesson & materials" />
+          <div className="grid md:grid-cols-[1.6fr_1fr] gap-3">
+            {/* Video */}
+            <div className="rounded-[14px] bg-surface-2 overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="h-7 w-7 rounded-[9px] grid place-items-center bg-surface text-muted">
+                    <PlayCircle className="h-4 w-4" />
+                  </span>
+                  <h4 className="m-0 text-[13px] font-bold text-ink">
+                    Recorded lesson
+                  </h4>
                 </div>
+                {videoDone ? (
+                  <Pill tone="good">
+                    Watched · {relativeTime(week.videoWatchedAt!)}
+                  </Pill>
+                ) : (
+                  <Pill tone="muted">Not watched</Pill>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Booklet */}
-        <div className="rounded-[20px] border border-line bg-surface overflow-hidden flex flex-col shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-16px_rgba(31,40,90,0.16)]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <div className="flex items-center gap-2">
-              <span
-                className="h-7 w-7 rounded-[9px] grid place-items-center"
-                style={{ background: tokens.bgFrom, color: tokens.arrow }}
-              >
-                <BookOpen className="h-4 w-4" />
-              </span>
-              <h3 className="m-0 text-[14px] font-bold text-ink">Booklet</h3>
-            </div>
-            {bookletDone ? (
-              <Pill tone="good">Opened</Pill>
-            ) : (
-              <Pill tone="muted">New</Pill>
-            )}
-          </div>
-          <div className="p-4 flex-1 flex flex-col">
-            {week.bookletUrl ? (
-              <>
-                <div
-                  className="flex-1 rounded-[14px] grid place-items-center text-center p-6 min-h-[120px]"
-                  style={{
-                    background: `linear-gradient(135deg, ${tokens.bgFrom} 0%, ${tokens.bgTo} 100%)`,
-                  }}
-                >
-                  <div>
-                    <FileText
-                      className="h-10 w-10 mx-auto"
-                      style={{ color: tokens.arrow }}
-                    />
-                    <div
-                      className="mt-2 text-[11px] uppercase tracking-[0.16em] font-bold"
-                      style={{ color: tokens.meta }}
-                    >
-                      Week PDF
+              <div className="px-3 pb-3">
+                {videoSignedUrl ? (
+                  <VideoPlayer
+                    src={videoSignedUrl}
+                    subjectWeekId={week.subjectWeekId}
+                    alreadyWatched={videoDone}
+                  />
+                ) : (
+                  <div className="rounded-[12px] grid place-items-center min-h-[180px] text-center bg-surface border border-dashed border-line text-muted">
+                    <div>
+                      <PlayCircle className="h-12 w-12 mx-auto mb-2 opacity-40" />
+                      <div className="text-[13px] font-semibold">
+                        No video uploaded yet
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-3">
-                  <BookletLink
-                    subjectWeekId={week.subjectWeekId}
-                    alreadyOpened={bookletDone}
-                  />
-                </div>
-              </>
-            ) : (
-              <div
-                className="flex-1 rounded-[14px] grid place-items-center text-center p-4 min-h-[140px]"
-                style={{ background: tokens.bgTo, color: tokens.meta }}
-              >
-                <div>
-                  <BookOpen
-                    className="h-9 w-9 mx-auto mb-2 opacity-50"
-                    style={{ color: tokens.arrow }}
-                  />
-                  <div className="text-[13px] font-semibold">No booklet yet</div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
 
-      {/* TUTOR NOTES - extra material the tutor added for this week */}
-      {(week.tutorNote || week.tutorAttachments.length > 0) && (
-        <section>
-          <SectionHead title="Tutor notes" count={week.tutorAttachments.length} />
-          <div
-            className="relative overflow-hidden rounded-[18px] border border-line bg-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]"
-          >
-            <div
-              aria-hidden
-              className="absolute inset-x-0 top-0 h-1"
-              style={{ background: tokens.arrow }}
-            />
-            {week.tutorNote && (
-              <div className="text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
-                {week.tutorNote}
+            {/* Booklet */}
+            <div className="rounded-[14px] bg-surface-2 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="h-7 w-7 rounded-[9px] grid place-items-center bg-surface text-muted">
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  <h4 className="m-0 text-[13px] font-bold text-ink">Booklet</h4>
+                </div>
+                {bookletDone ? (
+                  <Pill tone="good">Opened</Pill>
+                ) : (
+                  <Pill tone="muted">New</Pill>
+                )}
               </div>
-            )}
-            {week.tutorAttachments.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {week.tutorAttachments.map((att) => {
-                  const Icon = att.kind === "link" ? LinkIcon : FileText;
-                  const href = httpHref(att.url);
-                  return href ? (
-                    <a
-                      key={att.id}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-ink hover:bg-surface transition-colors"
-                    >
-                      <Icon
-                        className="h-3.5 w-3.5 shrink-0"
-                        style={{ color: tokens.arrow }}
+              <div className="px-3 pb-3 flex-1 flex flex-col">
+                {week.bookletUrl ? (
+                  <>
+                    <div className="flex-1 rounded-[12px] grid place-items-center text-center p-6 min-h-[120px] bg-surface border border-line">
+                      <div>
+                        <FileText className="h-10 w-10 mx-auto text-muted" />
+                        <div className="mt-2 text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
+                          Week PDF
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <BookletLink
+                        subjectWeekId={week.subjectWeekId}
+                        alreadyOpened={bookletDone}
                       />
-                      {att.fileName}
-                    </a>
-                  ) : (
-                    <span
-                      key={att.id}
-                      className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-background px-3 py-2 text-[12px] font-semibold text-muted"
-                    >
-                      <Icon className="h-3.5 w-3.5 shrink-0" />
-                      {att.fileName}
-                    </span>
-                  );
-                })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 rounded-[12px] grid place-items-center text-center p-4 min-h-[140px] bg-surface border border-dashed border-line text-muted">
+                    <div>
+                      <BookOpen className="h-9 w-9 mx-auto mb-2 opacity-40" />
+                      <div className="text-[13px] font-semibold">
+                        No booklet yet
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </section>
-      )}
 
-      {week.quiz && (
-        <section>
-          <SectionHead title="Weekly quiz" />
-          <Link
-            href={`/student/quizzes/${week.quiz.id}`}
-            className="group relative flex min-h-32 items-center gap-4 overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-20px_rgba(31,40,90,0.28)] transition-all duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-22px_rgba(31,40,90,0.38)] motion-reduce:hover:translate-y-0"
-          >
-            <span
-              aria-hidden
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px]"
-              style={{ background: tokens.bgFrom, color: tokens.arrow }}
-            >
-              <ListChecks className="h-6 w-6" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span
-                className="block text-[10px] font-extrabold uppercase tracking-[0.16em]"
-                style={{ color: tokens.meta }}
-              >
-                Approved practice quiz
-              </span>
-              <span className="mt-1 block text-[17px] font-extrabold tracking-[-0.01em] text-ink">
-                {week.quiz.title}
-              </span>
-              <span className="mt-1 block text-[12px] font-semibold text-muted">
-                {week.quiz.questionCount}{" "}
-                {week.quiz.questionCount === 1 ? "question" : "questions"}
-              </span>
-            </span>
-            <span
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-[12px] font-bold text-white transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
-              style={{ background: tokens.arrow }}
-            >
-              Start quiz <ArrowRight className="h-4 w-4" />
-            </span>
-          </Link>
-        </section>
-      )}
-
-      {/* HOMEWORK - card grid */}
-      <section>
-        <SectionHead
-          title="Homework"
-          count={week.homework.length}
-          right={
-            week.homework.length > 0 ? (
-              <span className="text-[12px] text-muted font-semibold">
-                {homeworkDone}/{week.homework.length} done
-              </span>
-            ) : null
-          }
-        />
-        {week.homework.length === 0 ? (
-          <EmptyCard message="No homework tagged to this week." />
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-3.5">
-            {week.homework.map((h) => {
-              const done =
-                h.status === "submitted" ||
-                h.status === "marked" ||
-                h.status === "returned";
-              const overdue =
-                !done && (h.status === "late" || h.dueDate < new Date());
-              return (
-                <Link
-                  key={h.homeworkId}
-                  href={`/student/homework/${h.homeworkId}`}
-                  className="group relative rounded-[18px] border border-line bg-surface p-4 overflow-hidden transition-all hover:-translate-y-[2px] hover:shadow-[0_18px_36px_-20px_rgba(31,40,90,0.32)]"
-                >
-                  <div
-                    aria-hidden
-                    className="absolute inset-y-0 left-0 w-1.5"
-                    style={{
-                      background: done
-                        ? "var(--good)"
-                        : overdue
-                          ? "var(--bad)"
-                          : tokens.arrow,
-                    }}
-                  />
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <Pill
-                      tone={done ? "good" : overdue ? "bad" : "muted"}
-                    >
-                      {done ? (
-                        <>
-                          <Check className="h-3 w-3" /> Done
-                        </>
-                      ) : overdue ? (
-                        <>
-                          <AlertCircle className="h-3 w-3" /> Overdue
-                        </>
-                      ) : (
-                        h.status.replace(/_/g, " ")
-                      )}
-                    </Pill>
-                    {h.score && (
-                      <span
-                        className="text-[14px] font-extrabold tabular-nums"
-                        style={{ color: tokens.arrow }}
+        {/* Tutor notes */}
+        {(week.tutorNote || week.tutorAttachments.length > 0) && (
+          <section className="p-4 lg:p-5">
+            <SectionHead
+              title="Tutor notes"
+              count={week.tutorAttachments.length}
+            />
+            <div className="space-y-3">
+              {week.tutorNote && (
+                <p className="text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">
+                  {week.tutorNote}
+                </p>
+              )}
+              {week.tutorAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {week.tutorAttachments.map((att) => {
+                    const Icon = att.kind === "link" ? LinkIcon : FileText;
+                    const href = httpHref(att.url);
+                    return href ? (
+                      <a
+                        key={att.id}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-surface-2 px-3 py-2 text-[12px] font-semibold text-ink hover:bg-surface transition-colors"
                       >
-                        {h.score}
+                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted" />
+                        {att.fileName}
+                      </a>
+                    ) : (
+                      <span
+                        key={att.id}
+                        className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-surface-2 px-3 py-2 text-[12px] font-semibold text-muted"
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        {att.fileName}
                       </span>
-                    )}
-                  </div>
-                  <div className="text-[14px] font-extrabold text-ink leading-tight line-clamp-2">
-                    {h.title}
-                  </div>
-                  <div className="mt-2 text-[12px] text-muted">
-                    Due {formatDueDate(h.dueDate)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
         )}
-      </section>
+
+        {/* Weekly quiz */}
+        {week.quiz && (
+          <section className="p-4 lg:p-5">
+            <SectionHead title="Weekly quiz" />
+            <Link
+              href={`/student/quizzes/${week.quiz.id}`}
+              className="group flex items-center gap-4 rounded-[14px] border border-line bg-surface-2 p-4 transition-colors hover:bg-surface"
+            >
+              <span
+                aria-hidden
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-surface text-muted"
+              >
+                <ListChecks className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                  Approved practice quiz
+                </span>
+                <span className="mt-0.5 block text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+                  {week.quiz.title}
+                </span>
+                <span className="mt-0.5 block text-[12px] font-semibold text-muted">
+                  {week.quiz.questionCount}{" "}
+                  {week.quiz.questionCount === 1 ? "question" : "questions"}
+                </span>
+              </span>
+              <span className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0">
+                Start quiz <ArrowRight className="h-4 w-4" />
+              </span>
+            </Link>
+          </section>
+        )}
+
+        {/* Homework */}
+        <section className="p-4 lg:p-5">
+          <SectionHead
+            title="Homework"
+            count={week.homework.length}
+            right={
+              week.homework.length > 0 ? (
+                <span className="text-[12px] text-muted font-semibold">
+                  {homeworkDone}/{week.homework.length} done
+                </span>
+              ) : null
+            }
+          />
+          {week.homework.length === 0 ? (
+            <p className="text-[13px] text-muted">
+              No homework tagged to this week.
+            </p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {week.homework.map((h) => {
+                const done =
+                  h.status === "submitted" ||
+                  h.status === "marked" ||
+                  h.status === "returned";
+                const overdue =
+                  !done && (h.status === "late" || h.dueDate < new Date());
+                return (
+                  <Link
+                    key={h.homeworkId}
+                    href={`/student/homework/${h.homeworkId}`}
+                    className="group relative rounded-[14px] border border-line bg-surface-2 p-4 overflow-hidden transition-colors hover:bg-surface"
+                  >
+                    <div
+                      aria-hidden
+                      className="absolute inset-y-0 left-0 w-1.5"
+                      style={{
+                        background: done
+                          ? "var(--good)"
+                          : overdue
+                            ? "var(--bad)"
+                            : "var(--line-strong)",
+                      }}
+                    />
+                    <div className="flex items-center justify-between gap-2 mb-2 pl-1">
+                      <Pill tone={done ? "good" : overdue ? "bad" : "muted"}>
+                        {done ? (
+                          <>
+                            <Check className="h-3 w-3" /> Done
+                          </>
+                        ) : overdue ? (
+                          <>
+                            <AlertCircle className="h-3 w-3" /> Overdue
+                          </>
+                        ) : (
+                          h.status.replace(/_/g, " ")
+                        )}
+                      </Pill>
+                      {h.score && (
+                        <span className="text-[14px] font-extrabold tabular-nums text-ink">
+                          {h.score}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[14px] font-extrabold text-ink leading-tight line-clamp-2 pl-1">
+                      {h.title}
+                    </div>
+                    <div className="mt-2 text-[12px] text-muted pl-1">
+                      Due {formatDueDate(h.dueDate)}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -428,9 +394,9 @@ function SectionHead({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-3 px-1">
+    <div className="flex items-center justify-between mb-3">
       <div className="flex items-baseline gap-2">
-        <h3 className="m-0 text-[18px] font-extrabold tracking-[-0.01em] text-ink">
+        <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
           {title}
         </h3>
         {typeof count === "number" && count > 0 && (
@@ -465,14 +431,6 @@ function HeroChip({
       {done ? <Check className="h-3 w-3" strokeWidth={3} /> : icon}
       {label}
     </span>
-  );
-}
-
-function EmptyCard({ message }: { message: string }) {
-  return (
-    <div className="rounded-[18px] border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-[13px] text-muted">
-      {message}
-    </div>
   );
 }
 

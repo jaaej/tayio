@@ -4,9 +4,12 @@ import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { resolveSelectedChild } from "@/app/parent/_data";
 import { currentWeekNumber } from "@/lib/curriculum";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { getParentCurriculum } from "./_queries";
-import { WeekStrip } from "@/components/subjects/week-strip";
+import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
+import {
+  CurriculumRail,
+  type RailWeek,
+} from "@/components/subjects/curriculum-rail";
 import { WeekContentParent } from "./_components/week-content";
 
 type SearchParams = Promise<{ child?: string; term?: string; week?: string }>;
@@ -55,22 +58,37 @@ export default async function ParentSubjectPage({
     data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
     data.weeks[0];
 
-  const weekStripItems = data.weeks.map((w) => ({
-    subjectWeekId: w.subjectWeekId,
-    weekNumber: w.weekNumber,
-    title: w.title,
-    topicId: w.topicId,
-    topicName: w.topicName,
-    videoWatched: Boolean(w.videoWatchedAt),
-    bookletOpened: Boolean(w.bookletOpenedAt),
-    homeworkTotal: w.homework.length,
-    homeworkDone: w.homework.filter(
+  const railWeeks: RailWeek[] = data.weeks.map((w) => {
+    const homeworkTotal = w.homework.length;
+    const homeworkDone = w.homework.filter(
       (h) =>
         h.status === "marked" ||
         h.status === "submitted" ||
         h.status === "returned",
-    ).length,
-  }));
+    ).length;
+    const tasksTotal = 2 + (homeworkTotal > 0 ? 1 : 0);
+    const tasksDone =
+      (w.videoWatchedAt ? 1 : 0) +
+      (w.bookletOpenedAt ? 1 : 0) +
+      (homeworkTotal > 0 && homeworkDone >= homeworkTotal ? 1 : 0);
+    return {
+      id: w.subjectWeekId,
+      weekNumber: w.weekNumber,
+      title: w.title,
+      topicId: w.topicId,
+      topicName: w.topicName,
+      complete: tasksTotal > 0 && tasksDone === tasksTotal,
+      pills:
+        homeworkTotal > 0
+          ? [
+              {
+                label: `${homeworkDone}/${homeworkTotal}`,
+                tone: homeworkDone >= homeworkTotal ? "good" : "warn",
+              },
+            ]
+          : [],
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -96,8 +114,8 @@ export default async function ParentSubjectPage({
         </div>
 
         {data.lessonPlan && (
-          <div className="px-6 py-5 border-b border-line bg-brand-50/60">
-            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-brand-700">
+          <div className="px-6 py-5 border-b border-line bg-surface-2">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
               What's coming up
             </div>
             <p className="mt-2 text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">
@@ -106,21 +124,30 @@ export default async function ParentSubjectPage({
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
-          <WeekStrip
-            basePath={`/parent/subjects/${subjectId}`}
-            childId={resolved.selected.id}
-            currentTermId={data.currentTerm.id}
-            termsAvailable={data.termsAvailable}
-            weeks={weekStripItems}
-            selectedWeekId={selected?.subjectWeekId ?? null}
-            currentWeekIdHint={currentWeekHint}
-            accent={getAccentTokens(colorFamilyForSubject(data.subjectName))}
-          />
-          <div className="lg:border-l lg:border-line lg:pl-6">
-            {selected && <WeekContentParent week={selected} />}
-          </div>
-        </div>
+        {selected && (
+          <CurriculumLayout
+            rail={
+              <CurriculumRail
+                basePath={`/parent/subjects/${subjectId}`}
+                extraParams={{ child: resolved.selected.id }}
+                currentTermId={data.currentTerm.id}
+                terms={data.termsAvailable.map((t) => ({
+                  id: t.id,
+                  label: `Term ${t.termNumber} · ${t.year}`,
+                }))}
+                weeks={railWeeks}
+                selectedWeekId={selected.subjectWeekId}
+                currentWeekIdHint={currentWeekHint}
+                showTermSelect={false}
+              />
+            }
+          >
+            <WeekContentParent
+              week={selected}
+              subjectName={data.subjectName}
+            />
+          </CurriculumLayout>
+        )}
       </Card>
     </div>
   );

@@ -11,7 +11,11 @@ import {
   getAccentTokens,
 } from "@/lib/subject-colors";
 import { getStudentCurriculum } from "./_queries";
-import { WeekStrip } from "@/components/subjects/week-strip";
+import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
+import {
+  CurriculumRail,
+  type RailWeek,
+} from "@/components/subjects/curriculum-rail";
 import { WeekContent } from "./_components/week-content";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
@@ -66,34 +70,46 @@ export default async function StudentSubjectPage({
     data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
     data.weeks[0];
 
-  const weekStripItems = data.weeks.map((w) => ({
-    subjectWeekId: w.subjectWeekId,
-    weekNumber: w.weekNumber,
-    title: w.title,
-    topicId: w.topicId,
-    topicName: w.topicName,
-    videoWatched: Boolean(w.videoWatchedAt),
-    bookletOpened: Boolean(w.bookletOpenedAt),
-    homeworkTotal: w.homework.length,
-    homeworkDone: w.homework.filter(
+  const railWeeks: RailWeek[] = data.weeks.map((w) => {
+    const homeworkTotal = w.homework.length;
+    const homeworkDone = w.homework.filter(
       (h) =>
         h.status === "marked" ||
         h.status === "submitted" ||
         h.status === "returned",
-    ).length,
-  }));
+    ).length;
+    const tasksTotal = 2 + (homeworkTotal > 0 ? 1 : 0);
+    const tasksDone =
+      (w.videoWatchedAt ? 1 : 0) +
+      (w.bookletOpenedAt ? 1 : 0) +
+      (homeworkTotal > 0 && homeworkDone >= homeworkTotal ? 1 : 0);
+    return {
+      id: w.subjectWeekId,
+      weekNumber: w.weekNumber,
+      title: w.title,
+      topicId: w.topicId,
+      topicName: w.topicName,
+      complete: tasksTotal > 0 && tasksDone === tasksTotal,
+      pills:
+        homeworkTotal > 0
+          ? [
+              {
+                label: `${homeworkDone}/${homeworkTotal}`,
+                tone: homeworkDone >= homeworkTotal ? "good" : "warn",
+              },
+            ]
+          : [],
+    };
+  });
 
-  const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
   const initial = data.subjectName.charAt(0).toUpperCase();
+  const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
 
   // Bleed the entire page past the global shell's px-5/lg:px-7 padding and
   // re-add a smaller inner padding so the subject view takes the whole main
   // area (next to the nav sidebar) instead of being inset like other pages.
   return (
     <div className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col">
-      {/* Header bar - neutral chrome. Subject identity carried by the
-          tinted initial tile + h1, not by tinting the whole bar
-          (avoids breaking visual hierarchy with the rail + hero). */}
       <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line bg-background">
         <Link
           href="/student/subjects"
@@ -133,22 +149,26 @@ export default async function StudentSubjectPage({
         </div>
       )}
 
-      {/* Full-bleed 2-col: skinnier rail, content fills the rest */}
-      <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
-        <WeekStrip
-          basePath={`/student/subjects/${subjectId}`}
-          currentTermId={data.currentTerm.id}
-          termsAvailable={data.termsAvailable}
-          weeks={weekStripItems}
-          selectedWeekId={data.selectedWeekId}
-          currentWeekIdHint={currentWeekHint}
-          accent={tokens}
-        />
-        <WeekContent
-          week={selectedWeek}
-          subjectName={data.subjectName}
-        />
-      </div>
+      {/* Full-bleed 2-col: rail attached to the nav, content fills the rest */}
+      <CurriculumLayout
+        attached
+        rail={
+          <CurriculumRail
+            basePath={`/student/subjects/${subjectId}`}
+            currentTermId={data.currentTerm.id}
+            terms={data.termsAvailable.map((t) => ({
+              id: t.id,
+              label: `Term ${t.termNumber} · ${t.year}`,
+            }))}
+            weeks={railWeeks}
+            selectedWeekId={data.selectedWeekId}
+            currentWeekIdHint={currentWeekHint}
+            showTermSelect={false}
+          />
+        }
+      >
+        <WeekContent week={selectedWeek} subjectName={data.subjectName} />
+      </CurriculumLayout>
     </div>
   );
 }
