@@ -77,7 +77,7 @@ export function CardHead({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-5 py-4 border-b border-line",
+        "flex items-center justify-between gap-3 px-5 py-3.5 border-b border-line-strong bg-surface-2",
         className,
       )}
     >
@@ -87,7 +87,9 @@ export function CardHead({
             {eyebrow}
           </div>
         )}
-        <h3 className="text-[14px] font-bold text-ink truncate">{title}</h3>
+        <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
+          {title}
+        </h3>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
