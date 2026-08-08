@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -35,7 +36,8 @@ const roleEnum = z.enum([
 
 const createUserSchema = z.object({
   email: z.string().email().max(320),
-  password: z.string().min(8).max(128),
+  /** Absent means "generate one" - see `generateTempPassword`. */
+  password: z.string().min(8).max(128).optional(),
   role: roleEnum,
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -44,9 +46,24 @@ const createUserSchema = z.object({
   school: z.string().max(200).optional(),
 });
 
+/**
+ * Temporary password for an account the admin did not set one for. 12 random
+ * bytes is 16 base64url characters (~96 bits); the fixed suffix guarantees a
+ * digit and a symbol so it clears any character-class password policy.
+ */
+function generateTempPassword(): string {
+  return `${randomBytes(12).toString("base64url")}7!`;
+}
+
 export async function createUser(input: z.infer<typeof createUserSchema>) {
   const user = await requireAdmin();
-  const data = createUserSchema.parse(input);
+  // An empty box means "generate one", so normalise it away before validation:
+  // the minimum length should only apply to a password an admin actually typed.
+  const data = createUserSchema.parse({
+    ...input,
+    password: input.password?.trim() || undefined,
+  });
+  const password = data.password ?? generateTempPassword();
 
   // Creating a privileged account (any admin tier or tutor) is owner-only.
   const targetPrivileged =
@@ -64,7 +81,7 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
   // self-promote to admin immediately after creation.
   const { data: created, error } = await admin.auth.admin.createUser({
     email: data.email,
-    password: data.password,
+    password,
     email_confirm: true,
     app_metadata: {
       role: data.role,
@@ -98,7 +115,13 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
-  return { ok: true as const, id: created.user.id };
+  return {
+    ok: true as const,
+    id: created.user.id,
+    // Only handed back when we generated it - there is nothing to reveal about
+    // a password the admin typed themselves.
+    tempPassword: data.password ? undefined : password,
+  };
 }
 
 const updateUserSchema = z.object({

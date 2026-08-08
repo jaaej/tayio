@@ -62,7 +62,6 @@ export default async function ParentDashboard({
         <Hero
           eyebrow="Parent portal"
           title={`Hello, ${parentName}`}
-          sub="Here's how your family is tracking this week."
         />
         <EmptyChildrenNotice />
       </div>
@@ -114,7 +113,6 @@ export default async function ParentDashboard({
       <Hero
         eyebrow="Parent portal"
         title={`Hello, ${parentName}`}
-        sub={`Here's how ${selected.firstName} is tracking this week.`}
         right={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Link

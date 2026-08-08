@@ -97,7 +97,6 @@ export default async function StudentSubjectsIndex({
         <PageHead
           eyebrow="My subjects"
           title="Your subjects"
-          sub="Tap a subject to see class materials, lessons, homework, and progress."
         />
         <Card>
           <CardBody>
@@ -115,7 +114,6 @@ export default async function StudentSubjectsIndex({
       <PageHead
         eyebrow="My subjects"
         title="Your subjects"
-        sub={`${subjects.length} subject${subjects.length === 1 ? "" : "s"} · ${open.length} homework open`}
       />
 
       {/* Main grid */}
@@ -136,11 +134,6 @@ export default async function StudentSubjectsIndex({
                   href={`/student/subjects/${s.subjectId}`}
                   name={s.subjectName}
                   mastery={s.masteryPercent}
-                  nextLabel={
-                    s.tutorFirstName
-                      ? `${s.tutorFirstName} ${s.tutorLastName ?? ""}`.trim()
-                      : undefined
-                  }
                 />
               ))}
             </div>

@@ -777,6 +777,8 @@ export const subjectWeeks = pgTable(
     weekNumber: integer("week_number").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    /** Learning objectives, one per line ("By the end of this week you can"). */
+    objectives: text("objectives"),
     videoUrl: text("video_url"),
     bookletUrl: text("booklet_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -961,6 +963,9 @@ export const quizStatusEnum = pgEnum("quiz_status", [
   "pending_review",
   "changes_requested",
   "approved",
+  // Admin-written and admin-published. Live exactly like "approved"; last in
+  // the list because ALTER TYPE ... ADD VALUE appended it in the DB (0039).
+  "admin",
 ]);
 
 export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [

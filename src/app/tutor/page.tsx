@@ -232,13 +232,6 @@ export default async function TutorDashboard() {
               icon={<Inbox className="h-4 w-4" />}
               iconBg="bg-brand-600"
               title="Submissions to mark"
-              tagline={
-                submissions.length === 0
-                  ? "Nothing waiting - enjoy the breather."
-                  : lateCount > 0
-                    ? `${lateCount} late · review the most urgent first`
-                    : `${submissions.length} fresh submission${submissions.length === 1 ? "" : "s"} waiting`
-              }
               actionHref="/tutor/homework"
               actionLabel="All homework"
               countBadge={submissions.length}
@@ -309,11 +302,6 @@ export default async function TutorDashboard() {
               icon={<BellRing className="h-4 w-4" />}
               iconBg="bg-coral"
               title="Students to bump"
-              tagline={
-                bumpList.length === 0
-                  ? "Everyone's on track - nice work."
-                  : "Send a nudge before homework piles up."
-              }
               countBadge={bumpList.length}
               tone={bumpList.length > 0 ? "bad" : "good"}
             />
@@ -438,7 +426,7 @@ function RichHeader({
   icon: React.ReactNode;
   iconBg: string;
   title: string;
-  tagline: string;
+  tagline?: string;
   actionHref?: string;
   actionLabel?: string;
   countBadge?: number;
@@ -471,7 +459,9 @@ function RichHeader({
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          {tagline && (
+            <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          )}
         </div>
       </div>
       {actionHref && actionLabel && (

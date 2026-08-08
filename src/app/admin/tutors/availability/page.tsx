@@ -38,7 +38,6 @@ export default async function AdminTutorAvailabilityPage() {
         className="rise"
         eyebrow="Scheduling"
         title="Tutor availability"
-        sub="Every tutor's standing weekly availability in one view. Scan a day column for gaps when coordinating cover, then add or remove a tutor's recurring slots below."
       />
 
       <Card className="rise">

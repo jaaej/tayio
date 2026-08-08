@@ -79,11 +79,6 @@ export default async function HomeworkListPage() {
       <PageHead
         eyebrow="Homework"
         title="Your homework"
-        sub={
-          total === 0
-            ? "Nothing assigned yet."
-            : `${openCount} open · ${done}/${total} done`
-        }
       />
 
       {/* Stat strip */}

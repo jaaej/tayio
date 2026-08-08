@@ -9,9 +9,12 @@ import { getClassAnnouncementsForTutor } from "@/app/tutor/_data";
 import { requireRole } from "@/lib/auth";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { relativeTime } from "@/lib/format";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { getTutorCurriculum } from "./_queries";
-import { WeekStripTutor } from "./_components/week-strip-tutor";
+import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
+import {
+  CurriculumRail,
+  type RailWeek,
+} from "@/components/subjects/curriculum-rail";
 import { SectionEditor } from "./_components/section-editor";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
@@ -55,8 +58,21 @@ export default async function TutorClassCurriculumPage({
       )
     : [];
 
-  const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
   const initial = data.subjectName.charAt(0).toUpperCase();
+
+  const railWeeks: RailWeek[] = data.weeks.map((w) => ({
+    id: w.subjectWeekId,
+    weekNumber: w.weekNumber,
+    title: w.title,
+    topicId: w.topicId,
+    topicName: w.topicName,
+    pills: [
+      ...(w.hasSection ? [{ label: "Notes", tone: "neutral" as const }] : []),
+      ...(w.homework.length > 0
+        ? [{ label: `${w.homework.length} HW`, tone: "neutral" as const }]
+        : []),
+    ],
+  }));
 
   // Full-bleed layout mirroring the student subject page: bleed past the shell
   // padding, subject-tinted header, skinny rail + content that fills the rest.
@@ -72,8 +88,7 @@ export default async function TutorClassCurriculumPage({
         <div className="mt-1.5 flex items-center gap-2.5">
           <span
             aria-hidden
-            className="h-9 w-9 rounded-[10px] grid place-items-center text-[17px] font-extrabold shrink-0"
-            style={{ background: tokens.bgFrom, color: tokens.arrow }}
+            className="h-9 w-9 rounded-[10px] grid place-items-center text-[17px] font-extrabold shrink-0 bg-surface-2 text-ink"
           >
             {initial}
           </span>
@@ -82,10 +97,7 @@ export default async function TutorClassCurriculumPage({
               {data.subjectName} · {data.currentTerm.year} · Term{" "}
               {data.currentTerm.termNumber}
             </div>
-            <h1
-              className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none truncate"
-              style={{ color: tokens.title }}
-            >
+            <h1 className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none truncate text-ink">
               {data.className} - Curriculum
             </h1>
           </div>
@@ -196,37 +208,32 @@ export default async function TutorClassCurriculumPage({
           No curriculum has been set up for {data.subjectName} this term yet.
         </div>
       ) : (
-        <div className="flex-1 grid lg:grid-cols-[248px_minmax(0,1fr)] gap-3 lg:gap-4 px-3 lg:px-4 py-3 items-start">
-          <WeekStripTutor
-            classId={classId}
-            currentTermId={data.currentTerm.id}
-            termsAvailable={data.termsAvailable}
-            weeks={data.weeks.map((w) => ({
-              subjectWeekId: w.subjectWeekId,
-              weekNumber: w.weekNumber,
-              title: w.title,
-              topicId: w.topicId,
-              topicName: w.topicName,
-              hasSection: w.hasSection,
-              homeworkCount: w.homework.length,
-            }))}
-            selectedWeekId={selected?.subjectWeekId ?? null}
-            accent={tokens}
-          />
+        <CurriculumLayout
+          rail={
+            <CurriculumRail
+              basePath={`/tutor/classes/${classId}/curriculum`}
+              currentTermId={data.currentTerm.id}
+              terms={data.termsAvailable.map((t) => ({
+                id: t.id,
+                label: `Term ${t.termNumber} · ${t.year}`,
+              }))}
+              weeks={railWeeks}
+              selectedWeekId={selected?.subjectWeekId ?? null}
+            />
+          }
+        >
           {selected && (
-            <div className="space-y-3 min-w-0">
-              <SectionEditor
-                classId={classId}
-                week={selected}
-                subjectName={data.subjectName}
-                topics={data.topics}
-                videoSignedUrl={videoSignedUrl}
-                bookletSignedUrl={bookletSignedUrl}
-                attachmentsWithUrls={attachmentsWithUrls}
-              />
-            </div>
+            <SectionEditor
+              classId={classId}
+              week={selected}
+              subjectName={data.subjectName}
+              topics={data.topics}
+              videoSignedUrl={videoSignedUrl}
+              bookletSignedUrl={bookletSignedUrl}
+              attachmentsWithUrls={attachmentsWithUrls}
+            />
           )}
-        </div>
+        </CurriculumLayout>
       )}
     </div>
   );

@@ -77,7 +77,6 @@ export default async function RevenuePage() {
         className="rise"
         eyebrow="Finance"
         title="Revenue"
-        sub="Payments received, by month. Visible only while the admin PIN is unlocked."
         actions={<Pill tone="good">Unlocked</Pill>}
       />
 

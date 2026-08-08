@@ -25,7 +25,14 @@ import {
   quizStatusEnum,
 } from "@/db/schema";
 import { signQuizAttachment } from "@/lib/quiz-storage";
-import { formatQuizWeekLabel } from "@/lib/quiz-status";
+import {
+  formatQuizWeekLabel,
+  isLiveQuizStatus,
+  LIVE_QUIZ_STATUSES,
+} from "@/lib/quiz-status";
+
+/** Mutable copy: drizzle's `inArray` does not take a readonly tuple. */
+const liveStatuses = [...LIVE_QUIZ_STATUSES];
 
 export type QuizListRow = {
   id: string;
@@ -37,6 +44,9 @@ export type QuizListRow = {
   weekNumber: number;
   assignedTutorId: string | null;
   assignedTutorName: string | null;
+  createdByName: string;
+  /** Answerable questions only - `context` rows are passage wrappers, not items. */
+  questionCount: number;
   updatedAt: Date;
 };
 
@@ -78,6 +88,7 @@ export type QuizWithContent = {
 
 function baseListSelect() {
   const tutor = alias(profiles, "assigned_tutor");
+  const creator = alias(profiles, "created_by_profile");
   return db
     .select({
       id: quizzes.id,
@@ -90,20 +101,34 @@ function baseListSelect() {
       assignedTutorId: quizzes.assignedTutorId,
       assignedTutorFirst: tutor.firstName,
       assignedTutorLast: tutor.lastName,
+      createdByFirst: creator.firstName,
+      createdByLast: creator.lastName,
+      // Correlated rather than a join + group by: the row set here already
+      // fans out over four joins, and grouping it back down just to count
+      // children is more expensive than one indexed subquery per row.
+      questionCount: sql<number>`(
+        select count(*)::int from ${quizQuestions}
+        where ${quizQuestions.quizId} = ${quizzes.id}
+          and ${quizQuestions.type} <> 'context'
+      )`,
       updatedAt: quizzes.updatedAt,
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
     .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
     .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
-    .leftJoin(tutor, eq(tutor.id, quizzes.assignedTutorId));
+    .leftJoin(tutor, eq(tutor.id, quizzes.assignedTutorId))
+    // Inner, not left: `quizzes.created_by` is NOT NULL with an FK to
+    // profiles, so the author row always exists.
+    .innerJoin(creator, eq(creator.id, quizzes.createdBy));
 }
 
 function toListRow(r: {
   id: string; title: string; status: string; subjectName: string;
   termYear: number; termNumber: number; weekNumber: number;
   assignedTutorId: string | null; assignedTutorFirst: string | null;
-  assignedTutorLast: string | null; updatedAt: Date;
+  assignedTutorLast: string | null; createdByFirst: string;
+  createdByLast: string | null; questionCount: number; updatedAt: Date;
 }): QuizListRow {
   return {
     id: r.id,
@@ -118,6 +143,8 @@ function toListRow(r: {
       r.assignedTutorFirst != null
         ? `${r.assignedTutorFirst} ${r.assignedTutorLast ?? ""}`.trim()
         : null,
+    createdByName: `${r.createdByFirst} ${r.createdByLast ?? ""}`.trim(),
+    questionCount: r.questionCount,
     updatedAt: r.updatedAt,
   };
 }
@@ -142,7 +169,7 @@ export async function listQuizzesForTutor(tutorId: string): Promise<QuizListRow[
       ? or(
           eq(quizzes.assignedTutorId, tutorId),
           and(
-            eq(quizzes.status, "approved"),
+            inArray(quizzes.status, liveStatuses),
             inArray(quizzes.subjectId, taughtSubjectIds),
           ),
         )
@@ -154,9 +181,19 @@ export async function listQuizzesForTutor(tutorId: string): Promise<QuizListRow[
   return rows.map(toListRow);
 }
 
+export type QuizTargetWeek = {
+  id: string;
+  /** Combined "Subject - Year Term N, Week N", for a single flat dropdown. */
+  label: string;
+  /** `subjects.name` is unique, so this doubles as the subject's key. */
+  subjectName: string;
+  /** Week on its own, for a dropdown already narrowed to one subject. */
+  weekLabel: string;
+};
+
 export async function listQuizTargets(): Promise<{
   tutors: { id: string; name: string }[];
-  weeks: { id: string; label: string }[];
+  weeks: QuizTargetWeek[];
 }> {
   const tutorRows = await db
     .select({
@@ -196,6 +233,11 @@ export async function listQuizTargets(): Promise<{
     weeks: weekRows.map((w) => ({
       id: w.id,
       label: formatQuizWeekLabel(w),
+      subjectName: w.subjectName,
+      // The year stays in: a subject can carry the same term/week numbers in
+      // more than one year, and two identical options in the Week dropdown
+      // would be a coin flip.
+      weekLabel: `${w.year} Term ${w.termNumber}, Week ${w.weekNumber}`,
     })),
   };
 }
@@ -305,7 +347,7 @@ export async function listApprovedQuizSummariesForWeeks(
     )
     .where(
       and(
-        eq(quizzes.status, "approved"),
+        inArray(quizzes.status, liveStatuses),
         inArray(quizzes.subjectWeekId, weekIds),
       ),
     )
@@ -320,7 +362,7 @@ export async function canTutorViewQuiz(
   >,
 ): Promise<boolean> {
   if (quiz.assignedTutorId === tutorId) return true;
-  if (quiz.status !== "approved") return false;
+  if (!isLiveQuizStatus(quiz.status)) return false;
   const [taught] = await db
     .select({ id: classes.id })
     .from(classes)
@@ -350,7 +392,7 @@ export async function canStudentAccessApprovedQuiz(
         isNull(enrollments.withdrawnAt),
       ),
     )
-    .where(and(eq(quizzes.id, quizId), eq(quizzes.status, "approved")))
+    .where(and(eq(quizzes.id, quizId), inArray(quizzes.status, liveStatuses)))
     .limit(1);
   return Boolean(row);
 }
@@ -404,7 +446,7 @@ export async function getStudentQuiz(
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
     .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
     .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
-    .where(and(eq(quizzes.id, quizId), eq(quizzes.status, "approved")))
+    .where(and(eq(quizzes.id, quizId), inArray(quizzes.status, liveStatuses)))
     .limit(1);
   if (!quiz) return null;
 

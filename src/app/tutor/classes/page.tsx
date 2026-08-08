@@ -68,11 +68,6 @@ export default async function TutorClassesPage() {
             ? "No active classes"
             : `${list.length} active class${list.length === 1 ? "" : "es"}`
         }
-        sub={
-          list.length > 0
-            ? `${students.length} student${students.length === 1 ? "" : "s"} · ${weekLessons.length} lesson${weekLessons.length === 1 ? "" : "s"} this week`
-            : undefined
-        }
       />
 
       {list.length > 0 && (

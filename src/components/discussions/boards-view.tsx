@@ -30,7 +30,7 @@ export function DiscussionsBoardsView({
   boards: BoardSummary[];
   hrefPrefix: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
 }) {
   const generalHelp = boards.find((b) => b.id.kind === "admin");
   const subjectBoards = boards.filter((b) => b.id.kind === "subject");
@@ -63,7 +63,11 @@ export function DiscussionsBoardsView({
           <h1 className="mt-2 text-[32px] lg:text-[36px] font-bold tracking-[-0.02em] leading-tight">
             {title}
           </h1>
-          <p className="mt-3 max-w-[480px] text-[15px] opacity-85">{subtitle}</p>
+          {subtitle && (
+            <p className="mt-3 max-w-[480px] text-[15px] opacity-85">
+              {subtitle}
+            </p>
+          )}
         </div>
       </section>
 
