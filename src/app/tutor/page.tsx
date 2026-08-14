@@ -194,9 +194,9 @@ export default async function TutorDashboard() {
                         />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-muted">
-                          {l.subjectName}
-                        </div>
+                        {/* No subject eyebrow: class names already lead with
+                            the subject ("Year 10 Maths · Monday PM"), so it
+                            printed the same words twice. */}
                         <div className="text-[14px] font-extrabold text-ink leading-tight truncate">
                           {l.className}
                         </div>
@@ -352,9 +352,6 @@ export default async function TutorDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="text-[13px] font-bold text-ink truncate">
                               {l.className}
-                            </div>
-                            <div className="text-[11px] text-muted mt-0.5 truncate">
-                              {l.subjectName}
                             </div>
                           </div>
                           <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">

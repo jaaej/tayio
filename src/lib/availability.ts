@@ -103,8 +103,13 @@ export async function expandAvailability(
   horizon.setDate(horizon.getDate() + totalDays);
   const horizonIso = isoLocal(horizon);
 
+  // selectDistinct, not select: availability rows are scoped per subject since
+  // migration 0040, so one tutor free Tuesday 16:00-18:00 for both Maths and
+  // English has two rows for that window. Rescheduling does not care which
+  // subject the slot was tagged for - it only asks whether the tutor is free -
+  // so without this the picker offers the identical slot once per subject.
   const weeklyRows = await db
-    .select({
+    .selectDistinct({
       tutorId: tutorAvailability.tutorId,
       weekday: tutorAvailability.weekday,
       startTime: tutorAvailability.startTime,

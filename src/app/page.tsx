@@ -77,7 +77,7 @@ export default function LandingPage() {
             >
               <div className="relative">
                 <div className="absolute -inset-8 brand-field rounded-[40px] opacity-60 blur-2xl" />
-                <LogoCard className="relative" size={280} />
+                <LogoCard className="relative" width={400} />
                 <div className="mt-6 text-right text-[10px] uppercase tracking-[0.22em] text-muted">
                   太陽 · taiyo · sun
                 </div>

@@ -555,6 +555,11 @@ export const tutorAvailability = pgTable(
     tutorId: uuid("tutor_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    // Null = the slot applies to any subject (how every row before migration
+    // 0040 behaves); set = availability scoped to that one subject.
+    subjectId: uuid("subject_id").references(() => subjects.id, {
+      onDelete: "cascade",
+    }),
     weekday: integer("weekday"),
     date: date("date"),
     startTime: time("start_time").notNull(),
@@ -565,6 +570,7 @@ export const tutorAvailability = pgTable(
   (t) => [
     index("tutor_availability_tutor_idx").on(t.tutorId),
     index("tutor_availability_date_idx").on(t.date),
+    index("tutor_availability_tutor_subject_idx").on(t.tutorId, t.subjectId),
   ],
 );
 

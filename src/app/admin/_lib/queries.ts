@@ -941,12 +941,17 @@ export type TutorAvailabilitySlot = {
   weekday: number;
   startTime: string;
   endTime: string;
+  /** Null = the slot applies to any subject (migration 0040). */
+  subjectId: string | null;
+  subjectName: string | null;
 };
 
 export type TutorWeeklyAvailability = {
   tutorId: string;
   firstName: string;
   lastName: string;
+  /** Subjects the tutor teaches, derived from their assigned classes. */
+  subjects: Array<{ id: string; name: string }>;
   slots: TutorAvailabilitySlot[];
 };
 
@@ -961,10 +966,17 @@ export type TutorWeeklyAvailability = {
  *
  * Tutors with no availability rows are still returned (empty `slots`) so gaps
  * in the roster are visible rather than silently dropped.
+ *
+ * Each slot carries the subject it is scoped to (null = any subject), and each
+ * tutor carries the subjects they teach - derived from their assigned classes,
+ * the same source getTutorDirectory() uses - so the editor can offer one scope
+ * per subject the tutor actually teaches.
  */
 export async function getTutorWeeklyAvailabilityBoard(): Promise<
   TutorWeeklyAvailability[]
 > {
+  const availabilitySubject = alias(subjects, "availability_subject");
+
   const rows = await db
     .select({
       tutorId: profiles.id,
@@ -973,6 +985,8 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
       weekday: tutorAvailability.weekday,
       startTime: tutorAvailability.startTime,
       endTime: tutorAvailability.endTime,
+      subjectId: tutorAvailability.subjectId,
+      subjectName: availabilitySubject.name,
     })
     .from(profiles)
     .leftJoin(
@@ -982,6 +996,10 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         isNull(tutorAvailability.date),
         eq(tutorAvailability.isAvailable, true),
       ),
+    )
+    .leftJoin(
+      availabilitySubject,
+      eq(availabilitySubject.id, tutorAvailability.subjectId),
     )
     .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
@@ -994,6 +1012,7 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         tutorId: r.tutorId,
         firstName: r.firstName,
         lastName: r.lastName,
+        subjects: [],
         slots: [],
       };
       byTutor.set(r.tutorId, tutor);
@@ -1001,9 +1020,11 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
     if (r.weekday === null || r.startTime === null || r.endTime === null) {
       continue;
     }
-    // Dedup identical (weekday, start, end) rows so a duplicated rule renders once.
+    // Dedup identical (subject, weekday, start, end) rows so a duplicated rule
+    // renders once - but the same window under two subjects stays two slots.
     const dup = tutor.slots.some(
       (s) =>
+        s.subjectId === r.subjectId &&
         s.weekday === r.weekday &&
         s.startTime === r.startTime &&
         s.endTime === r.endTime,
@@ -1013,13 +1034,38 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         weekday: r.weekday,
         startTime: r.startTime,
         endTime: r.endTime,
+        subjectId: r.subjectId,
+        subjectName: r.subjectName,
+      });
+    }
+  }
+
+  const tutorIds = Array.from(byTutor.keys());
+  if (tutorIds.length > 0) {
+    const taught = await db
+      .selectDistinct({
+        tutorId: classes.tutorId,
+        subjectId: subjects.id,
+        subjectName: subjects.name,
+      })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+      .where(inArray(classes.tutorId, tutorIds))
+      .orderBy(asc(subjects.name));
+    for (const t of taught) {
+      byTutor.get(t.tutorId)?.subjects.push({
+        id: t.subjectId,
+        name: t.subjectName,
       });
     }
   }
 
   for (const tutor of byTutor.values()) {
     tutor.slots.sort(
-      (a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime),
+      (a, b) =>
+        a.weekday - b.weekday ||
+        a.startTime.localeCompare(b.startTime) ||
+        (a.subjectName ?? "").localeCompare(b.subjectName ?? ""),
     );
   }
 

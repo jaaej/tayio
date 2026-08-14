@@ -51,8 +51,8 @@ const SECTIONS: NavSection[] = [
 function BrandMark() {
   return (
     <Link href="/parent" className="flex items-center gap-2.5">
-      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center text-brand-ink">
-        <ToriiMark className="h-5 w-5" color="currentColor" />
+      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center">
+        <ToriiMark width={24} />
       </div>
       <div className="leading-tight">
         <div className="text-[13px] font-extrabold tracking-[0.04em] uppercase text-ink">

@@ -77,8 +77,12 @@ export default async function TutorClassCurriculumPage({
   // Full-bleed layout mirroring the student subject page: bleed past the shell
   // padding, subject-tinted header, skinny rail + content that fills the rest.
   return (
-    <div className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col">
-      <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line bg-background">
+    <div
+      className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col"
+    >
+      {/* Transparent, unlike the learner pages' opaque strip: the header sits
+          on the page wash so the gradient reads as one field top to bottom. */}
+      <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line">
         <Link
           href="/tutor/classes"
           className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted hover:text-ink"

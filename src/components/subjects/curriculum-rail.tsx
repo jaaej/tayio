@@ -69,9 +69,13 @@ export function CurriculumRail({
   const showHeadings = groups.length > 1;
 
   return (
-    // One major RECTANGULAR (square-cornered) block. The weeks sit inside it as
-    // rounded sub-cards; the tinted panel makes the sub-cards read as distinct.
-    <div className="space-y-2 border border-line bg-surface-2 p-2 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)]">
+    // One major RECTANGULAR (square-cornered) block, white so it matches the
+    // week content panel next to it. With no tinted fill to set the panel and
+    // its sub-cards apart, the separation is carried by outlines instead:
+    // line-strong on the panel edge (plus the existing shadow) and on each week
+    // card. Non-attached roles sit this panel inside a white Card, so that
+    // outline is the only thing holding the edge - do not weaken it to `line`.
+    <div className="space-y-2 border border-line-strong bg-surface p-2 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)]">
       {showTermSelect && terms.length > 0 && (
         <div className="relative">
           <select
@@ -80,7 +84,9 @@ export function CurriculumRail({
               window.location.href = `${basePath}?${qs({ term: e.target.value })}`;
             }}
             aria-label="Select term"
-            className="w-full appearance-none rounded-[10px] border border-line bg-surface pl-3 pr-8 py-2 text-[12px] font-bold text-ink cursor-pointer shadow-[0_1px_2px_rgba(15,17,30,0.05)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
+            // line-field, not line: the panel behind it is white now, so a
+            // control outlined at 1.16:1 would read as white-on-white.
+            className="w-full appearance-none rounded-[10px] border border-line-field bg-surface pl-3 pr-8 py-2 text-[12px] font-bold text-ink cursor-pointer shadow-[0_1px_2px_rgba(15,17,30,0.05)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
           >
             {terms.map((t) => (
               <option key={t.id} value={t.id}>
@@ -114,9 +120,10 @@ export function CurriculumRail({
                     aria-current={isActive ? "true" : undefined}
                     className={cn(
                       "block rounded-[12px] border px-3 py-2.5 transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50",
                       isActive
                         ? "border-ink bg-ink text-white"
-                        : "border-line bg-surface hover:border-line-strong",
+                        : "border-line-strong bg-surface hover:border-line-field hover:bg-surface-2",
                     )}
                   >
                     <div className="flex items-center justify-between gap-1.5">
@@ -160,7 +167,10 @@ export function CurriculumRail({
                                   ? "bg-good-bg text-good"
                                   : p.tone === "warn"
                                     ? "bg-warn-bg text-warn"
-                                    : "bg-surface text-muted",
+                                    : // A bg-surface chip on a bg-surface row
+                                      // has no edge at all - ring it so the
+                                      // chip shape survives rest AND hover.
+                                      "bg-surface-2 text-muted ring-1 ring-inset ring-line-strong",
                             )}
                           >
                             {p.label}

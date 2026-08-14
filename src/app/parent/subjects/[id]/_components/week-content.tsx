@@ -14,19 +14,23 @@ import {
   getAccentTokens,
 } from "@/lib/subject-colors";
 import { ProgressRing } from "@/components/student/progress-ring";
+import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import type { ParentCurriculumWeek } from "../_queries";
 
 export async function WeekContentParent({
   week,
   subjectName,
+  backHref,
 }: {
   week: ParentCurriculumWeek;
   subjectName: string;
+  /** Owned by the page - it carries the viewed child through the link. */
+  backHref: string;
 }) {
   const videoSignedUrl = await signCurriculumUrl(week.videoUrl);
   const bookletSignedUrl = await signCurriculumUrl(week.bookletUrl);
-  // Subject colour is spent only on the hero head block.
+  // Subject colour drives the hero head block and the Overview beneath it.
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
 
   const homeworkDone = week.homework.filter(
@@ -67,7 +71,8 @@ export async function WeekContentParent({
           <circle cx="70" cy="30" r="11" fill="rgba(255,255,255,0.14)" />
         </svg>
 
-        <div className="relative z-10 flex items-center justify-between gap-5 flex-wrap">
+        <HeroBackLink href={backHref}>← Overview</HeroBackLink>
+        <div className="relative z-10 mt-2 flex items-center justify-between gap-5 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
               Week {week.weekNumber}
@@ -112,16 +117,25 @@ export async function WeekContentParent({
 
       {/* ONE connected block - split by dividers */}
       <div className="overflow-hidden rounded-[20px] border border-line bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)] divide-y divide-line">
-        {/* Overview */}
+        {/* Overview - carries the subject accent too, but deeper and flatter
+            than the hero (no light radial highlights, no decorative blobs) so
+            the hero stays the dominant block. backgroundColor is the fallback
+            if color-mix is unsupported, keeping the white text readable. */}
         {(week.description || week.objectives?.trim()) && (
-          <section className="p-4 lg:p-5 space-y-3">
-            <SectionHead title="Overview" />
+          <section
+            className="p-4 lg:p-5 space-y-3"
+            style={{
+              backgroundColor: tokens.title,
+              backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${tokens.arrow} 65%, ${tokens.title}) 0%, ${tokens.title} 100%)`,
+            }}
+          >
+            <SectionHead title="Overview" onDark />
             {week.description && (
-              <p className="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">
+              <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap">
                 {week.description}
               </p>
             )}
-            <WeekObjectives objectives={week.objectives} />
+            <WeekObjectives objectives={week.objectives} onDark />
           </section>
         )}
 
@@ -343,19 +357,26 @@ function SectionHead({
   title,
   count,
   right,
+  onDark,
 }: {
   title: string;
   count?: number;
   right?: React.ReactNode;
+  /** Set on the subject-coloured Overview, where ink/muted would vanish. */
+  onDark?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-baseline gap-2">
-        <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+        <h3
+          className={`m-0 text-[15px] font-extrabold tracking-[-0.01em] ${onDark ? "text-white" : "text-ink"}`}
+        >
           {title}
         </h3>
         {typeof count === "number" && count > 0 && (
-          <span className="text-[12px] text-muted tabular-nums font-bold">
+          <span
+            className={`text-[12px] tabular-nums font-bold ${onDark ? "text-white/90" : "text-muted"}`}
+          >
             {count}
           </span>
         )}

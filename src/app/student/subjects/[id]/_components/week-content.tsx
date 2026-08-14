@@ -18,6 +18,7 @@ import {
 } from "@/lib/subject-colors";
 import { Pill } from "@/components/student/pill";
 import { ProgressRing } from "@/components/student/progress-ring";
+import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { VideoPlayer } from "./video-player";
 import { BookletLink } from "./booklet-link";
@@ -26,9 +27,12 @@ import type { StudentCurriculumWeek } from "../_queries";
 export async function WeekContent({
   week,
   subjectName,
+  backHref,
 }: {
   week: StudentCurriculumWeek;
   subjectName: string;
+  /** Owned by the page - the hero carries the only way back out of here. */
+  backHref: string;
 }) {
   const videoSignedUrl = await signCurriculumUrl(week.videoUrl);
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
@@ -70,7 +74,8 @@ export async function WeekContent({
           <circle cx="70" cy="30" r="22" fill="rgba(255,255,255,0.10)" />
           <circle cx="70" cy="30" r="11" fill="rgba(255,255,255,0.14)" />
         </svg>
-        <div className="relative z-10 flex items-center justify-between gap-5 flex-wrap">
+        <HeroBackLink href={backHref}>← All subjects</HeroBackLink>
+        <div className="relative z-10 mt-2 flex items-center justify-between gap-5 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
               Week {week.weekNumber}
@@ -78,42 +83,16 @@ export async function WeekContent({
             <h2 className="m-0 mt-0.5 text-[22px] lg:text-[26px] font-extrabold tracking-[-0.02em] leading-tight">
               {week.title}
             </h2>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              <HeroChip
-                done={videoDone}
-                icon={<PlayCircle className="h-3 w-3" />}
-                label={videoDone ? "Video watched" : "Watch video"}
-              />
-              <HeroChip
-                done={bookletDone}
-                icon={<BookOpen className="h-3 w-3" />}
-                label={bookletDone ? "Booklet opened" : "Open booklet"}
-              />
-              {week.homework.length > 0 && (
-                <HeroChip
-                  done={homeworkDone >= week.homework.length}
-                  icon={<FileText className="h-3 w-3" />}
-                  label={`HW ${homeworkDone}/${week.homework.length}`}
-                />
-              )}
-              {week.quiz && (
-                <HeroChip
-                  done={false}
-                  icon={<ListChecks className="h-3 w-3" />}
-                  label="Quiz ready"
-                />
-              )}
-            </div>
           </div>
 
           <div className="shrink-0 text-center">
             <ProgressRing
               value={completionPct}
-              size={76}
-              stroke={9}
+              size={64}
+              stroke={8}
               color="#FFFFFF"
               track="rgba(255,255,255,0.22)"
-              labelClass="absolute inset-0 grid place-items-center font-extrabold tracking-[-0.02em] text-white text-[15px]"
+              labelClass="absolute inset-0 grid place-items-center font-extrabold tracking-[-0.02em] text-white text-[14px]"
               label={`${completionPct}%`}
             />
           </div>
@@ -122,16 +101,25 @@ export async function WeekContent({
 
       {/* ONE connected block - every part of the week, split by dividers */}
       <div className="overflow-hidden rounded-[20px] border border-line bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)] divide-y divide-line">
-        {/* Overview */}
+        {/* Overview - carries the subject accent too, but deeper and flatter
+            than the hero (no light radial highlights, no decorative blobs) so
+            the hero stays the dominant block. backgroundColor is the fallback
+            if color-mix is unsupported, keeping the white text readable. */}
         {(week.description || week.objectives?.trim()) && (
-          <section className="p-4 lg:p-5 space-y-3">
-            <SectionHead title="Overview" />
+          <section
+            className="p-4 lg:p-5 space-y-3"
+            style={{
+              backgroundColor: tokens.title,
+              backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${tokens.arrow} 65%, ${tokens.title}) 0%, ${tokens.title} 100%)`,
+            }}
+          >
+            <SectionHead title="Overview" onDark />
             {week.description && (
-              <p className="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">
+              <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap">
                 {week.description}
               </p>
             )}
-            <WeekObjectives objectives={week.objectives} />
+            <WeekObjectives objectives={week.objectives} onDark />
           </section>
         )}
 
@@ -277,22 +265,22 @@ export async function WeekContent({
             <SectionHead title="Weekly quiz" />
             <Link
               href={`/student/quizzes/${week.quiz.id}`}
-              className="group flex items-center gap-4 rounded-[14px] border border-line bg-surface-2 p-4 transition-colors hover:bg-surface"
+              className="group flex items-center gap-4 rounded-[14px] border border-brand-200 bg-brand-50 p-4 transition-colors hover:bg-brand-100"
             >
               <span
                 aria-hidden
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-surface text-muted"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-surface text-brand-600"
               >
                 <ListChecks className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                <span className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700">
                   Approved practice quiz
                 </span>
                 <span className="mt-0.5 block text-[15px] font-extrabold tracking-[-0.01em] text-ink">
                   {week.quiz.title}
                 </span>
-                <span className="mt-0.5 block text-[12px] font-semibold text-muted">
+                <span className="mt-0.5 block text-[12px] font-semibold text-ink-soft">
                   {week.quiz.questionCount}{" "}
                   {week.quiz.questionCount === 1 ? "question" : "questions"}
                 </span>
@@ -388,49 +376,32 @@ function SectionHead({
   title,
   count,
   right,
+  onDark,
 }: {
   title: string;
   count?: number;
   right?: React.ReactNode;
+  /** Set on the subject-coloured Overview, where ink/muted would vanish. */
+  onDark?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-baseline gap-2">
-        <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+        <h3
+          className={`m-0 text-[15px] font-extrabold tracking-[-0.01em] ${onDark ? "text-white" : "text-ink"}`}
+        >
           {title}
         </h3>
         {typeof count === "number" && count > 0 && (
-          <span className="text-[12px] text-muted tabular-nums font-bold">
+          <span
+            className={`text-[12px] tabular-nums font-bold ${onDark ? "text-white/90" : "text-muted"}`}
+          >
             {count}
           </span>
         )}
       </div>
       {right}
     </div>
-  );
-}
-
-function HeroChip({
-  done,
-  icon,
-  label,
-}: {
-  done: boolean;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <span
-      className={
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border " +
-        (done
-          ? "bg-white/95 border-white text-ink"
-          : "bg-white/15 border-white/30 text-white")
-      }
-    >
-      {done ? <Check className="h-3 w-3" strokeWidth={3} /> : icon}
-      {label}
-    </span>
   );
 }
 

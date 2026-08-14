@@ -115,7 +115,22 @@
   --surface-3:  #f2f5fc;
   --card:       #ffffff;
 
-  background: var(--background);
+  /* Diagonal page wash - the default backdrop for every portal page. Painted
+   * on the shell wrapper rather than <main> so the header, sidebar and content
+   * all sit on one continuous field; the shell's own bars are opaque
+   * (bg-surface), so only the content column shows it. Fixed attachment
+   * anchors the gradient to the viewport, so it holds still while <main>
+   * scrolls and reads the same on a short page and a long one.
+   * --background stays as the flat fallback and as the token behind the
+   * `bg-background` utility (tinted chips on white cards). */
+  background-color: var(--background);
+  background-image: linear-gradient(
+    135deg,
+    var(--periwinkle-50) 0%,
+    var(--periwinkle-200) 45%,
+    var(--periwinkle-500) 100%
+  );
+  background-attachment: fixed;
   color: var(--ink);
 }
 

@@ -90,15 +90,10 @@ export default async function ParentSubjectPage({
     };
   });
 
+  // The way back to the overview lives in the week hero (same control as the
+  // student page), so the page no longer opens with a lone back-link row.
   return (
-    <div className="space-y-6">
-      <Link
-        href={`/parent?child=${resolved.selected.id}`}
-        className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-      >
-        ← Overview
-      </Link>
-
+    <div>
       <Card>
         <div className="px-6 py-5 border-b border-line">
           <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-muted">
@@ -124,6 +119,23 @@ export default async function ParentSubjectPage({
           </div>
         )}
 
+        {!selected && (
+          // No hero to carry the back link in this branch, so it lives here -
+          // otherwise a term with no weeks is a dead end.
+          <div className="space-y-3 px-6 py-6">
+            <p className="text-sm text-muted">
+              No curriculum has been set up for {data.subjectName} this term
+              yet.
+            </p>
+            <Link
+              href={`/parent?child=${resolved.selected.id}`}
+              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-bold text-ink transition-colors hover:border-brand-300 hover:bg-brand-50"
+            >
+              ← Overview
+            </Link>
+          </div>
+        )}
+
         {selected && (
           <CurriculumLayout
             rail={
@@ -145,6 +157,7 @@ export default async function ParentSubjectPage({
             <WeekContentParent
               week={selected}
               subjectName={data.subjectName}
+              backHref={`/parent?child=${resolved.selected.id}`}
             />
           </CurriculumLayout>
         )}

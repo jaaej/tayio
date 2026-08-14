@@ -6,10 +6,6 @@ import { db } from "@/db/client";
 import { classes, enrollments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { currentWeekNumber } from "@/lib/curriculum";
-import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
 import { getStudentCurriculum } from "./_queries";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
@@ -102,37 +98,20 @@ export default async function StudentSubjectPage({
     };
   });
 
-  const initial = data.subjectName.charAt(0).toUpperCase();
-  const tokens = getAccentTokens(colorFamilyForSubject(data.subjectName));
-
   // Bleed the entire page past the global shell's px-5/lg:px-7 padding and
   // re-add a smaller inner padding so the subject view takes the whole main
   // area (next to the nav sidebar) instead of being inset like other pages.
+  //
+  // The subject identity lives in the weeks tab (see CurriculumLayout) and the
+  // way back out lives in the week hero, so nothing sits above the grid - the
+  // hero runs straight into the top bar.
   return (
-    <div className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col">
-      <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line bg-background">
-        <Link
-          href="/student/subjects"
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted hover:text-ink"
-        >
-          ← All subjects
-        </Link>
-        <div className="mt-1.5 flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className="h-9 w-9 rounded-[10px] grid place-items-center text-[17px] font-extrabold shrink-0"
-            style={{ background: tokens.bgFrom, color: tokens.arrow }}
-          >
-            {initial}
-          </span>
-          <h1
-            className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none"
-            style={{ color: tokens.title }}
-          >
-            {data.subjectName}
-          </h1>
-        </div>
-      </div>
+    <div
+      className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col"
+    >
+      {/* The subject is shown in the weeks tab, but the document still needs
+          an h1 so the week hero's h2 isn't the first heading on the page. */}
+      <h1 className="sr-only">{data.subjectName}</h1>
 
       {data.lessonPlan && (
         <div className="px-5 lg:px-7 pt-3">
@@ -152,6 +131,7 @@ export default async function StudentSubjectPage({
       {/* Full-bleed 2-col: rail attached to the nav, content fills the rest */}
       <CurriculumLayout
         attached
+        subjectName={data.subjectName}
         rail={
           <CurriculumRail
             basePath={`/student/subjects/${subjectId}`}
@@ -167,7 +147,11 @@ export default async function StudentSubjectPage({
           />
         }
       >
-        <WeekContent week={selectedWeek} subjectName={data.subjectName} />
+        <WeekContent
+          week={selectedWeek}
+          subjectName={data.subjectName}
+          backHref="/student/subjects"
+        />
       </CurriculumLayout>
     </div>
   );
