@@ -22,6 +22,17 @@ This is why `npm run db:push` is blocked outright (`scripts/db-push-guard.mjs`).
 `npm run db:bootstrap -- --confirm` does all three steps and refuses to run if the target's `public` schema has any tables, so it cannot be turned against a live database by mistake.
 After the bootstrap, schema changes go back to the normal rule: raw-SQL ALTER migration + `scripts/apply-migration.mjs`, never push.
 
+### Known drift: dev has tables that main does not create
+
+The dev database contains `term_test_attempts` and `term_test_answers`, but `main` has no term-test schema and no `0028`/`0029` - those migrations live on the unmerged `feat/term-test` branch and were applied to dev by hand.
+
+Production will therefore **not** have those tables, which is correct (the feature is not on `main`), but it means dev is not a faithful preview of what `db:bootstrap` produces.
+Do not read "it works in dev" as proof that a table exists in prod.
+
+The underlying cause is that nothing records which migrations have been applied to which database - `apply-migration.mjs` just executes whatever files it is handed.
+With a single database that was survivable; with dev and prod it will bite again.
+A `schema_migrations` ledger table, stamped by `db:bootstrap` and checked by `apply-migration.mjs`, is the fix, and it is much easier to add before production exists than after.
+
 ---
 
 ## Phase 1 - admin + tutor beta
