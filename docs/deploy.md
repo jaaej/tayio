@@ -20,6 +20,97 @@ A custom domain works either way: the client can keep their own DNS and point a 
 
 ---
 
+## Setup sequence - the evening before deploy
+
+Front-loads everything that has lead time or can fail, so deploy day is only clicks.
+Roughly 90 minutes of work, most of it spent waiting on DNS.
+The detailed reasoning for each item is in the phase sections further down; this is the running order.
+
+### 1. Start the slow chain first
+
+It is the only part that cannot be compressed on the day.
+
+1. Register the domain, or pick the subdomain. If it is the client's domain they only need to add a CNAME later, so you are not blocked on them.
+2. Sign up at Resend, add the domain, put its SPF/DKIM records into DNS. Do this **before** anything else - verification is the long pole and everything below runs while it propagates.
+
+### 2. Create the production Supabase project
+
+3. New project, region close to the users. Save the database password; it is shown once.
+4. Upgrade to **Pro** ($25/mo). Free tier pauses after a week of inactivity and has no backups.
+5. Settings → API: copy the Project URL, the anon key, and the service_role key.
+6. Connect → Connection string: copy both pooler URLs. Transaction pooler (port 6543) is `DATABASE_URL`; session pooler (port 5432) is `DIRECT_URL`.
+
+### 3. Bootstrap the schema
+
+This is the step most likely to surprise you and the reason to do all of this the night before rather than in the morning.
+
+Back up the dev environment first, because the next command points your machine at production:
+
+```bash
+cp .env.local .env.local.dev
+```
+
+Fill `.env.local` with the production values (`.env.example` lists every key), then:
+
+```bash
+npm run db:bootstrap -- --confirm
+npm run db:status      # expect 37 of 37, and nothing under "recorded but not in this checkout"
+npm run db:check-rls   # expect every table green
+```
+
+Restore dev the moment it passes:
+
+```bash
+cp .env.local.dev .env.local
+```
+
+**Never run `npm run dev` while `.env.local` holds production values.**
+
+### 4. Finish the Supabase dashboard while you are in there
+
+7. Storage: create five **private** buckets - `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`.
+8. Authentication → Sign In / Providers → Email: **turn sign-up off**. This is per-project; the dev setting does not carry over.
+9. Authentication → Users → Add user (your email, auto-confirm on), then set that user's `app_metadata` to `{"role": "admin"}`.
+   The app reads `app_metadata` only - a role in `user_metadata` is deliberately ignored and will silently not work.
+10. Database → Backups: confirm daily backups are on.
+
+### 5. Vercel
+
+11. Upgrade to **Pro** ($20/mo). Hobby is non-commercial and this is a commercial deployment.
+12. Import the repo, and **set the Production environment variables before letting it build.**
+    `next.config.ts` reads `NEXT_PUBLIC_SUPABASE_URL` at build time to construct the CSP, so a build without it bakes a policy that blocks every Supabase request. The site then loads and nothing works.
+
+Generate a value for `ADMIN_PIN_SECRET` while pasting the rest, so admin PIN sessions survive a future service-role key rotation:
+
+```bash
+openssl rand -hex 32
+```
+
+### 6. Once Resend verifies
+
+13. Supabase → Project Settings → Auth → SMTP: point at Resend, sender on the verified domain.
+14. Project Settings → API → Site URL: the production URL.
+15. Authentication → URL Configuration → Redirect URLs: add `https://<domain>/auth/callback`.
+
+Steps 14 and 15 are the only ones that truly need the final domain, so they can slide to deploy morning.
+
+### 7. Last thing before bed
+
+```bash
+git log --oneline -1   # confirm this is the commit you are deploying
+npm run build          # green on that exact commit
+npm run dev            # then click through /admin and /tutor
+```
+
+Do not skip the click-through.
+Several recent surfaces - the notifications inbox, the discussions recent-activity feed, the shared hero on all four messages pages - have never been opened in a browser.
+
+### Deploy morning
+
+Deploy, then: `db:check-rls` against prod, log in as admin, create a tutor, confirm that tutor cannot open a student they do not teach, upload one file, run a real password reset.
+
+---
+
 ## 0. The thing that is easy to get wrong
 
 `supabase/migrations/*.sql` **cannot build a database from nothing.**
