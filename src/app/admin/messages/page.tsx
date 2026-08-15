@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/admin/ui";
+import { PageHero } from "@/components/ui/page-hero";
 import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
 import { requireRole } from "@/lib/auth";
 import {
@@ -28,11 +28,7 @@ export default async function AdminMessagesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        className="rise"
-        eyebrow="Direct messages"
-        title="Messages"
-      />
+      <PageHero eyebrow="Messages" title="Direct messages" />
       <InboxCompose
         threads={threads}
         hrefPrefix="/admin/messages"

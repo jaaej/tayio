@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { MessageCircleQuestion, MessagesSquare, Sparkles } from "lucide-react";
-import type { BoardSummary } from "@/lib/discussions-queries";
+import type {
+  BoardSummary,
+  RecentThreadSummary,
+} from "@/lib/discussions-queries";
 import { boardSegment } from "@/lib/discussions";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { PageHero } from "@/components/ui/page-hero";
+import { RecentThreads } from "@/components/discussions/recent-threads";
+import type { DiscussionRole } from "@/components/discussions/role-tone";
 
 function formatActivity(d: Date | null): string {
   if (!d) return "No activity yet";
@@ -23,53 +29,27 @@ function formatActivity(d: Date | null): string {
  */
 export function DiscussionsBoardsView({
   boards,
+  recentThreads,
   hrefPrefix,
   title,
   subtitle,
+  userFirstName,
+  rolePrefix,
 }: {
   boards: BoardSummary[];
+  recentThreads: RecentThreadSummary[];
   hrefPrefix: string;
   title: string;
   subtitle?: string;
+  userFirstName: string;
+  rolePrefix: DiscussionRole;
 }) {
   const generalHelp = boards.find((b) => b.id.kind === "admin");
   const subjectBoards = boards.filter((b) => b.id.kind === "subject");
 
   return (
     <div className="space-y-6">
-      {/* Hero strip - indigo gradient */}
-      <section
-        className="relative overflow-hidden rounded-[28px] px-8 py-8 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
-        style={{
-          background:
-            "radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)",
-        }}
-      >
-        <svg
-          aria-hidden
-          viewBox="0 0 100 100"
-          className="absolute -right-8 -top-10 w-[220px] h-[220px] opacity-50 pointer-events-none"
-          fill="none"
-        >
-          <circle cx="70" cy="30" r="30" fill="rgba(255,255,255,0.10)" />
-          <circle cx="70" cy="30" r="20" fill="rgba(255,255,255,0.10)" />
-          <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.12)" />
-        </svg>
-
-        <div className="relative z-10 min-w-0">
-          <div className="text-[11px] uppercase tracking-[0.2em] font-bold opacity-80">
-            Discussions
-          </div>
-          <h1 className="mt-2 text-[32px] lg:text-[36px] font-bold tracking-[-0.02em] leading-tight">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-3 max-w-[480px] text-[15px] opacity-85">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </section>
+      <PageHero eyebrow="Discussions" title={title} subtitle={subtitle} />
 
       {/* General help - featured wide card with sun accent */}
       {generalHelp && (
@@ -204,6 +184,17 @@ export function DiscussionsBoardsView({
           No subject boards yet.
         </div>
       )}
+
+      <RecentThreads
+        threads={recentThreads}
+        hrefPrefix={hrefPrefix}
+        boards={boards.map((b) => ({
+          segment: boardSegment(b.id),
+          label: b.label,
+        }))}
+        userFirstName={userFirstName}
+        rolePrefix={rolePrefix}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { PageHead } from "@/components/student/page-head";
+import { PageHero } from "@/components/ui/page-hero";
 import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
 import { requireRole } from "@/lib/auth";
 import { listMyThreads } from "@/lib/dm-queries";
@@ -39,11 +39,8 @@ export default async function StudentMessagesPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <PageHead
-        eyebrow="Messages"
-        title="Inbox"
-      />
+    <div className="space-y-6">
+      <PageHero eyebrow="Messages" title="Direct messages" />
       <InboxCompose
         threads={threads}
         hrefPrefix="/student/messages"

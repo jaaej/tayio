@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  groupNotifications,
+  NOTIFICATION_GROUPS,
   notificationGroupFor,
+  notificationTimeBucket,
 } from "./notification-groups";
 
 describe("notificationGroupFor", () => {
@@ -89,25 +90,53 @@ describe("notificationGroupFor", () => {
   });
 });
 
-describe("groupNotifications", () => {
-  it("orders important messages before announcements regardless of time order", () => {
-    const groups = groupNotifications([
-      {
-        title: "New announcement",
-        href: "/student/announcements",
-        readAt: null,
-      },
-      {
-        title: "New message from Tutor",
-        href: "/student/messages/thread-1",
-        readAt: null,
-      },
-    ]);
-
-    expect(groups.map((group) => group.key)).toEqual([
+describe("NOTIFICATION_GROUPS", () => {
+  it("offers messages and action items ahead of announcements and updates", () => {
+    // The inbox renders one filter pill per group in this order, so messages
+    // and action items must stay in front of the passive categories.
+    expect(NOTIFICATION_GROUPS.map((group) => group.key)).toEqual([
       "messages",
+      "action",
+      "learning",
       "announcements",
+      "updates",
     ]);
-    expect(groups[0].unread).toBe(1);
+  });
+});
+
+describe("notificationTimeBucket", () => {
+  // Wednesday 13 Aug 2026, 9am local.
+  const now = new Date(2026, 7, 13, 9, 0, 0);
+
+  it("puts anything from the current calendar day in today", () => {
+    expect(notificationTimeBucket(new Date(2026, 7, 13, 0, 5), now)).toBe(
+      "today",
+    );
+    expect(notificationTimeBucket(new Date(2026, 7, 13, 8, 59), now)).toBe(
+      "today",
+    );
+  });
+
+  it("puts the previous six days in this week", () => {
+    expect(notificationTimeBucket(new Date(2026, 7, 12, 23, 59), now)).toBe(
+      "week",
+    );
+    expect(notificationTimeBucket(new Date(2026, 7, 7, 0, 0), now)).toBe("week");
+  });
+
+  it("rolls the window rather than resetting it on Monday", () => {
+    // Monday 17 Aug: yesterday (Sunday) belongs to the previous calendar week
+    // but must still read as "This week", not "Earlier".
+    const monday = new Date(2026, 7, 17, 9, 0, 0);
+    expect(notificationTimeBucket(new Date(2026, 7, 16, 20, 0), monday)).toBe(
+      "week",
+    );
+  });
+
+  it("puts anything older than the window in earlier", () => {
+    expect(notificationTimeBucket(new Date(2026, 7, 6, 23, 59), now)).toBe(
+      "earlier",
+    );
+    expect(notificationTimeBucket(new Date(2026, 6, 1), now)).toBe("earlier");
   });
 });

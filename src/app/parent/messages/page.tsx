@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/parent/ui";
+import { PageHero } from "@/components/ui/page-hero";
 import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
 import { requireRole } from "@/lib/auth";
 import { listMyThreads } from "@/lib/dm-queries";
@@ -31,9 +31,7 @@ export default async function ParentMessagesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Messages"
-      />
+      <PageHero eyebrow="Messages" title="Direct messages" />
       <InboxCompose
         threads={threads}
         hrefPrefix="/parent/messages"

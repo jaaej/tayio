@@ -64,22 +64,33 @@ export function notificationGroupFor(
   return "updates";
 }
 
-export function groupNotifications<T extends NotificationLike>(
-  notifications: T[],
-): Array<{
-  key: NotificationGroupKey;
+export type NotificationTimeBucket = "today" | "week" | "earlier";
+
+export const NOTIFICATION_TIME_BUCKETS: Array<{
+  key: NotificationTimeBucket;
   label: string;
-  unread: number;
-  items: T[];
-}> {
-  return NOTIFICATION_GROUPS.map((group) => {
-    const items = notifications.filter(
-      (notification) => notificationGroupFor(notification) === group.key,
-    );
-    return {
-      ...group,
-      unread: items.filter((item) => !item.readAt).length,
-      items,
-    };
-  }).filter((group) => group.items.length > 0);
+}> = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "earlier", label: "Earlier" },
+];
+
+/**
+ * "This week" is a rolling six days behind today, not the calendar week: on a
+ * Monday morning a calendar week would push yesterday's notifications into
+ * "Earlier", which reads as wrong to anyone who just saw them arrive.
+ */
+export function notificationTimeBucket(
+  createdAt: Date,
+  now: Date,
+): NotificationTimeBucket {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  if (createdAt.getTime() >= startOfToday.getTime()) return "today";
+
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+  if (createdAt.getTime() >= startOfWeek.getTime()) return "week";
+
+  return "earlier";
 }
