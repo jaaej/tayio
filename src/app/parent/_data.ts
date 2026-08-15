@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { isoDate } from "@/lib/format";
 import {
   announcements,
   attendance,
@@ -58,6 +59,7 @@ export async function resolveSelectedChild(
 export type DashboardData = {
   attendanceRate: number | null;
   attendanceCount: number;
+  absenceCount: number;
   homeworkCompleted: number;
   homeworkTotal: number;
   nextLesson: {
@@ -90,6 +92,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   const presentLike = attendanceRows.filter(
     (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
   ).length;
+  const absenceCount = attendanceRows.filter((r) => r.status === "absent").length;
   const attendanceRate =
     attendanceCount > 0 ? Math.round((presentLike / attendanceCount) * 100) : null;
 
@@ -103,7 +106,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   ).length;
 
   const tutorProfile = profiles;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
   const nextLessonRows = await db
     .select({
       date: lessons.date,
@@ -171,6 +174,7 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   return {
     attendanceRate,
     attendanceCount,
+    absenceCount,
     homeworkCompleted,
     homeworkTotal,
     nextLesson,
@@ -269,6 +273,7 @@ export type FeedbackRow = {
   id: string;
   createdAt: Date;
   lessonDate: string;
+  classId: string;
   subjectName: string | null;
   tutorName: string;
   topicCovered: string | null;
@@ -282,6 +287,7 @@ export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
       id: lessonNotes.id,
       createdAt: lessonNotes.createdAt,
       lessonDate: lessons.date,
+      classId: lessons.classId,
       subjectName: subjects.name,
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
@@ -305,11 +311,131 @@ export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
     id: r.id,
     createdAt: r.createdAt,
     lessonDate: r.lessonDate,
+    classId: r.classId,
     subjectName: r.subjectName,
     tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
     topicCovered: r.topicCovered,
     parentVisibleComment: r.parentVisibleComment!,
   }));
+}
+
+export type ParentClassDetail = {
+  classId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  tutorName: string;
+  weekday: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  attendance: AttendanceRow[];
+  feedback: FeedbackRow[];
+};
+
+/**
+ * Per-class detail for one of the parent's children - the "relationship" view
+ * (tutor, this child's attendance in this class, and this class's feedback),
+ * distinct from the curriculum browser at /parent/subjects/[id]. Returns null
+ * unless the child belongs to the parent AND is enrolled in the class, so it
+ * enforces the parent -> child -> class scope.
+ */
+export async function getParentClassDetail(
+  parentId: string,
+  childId: string,
+  classId: string,
+): Promise<ParentClassDetail | null> {
+  const [link] = await db
+    .select({ studentId: familyLinks.studentId })
+    .from(familyLinks)
+    .where(
+      and(
+        eq(familyLinks.parentId, parentId),
+        eq(familyLinks.studentId, childId),
+      ),
+    )
+    .limit(1);
+  if (!link) return null;
+
+  const [enrolled] = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(
+      and(eq(enrollments.studentId, childId), eq(enrollments.classId, classId)),
+    )
+    .limit(1);
+  if (!enrolled) return null;
+
+  const tutorProfile = alias(profiles, "class_tutor");
+  const [cls] = await db
+    .select({
+      classId: classes.id,
+      className: classes.name,
+      subjectId: classes.subjectId,
+      subjectName: subjects.name,
+      weekday: classes.weekday,
+      startTime: classes.startTime,
+      endTime: classes.endTime,
+      location: classes.location,
+      tutorFirst: tutorProfile.firstName,
+      tutorLast: tutorProfile.lastName,
+    })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(tutorProfile, eq(tutorProfile.id, classes.tutorId))
+    .where(eq(classes.id, classId))
+    .limit(1);
+  if (!cls) return null;
+
+  const attnTutor = alias(profiles, "attn_tutor");
+  const [attnRows, childFeedback] = await Promise.all([
+    db
+      .select({
+        lessonId: lessons.id,
+        date: lessons.date,
+        startTime: lessons.startTime,
+        subjectName: subjects.name,
+        tutorFirst: attnTutor.firstName,
+        tutorLast: attnTutor.lastName,
+        status: attendance.status,
+        note: attendance.note,
+      })
+      .from(attendance)
+      .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
+      .leftJoin(classes, eq(classes.id, lessons.classId))
+      .leftJoin(subjects, eq(subjects.id, classes.subjectId))
+      .innerJoin(attnTutor, eq(attnTutor.id, lessons.tutorId))
+      .where(
+        and(
+          eq(attendance.studentId, childId),
+          eq(lessons.classId, classId),
+        ),
+      )
+      .orderBy(desc(lessons.date), desc(lessons.startTime)),
+    getFeedback(childId),
+  ]);
+
+  return {
+    classId: cls.classId,
+    className: cls.className,
+    subjectId: cls.subjectId,
+    subjectName: cls.subjectName,
+    tutorName: `${cls.tutorFirst ?? ""} ${cls.tutorLast ?? ""}`.trim(),
+    weekday: cls.weekday,
+    startTime: cls.startTime,
+    endTime: cls.endTime,
+    location: cls.location,
+    attendance: attnRows.map((r) => ({
+      lessonId: r.lessonId,
+      date: r.date,
+      startTime: r.startTime,
+      subjectName: r.subjectName,
+      tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
+      status: r.status,
+      note: r.note,
+    })),
+    feedback: childFeedback.filter((f) => f.classId === classId),
+  };
 }
 
 export type WeekLessonRow = {

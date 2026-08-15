@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, profiles, tutorAvailability } from "@/db/schema";
+import { classes, lessons, profiles, tutorAvailability } from "@/db/schema";
 
 export type AvailableSlot = {
   date: string;
@@ -10,6 +10,10 @@ export type AvailableSlot = {
   tutorId: string;
   tutorName: string;
   isOriginalTutor: boolean;
+  /** True when the tutor already has a lesson overlapping this slot, so it
+   *  can be shown as taken rather than offered. Set by consumers that compute
+   *  bookings (e.g. the admin reschedule picker); undefined = treat as open. */
+  taken?: boolean;
 };
 
 function isoLocal(d: Date): string {
@@ -99,8 +103,13 @@ export async function expandAvailability(
   horizon.setDate(horizon.getDate() + totalDays);
   const horizonIso = isoLocal(horizon);
 
+  // selectDistinct, not select: availability rows are scoped per subject since
+  // migration 0040, so one tutor free Tuesday 16:00-18:00 for both Maths and
+  // English has two rows for that window. Rescheduling does not care which
+  // subject the slot was tagged for - it only asks whether the tutor is free -
+  // so without this the picker offers the identical slot once per subject.
   const weeklyRows = await db
-    .select({
+    .selectDistinct({
       tutorId: tutorAvailability.tutorId,
       weekday: tutorAvailability.weekday,
       startTime: tutorAvailability.startTime,
@@ -225,4 +234,46 @@ export async function getAvailableSlots(
 ): Promise<AvailableSlot[]> {
   const tutors = await getEligibleTutors(classId);
   return expandAvailability(tutors, fromDate, weeks);
+}
+
+/**
+ * Mark each slot `taken` when its tutor already has a lesson overlapping it, so
+ * pickers can show it as filled rather than offering it (and hitting the
+ * double-booking guard on submit). Shared by the student, parent, and admin
+ * reschedule/redemption pickers.
+ */
+export async function markTakenSlots(
+  slots: AvailableSlot[],
+): Promise<AvailableSlot[]> {
+  if (slots.length === 0) return slots;
+  const tutorIds = Array.from(new Set(slots.map((s) => s.tutorId)));
+  const dates = slots.map((s) => s.date);
+  const minDate = dates.reduce((a, b) => (a < b ? a : b));
+  const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+  const booked = await db
+    .select({
+      tutorId: lessons.tutorId,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+    })
+    .from(lessons)
+    .where(
+      and(
+        inArray(lessons.tutorId, tutorIds),
+        gte(lessons.date, minDate),
+        lte(lessons.date, maxDate),
+      ),
+    );
+  const byKey = new Map<string, { startTime: string; endTime: string }[]>();
+  for (const b of booked) {
+    const key = `${b.tutorId}|${b.date}`;
+    (byKey.get(key) ?? byKey.set(key, []).get(key)!).push(b);
+  }
+  return slots.map((s) => ({
+    ...s,
+    taken: (byKey.get(`${s.tutorId}|${s.date}`) ?? []).some(
+      (l) => l.startTime < s.endTime && l.endTime > s.startTime,
+    ),
+  }));
 }

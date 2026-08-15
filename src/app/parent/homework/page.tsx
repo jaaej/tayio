@@ -26,7 +26,6 @@ export default async function ParentHomeworkPage({
       <div className="space-y-6">
         <PageHeader
           title="Homework"
-          sub="Your children's homework and their submission status."
         />
         <EmptyChildrenNotice />
       </div>
@@ -77,7 +76,6 @@ export default async function ParentHomeworkPage({
     <div className="space-y-6">
       <PageHeader
         title={`${selected.firstName}'s homework`}
-        sub="Tasks set by the tutor and their submission status."
       />
 
       {children.length > 1 && (
@@ -91,7 +89,7 @@ export default async function ParentHomeworkPage({
       )}
 
       <section
-        className="grid grid-cols-3 gap-4 rise"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
         <StatTile

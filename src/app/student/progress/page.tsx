@@ -126,9 +126,6 @@ export default async function ProgressPage() {
               {overall}
               <span className="text-[28px] align-top opacity-80">%</span>
             </div>
-            <div className="mt-1 text-[10px] uppercase tracking-[0.14em] font-bold opacity-75">
-              Across all subjects
-            </div>
           </div>
         </div>
       </section>

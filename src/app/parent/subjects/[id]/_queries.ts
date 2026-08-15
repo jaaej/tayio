@@ -27,6 +27,7 @@ export type ParentCurriculumWeek = {
   weekNumber: number;
   title: string;
   description: string | null;
+  objectives: string | null;
   videoUrl: string | null;
   bookletUrl: string | null;
   topicId: string | null;
@@ -54,6 +55,7 @@ export type ParentCurriculumData = {
   subjectName: string;
   className: string;
   classId: string;
+  lessonPlan: string | null;
   currentTerm: {
     id: string;
     year: number;
@@ -89,6 +91,7 @@ export async function getParentCurriculum(
       className: classes.name,
       subjectName: subjects.name,
       tutorId: classes.tutorId,
+      lessonPlan: classes.lessonPlan,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -227,6 +230,7 @@ export async function getParentCurriculum(
         weekNumber: tpl.weekNumber,
         title: tpl.title,
         description: tpl.description,
+        objectives: tpl.objectives,
         videoUrl: tpl.videoUrl,
         bookletUrl: tpl.bookletUrl,
         topicId: tpl.topicId,
@@ -251,6 +255,7 @@ export async function getParentCurriculum(
     subjectName: enr.subjectName,
     className: enr.className,
     classId: enr.classId,
+    lessonPlan: enr.lessonPlan,
     currentTerm: {
       id: term.id,
       year: term.year,

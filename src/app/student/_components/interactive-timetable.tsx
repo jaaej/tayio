@@ -1,16 +1,22 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/lib/format";
+import { formatTime, formatDateLong } from "@/lib/format";
 import {
   loadRescheduleOptions,
   submitReschedule,
-  type RescheduleOptions,
+  grantRescheduleCredit,
   type RescheduleSlot,
 } from "@/app/_actions/reschedule";
+import {
+  cancelLesson,
+  loadCreditRedemption,
+  redeemCredit,
+} from "@/app/_actions/credits";
+import type { PanelCredit } from "@/components/reschedule/credit-panel";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -34,13 +40,50 @@ export type TimetableChip = {
     | "pending_out"
     | "pending_in";
   moveLabel: string | null;
+  /** Base eligibility - lesson is upcoming, in the future, and in a state
+   *  self-serve actions make sense for. Every lesson opens the action menu;
+   *  this only gates whether the reschedule/cancel actions are live vs shown
+   *  greyed-out with a reason. */
+  canManage: boolean;
+  /** canManage AND in a resolved term AND 7-day notice met AND reschedule cap
+   *  not reached this term. */
   canReschedule: boolean;
+  /** canManage AND in a resolved term AND 24h notice met AND cancellation cap
+   *  not reached this term. */
+  canCancel: boolean;
+  /** Remaining reschedules this term, or null if the lesson isn't in a
+   *  resolved term. */
+  rescheduleRemaining: number | null;
+  /** Remaining cancellations this term, or null if the lesson isn't in a
+   *  resolved term. */
+  cancelRemaining: number | null;
+  /** Effective per-term caps (base 3 + admin allowance bonus) - the denominator
+   *  shown in the "N of X left" labels. */
+  rescheduleCap: number;
+  cancelCap: number;
+  /** When reschedule is unavailable, a short reason ("Passed", "Needs 7 days
+   *  notice", ...) shown on the greyed-out action. null when reschedulable. */
+  rescheduleReason: string | null;
+  /** When cancel is unavailable, a short reason shown on the greyed-out
+   *  action. null when cancellable. */
+  cancelReason: string | null;
+  /** This lesson has been cancelled by the student (a credit was granted).
+   *  Rendered struck-through in red with a single "Cancelled" status. */
+  cancelled: boolean;
+  /** This lesson was converted to a class credit via a no-slot reschedule
+   *  (credit granted from it, but not a cancellation). Rendered struck-through
+   *  in grey with a "Converted to class credit" status. */
+  convertedToCredit: boolean;
 };
 export type TimetableHw = {
   id: string;
   dueDate: string;
   title: string;
   done: boolean;
+  /** Precomputed link for the due-date chip. Built server-side per portal
+   *  (the student's per-item detail page vs the parent's child-filtered
+   *  list) so no function crosses the server/client boundary. */
+  href: string;
 };
 
 function isoLocal(d: Date) {
@@ -50,14 +93,23 @@ function isoLocal(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
-type LoadedOptions = Extract<RescheduleOptions, { ok: true }>;
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1";
+
+/** The two things that share the calendar slot-picking overlay: rescheduling a
+ *  lesson, and redeeming a class credit. */
+type PickAction =
+  | { type: "reschedule"; lessonId: string; hasSlots: boolean }
+  | { type: "credit"; creditId: string };
 type Mode =
   | { kind: "idle" }
   | { kind: "menu"; lessonId: string }
+  | { kind: "cancel-confirm"; lessonId: string }
   | {
       kind: "picking";
-      lessonId: string;
-      opts: LoadedOptions;
+      action: PickAction;
+      subjectName: string;
+      slots: RescheduleSlot[];
       picked: RescheduleSlot | null;
     };
 
@@ -66,16 +118,35 @@ export function InteractiveTimetable({
   initialMonth,
   lessons,
   homework,
+  credits,
   adminId,
+  studentId,
+  subjectBase = "/student/subjects",
+  subjectQuery = "",
+  messageBase = "/student/messages/with",
 }: {
   initialYear: number;
   initialMonth: number;
   lessons: TimetableChip[];
   homework: TimetableHw[];
+  /** The student's active class credits, redeemed via the same calendar
+   *  slot-picking overlay as a reschedule. */
+  credits: PanelCredit[];
   /** Admin office profile id to message when no reschedule slot is
    *  available. Null if no admin contact is available (empty state
    *  falls back to plain text with no link). */
   adminId: string | null;
+  /** Acting on behalf of this student (parent portal). Undefined on the
+   *  student's own timetable, where every action defaults to the caller. */
+  studentId?: string;
+  /** Base path for the "Go to subject" link - `${subjectBase}/${lesson.subjectId}${subjectQuery}`. */
+  subjectBase?: string;
+  /** Query string appended after the subject id, e.g. `?child=${studentId}` so
+   *  the parent portal's subject page (which otherwise defaults to the
+   *  parent's first child) resolves the same child this timetable is for. */
+  subjectQuery?: string;
+  /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
+  messageBase?: string;
 }) {
   const router = useRouter();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
@@ -85,6 +156,7 @@ export function InteractiveTimetable({
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
 
   const picking = mode.kind === "picking" ? mode : null;
+  const cancelConfirming = mode.kind === "cancel-confirm" ? mode : null;
 
   const lessonsByDate = useMemo(() => {
     const m = new Map<string, TimetableChip[]>();
@@ -100,7 +172,7 @@ export function InteractiveTimetable({
   const slotsByDate = useMemo(() => {
     const m = new Map<string, RescheduleSlot[]>();
     if (picking) {
-      for (const s of picking.opts.slots)
+      for (const s of picking.slots)
         (m.get(s.date) ?? m.set(s.date, []).get(s.date)!).push(s);
       for (const list of m.values()) list.sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
@@ -134,31 +206,98 @@ export function InteractiveTimetable({
     });
   }
 
+  function jumpToFirstSlot(slots: RescheduleSlot[]) {
+    if (slots.length === 0) return;
+    const first = slots.reduce((a, b) => (a.date <= b.date ? a : b));
+    const d = new Date(`${first.date}T00:00:00`);
+    setView({ year: d.getFullYear(), month: d.getMonth() });
+  }
+
   function openReschedule(lessonId: string) {
     startLoad(async () => {
-      const opts = await loadRescheduleOptions(lessonId);
+      const opts = await loadRescheduleOptions(lessonId, studentId);
       if (!opts.ok) {
         setFlash({ ok: false, text: opts.error });
         setMode({ kind: "idle" });
         return;
       }
-      setMode({ kind: "picking", lessonId, opts, picked: null });
-      if (opts.slots.length > 0) {
-        const first = opts.slots.reduce((a, b) => (a.date <= b.date ? a : b));
-        const d = new Date(`${first.date}T00:00:00`);
-        setView({ year: d.getFullYear(), month: d.getMonth() });
+      setMode({
+        kind: "picking",
+        action: { type: "reschedule", lessonId, hasSlots: opts.slots.length > 0 },
+        subjectName: opts.lesson.subjectName,
+        slots: opts.slots,
+        picked: null,
+      });
+      jumpToFirstSlot(opts.slots);
+    });
+  }
+
+  function openCreditRedemption(creditId: string) {
+    startLoad(async () => {
+      const res = await loadCreditRedemption(creditId, studentId);
+      if (!res.ok) {
+        setFlash({ ok: false, text: res.error });
+        setMode({ kind: "idle" });
+        return;
       }
+      setMode({
+        kind: "picking",
+        action: { type: "credit", creditId },
+        subjectName: res.subjectName,
+        slots: res.slots,
+        picked: null,
+      });
+      jumpToFirstSlot(res.slots);
     });
   }
 
   function confirm() {
     if (!picking?.picked) return;
     const s = picking.picked;
-    const fd = new FormData();
-    fd.set("lessonId", picking.lessonId);
-    fd.set("slot", `${s.tutorId}|${s.date}|${s.startTime}|${s.endTime}`);
+    const slot = `${s.tutorId}|${s.date}|${s.startTime}|${s.endTime}`;
+    const action = picking.action;
     startSubmit(async () => {
-      const res = await submitReschedule(fd);
+      let res: { ok: true; message: string } | { ok: false; error: string };
+      if (action.type === "reschedule") {
+        const fd = new FormData();
+        fd.set("lessonId", action.lessonId);
+        fd.set("slot", slot);
+        if (studentId) fd.set("studentId", studentId);
+        res = await submitReschedule(fd);
+      } else {
+        const fd = new FormData();
+        fd.set("creditId", action.creditId);
+        fd.set("slot", slot);
+        if (studentId) fd.set("studentId", studentId);
+        res = await redeemCredit(fd);
+      }
+      setMode({ kind: "idle" });
+      setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function useCreditInstead() {
+    if (picking?.action.type !== "reschedule") return;
+    const lessonId = picking.action.lessonId;
+    const fd = new FormData();
+    fd.set("lessonId", lessonId);
+    if (studentId) fd.set("studentId", studentId);
+    startSubmit(async () => {
+      const res = await grantRescheduleCredit(fd);
+      setMode({ kind: "idle" });
+      setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function confirmCancel() {
+    if (!cancelConfirming) return;
+    const fd = new FormData();
+    fd.set("lessonId", cancelConfirming.lessonId);
+    if (studentId) fd.set("studentId", studentId);
+    startSubmit(async () => {
+      const res = await cancelLesson(fd);
       setMode({ kind: "idle" });
       setFlash(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
       if (res.ok) router.refresh();
@@ -181,42 +320,96 @@ export function InteractiveTimetable({
       )}
 
       {picking && (
-        <div className="flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5">
+        <div className="sticky top-4 z-30 flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5 shadow-sm">
           <div className="text-[13px] font-bold text-brand-800">
-            Pick a new time for {picking.opts.lesson.subjectName} - tutor's open
-            slots are highlighted.
-            {picking.opts.approvalRequired && (
-              <span className="font-semibold text-brand-700">
-                {picking.opts.secondReschedule
-                  ? " Second reschedule - needs tutor/admin approval."
-                  : " This will be sent for approval."}
-              </span>
+            {picking.picked ? (
+              <>
+                {picking.action.type === "credit" ? "Book" : "Move"}{" "}
+                {picking.subjectName}{" "}
+                {picking.action.type === "credit" ? "make-up at" : "to"}{" "}
+                <span className="tabular-nums">
+                  {new Date(
+                    `${picking.picked.date}T00:00:00`,
+                  ).toLocaleDateString("en-AU", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}{" "}
+                  {formatTime(picking.picked.startTime)}
+                </span>
+                ?
+              </>
+            ) : (
+              <>
+                {picking.action.type === "credit"
+                  ? `Pick a time for your ${picking.subjectName} credit`
+                  : `Pick a new time for ${picking.subjectName}`}{" "}
+                - open slots are highlighted.
+              </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setMode({ kind: "idle" })}
-            className="shrink-0 text-[12px] font-bold text-brand-700 hover:text-brand-900"
-          >
-            Cancel
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {picking.picked && (
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={submitting}
+                className={cn(
+                  "min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
+                  FOCUS_RING,
+                )}
+              >
+                {submitting
+                  ? "…"
+                  : picking.action.type === "credit"
+                    ? "Book with credit"
+                    : "Confirm reschedule"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode({ kind: "idle" })}
+              className={cn(
+                "min-h-11 rounded-[10px] px-3 text-[12px] font-bold text-brand-700 hover:text-brand-900",
+                FOCUS_RING,
+              )}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
-      {picking && picking.opts.slots.length === 0 && (
+      {picking && picking.action.type === "reschedule" && !picking.action.hasSlots && (
         <div className="rounded-[12px] border border-line bg-surface px-4 py-3">
           <div className="text-[13px] text-muted">
             Your tutor has no open slots in the next few weeks. Please contact
-            the office.
+            the office, or convert this lesson to a class credit instead.
           </div>
-          {adminId && (
-            <Link
-              href={`/student/messages/with/${adminId}`}
-              className="mt-3 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={useCreditInstead}
+              disabled={submitting}
+              className={cn(
+                "inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                FOCUS_RING,
+              )}
             >
-              Message the office
-            </Link>
-          )}
+              {submitting ? "Working…" : "Get a class credit instead"}
+            </button>
+            {adminId && (
+              <Link
+                href={`${messageBase}/${adminId}`}
+                className={cn(
+                  "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300",
+                  FOCUS_RING,
+                )}
+              >
+                Message the office
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
@@ -230,7 +423,10 @@ export function InteractiveTimetable({
             type="button"
             onClick={() => navMonth(-1)}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className={cn(
+              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              FOCUS_RING,
+            )}
           >
             ‹
           </button>
@@ -238,7 +434,10 @@ export function InteractiveTimetable({
             type="button"
             onClick={() => navMonth(1)}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className={cn(
+              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              FOCUS_RING,
+            )}
           >
             ›
           </button>
@@ -284,14 +483,44 @@ export function InteractiveTimetable({
                     dimmed={!d.inMonth}
                     picking={!!picking}
                     menuOpen={mode.kind === "menu" && mode.lessonId === l.id}
+                    cancelConfirming={
+                      mode.kind === "cancel-confirm" && mode.lessonId === l.id
+                    }
                     loading={loading}
+                    cancelling={submitting}
+                    adminId={adminId}
+                    subjectBase={subjectBase}
+                    subjectQuery={subjectQuery}
+                    messageBase={messageBase}
                     onOpenMenu={() => setMode({ kind: "menu", lessonId: l.id })}
                     onCloseMenu={() => setMode({ kind: "idle" })}
                     onReschedule={() => openReschedule(l.id)}
+                    onOpenCancelConfirm={() =>
+                      setMode({ kind: "cancel-confirm", lessonId: l.id })
+                    }
+                    onAbortCancel={() => setMode({ kind: "menu", lessonId: l.id })}
+                    onConfirmCancel={confirmCancel}
                   />
                 ))}
                 {picking &&
                   (slotsByDate.get(d.iso) ?? []).map((s) => {
+                    if (s.taken) {
+                      return (
+                        <div
+                          key={`${s.date}-${s.startTime}`}
+                          aria-disabled="true"
+                          title="This tutor is already booked at this time"
+                          className="block w-full rounded-md px-2 py-1 leading-tight border border-line bg-surface-2 text-muted opacity-70 cursor-not-allowed"
+                        >
+                          <div className="text-[10px] font-extrabold tabular-nums line-through">
+                            {formatTime(s.startTime)}
+                          </div>
+                          <div className="text-[10px] font-bold truncate uppercase tracking-wide">
+                            Taken
+                          </div>
+                        </div>
+                      );
+                    }
                     const active =
                       picking.picked?.date === s.date &&
                       picking.picked?.startTime === s.startTime;
@@ -307,6 +536,7 @@ export function InteractiveTimetable({
                           active
                             ? "bg-brand-500 border-brand-500 text-white"
                             : "bg-good-bg border-good/40 text-good hover:brightness-95",
+                          FOCUS_RING,
                         )}
                       >
                         <div className="text-[10px] font-extrabold tabular-nums">
@@ -321,7 +551,7 @@ export function InteractiveTimetable({
                 {(hwByDate.get(d.iso) ?? []).map((h) => (
                   <Link
                     key={h.id}
-                    href={`/student/homework/${h.id}`}
+                    href={h.href}
                     className={cn(
                       "block rounded-md px-2 py-1 leading-tight text-[11px] font-bold truncate",
                       picking && "opacity-40",
@@ -337,30 +567,39 @@ export function InteractiveTimetable({
         </div>
       </div>
 
-      {picking?.picked && (
-        <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-[14px] border border-brand-300 bg-surface px-4 py-3 shadow-lg">
-          <div className="text-[13px] text-ink">
-            Move to{" "}
-            <span className="font-bold">
-              {new Date(`${picking.picked.date}T00:00:00`).toLocaleDateString(
-                "en-AU",
-                { weekday: "short", day: "numeric", month: "short" },
-              )}{" "}
-              {formatTime(picking.picked.startTime)}
-            </span>
+      {credits.length > 0 && (
+        <div className="rounded-[14px] border border-line bg-surface">
+          <div className="border-b border-line px-4 py-3.5">
+            <h3 className="m-0 text-[14px] font-bold text-ink">Class credits</h3>
           </div>
-          <button
-            type="button"
-            onClick={confirm}
-            disabled={submitting}
-            className="rounded-[10px] bg-brand-500 px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50"
-          >
-            {submitting
-              ? "…"
-              : picking.opts.approvalRequired
-                ? "Request reschedule"
-                : "Confirm reschedule"}
-          </button>
+          <div className="divide-y divide-line">
+            {credits.map((c) => {
+              const active =
+                picking?.action.type === "credit" &&
+                picking.action.creditId === c.id;
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-3 p-4">
+                  <div>
+                    <div className="text-[13px] font-bold text-ink">{c.subjectName}</div>
+                    <div className="text-[12px] text-muted">
+                      Expires {formatDateLong(c.expiresAt)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openCreditRedemption(c.id)}
+                    disabled={loading || submitting || !!picking}
+                    className={cn(
+                      "shrink-0 min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
+                      FOCUS_RING,
+                    )}
+                  >
+                    {active ? "Picking a slot…" : "Use credit"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -372,85 +611,247 @@ function LessonChip({
   dimmed,
   picking,
   menuOpen,
+  cancelConfirming,
   loading,
+  cancelling,
+  adminId,
+  subjectBase,
+  subjectQuery,
+  messageBase,
   onOpenMenu,
   onCloseMenu,
   onReschedule,
+  onOpenCancelConfirm,
+  onAbortCancel,
+  onConfirmCancel,
 }: {
   lesson: TimetableChip;
   dimmed: boolean;
   picking: boolean;
   menuOpen: boolean;
+  cancelConfirming: boolean;
   loading: boolean;
+  cancelling: boolean;
+  adminId: string | null;
+  subjectBase: string;
+  subjectQuery: string;
+  messageBase: string;
   onOpenMenu: () => void;
   onCloseMenu: () => void;
   onReschedule: () => void;
+  onOpenCancelConfirm: () => void;
+  onAbortCancel: () => void;
+  onConfirmCancel: () => void;
 }) {
+  // Dismiss the open menu / cancel-confirm on a click anywhere outside this
+  // cell, or on Escape - not only via the explicit Close button.
+  const popRef = useRef<HTMLDivElement>(null);
+  const popoverOpen = menuOpen || cancelConfirming;
+  useEffect(() => {
+    if (!popoverOpen) return;
+    function onDown(e: MouseEvent) {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+        onCloseMenu();
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseMenu();
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [popoverOpen, onCloseMenu]);
+
+  const cancelled = lesson.cancelled;
+  const convertedToCredit = lesson.convertedToCredit;
   const moved = lesson.studentState === "moved_out";
   const makeup = lesson.studentState === "makeup_in";
   const pending =
     lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
-  const tone = moved
-    ? "bg-surface-2 text-muted"
-    : makeup
-      ? "bg-good-bg text-good"
-      : pending
-        ? "bg-warn-bg text-warn border border-dashed border-warn/50"
-        : "bg-brand-50 text-brand-700";
+  const tone = cancelled
+    ? "bg-bad-bg text-bad"
+    : convertedToCredit
+      ? "bg-surface-2 text-muted"
+      : moved
+        ? "bg-surface-2 text-muted"
+        : makeup
+          ? "bg-good-bg text-good"
+          : pending
+            ? "bg-warn-bg text-warn border border-dashed border-warn/50"
+            : "bg-brand-50 text-brand-700";
+  const struck = cancelled || convertedToCredit || moved;
 
   const chip = (
     <div
       className={cn(
         "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
         tone,
-        (dimmed || (picking && !menuOpen)) && "opacity-40",
-        lesson.canReschedule && !picking && "cursor-pointer hover:brightness-95",
+        (dimmed || (picking && !menuOpen && !cancelConfirming)) && "opacity-40",
+        !picking && "cursor-pointer hover:brightness-95",
       )}
     >
-      <div className={cn("text-[10px] font-extrabold tabular-nums", moved && "line-through")}>
+      <div className={cn("text-[10px] font-extrabold tabular-nums", struck && "line-through")}>
         {formatTime(lesson.startTime)}
       </div>
-      <div className={cn("mt-0.5 text-[11px] truncate font-bold", moved && "line-through")}>
+      <div className={cn("mt-0.5 text-[11px] truncate font-bold", struck && "line-through")}>
         {lesson.subjectName}
       </div>
-      {lesson.moveLabel && (
+      {cancelled ? (
+        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
+          Cancelled
+        </div>
+      ) : convertedToCredit ? (
+        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
+          Converted to class credit
+        </div>
+      ) : lesson.moveLabel ? (
         <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide truncate">
           {lesson.moveLabel}
         </div>
-      )}
+      ) : null}
     </div>
   );
 
-  if (!lesson.canReschedule || picking) return chip;
+  if (picking) return chip;
+
+  // Show the office escape when at least one action is gated for a reason the
+  // office can act on (notice window or cap) - not for a passed/already-done
+  // lesson, where it can't help.
+  const showOfficeLink =
+    !!adminId && (!lesson.canReschedule || !lesson.canCancel);
+  const messageOfficeLink = showOfficeLink ? (
+    <Link
+      href={`${messageBase}/${adminId}`}
+      className={cn(
+        "flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
+        FOCUS_RING,
+      )}
+    >
+      Message the office
+    </Link>
+  ) : null;
+
+  const disabledRow =
+    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-semibold text-muted opacity-70 cursor-not-allowed";
 
   return (
-    <div className="relative">
-      <button type="button" onClick={onOpenMenu} className="block w-full text-left">
+    <div ref={popRef} className="relative">
+      <button type="button" onClick={onOpenMenu} className={cn("block w-full text-left", FOCUS_RING)}>
         {chip}
       </button>
       {menuOpen && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 origin-top scale-100 rounded-[10px] border border-line bg-surface p-1 shadow-lg">
           <Link
-            href={`/student/subjects/${lesson.subjectId}`}
-            className="block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2"
+            href={`${subjectBase}/${lesson.subjectId}${subjectQuery}`}
+            className={cn(
+              "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2",
+              FOCUS_RING,
+            )}
           >
             Go to subject
           </Link>
-          <button
-            type="button"
-            onClick={onReschedule}
-            disabled={loading}
-            className="block w-full rounded-md px-2.5 py-1.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50"
-          >
-            {loading ? "Loading…" : "Reschedule"}
-          </button>
+
+          {cancelled ? (
+            <div
+              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-bad"
+              aria-disabled="true"
+            >
+              Cancelled
+            </div>
+          ) : convertedToCredit ? (
+            <div
+              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-muted"
+              aria-disabled="true"
+            >
+              Converted to class credit
+            </div>
+          ) : (
+            <>
+              {lesson.canReschedule ? (
+                <button
+                  type="button"
+                  onClick={onReschedule}
+                  disabled={loading}
+                  className={cn(
+                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
+                    FOCUS_RING,
+                  )}
+                >
+                  {loading
+                    ? "Loading…"
+                    : `Reschedule (${lesson.rescheduleRemaining} left)`}
+                </button>
+              ) : (
+                <div className={disabledRow} aria-disabled="true">
+                  Reschedule - {lesson.rescheduleReason ?? "unavailable"}
+                </div>
+              )}
+
+              {lesson.canCancel ? (
+                <button
+                  type="button"
+                  onClick={onOpenCancelConfirm}
+                  className={cn(
+                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
+                    FOCUS_RING,
+                  )}
+                >
+                  {`Cancel (${lesson.cancelRemaining} left)`}
+                </button>
+              ) : (
+                <div className={disabledRow} aria-disabled="true">
+                  Cancel - {lesson.cancelReason ?? "unavailable"}
+                </div>
+              )}
+
+              {messageOfficeLink}
+            </>
+          )}
+
           <button
             type="button"
             onClick={onCloseMenu}
-            className="block w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold text-muted hover:bg-surface-2"
+            className={cn(
+              "block w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold text-muted hover:bg-surface-2",
+              FOCUS_RING,
+            )}
           >
-            Cancel
+            Close
           </button>
+        </div>
+      )}
+      {cancelConfirming && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-[10px] border border-bad/40 bg-surface p-2.5 shadow-lg">
+          <div className="text-[11px] font-semibold text-ink">
+            This uses 1 of your {lesson.cancelCap} term cancellations and adds a
+            class credit.
+          </div>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onAbortCancel}
+              className={cn(
+                "min-h-11 rounded-md px-3 text-[11px] font-bold text-muted hover:bg-surface-2",
+                FOCUS_RING,
+              )}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmCancel}
+              disabled={cancelling}
+              className={cn(
+                "min-h-11 rounded-md bg-bad px-3 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50",
+                FOCUS_RING,
+              )}
+            >
+              {cancelling ? "Cancelling…" : "Cancel lesson"}
+            </button>
+          </div>
         </div>
       )}
     </div>

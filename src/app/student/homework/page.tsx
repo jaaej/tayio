@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { ScoreBadge } from "@/components/data/score-badge";
-import { StatTile } from "@/components/data/stat-tile";
+import { CalendarClock, CheckCircle2, ClipboardList } from "lucide-react";
+import { Card, CardBody, CardHead } from "@/components/student/card";
+import { PageHead } from "@/components/student/page-head";
+import { StatTile } from "@/components/student/kpi";
 import { StatusBadge } from "@/components/data/status-badge";
+import { FilterToolbar, type FilterPill } from "@/components/ui/filter-toolbar";
 import { requireRole } from "@/lib/auth";
 import {
   colorFamilyForSubject,
@@ -22,7 +24,61 @@ const OPEN_STATUSES = new Set([
   "resubmission_requested",
 ]);
 
-export default async function HomeworkListPage() {
+type Bucket =
+  | "overdue"
+  | "due-this-week"
+  | "coming-up"
+  | "submitted"
+  | "marked";
+
+/** Queue order: the most urgent work leads, the finished work trails. */
+const QUEUE_ORDER: Bucket[] = [
+  "overdue",
+  "due-this-week",
+  "coming-up",
+  "submitted",
+];
+
+const PILLS: FilterPill[] = [
+  { value: "", label: "All" },
+  { value: "overdue", label: "Overdue" },
+  { value: "due-this-week", label: "Due this week" },
+  { value: "submitted", label: "Submitted" },
+  { value: "coming-up", label: "Coming up" },
+];
+
+function bucketOf(r: HomeworkRow, startOfToday: Date, weekFromNow: Date): Bucket {
+  if (r.status === "marked" || r.status === "returned") return "marked";
+  if (r.status === "submitted") return "submitted";
+  if (r.status === "late") return "overdue";
+  if (OPEN_STATUSES.has(r.status)) {
+    if (r.dueDate < startOfToday) return "overdue";
+    if (r.dueDate < weekFromNow) return "due-this-week";
+    return "coming-up";
+  }
+  // any other status - treat as open
+  return "due-this-week";
+}
+
+function matches(r: HomeworkRow, query: string): boolean {
+  if (!query) return true;
+  return (
+    r.title.toLowerCase().includes(query) ||
+    (r.className ?? "").toLowerCase().includes(query)
+  );
+}
+
+export default async function HomeworkListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; view?: string }>;
+}) {
+  const sp = await searchParams;
+  const query = (sp.q ?? "").trim().toLowerCase();
+  const activeView = PILLS.some((p) => p.value && p.value === sp.view)
+    ? (sp.view as Bucket)
+    : "";
+
   const user = await requireRole("student");
   const rows = await getStudentHomework(user.id);
 
@@ -32,146 +88,182 @@ export default async function HomeworkListPage() {
   const weekFromNow = new Date(startOfToday);
   weekFromNow.setDate(startOfToday.getDate() + 7);
 
-  // Bucket
-  const overdue: HomeworkRow[] = [];
-  const openSoon: HomeworkRow[] = []; // due within 7 days
-  const openLater: HomeworkRow[] = []; // due beyond 7 days
-  const submitted: HomeworkRow[] = [];
-  const marked: HomeworkRow[] = [];
+  const bucketed = rows.map((row) => ({
+    row,
+    bucket: bucketOf(row, startOfToday, weekFromNow),
+  }));
 
-  for (const r of rows) {
-    if (r.status === "marked" || r.status === "returned") {
-      marked.push(r);
-      continue;
-    }
-    if (r.status === "submitted") {
-      submitted.push(r);
-      continue;
-    }
-    if (r.status === "late") {
-      overdue.push(r);
-      continue;
-    }
-    if (OPEN_STATUSES.has(r.status)) {
-      if (r.dueDate < startOfToday) overdue.push(r);
-      else if (r.dueDate < weekFromNow) openSoon.push(r);
-      else openLater.push(r);
-      continue;
-    }
-    // any other status - treat as open
-    openSoon.push(r);
-  }
+  const countOf = (b: Bucket) =>
+    bucketed.filter((e) => e.bucket === b).length;
+  const overdueCount = countOf("overdue");
+  const dueThisWeekCount = countOf("due-this-week");
+  const markedCount = countOf("marked");
+  const openCount = overdueCount + dueThisWeekCount + countOf("coming-up");
 
-  // Sort each bucket
-  overdue.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  openSoon.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  openLater.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  submitted.sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
-  marked.sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+  // One list, priority-ordered, so the work that matters now leads. Within a
+  // bucket the open work reads soonest-first and the finished work newest-first.
+  const queue = bucketed
+    .filter((e) => e.bucket !== "marked")
+    .sort((a, b) => {
+      const byBucket =
+        QUEUE_ORDER.indexOf(a.bucket) - QUEUE_ORDER.indexOf(b.bucket);
+      if (byBucket !== 0) return byBucket;
+      return a.bucket === "submitted"
+        ? b.row.dueDate.getTime() - a.row.dueDate.getTime()
+        : a.row.dueDate.getTime() - b.row.dueDate.getTime();
+    })
+    .filter((e) => !activeView || e.bucket === activeView)
+    .filter((e) => matches(e.row, query));
 
-  const total = rows.length;
-  const done = submitted.length + marked.length;
-  const openCount = overdue.length + openSoon.length + openLater.length;
-
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  // Marked work is a reading surface, not a queue: its rows expand in place to
+  // show the tutor's feedback. It answers to the search box, but a pill picks a
+  // slice of the active queue, so it steps aside while one is on.
+  const marked = bucketed
+    .filter((e) => e.bucket === "marked")
+    .map((e) => e.row)
+    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())
+    .filter((r) => matches(r, query));
 
   return (
-    <div className="space-y-6">
-      {/* Title strip */}
-      <header className="flex items-baseline justify-between rise">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
-            {dateLabel}
-          </div>
-          <h1 className="mt-1 text-4xl lg:text-5xl font-medium tracking-tight text-ink uppercase">
-            Homework
-          </h1>
-        </div>
-        {total > 0 && (
-          <div className="hidden md:flex items-center gap-3 text-sm">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
-              Completion
-            </span>
-            <span className="text-ink font-medium tabular-nums">
-              {done}/{total}
-            </span>
-          </div>
-        )}
-      </header>
+    <div className="space-y-5">
+      <PageHead eyebrow="Homework" title="Your homework" />
 
-      {/* Stat strip */}
       <section
-        className="grid grid-cols-3 gap-4 rise"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 rise"
         style={{ animationDelay: "40ms" } as React.CSSProperties}
       >
         <StatTile
           label="Open"
-          value={openCount.toString()}
-          accent={overdue.length > 0 ? "warn" : openCount > 0 ? "brand" : "muted"}
-          sub={overdue.length > 0 ? `${overdue.length} overdue` : undefined}
+          value={openCount}
+          icon={<ClipboardList className="h-5 w-5" aria-hidden />}
+          tone={overdueCount > 0 ? "warn" : "brand"}
+          accent
+          sub={overdueCount > 0 ? `${overdueCount} overdue` : undefined}
+          subTone={overdueCount > 0 ? "down" : "flat"}
         />
         <StatTile
           label="Due this week"
-          value={openSoon.length.toString()}
-          accent={openSoon.length > 0 ? "brand" : "muted"}
+          value={dueThisWeekCount}
+          icon={<CalendarClock className="h-5 w-5" aria-hidden />}
+          tone="sky"
+          accent
         />
         <StatTile
           label="Marked this term"
-          value={marked.length.toString()}
-          accent={marked.length > 0 ? "success" : "muted"}
+          value={markedCount}
+          icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+          tone="good"
+          accent
         />
       </section>
 
-      {total === 0 ? (
+      {rows.length === 0 ? (
         <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            No homework assigned yet.
-          </div>
+          <CardBody>
+            <div className="text-sm text-muted">No homework assigned yet.</div>
+          </CardBody>
         </Card>
       ) : (
         <div
-          className="space-y-6 rise"
+          className="space-y-5 rise"
           style={{ animationDelay: "100ms" } as React.CSSProperties}
         >
-          <Card>
-            <Section
-              title="Overdue"
-              tone="warn"
-              items={overdue}
-              today={startOfToday}
-              emptyLabel="Nothing overdue - nice."
+          <Card className="overflow-hidden">
+            {/* Search and the queue slices live at the top of the table's own
+                card: they are the table's controls, not a separate surface to
+                look in. */}
+            <FilterToolbar
+              searchPlaceholder="Search homework"
+              pillParam="view"
+              pills={PILLS}
             />
+            {/* The table always renders under the toolbar - hiding it on an
+                empty result would strip away the only controls that can undo
+                the filter. */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-surface-2">
+                    <Th>Homework</Th>
+                    <Th>Class</Th>
+                    <Th>Due</Th>
+                    <Th>Status</Th>
+                    <Th className="text-right">Actions</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queue.length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <p className="py-6 text-center text-sm text-ink-soft">
+                          No homework matches these filters.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    queue.map(({ row, bucket }) => (
+                      <tr
+                        key={row.homeworkId}
+                        className="border-b border-line transition-colors hover:bg-surface-2"
+                      >
+                        <Td>
+                          {/* Bounded so a long title truncates instead of
+                              pushing due date and status off the far edge; the
+                              full value stays reachable as a tooltip. */}
+                          <Link
+                            href={`/student/homework/${row.homeworkId}`}
+                            className="inline-flex min-h-9 max-w-[260px] items-center rounded-[6px] font-bold text-ink transition-colors hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                          >
+                            <span className="truncate" title={row.title}>
+                              {row.title}
+                            </span>
+                          </Link>
+                        </Td>
+                        <Td>
+                          {row.className ? (
+                            <ClassPill name={row.className} />
+                          ) : (
+                            <span className="text-muted">Independent task</span>
+                          )}
+                        </Td>
+                        <Td className="whitespace-nowrap">
+                          <DueCell
+                            due={row.dueDate}
+                            today={startOfToday}
+                            bucket={bucket}
+                          />
+                        </Td>
+                        <Td>
+                          <StatusBadge
+                            label={
+                              HOMEWORK_STATUS_LABEL[row.status] ?? row.status
+                            }
+                            className={HOMEWORK_STATUS_STYLE[row.status]}
+                          />
+                        </Td>
+                        <Td className="text-right">
+                          <Link
+                            href={`/student/homework/${row.homeworkId}`}
+                            aria-label={`Open ${row.title}`}
+                            className="inline-flex min-h-9 items-center rounded-[8px] px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600 transition-colors hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                          >
+                            Open →
+                          </Link>
+                        </Td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
-          <Card className="space-y-8">
-            <Section
-              title="Due This Week"
-              items={openSoon}
-              today={startOfToday}
-              emptyLabel="Nothing due this week."
-            />
-            <Section
-              title="Submitted"
-              tone="muted"
-              items={submitted}
-              today={startOfToday}
-              emptyLabel="No submissions yet."
-            />
-            <MarkedSection items={marked} />
-          </Card>
-          {openLater.length > 0 && (
+
+          {!activeView && marked.length > 0 && (
             <Card>
-              <Section
-                title="Coming Up"
-                items={openLater}
-                today={startOfToday}
-                emptyLabel="Nothing coming up."
-              />
+              <CardHead title="Marked" />
+              <CardBody>
+                <MarkedList items={marked} />
+              </CardBody>
             </Card>
           )}
         </div>
@@ -180,209 +272,97 @@ export default async function HomeworkListPage() {
   );
 }
 
-function MarkedSection({ items }: { items: HomeworkRow[] }) {
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section>
-      <div className="flex items-baseline justify-between mb-3 px-1">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-ink-soft font-medium">
-          Marked
-        </div>
-        <div className="text-xs text-muted tabular-nums">{items.length}</div>
-      </div>
-      {items.length === 0 ? (
-        <div className="text-sm text-ink-soft px-1">Nothing marked yet.</div>
-      ) : (
-        <MarkedList items={items} />
-      )}
-    </section>
+    <th
+      scope="col"
+      className={`px-5 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap text-muted ${className}`}
+    >
+      {children}
+    </th>
   );
 }
 
-function Section({
-  title,
-  items,
-  today,
-  emptyLabel,
-  tone,
-  showScore,
+function Td({
+  children,
+  className = "",
 }: {
-  title: string;
-  items: HomeworkRow[];
-  today: Date;
-  emptyLabel: string;
-  tone?: "warn" | "muted";
-  showScore?: boolean;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section>
-      <div className="flex items-baseline justify-between mb-3 px-1">
-        <div
-          className={
-            tone === "warn"
-              ? "text-[11px] uppercase tracking-[0.2em] text-amber-800 font-medium"
-              : tone === "muted"
-                ? "text-[11px] uppercase tracking-[0.2em] text-muted"
-                : "text-[11px] uppercase tracking-[0.2em] text-ink-soft font-medium"
-          }
-        >
-          {title}
-        </div>
-        <div className="text-xs text-muted tabular-nums">{items.length}</div>
-      </div>
-      {items.length === 0 ? (
-        <div className="text-sm text-ink-soft px-1">{emptyLabel}</div>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {items.map((h) => (
-            <HomeworkCard
-              key={h.homeworkId}
-              hw={h}
-              today={today}
-              muted={tone === "muted"}
-              showScore={showScore}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <td className={`px-5 py-3 align-middle text-[13px] text-ink ${className}`}>
+      {children}
+    </td>
   );
 }
 
-function HomeworkCard({
-  hw,
+function ClassPill({ name }: { name: string }) {
+  const tokens = getAccentTokens(colorFamilyForSubject(name));
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-bold leading-none whitespace-nowrap"
+      style={{ background: tokens.pillBg, color: tokens.pillText }}
+    >
+      {name}
+    </span>
+  );
+}
+
+/**
+ * The date always shows; urgency is spelled out underneath it so "overdue" and
+ * "due today" survive being read at a glance without relying on colour alone.
+ */
+function DueCell({
+  due,
   today,
-  muted,
-  showScore,
+  bucket,
 }: {
-  hw: HomeworkRow;
+  due: Date;
   today: Date;
-  muted?: boolean;
-  showScore?: boolean;
+  bucket: Bucket;
 }) {
-  // Subject family from class name (we don't get subject name in HomeworkRow,
-  // but className typically encodes the subject - "Year 11 Chemistry" etc.)
-  const family = colorFamilyForSubject(hw.className ?? hw.title);
-  const tokens = getAccentTokens(family);
-
-  const isOpen =
-    hw.status === "not_started" ||
-    hw.status === "viewed" ||
-    hw.status === "resubmission_requested" ||
-    hw.status === "late";
-
-  const due = hw.dueDate;
-  const daysUntil = Math.round(
+  const days = Math.round(
     (due.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
   );
 
-  return (
-    <Link
-      href={`/student/homework/${hw.homeworkId}`}
-      className="group relative block rounded-2xl border p-5 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-18px_rgba(29,41,81,0.32)]"
-      style={
-        muted
-          ? {
-              background: "#ffffff",
-              borderColor: "rgba(29,41,81,0.1)",
-            }
-          : {
-              // Layer the tint over solid white so cards stay readable against the periwinkle field
-              background: `linear-gradient(140deg, ${tokens.bgFrom} 0%, ${tokens.bgTo} 100%), #ffffff`,
-              borderColor: tokens.ring,
-            }
-      }
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div
-            className="text-[10px] uppercase tracking-[0.16em] font-semibold truncate"
-            style={{ color: muted ? "rgba(29,41,81,0.5)" : tokens.meta }}
-          >
-            {hw.className ?? "Independent task"}
-          </div>
-          <div
-            className="mt-1 text-lg font-semibold leading-tight tracking-tight line-clamp-2"
-            style={{ color: muted ? "var(--ink)" : tokens.title }}
-          >
-            {hw.title}
-          </div>
-        </div>
-        {showScore && hw.score && (
-          <ScoreBadge score={hw.score} />
-        )}
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <DueDateLabel daysUntil={daysUntil} due={due} isOpen={isOpen} />
-        <StatusBadge
-          label={HOMEWORK_STATUS_LABEL[hw.status] ?? hw.status}
-          className={HOMEWORK_STATUS_STYLE[hw.status]}
-        />
-      </div>
-
-      {isOpen && (
-        <div
-          className="mt-5 pt-4 border-t flex items-center justify-between text-xs"
-          style={{
-            borderColor: muted ? "rgba(29,41,81,0.08)" : tokens.ring,
-            color: muted ? "rgba(29,41,81,0.6)" : tokens.meta,
-          }}
-        >
-          <span className="uppercase tracking-[0.16em] font-medium">
-            Open and submit
-          </span>
-          <span
-            className="text-base transition-transform group-hover:translate-x-0.5"
-            style={{ color: muted ? "var(--brand-700)" : tokens.arrow }}
-          >
-            →
-          </span>
-        </div>
-      )}
-    </Link>
-  );
-}
-
-function DueDateLabel({
-  daysUntil,
-  due,
-  isOpen,
-}: {
-  daysUntil: number;
-  due: Date;
-  isOpen: boolean;
-}) {
-  let label: string;
-  let toneClass: string;
-
-  if (!isOpen) {
-    // Past or completed - just show the date softly
-    label = `Due ${formatDueDate(due)}`;
-    toneClass = "text-ink-soft";
-  } else if (daysUntil < 0) {
-    const overdueDays = -daysUntil;
-    label =
-      overdueDays === 1 ? "OVERDUE BY 1 DAY" : `OVERDUE BY ${overdueDays} DAYS`;
-    toneClass = "text-rose-700 font-semibold";
-  } else if (daysUntil === 0) {
-    label = "DUE TODAY";
-    toneClass = "text-rose-700 font-semibold";
-  } else if (daysUntil === 1) {
-    label = "DUE TOMORROW";
-    toneClass = "text-amber-800 font-semibold";
-  } else if (daysUntil <= 7) {
-    label = `Due in ${daysUntil} days`;
-    toneClass = "text-amber-800 font-medium";
-  } else {
-    label = `Due ${formatDueDate(due)}`;
-    toneClass = "text-ink-soft";
+  let note: string | null = null;
+  let noteClass = "";
+  if (bucket === "overdue") {
+    noteClass = "text-bad";
+    note =
+      days >= 0
+        ? "Overdue"
+        : days === -1
+          ? "Overdue by 1 day"
+          : `Overdue by ${-days} days`;
+  } else if (bucket === "due-this-week") {
+    if (days <= 0) {
+      note = "Due today";
+      noteClass = "text-bad";
+    } else if (days === 1) {
+      note = "Due tomorrow";
+      noteClass = "text-warn";
+    } else {
+      note = `In ${days} days`;
+      noteClass = "text-warn";
+    }
   }
 
   return (
-    <span
-      className={`text-[11px] uppercase tracking-[0.14em] tabular-nums ${toneClass}`}
-    >
-      {label}
+    <span className="block">
+      <span className="block tabular-nums">{formatDueDate(due)}</span>
+      {note && (
+        <span className={`mt-0.5 block text-[11px] font-bold ${noteClass}`}>
+          {note}
+        </span>
+      )}
     </span>
   );
 }

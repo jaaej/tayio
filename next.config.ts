@@ -12,6 +12,12 @@ try {
 }
 const supabaseWs = supabaseOrigin.replace(/^https/, "wss");
 
+// Video hosts we embed lesson recordings from (link-based recorded lessons).
+// Kept to the specific player origins so frame-src stays tight; any other host
+// falls back to a plain "Watch recording" link, no framing involved.
+const videoFrameSrc =
+  "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com";
+
 // NOTE: script-src still allows 'unsafe-inline' because Next.js injects inline
 // bootstrap/hydration scripts. Turning that into real XSS protection requires a
 // per-request nonce (middleware-generated) - tracked as the follow-up. Every
@@ -29,7 +35,7 @@ const csp = [
   `style-src 'self' 'unsafe-inline'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws:" : ""}`.trim(),
-  `frame-src 'self'`,
+  `frame-src 'self' ${videoFrameSrc}`,
   `worker-src 'self' blob:`,
   // Only force HTTPS upgrades in production; localhost dev is http.
   ...(isDev ? [] : [`upgrade-insecure-requests`]),

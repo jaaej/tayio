@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
+import { isoDate } from "@/lib/format";
 import { Card, CardHead, StatTile, PageHeader, Pill, Empty } from "@/components/admin/ui";
 import { requireAdmin } from "@/app/admin/_lib/guard";
 import {
@@ -31,7 +32,7 @@ export default async function ReportsPage({
   const terms = await listTerms();
   if (terms.length === 0) {
     return (
-      <div className="space-y-6 max-w-[1400px]">
+      <div className="space-y-6">
         <PageHeader eyebrow="Reports" title="Operational reports" />
         <Card>
           <Empty>No terms defined yet. Create a term to see reports.</Empty>
@@ -40,7 +41,7 @@ export default async function ReportsPage({
     );
   }
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = isoDate(new Date());
   const currentTermId = await getCurrentTermId(todayIso);
   const selected =
     terms.find((t) => t.id === termParam) ??
@@ -52,17 +53,17 @@ export default async function ReportsPage({
   const org = rollupOrgWide(metricRows);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
+        className="rise"
         eyebrow="Reports"
         title="Operational reports"
-        sub="Attendance, homework completion, and class fill for the selected term."
         actions={
           <div className="flex items-center gap-3">
             <TermSelect terms={terms} selectedId={selected.id} />
             <Link
               href={`/admin/reports/export?term=${selected.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-2 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
             >
               <Download className="h-4 w-4" /> CSV
             </Link>

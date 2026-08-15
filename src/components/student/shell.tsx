@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   BookOpen,
+  ClipboardList,
   CalendarDays,
   TrendingUp,
   MessagesSquare,
@@ -10,8 +11,8 @@ import {
   Bell,
   CreditCard,
   LogOut,
-  Search,
   Gamepad2,
+  Library,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -28,8 +29,10 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard",   href: "/student",            icon: <LayoutDashboard className={IC} /> },
       { label: "My subjects", href: "/student/subjects",   icon: <BookOpen className={IC} /> },
+      { label: "Homework",    href: "/student/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Timetable",   href: "/student/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Progress",    href: "/student/progress",   icon: <TrendingUp className={IC} /> },
+      { label: "Resources",   href: "/student/resources",  icon: <Library className={IC} /> },
       { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={IC} /> },
     ],
   },
@@ -45,8 +48,8 @@ const SECTIONS: NavSection[] = [
 function BrandMark() {
   return (
     <Link href="/student" className="flex items-center gap-2.5">
-      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center text-brand-ink">
-        <ToriiMark className="h-5 w-5" color="currentColor" />
+      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center">
+        <ToriiMark width={24} />
       </div>
       <div className="leading-tight">
         <div className="text-[13px] font-extrabold tracking-[0.04em] uppercase text-ink">
@@ -122,16 +125,6 @@ export async function StudentShell({
       <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
         <div className="w-[222px] pr-2 flex items-center">
           <BrandMark />
-        </div>
-
-        <div className="flex-1 max-w-[520px] flex items-center gap-2 bg-surface-2 border border-line rounded-full px-3.5 py-[7px] text-muted">
-          <Search className="h-4 w-4 shrink-0" />
-          <input
-            type="search"
-            placeholder="Search homework, lessons, resources…"
-            className="flex-1 bg-transparent border-0 outline-none text-[13px] text-ink placeholder:text-muted-2"
-          />
-          <span className="text-[11px] font-mono text-muted-2 shrink-0">⌘K</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">

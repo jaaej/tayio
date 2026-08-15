@@ -6,6 +6,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
+  announcements,
   attendance,
   attendanceStatusEnum,
   classes,
@@ -15,6 +16,7 @@ import {
   homeworkStatusEnum,
   lessonNotes,
   lessons,
+  notifications,
   resources,
   subjectWeeks,
   tutorAvailability,
@@ -26,6 +28,7 @@ import { requireRole } from "@/lib/auth";
 import { uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
 import { validateUpload, HOMEWORK_POLICY } from "@/lib/upload-validation";
 import { optionalText, requiredText } from "@/lib/validation";
+import { withActor } from "@/lib/with-actor";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
@@ -172,6 +175,151 @@ export async function saveLessonNote(formData: FormData) {
   revalidatePath("/tutor/notes");
 }
 
+/**
+ * Attach (or clear) a recording link for a lesson - a hosted video URL
+ * (YouTube/Vimeo/Drive/etc.) that the class's students watch from their
+ * "Recorded lessons" tab. Link-based, so there is no upload/storage cost.
+ * Empty input clears the link; a non-empty value must be an http(s) URL.
+ */
+export async function saveLessonRecording(formData: FormData) {
+  const tutor = await requireTutor();
+  const lessonId = String(formData.get("lessonId") ?? "");
+  if (!lessonId) throw new Error("Missing lessonId");
+  await assertOwnsLesson(tutor.id, lessonId);
+
+  const raw = String(formData.get("recordingUrl") ?? "").trim();
+  let recordingUrl: string | null = null;
+  if (raw) {
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error("Enter a valid link starting with https://");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("Enter a valid link starting with https://");
+    }
+    recordingUrl = raw.slice(0, 2000);
+  }
+
+  await db
+    .update(lessons)
+    .set({ recordingUrl })
+    .where(eq(lessons.id, lessonId));
+
+  revalidatePath(`/tutor/lessons/${lessonId}`);
+  revalidatePath("/student/resources");
+}
+
+/**
+ * Update a class's forward-looking lesson plan ("what's coming up"). Visible to
+ * the class's students and their parents. Tutor must own the class. Empty text
+ * clears the plan.
+ */
+export async function updateLessonPlan(input: {
+  classId: string;
+  plan: string;
+}) {
+  const tutor = await requireTutor();
+  const classId = String(input.classId ?? "");
+  if (!classId) return { ok: false as const, error: "Missing class" };
+  await assertOwnsClass(tutor.id, classId);
+  const plan = String(input.plan ?? "").trim().slice(0, 4000);
+  await db
+    .update(classes)
+    .set({ lessonPlan: plan.length > 0 ? plan : null })
+    .where(eq(classes.id, classId));
+  revalidatePath(`/tutor/classes/${classId}`);
+  return { ok: true as const };
+}
+
+/**
+ * Post a class announcement (tutor -> the students in one of their classes).
+ * Reuses the shared `announcements` table with a class audience - students
+ * already surface class-audience announcements on their dashboard - and, per
+ * the notification non-negotiables, drops an in-app notification to every
+ * enrolled (non-withdrawn) student. The title carries the word "announcement"
+ * so it lands in the shared inbox's Announcements group
+ * (see src/lib/notification-groups.ts).
+ */
+export async function createClassAnnouncement(formData: FormData) {
+  const tutor = await requireTutor();
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) throw new Error("Class required");
+
+  const [cls] = await db
+    .select({ id: classes.id, name: classes.name })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutor.id)))
+    .limit(1);
+  if (!cls) throw new Error("Class not found");
+
+  const title = requiredText(formData.get("title"), 200, "Title");
+  const body = requiredText(formData.get("body"), 10000, "Message");
+
+  const students = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(
+      and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+    );
+
+  await withActor({ id: tutor.id, role: "tutor" }, async (tx) => {
+    await tx.insert(announcements).values({
+      authorId: tutor.id,
+      title,
+      body,
+      audienceClassId: classId,
+    });
+    if (students.length) {
+      await tx.insert(notifications).values(
+        students.map((s) => ({
+          userId: s.studentId,
+          channel: "in_app" as const,
+          title: `New announcement in ${cls.name}`,
+          body: title,
+          href: "/student",
+        })),
+      );
+    }
+  });
+
+  revalidatePath(`/tutor/classes/${classId}`);
+  revalidatePath("/student");
+}
+
+/**
+ * Delete a class announcement the tutor authored. Scoped to announcements
+ * this tutor authored for a class they own; leaves the delivered
+ * notifications in place (they are historical).
+ */
+export async function deleteClassAnnouncement(formData: FormData) {
+  const tutor = await requireTutor();
+  const announcementId = String(formData.get("announcementId") ?? "");
+  const classId = String(formData.get("classId") ?? "");
+  if (!announcementId || !classId) throw new Error("Missing announcement");
+
+  await assertOwnsClass(tutor.id, classId);
+  const [row] = await db
+    .select({ id: announcements.id })
+    .from(announcements)
+    .where(
+      and(
+        eq(announcements.id, announcementId),
+        eq(announcements.authorId, tutor.id),
+        eq(announcements.audienceClassId, classId),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new Error("Announcement not found");
+
+  await withActor({ id: tutor.id, role: "tutor" }, (tx) =>
+    tx.delete(announcements).where(eq(announcements.id, announcementId)),
+  );
+
+  revalidatePath(`/tutor/classes/${classId}`);
+}
+
 export async function createHomework(formData: FormData) {
   const tutor = await requireTutor();
   const title = requiredText(formData.get("title"), 200, "Title");
@@ -263,6 +411,94 @@ export async function createHomework(formData: FormData) {
   revalidatePath("/tutor/homework");
   revalidatePath("/tutor");
   redirect(`/tutor/homework/${created.id}`);
+}
+
+/**
+ * Edit an existing homework's own fields (title, description, due date,
+ * resubmission/test flags, attachment). Student assignments are left
+ * untouched - this only changes the task definition, so it is safe to run
+ * after students have already submitted. Attachment can be replaced (upload
+ * a new file) or removed; the old storage object is deleted best-effort.
+ */
+export async function updateHomework(formData: FormData) {
+  const tutor = await requireTutor();
+  const homeworkId = String(formData.get("homeworkId") ?? "");
+  if (!homeworkId) throw new Error("Homework required");
+
+  const [existing] = await db
+    .select()
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.tutorId, tutor.id)))
+    .limit(1);
+  if (!existing) throw new Error("Homework not found");
+
+  const title = requiredText(formData.get("title"), 200, "Title");
+  const description = optionalText(formData.get("description"), 5000);
+  const dueDateRaw = String(formData.get("dueDate") ?? "");
+  if (!dueDateRaw) throw new Error("Due date required");
+  const dueDate = new Date(dueDateRaw);
+  if (Number.isNaN(dueDate.getTime())) throw new Error("Invalid due date");
+  const allowResubmission = formData.get("allowResubmission") === "on";
+  const isTest = formData.get("isTest") === "on";
+  const removeAttachment = formData.get("removeAttachment") === "on";
+
+  let attachmentUrl = existing.attachmentUrl;
+  const oldPath = existing.attachmentUrl;
+  const file = formData.get("attachment");
+  const hasNewFile = file instanceof File && file.size > 0;
+
+  if (hasNewFile) {
+    const validated = await validateUpload(file, HOMEWORK_POLICY);
+    if (!validated.ok) throw new Error(validated.error);
+    const supabase = await createClient();
+    const path = `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`;
+    const { error } = await supabase.storage
+      .from(HOMEWORK_BUCKET)
+      .upload(path, file, {
+        contentType: validated.file.contentType,
+        upsert: false,
+      });
+    if (error) {
+      console.error("homework upload failed", error.message);
+    } else {
+      attachmentUrl = path;
+    }
+  } else if (removeAttachment) {
+    attachmentUrl = null;
+  }
+
+  // Best-effort cleanup of the replaced/removed object (only for stored paths,
+  // never external links). Never blocks the metadata update.
+  if (
+    (hasNewFile || removeAttachment) &&
+    oldPath &&
+    oldPath !== attachmentUrl &&
+    !oldPath.startsWith("http")
+  ) {
+    try {
+      const supabase = await createClient();
+      await supabase.storage.from(HOMEWORK_BUCKET).remove([oldPath]);
+    } catch (err) {
+      console.error("homework old attachment cleanup failed", err);
+    }
+  }
+
+  await db
+    .update(homework)
+    .set({
+      title,
+      description: description || null,
+      dueDate,
+      allowResubmission,
+      isTest,
+      attachmentUrl,
+    })
+    .where(eq(homework.id, homeworkId));
+
+  revalidatePath(`/tutor/homework/${homeworkId}`);
+  revalidatePath("/tutor/homework");
+  revalidatePath("/tutor");
+  redirect(`/tutor/homework/${homeworkId}`);
 }
 
 export async function markSubmission(formData: FormData) {

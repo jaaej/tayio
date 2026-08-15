@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { and, asc, eq, gte, isNotNull, lt } from "drizzle-orm";
 import { Card } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
@@ -11,6 +12,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatTime } from "@/lib/format";
+import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { cn } from "@/lib/utils";
 import { requireTutor } from "../_data";
 import { getWeeklyRules } from "../_lib/availability";
@@ -218,7 +220,6 @@ export default async function TutorTimetablePage({
       <PageHead
         eyebrow="Timetable"
         title={`${MONTH_NAMES[month]} ${year}`}
-        sub={`${lessonCount} lesson${lessonCount === 1 ? "" : "s"} this month · ${availCount} weekly availability slot${availCount === 1 ? "" : "s"}`}
         actions={
           <Link
             href={editToggleHref}
@@ -260,16 +261,16 @@ export default async function TutorTimetablePage({
             <Link
               href={navHref(prev)}
               aria-label="Previous month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-muted hover:border-brand-300 hover:text-ink transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
             >
-              ‹
+              <ChevronLeft className="h-4 w-4" aria-hidden />
             </Link>
             <Link
               href={navHref(next)}
               aria-label="Next month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-muted hover:border-brand-300 hover:text-ink transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
             >
-              ›
+              <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>
@@ -295,10 +296,7 @@ export default async function TutorTimetablePage({
           </div>
 
           <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-line text-[10px] uppercase tracking-[0.12em] text-muted font-bold">
-            <Legend
-              color="bg-sun-100 border border-sun-300"
-              label="Teaching"
-            />
+            <Legend color="bg-brand-500" label="Teaching" />
             <Legend
               color="bg-grape-bg border border-grape/50"
               label="Isolated day"
@@ -380,24 +378,33 @@ function DayCell({
   return (
     <div
       className={cn(
-        "rounded-[10px] border p-1.5 flex flex-col gap-1.5",
+        "rounded-xl border p-1.5 flex flex-col gap-1.5",
         isEdit ? "min-h-[260px]" : "min-h-[150px]",
-        day.inMonth ? "bg-surface border-line" : "bg-surface-2 border-line",
-        day.isIsolated && "bg-grape-bg border-grape/50",
-        day.isToday && "ring-2 ring-brand-400 ring-offset-0",
+        day.isIsolated
+          ? "bg-grape-bg border-grape/50"
+          : day.isToday
+            ? "bg-surface border-brand-400 ring-1 ring-brand-300/40"
+            : day.inMonth
+              ? "bg-surface border-line"
+              : "bg-surface-2 border-line",
       )}
     >
       <div className="flex items-center justify-between gap-1 px-0.5">
-        <span
-          className={cn(
-            "text-[11px] tabular-nums font-bold",
-            day.inMonth ? "text-ink" : "text-muted-2",
-            day.isToday && "text-brand-600",
-            day.isIsolated && "text-grape",
-          )}
-        >
-          {day.dayNum}
-        </span>
+        {day.isToday ? (
+          <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-brand-500 text-white text-[12px] font-extrabold tabular-nums leading-none">
+            {day.dayNum}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "text-[13px] tabular-nums font-bold leading-none",
+              day.inMonth ? "text-ink" : "text-muted-2",
+              day.isIsolated && "text-grape",
+            )}
+          >
+            {day.dayNum}
+          </span>
+        )}
         {canToggleIsolation && (
           <form action={toggleDayIsolation} className="contents">
             <input type="hidden" name="date" value={day.iso} />
@@ -434,21 +441,31 @@ function DayCell({
 
       {day.lessons.length > 0 && (
         <div className="space-y-1">
-          {day.lessons.slice(0, 2).map((l) => (
-            <Link
-              key={l.id}
-              href={`/tutor/lessons/${l.id}`}
-              className="block rounded-[6px] px-1.5 py-0.5 text-[10px] leading-tight bg-sun-100 hover:bg-sun-200 transition-colors border border-sun-300"
-              title={`${l.className} · ${formatTime(l.startTime)}-${formatTime(l.endTime)}`}
-            >
-              <div className="font-bold text-sun-ink truncate">
-                {l.subjectName}
-              </div>
-              <div className="text-sun-ink/80 tabular-nums">
-                {formatTime(l.startTime)}
-              </div>
-            </Link>
-          ))}
+          {day.lessons.slice(0, 2).map((l) => {
+            // Subject-accent chip, matching the shared MonthCalendar's lesson
+            // chips (and the tutor classes hub) so a subject reads the same
+            // colour everywhere - not a flat amber.
+            const t = getAccentTokens(colorFamilyForSubject(l.subjectName));
+            return (
+              <Link
+                key={l.id}
+                href={`/tutor/lessons/${l.id}`}
+                className="relative block rounded-md pl-2 pr-1.5 py-0.5 text-[10px] leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]"
+                style={{ backgroundColor: t.pillBg, color: t.pillText }}
+                title={`${l.className} · ${formatTime(l.startTime)}-${formatTime(l.endTime)}`}
+              >
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
+                  style={{ backgroundColor: t.arrow }}
+                />
+                <div className="font-bold truncate">{l.subjectName}</div>
+                <div className="tabular-nums opacity-80">
+                  {formatTime(l.startTime)}
+                </div>
+              </Link>
+            );
+          })}
           {day.lessons.length > 2 && (
             <div className="text-[10px] text-muted px-0.5">
               +{day.lessons.length - 2} more
@@ -552,7 +569,7 @@ function DayCell({
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={cn("h-3 w-3 rounded-sm", color)} aria-hidden />
+      <span className={cn("h-2 w-2 rounded-full", color)} aria-hidden />
       {label}
     </span>
   );

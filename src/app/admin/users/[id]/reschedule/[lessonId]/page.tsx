@@ -16,6 +16,7 @@ import {
   expandAvailability,
   getAllTutors,
   getEligibleTutors,
+  markTakenSlots,
 } from "@/lib/availability";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonContextForStudent } from "@/app/admin/_lib/queries";
@@ -59,8 +60,15 @@ export default async function AdminReschedulePage({
     expandAvailability(allTutors, now, 4),
   ]);
 
+  // Mark slots the tutor is already booked for, so they show as taken rather
+  // than being offered (and rejected on submit by the double-booking guard).
+  const [sameSubjectMarked, allTutorMarked] = await Promise.all([
+    markTakenSlots(sameSubjectSlots),
+    markTakenSlots(allTutorSlots),
+  ]);
+
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href={`/admin/users/${studentId}`}>
         Back to {student.firstName} {student.lastName}
       </BackLink>
@@ -76,9 +84,11 @@ export default async function AdminReschedulePage({
           <CardBody className="text-[13px] text-bad font-medium">
             {error === "invalid-slot"
               ? "Couldn't read that slot - try picking again."
-              : error === "lesson-past"
-                ? "That lesson has already started, so it can't be rescheduled."
-                : "Something went wrong. Try again."}
+              : error === "slot-taken"
+                ? "That slot was just taken - pick another."
+                : error === "lesson-past"
+                  ? "That lesson has already started, so it can't be rescheduled."
+                  : "Something went wrong. Try again."}
           </CardBody>
         </Card>
       )}
@@ -118,8 +128,8 @@ export default async function AdminReschedulePage({
               studentId={studentId}
               lessonId={lessonId}
               originalLessonDate={lesson.date}
-              sameSubjectSlots={sameSubjectSlots}
-              allTutorSlots={allTutorSlots}
+              sameSubjectSlots={sameSubjectMarked}
+              allTutorSlots={allTutorMarked}
             />
           </CardBody>
         </Card>

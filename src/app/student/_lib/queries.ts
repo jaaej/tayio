@@ -1,9 +1,11 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { isoDate } from "@/lib/format";
 import {
   announcements,
   attendance,
+  classCredits,
   classes,
   enrollments,
   homework,
@@ -187,7 +189,7 @@ export async function getStudentSubjects(studentId: string): Promise<SubjectSumm
 
   const classIds = enrolled.map((e) => e.classId);
   const subjectIds = enrolled.map((e) => e.subjectId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
 
   // Next upcoming lesson per class
   const nextLessons = await db
@@ -692,10 +694,10 @@ export async function getStudentLessons(
 
   const conditions = [inArray(lessons.classId, enrolledClassIds)];
   if (opts.from) {
-    conditions.push(gte(lessons.date, opts.from.toISOString().slice(0, 10)));
+    conditions.push(gte(lessons.date, isoDate(opts.from)));
   }
   if (opts.to) {
-    conditions.push(lt(lessons.date, opts.to.toISOString().slice(0, 10)));
+    conditions.push(lt(lessons.date, isoDate(opts.to)));
   }
 
   const query = db
@@ -872,6 +874,7 @@ export type LessonRecap = {
   struggles: string | null;
   nextLessonFocus: string | null;
   parentVisibleComment: string | null;
+  recordingUrl: string | null;
   // internalNote intentionally excluded - never expose to students.
 };
 
@@ -900,6 +903,7 @@ export async function getLessonRecap(
       struggles: lessonNotes.struggles,
       nextLessonFocus: lessonNotes.nextLessonFocus,
       parentVisibleComment: lessonNotes.parentVisibleComment,
+      recordingUrl: lessons.recordingUrl,
       classId: lessons.classId,
     })
     .from(lessons)
@@ -931,6 +935,7 @@ export type LessonWithNoteListItem = {
   className: string;
   subjectName: string;
   hasNote: boolean;
+  recordingUrl: string | null;
 };
 
 export async function getStudentLessonsWithNotes(
@@ -947,6 +952,7 @@ export async function getStudentLessonsWithNotes(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      recordingUrl: lessons.recordingUrl,
       noteId: lessonNotes.id,
     })
     .from(lessons)
@@ -995,8 +1001,8 @@ export async function getStudentTimetableLessons(
   opts: { from?: Date; to?: Date } = {},
 ): Promise<TimetableLesson[]> {
   const enrolledClassIds = await getEnrolledClassIds(studentId);
-  const fromIso = opts.from ? opts.from.toISOString().slice(0, 10) : undefined;
-  const toIso = opts.to ? opts.to.toISOString().slice(0, 10) : undefined;
+  const fromIso = opts.from ? isoDate(opts.from) : undefined;
+  const toIso = opts.to ? isoDate(opts.to) : undefined;
   const range = () => {
     const c = [];
     if (fromIso) c.push(gte(lessons.date, fromIso));
@@ -1076,6 +1082,18 @@ export async function getStudentTimetableLessons(
     for (const r of rows) refInfo.set(r.id, { className: r.className });
   }
 
+  // Make-up lessons booked by redeeming a class credit are tagged distinctly
+  // from reschedule make-ups.
+  const creditMakeupRows = await db
+    .select({ lessonId: classCredits.redeemedOnLessonId })
+    .from(classCredits)
+    .where(
+      and(eq(classCredits.studentId, studentId), isNotNull(classCredits.redeemedOnLessonId)),
+    );
+  const creditMakeupIds = new Set(
+    creditMakeupRows.map((r) => r.lessonId).filter((id): id is string => !!id),
+  );
+
   const seen = new Set<string>();
   const out: TimetableLesson[] = [];
   for (const l of [...enrolledLessons, ...makeupLessons]) {
@@ -1086,9 +1104,13 @@ export async function getStudentTimetableLessons(
     let moveLabel: string | null = null;
     if (status === "makeup_attended") {
       studentState = "makeup_in";
-      const originId = movedInOrigin.get(l.id);
-      const info = originId ? refInfo.get(originId) : undefined;
-      moveLabel = info ? `Make-up · from ${info.className}` : "Make-up";
+      if (creditMakeupIds.has(l.id)) {
+        moveLabel = "Make-up: booked with credits";
+      } else {
+        const originId = movedInOrigin.get(l.id);
+        const info = originId ? refInfo.get(originId) : undefined;
+        moveLabel = info ? `Make-up: from ${info.className}` : "Make-up";
+      }
     } else if (status === "absent" && movedOut.has(l.id)) {
       studentState = "moved_out";
       const tgt = movedOut.get(l.id)!;

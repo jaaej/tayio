@@ -48,7 +48,7 @@ export default function LoginPage() {
 
         {/* Editorial brand panel */}
         <div className="hidden lg:flex flex-col items-center text-center px-6">
-          <LogoCard size={220} />
+          <LogoCard width={340} />
           <p className="mt-12 text-3xl text-ink leading-snug">
             "A quiet centre for the work that matters."
           </p>

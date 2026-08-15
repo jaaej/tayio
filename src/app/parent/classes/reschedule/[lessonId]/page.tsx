@@ -11,10 +11,28 @@ import { formatDateLong, formatTime } from "@/lib/format";
 import {
   getOneOnOneSlots,
   getReschedulableLesson,
-  reschedulePath,
+  hasPriorReschedule,
   studentOwnsLesson,
 } from "@/lib/reschedule";
-import { RescheduleForm } from "@/components/reschedule/reschedule-form";
+import {
+  getCancellationsUsed,
+  getReschedulesUsed,
+  getTerms,
+  hasCreditFromLesson,
+  isLessonCancelled,
+} from "@/lib/credits";
+import {
+  CANCEL_CAP,
+  RESCHEDULE_CAP,
+  meetsCancelNotice,
+  meetsRescheduleNotice,
+  remaining,
+  resolveTerm,
+} from "@/lib/reschedule-credits";
+import {
+  RescheduleForm,
+  CancelLessonAction,
+} from "@/components/reschedule/reschedule-form";
 import { getAdminContact, resolveSelectedChild } from "../../../_data";
 
 export const dynamic = "force-dynamic";
@@ -45,24 +63,74 @@ export default async function ParentReschedulePage({
   const started = new Date(`${lesson.date}T${lesson.startTime}`).getTime() <= now.getTime();
 
   // Unified model: every reschedule picks an open slot in the tutor's
-  // availability (the lesson becomes a make-up at that time).
-  const approvalRequired = reschedulePath(lesson, now) === "approval";
-  const slots = await getOneOnOneSlots(lesson, now);
+  // availability (the lesson becomes a make-up at that time). Reschedule and
+  // cancellation are each gated on a notice window + a per-term cap - mirrors
+  // the student unrestricted timetable (src/app/student/timetable/page.tsx).
+  const terms = await getTerms();
+  const term = resolveTerm(lesson.date, terms);
+  const [cancelUsed, rescheduleUsed, alreadyMoved, alreadyCancelled, alreadyCredited] =
+    term
+      ? await Promise.all([
+          getCancellationsUsed(childId, term.id),
+          getReschedulesUsed(childId, term.id),
+          hasPriorReschedule(childId, lesson.id),
+          isLessonCancelled(lesson.id, childId),
+          hasCreditFromLesson(childId, lesson.id),
+        ])
+      : [0, 0, false, false, false];
+  const cancelRemaining = term ? remaining(CANCEL_CAP, cancelUsed) : null;
+  const rescheduleRemaining = term ? remaining(RESCHEDULE_CAP, rescheduleUsed) : null;
+
+  const rescheduleNoticeOk = meetsRescheduleNotice(now, lesson.date, lesson.startTime);
+  const cancelNoticeOk = meetsCancelNotice(now, lesson.date, lesson.startTime);
+
+  const canReschedule =
+    !started &&
+    term !== null &&
+    !alreadyCancelled &&
+    !alreadyCredited &&
+    rescheduleNoticeOk &&
+    (rescheduleRemaining ?? 0) > 0;
+  // Cancel additionally requires the lesson still be in its normal state - a
+  // lesson already moved or cancelled must not also be cancelled again (that
+  // would grant a second credit for the same slot).
+  const canCancel =
+    !started &&
+    term !== null &&
+    !alreadyMoved &&
+    !alreadyCancelled &&
+    !alreadyCredited &&
+    cancelNoticeOk &&
+    (cancelRemaining ?? 0) > 0;
+
+  function rescheduleIneligibleReason(): string {
+    if (!term) return "This lesson is outside a known term.";
+    if (alreadyCancelled || alreadyCredited)
+      return "This lesson has already been moved or cancelled.";
+    if (!rescheduleNoticeOk) return "Reschedules need at least 7 days notice.";
+    return "You have used all 3 reschedules this term.";
+  }
+  function cancelIneligibleReason(): string {
+    if (!term) return "This lesson is outside a known term.";
+    if (alreadyMoved || alreadyCancelled || alreadyCredited)
+      return "This lesson has already been moved or cancelled.";
+    if (!cancelNoticeOk) return "Cancellations need at least 24 hours notice.";
+    return "You have used all 3 cancellations this term.";
+  }
+
+  // Only compute the tutor's open slots when the reschedule is actually
+  // eligible - otherwise the picker isn't shown at all.
+  const slots = canReschedule ? await getOneOnOneSlots(lesson, now) : [];
   const admin = await getAdminContact();
 
   return (
-    <div className="space-y-6 max-w-[820px]">
+    <div className="space-y-6 max-w-[820px] mx-auto">
       <BackLink href={backHref}>Back to {selected.firstName}'s classes</BackLink>
 
       <PageHeader
         className="rise"
         eyebrow="Reschedule lesson"
         title={`${selected.firstName} · ${lesson.subjectName}`}
-        sub={
-          approvalRequired
-            ? "We'll send this to the tutor for approval."
-            : "Pick an open slot with the tutor to move to."
-        }
       />
 
       <section className="rise" style={{ animationDelay: "60ms" }}>
@@ -81,29 +149,56 @@ export default async function ParentReschedulePage({
         </Card>
       </section>
 
-      <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Card accent="brand">
-          <CardHead title="Pick a new time" />
-          <CardBody>
-            {started ? (
+      {started ? (
+        <section className="rise" style={{ animationDelay: "120ms" }}>
+          <Card accent="brand">
+            <CardHead title="Pick a new time" />
+            <CardBody>
               <div className="text-[14px] text-muted">
                 This lesson has already started, so it can no longer be
-                rescheduled.
+                rescheduled or cancelled.
               </div>
-            ) : (
-              <RescheduleForm
-                lessonId={lesson.id}
-                studentId={childId}
-                mode="makeup"
-                approvalRequired={approvalRequired}
-                slots={slots}
-                backHref={backHref}
-                adminId={admin?.id ?? null}
-              />
-            )}
-          </CardBody>
-        </Card>
-      </section>
+            </CardBody>
+          </Card>
+        </section>
+      ) : (
+        <>
+          <section className="rise" style={{ animationDelay: "120ms" }}>
+            <Card accent="brand">
+              <CardHead title="Pick a new time" />
+              <CardBody>
+                <RescheduleForm
+                  lessonId={lesson.id}
+                  studentId={childId}
+                  mode="makeup"
+                  canReschedule={canReschedule}
+                  rescheduleIneligibleReason={rescheduleIneligibleReason()}
+                  rescheduleRemaining={rescheduleRemaining}
+                  slots={slots}
+                  backHref={backHref}
+                  adminId={admin?.id ?? null}
+                />
+              </CardBody>
+            </Card>
+          </section>
+
+          <section className="rise" style={{ animationDelay: "180ms" }}>
+            <Card accent="bad">
+              <CardHead title="Cancel this lesson" />
+              <CardBody>
+                <CancelLessonAction
+                  lessonId={lesson.id}
+                  studentId={childId}
+                  canCancel={canCancel}
+                  cancelIneligibleReason={cancelIneligibleReason()}
+                  cancelRemaining={cancelRemaining}
+                  adminId={admin?.id ?? null}
+                />
+              </CardBody>
+            </Card>
+          </section>
+        </>
+      )}
     </div>
   );
 }

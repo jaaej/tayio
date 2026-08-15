@@ -1,3 +1,4 @@
+import { CalendarCheck } from "lucide-react";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { SubjectPill } from "./subject-pill";
 
@@ -17,7 +18,8 @@ export function TodayTimeline({ items }: { items: TimelineItem[] }) {
   if (items.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-[13px] text-muted">
-        No classes today 🎉
+        <CalendarCheck className="mx-auto mb-2 h-6 w-6 text-muted-2" aria-hidden />
+        No classes today.
       </div>
     );
   }

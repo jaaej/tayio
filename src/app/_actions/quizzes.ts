@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import {
   quizzes,
   quizAttachments,
+  quizAttempts,
   quizQuestions,
   quizOptions,
   notifications,
@@ -767,10 +768,17 @@ export async function approveQuiz(input: { quizId: string }): Promise<Result> {
   const problems = validateQuizForSubmit(content.quiz.title, toValidationInput(content));
   if (problems.length > 0) return { ok: false, error: problems.join(" ") };
 
+  // Both land live. An admin publishing a quiz that was never assigned to a
+  // tutor authored it themselves, so it never passed a review - "admin" says
+  // so, where "approved" would claim a review that did not happen. The
+  // approvedBy/approvedAt bookkeeping is the same either way: this admin
+  // published it, at this time.
+  const nextStatus = row.assignedTutorId ? "approved" : "admin";
+
   await db
     .update(quizzes)
     .set({
-      status: "approved",
+      status: nextStatus,
       approvedBy: user.id,
       approvedAt: new Date(),
       updatedAt: new Date(),
@@ -906,5 +914,20 @@ export async function gradePracticeQuiz(input: {
   }
 
   const result = gradeQuizAnswers(answerKeys, parsed.data.answers);
-  return result.ok ? { ok: true, grade: result.grade } : result;
+  if (!result.ok) return result;
+
+  // Persist the score (practice is unranked but tracked - one row per attempt;
+  // reports use the latest). Never block returning the grade to the student.
+  try {
+    await db.insert(quizAttempts).values({
+      quizId: parsed.data.quizId,
+      studentId: user.id,
+      correctCount: result.grade.correctCount,
+      total: result.grade.total,
+    });
+  } catch (err) {
+    console.error("quiz attempt persist failed", err);
+  }
+
+  return { ok: true, grade: result.grade };
 }

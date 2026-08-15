@@ -468,7 +468,13 @@ for (const [className, emails] of Object.entries(ENROLMENTS)) {
 console.log("→ Generating lessons");
 
 function isoDate(d) {
-  return d.toISOString().slice(0, 10);
+  // Local calendar date, NOT toISOString() - on a timezone ahead of UTC (e.g.
+  // AEST/UTC+10) toISOString() rolls local midnight back to the previous day,
+  // which shifted every generated lesson one weekday off its class slot.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 function nextWeekdayOnOrAfter(from, weekday) {
   const d = new Date(from);

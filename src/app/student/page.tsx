@@ -1,3 +1,4 @@
+import { Wallet } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { Badge } from "@/components/student/pill";
 import { StudentHero } from "@/components/student/student-hero";
@@ -115,20 +116,12 @@ export default async function StudentDashboard() {
     });
   }
 
-  // Static gamification placeholders.
-  const level = 1;
-  const xpCurrent = 0;
-  const xpToNext = 500;
-
   return (
     <div className="space-y-5">
       <StudentHero
         firstName={firstName}
         initials={initials}
         yearLevel={yearLevel}
-        level={level}
-        xpCurrent={xpCurrent}
-        xpToNext={xpToNext}
       />
 
       <div className="grid lg:grid-cols-[2fr_1fr] gap-5 items-start">
@@ -151,11 +144,6 @@ export default async function StudentDashboard() {
                     key={s.classId}
                     name={s.subjectName}
                     mastery={s.masteryPercent}
-                    nextLabel={
-                      nextLesson && nextLesson.subjectName === s.subjectName
-                        ? `${formatWeekday(nextLesson.date, "short")} ${formatTime(nextLesson.startTime)}`
-                        : undefined
-                    }
                     href={`/student/subjects/${s.subjectId}`}
                   />
                 ))}
@@ -177,11 +165,11 @@ export default async function StudentDashboard() {
           </Card>
 
           <div>
-            <SectionHead title="Your quests" actionHref="/student/subjects" actionLabel="All homework →" />
+            <SectionHead title="Your quests" actionHref="/student/homework" actionLabel="All homework →" />
             <Card flat accent="var(--mint)" className="overflow-hidden">
               {openHomework.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted">
-                  You're caught up - no quests right now 🎉
+                  You're caught up - no quests right now.
                 </div>
               ) : (
                 <div className="divide-y divide-line">
@@ -191,7 +179,6 @@ export default async function StudentDashboard() {
                       title={h.title}
                       subject={h.className ?? "Homework"}
                       meta={`due ${relativeTime(new Date(h.dueDate))}`}
-                      xp={50}
                       done={false}
                       href={`/student/homework/${h.homeworkId}`}
                     />
@@ -208,8 +195,11 @@ export default async function StudentDashboard() {
             <StatTile
               label="Outstanding balance"
               value={formatMoney(outstanding)}
-              accent={outstanding > 0 ? "warn" : "success"}
+              icon={<Wallet className="h-5 w-5" aria-hidden />}
+              tone={outstanding > 0 ? "bad" : "good"}
+              accent
               sub={outstanding > 0 ? "View invoices →" : "All settled"}
+              subTone={outstanding > 0 ? "down" : "up"}
               href="/student/payments"
             />
           )}

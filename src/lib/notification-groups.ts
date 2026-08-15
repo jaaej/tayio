@@ -14,33 +14,12 @@ export type NotificationLike = {
 export const NOTIFICATION_GROUPS: Array<{
   key: NotificationGroupKey;
   label: string;
-  description: string;
 }> = [
-  {
-    key: "messages",
-    label: "Messages",
-    description: "Direct messages from tutors, admins, students, and families",
-  },
-  {
-    key: "action",
-    label: "Action needed",
-    description: "Requests, changes, deadlines, and decisions",
-  },
-  {
-    key: "learning",
-    label: "Learning updates",
-    description: "Quizzes, homework, feedback, and discussions",
-  },
-  {
-    key: "announcements",
-    label: "Announcements",
-    description: "General news and notices",
-  },
-  {
-    key: "updates",
-    label: "Other updates",
-    description: "Schedule and account activity",
-  },
+  { key: "messages", label: "Messages" },
+  { key: "action", label: "Action needed" },
+  { key: "learning", label: "Learning updates" },
+  { key: "announcements", label: "Announcements" },
+  { key: "updates", label: "Other updates" },
 ];
 
 export function notificationGroupFor(
@@ -74,32 +53,44 @@ export function notificationGroupFor(
     href.includes("/discussions") ||
     href.includes("/resources") ||
     href.includes("/progress") ||
+    href.includes("/reports") ||
     title.includes("quiz") ||
     title.includes("homework") ||
-    title.includes("feedback")
+    title.includes("feedback") ||
+    title.includes("report")
   ) {
     return "learning";
   }
   return "updates";
 }
 
-export function groupNotifications<T extends NotificationLike>(
-  notifications: T[],
-): Array<{
-  key: NotificationGroupKey;
+export type NotificationTimeBucket = "today" | "week" | "earlier";
+
+export const NOTIFICATION_TIME_BUCKETS: Array<{
+  key: NotificationTimeBucket;
   label: string;
-  description: string;
-  unread: number;
-  items: T[];
-}> {
-  return NOTIFICATION_GROUPS.map((group) => {
-    const items = notifications.filter(
-      (notification) => notificationGroupFor(notification) === group.key,
-    );
-    return {
-      ...group,
-      unread: items.filter((item) => !item.readAt).length,
-      items,
-    };
-  }).filter((group) => group.items.length > 0);
+}> = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "earlier", label: "Earlier" },
+];
+
+/**
+ * "This week" is a rolling six days behind today, not the calendar week: on a
+ * Monday morning a calendar week would push yesterday's notifications into
+ * "Earlier", which reads as wrong to anyone who just saw them arrive.
+ */
+export function notificationTimeBucket(
+  createdAt: Date,
+  now: Date,
+): NotificationTimeBucket {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  if (createdAt.getTime() >= startOfToday.getTime()) return "today";
+
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+  if (createdAt.getTime() >= startOfWeek.getTime()) return "week";
+
+  return "earlier";
 }

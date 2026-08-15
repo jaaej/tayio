@@ -1,5 +1,6 @@
 import { Card, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
+import { AlertTriangle, CheckCircle2, Wallet } from "lucide-react";
 import { StatTile } from "@/components/student/kpi";
 import { requireUnrestrictedStudent } from "@/lib/auth";
 import { formatDateLong, formatMoney } from "@/lib/format";
@@ -24,21 +25,31 @@ export default async function StudentPaymentsPage() {
       <PageHead
         eyebrow="Payments"
         title="Invoices & balance"
-        sub="Your invoice history and anything still outstanding."
       />
 
       <div className="grid grid-cols-3 gap-3.5">
         <StatTile
           label="Outstanding"
           value={formatMoney(outstanding)}
-          accent={outstanding > 0 ? "warn" : "success"}
+          icon={<Wallet className="h-5 w-5" aria-hidden />}
+          tone={outstanding > 0 ? "bad" : "good"}
+          accent
           sub={outstanding > 0 ? "Amount due" : "All settled"}
+          subTone={outstanding > 0 ? "down" : "up"}
         />
-        <StatTile label="Paid invoices" value={paid} accent="success" />
+        <StatTile
+          label="Paid invoices"
+          value={paid}
+          icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+          tone="good"
+          accent
+        />
         <StatTile
           label="Overdue"
           value={overdue}
-          accent={overdue > 0 ? "warn" : "brand"}
+          icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+          tone={overdue > 0 ? "bad" : "brand"}
+          accent
         />
       </div>
 

@@ -35,17 +35,11 @@ export default async function AnnouncementsPage() {
     .orderBy(classes.name);
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Communications"
         title="Announcements"
-        sub="Broadcast notices to everyone, a role, or a single class."
-        actions={
-          <Pill tone="brand">
-            {rows.length} {rows.length === 1 ? "notice" : "notices"}
-          </Pill>
-        }
       />
 
       <section className="rise" style={{ animationDelay: "60ms" }}>

@@ -1,4 +1,10 @@
-import { TrendingUp, Medal, AlertTriangle, ClipboardCheck } from "lucide-react";
+import {
+  TrendingUp,
+  Medal,
+  AlertTriangle,
+  ClipboardCheck,
+  UserX,
+} from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
@@ -21,10 +27,13 @@ const MASTERY_PILL: Record<Mastery, string> = {
   not_started: "bg-surface-2 text-ink-soft",
 };
 
-const MASTERY_PCT: Record<Mastery, number> = {
-  strong: 92,
-  improving: 64,
-  needs_work: 34,
+// Coarse 4-step bar widths for a visual sense of level. These are NOT measured
+// percentages (there is no per-topic score), so no numeric % is ever shown -
+// the category pill is the honest label.
+const MASTERY_STEP: Record<Mastery, number> = {
+  strong: 100,
+  improving: 66,
+  needs_work: 33,
   not_started: 8,
 };
 
@@ -51,7 +60,6 @@ export default async function ParentProgressPage({
       <div className="space-y-6">
         <PageHeader
           title="Progress"
-          sub="How your child is tracking across subjects and topics."
         />
         <EmptyChildrenNotice />
       </div>
@@ -102,7 +110,7 @@ export default async function ParentProgressPage({
       )}
 
       <section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 rise"
+        className="grid grid-cols-2 lg:grid-cols-5 gap-4 rise"
         style={{ animationDelay: "40ms" }}
       >
         <StatTile
@@ -133,7 +141,7 @@ export default async function ParentProgressPage({
           deltaTone={needsWorkCount === 0 ? "up" : "down"}
         />
         <StatTile
-          label="Attendance"
+          label="Attendance rate"
           value={
             dashboard.attendanceRate !== null
               ? `${dashboard.attendanceRate}%`
@@ -142,8 +150,28 @@ export default async function ParentProgressPage({
           icon={<ClipboardCheck className="h-5 w-5" />}
           tone="mint"
           accent
-          delta="Last 4 weeks"
+          delta="All logged lessons"
+          deltaTone={
+            dashboard.attendanceRate === null
+              ? "flat"
+              : dashboard.attendanceRate >= 90
+                ? "up"
+                : dashboard.attendanceRate < 75
+                  ? "down"
+                  : "flat"
+          }
         />
+        <div className="max-lg:col-span-2">
+          <StatTile
+            label="Absences"
+            value={dashboard.absenceCount.toString()}
+            icon={<UserX className="h-5 w-5" />}
+            tone={dashboard.absenceCount === 0 ? "good" : "coral"}
+            accent
+            delta="Marked absent"
+            deltaTone={dashboard.absenceCount === 0 ? "up" : "down"}
+          />
+        </div>
       </section>
 
       <div className="rise" style={{ animationDelay: "80ms" }}>
@@ -176,16 +204,11 @@ export default async function ParentProgressPage({
                         <SubjectPill name={t.subjectName} />
                       </Td>
                       <Td>
-                        <div className="flex items-center gap-3">
-                          <div className="h-2 flex-1 rounded-full bg-surface-2 overflow-hidden">
-                            <span
-                              className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
-                              style={{ width: `${MASTERY_PCT[m]}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-bold text-ink-soft tabular-nums w-9 text-right">
-                            {MASTERY_PCT[m]}%
-                          </span>
+                        <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                          <span
+                            className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
+                            style={{ width: `${MASTERY_STEP[m]}%` }}
+                          />
                         </div>
                       </Td>
                       <Td>

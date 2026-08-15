@@ -212,6 +212,7 @@ export const lessons = pgTable(
     status: lessonStatusEnum("status").notNull().default("upcoming"),
     location: text("location"),
     onlineLink: text("online_link"),
+    recordingUrl: text("recording_url"),
     rescheduledFrom: uuid("rescheduled_from"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -299,6 +300,112 @@ export const rescheduleRequests = pgTable(
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type ClassType = (typeof classTypeEnum.enumValues)[number];
 
+export const creditGrantReasonEnum = pgEnum("credit_grant_reason", [
+  "cancellation",
+  "reschedule_no_slot",
+  "admin_grant",
+]);
+export type CreditGrantReason = (typeof creditGrantReasonEnum.enumValues)[number];
+export const creditStatusEnum = pgEnum("credit_status", [
+  "active",
+  "redeemed",
+  "expired",
+]);
+
+export const classCredits = pgTable(
+  "class_credits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
+    termId: uuid("term_id").notNull().references(() => terms.id, { onDelete: "cascade" }),
+    grantReason: creditGrantReasonEnum("grant_reason").notNull(),
+    grantedFromLessonId: uuid("granted_from_lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    grantedById: uuid("granted_by_id").notNull().references(() => profiles.id),
+    status: creditStatusEnum("status").notNull().default("active"),
+    redeemedOnLessonId: uuid("redeemed_on_lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    redeemedById: uuid("redeemed_by_id").references(() => profiles.id),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    expiresAt: date("expires_at").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("class_credits_student_status_idx").on(t.studentId, t.status),
+    index("class_credits_term_idx").on(t.termId),
+  ],
+);
+export type ClassCredit = typeof classCredits.$inferSelect;
+
+export const lessonCancellations = pgTable(
+  "lesson_cancellations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    cancelledById: uuid("cancelled_by_id").notNull().references(() => profiles.id),
+    termId: uuid("term_id").notNull().references(() => terms.id, { onDelete: "cascade" }),
+    creditId: uuid("credit_id").references(() => classCredits.id, { onDelete: "set null" }),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("lesson_cancellations_student_term_idx").on(t.studentId, t.termId)],
+);
+export type LessonCancellation = typeof lessonCancellations.$inferSelect;
+
+export const allowanceKindEnum = pgEnum("allowance_kind", [
+  "reschedule",
+  "cancellation",
+]);
+
+// Admin top-ups to a student's per-term reschedule/cancellation allowance
+// (migration 0032). The effective cap for a kind is 3 + sum(bonus) for that
+// student+term+kind. Server-only (RLS deny-all, no client policies).
+export const allowanceAdjustments = pgTable(
+  "allowance_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    kind: allowanceKindEnum("kind").notNull(),
+    bonus: integer("bonus").notNull(),
+    grantedById: uuid("granted_by_id").notNull().references(() => profiles.id),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("allowance_adjustments_student_term_idx").on(t.studentId, t.termId)],
+);
+export type AllowanceAdjustment = typeof allowanceAdjustments.$inferSelect;
+
+/**
+ * Per-student leave / holiday periods. A contiguous date range [startDate,
+ * endDate] (inclusive) during which the student is away from ALL their classes
+ * - so tutors don't mark them absent every day of a known holiday. Multiple
+ * separate holidays = multiple rows. Admin-managed; read server-side only.
+ */
+export const studentLeave = pgTable(
+  "student_leave",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    note: text("note"),
+    createdById: uuid("created_by_id").notNull().references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("student_leave_student_idx").on(t.studentId),
+    index("student_leave_dates_idx").on(t.startDate, t.endDate),
+  ],
+);
+export type StudentLeave = typeof studentLeave.$inferSelect;
+
 export const homework = pgTable("homework", {
   id: uuid("id").primaryKey().defaultRandom(),
   classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),
@@ -382,11 +489,43 @@ export const announcements = pgTable("announcements", {
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Per-student free-trial period (1:1), migration 0037. Admin-set; tutors see a
+// "Free trial" pill on lessons in range. Server-written only (deny-all RLS).
+export const studentTrials = pgTable("student_trials", {
+  studentId: uuid("student_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  note: text("note"),
+  createdById: uuid("created_by_id").references(() => profiles.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const adminSettings = pgTable("admin_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   pinHash: text("pin_hash"),
   failedAttempts: integer("failed_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Owner-only tutor payroll/reference details (PII), migration 0035. One
+// optional row per tutor; read/written only by the owner-gated /admin/tutors
+// page. Isolated from public.profiles so it never leaks into other queries.
+export const tutorBankDetails = pgTable("tutor_bank_details", {
+  tutorId: uuid("tutor_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  accountName: text("account_name"),
+  bsb: text("bsb"),
+  accountNumber: text("account_number"),
+  note: text("note"),
+  updatedById: uuid("updated_by_id").references(() => profiles.id),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -416,6 +555,11 @@ export const tutorAvailability = pgTable(
     tutorId: uuid("tutor_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    // Null = the slot applies to any subject (how every row before migration
+    // 0040 behaves); set = availability scoped to that one subject.
+    subjectId: uuid("subject_id").references(() => subjects.id, {
+      onDelete: "cascade",
+    }),
     weekday: integer("weekday"),
     date: date("date"),
     startTime: time("start_time").notNull(),
@@ -426,6 +570,7 @@ export const tutorAvailability = pgTable(
   (t) => [
     index("tutor_availability_tutor_idx").on(t.tutorId),
     index("tutor_availability_date_idx").on(t.date),
+    index("tutor_availability_tutor_subject_idx").on(t.tutorId, t.subjectId),
   ],
 );
 
@@ -638,6 +783,8 @@ export const subjectWeeks = pgTable(
     weekNumber: integer("week_number").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    /** Learning objectives, one per line ("By the end of this week you can"). */
+    objectives: text("objectives"),
     videoUrl: text("video_url"),
     bookletUrl: text("booklet_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -822,6 +969,9 @@ export const quizStatusEnum = pgEnum("quiz_status", [
   "pending_review",
   "changes_requested",
   "approved",
+  // Admin-written and admin-published. Live exactly like "approved"; last in
+  // the list because ALTER TYPE ... ADD VALUE appended it in the DB (0039).
+  "admin",
 ]);
 
 export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [
@@ -916,6 +1066,31 @@ export const quizAttachments = pgTable(
   (t) => [
     index("quiz_attachments_quiz_idx").on(t.quizId),
     index("quiz_attachments_question_idx").on(t.questionId),
+  ],
+);
+
+// Persisted student quiz scores (practice quizzes are unranked but tracked),
+// migration 0036. One row per submission; latest by submittedAt is the current
+// score. Server-written only (deny-all RLS).
+export const quizAttempts = pgTable(
+  "quiz_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quizId: uuid("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    correctCount: integer("correct_count").notNull(),
+    total: integer("total").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("quiz_attempts_student_idx").on(t.studentId),
+    index("quiz_attempts_quiz_idx").on(t.quizId),
   ],
 );
 

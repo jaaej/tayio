@@ -1,28 +1,29 @@
-import { PageHead } from "@/components/student/page-head";
 import { requireRole } from "@/lib/auth";
-import { listAccessibleBoards } from "@/lib/discussions-queries";
-import { BoardCard } from "@/components/discussions/board-card";
+import {
+  listAccessibleBoards,
+  listRecentThreads,
+} from "@/lib/discussions-queries";
+import { DiscussionsBoardsView } from "@/components/discussions/boards-view";
 
 export default async function TutorDiscussionsPage() {
   const user = await requireRole("tutor");
-  const boards = await listAccessibleBoards(user.id, "tutor");
+  const [boards, recentThreads] = await Promise.all([
+    listAccessibleBoards(user.id, "tutor"),
+    listRecentThreads(user.id, "tutor"),
+  ]);
 
   return (
-    <div className="space-y-5">
-      <PageHead
-        eyebrow="Discussions"
-        title="Class discussion boards"
-        sub="Answer student questions on the boards for your classes."
-      />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-        {boards.map((b) => (
-          <BoardCard
-            key={b.id.kind === "admin" ? "admin" : b.id.subjectId}
-            board={b}
-            hrefPrefix="/tutor/discussions"
-          />
-        ))}
-      </div>
-    </div>
+    <DiscussionsBoardsView
+      boards={boards}
+      recentThreads={recentThreads}
+      hrefPrefix="/tutor/discussions"
+      title="Answer & guide."
+      userFirstName={
+        (user.user_metadata?.first_name as string | undefined) ??
+        user.email?.split("@")[0] ??
+        "you"
+      }
+      rolePrefix="tutor"
+    />
   );
 }

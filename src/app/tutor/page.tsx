@@ -3,12 +3,14 @@ import {
   ArrowRight,
   BellRing,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   Flame,
   Inbox,
   Send,
 } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
+import { SectionHead } from "@/components/student/page-head";
 import {
   MiniWeekCalendar,
   type CalendarEvent,
@@ -118,6 +120,11 @@ export default async function TutorDashboard() {
     href: `/tutor/lessons/${l.id}`,
   }));
 
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayLessons = weekLessons.filter(
+    (l) => String(l.date).slice(0, 10) === todayStr,
+  );
+
   const dateLabel = now.toLocaleDateString("en-AU", {
     weekday: "long",
     day: "numeric",
@@ -166,6 +173,49 @@ export default async function TutorDashboard() {
         </div>
       </section>
 
+      {todayLessons.length > 0 && (
+        <section className="space-y-2.5">
+          <SectionHead title="Today's classes" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {todayLessons.map((l) => (
+              <Link
+                key={l.id}
+                href={`/tutor/lessons/${l.id}`}
+                className="block group"
+              >
+                <Card className="border-brand-200 transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)]">
+                  <CardBody>
+                    <div className="flex items-center gap-3">
+                      <span className="grid place-items-center h-11 w-11 rounded-[12px] bg-brand-100 text-brand-700 shrink-0">
+                        <ClipboardCheck
+                          className="h-[22px] w-[22px]"
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {/* No subject eyebrow: class names already lead with
+                            the subject ("Year 10 Maths · Monday PM"), so it
+                            printed the same words twice. */}
+                        <div className="text-[14px] font-extrabold text-ink leading-tight truncate">
+                          {l.className}
+                        </div>
+                        <div className="text-[12px] text-muted tabular-nums">
+                          {formatTime(l.startTime)}–{formatTime(l.endTime)}
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-bold text-brand-700 shrink-0">
+                        View class →
+                      </span>
+                    </div>
+                  </CardBody>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="space-y-5 min-w-0">
           <Card className="overflow-hidden">
             <CardHead
@@ -182,13 +232,6 @@ export default async function TutorDashboard() {
               icon={<Inbox className="h-4 w-4" />}
               iconBg="bg-brand-600"
               title="Submissions to mark"
-              tagline={
-                submissions.length === 0
-                  ? "Nothing waiting - enjoy the breather."
-                  : lateCount > 0
-                    ? `${lateCount} late · review the most urgent first`
-                    : `${submissions.length} fresh submission${submissions.length === 1 ? "" : "s"} waiting`
-              }
               actionHref="/tutor/homework"
               actionLabel="All homework"
               countBadge={submissions.length}
@@ -259,11 +302,6 @@ export default async function TutorDashboard() {
               icon={<BellRing className="h-4 w-4" />}
               iconBg="bg-coral"
               title="Students to bump"
-              tagline={
-                bumpList.length === 0
-                  ? "Everyone's on track - nice work."
-                  : "Send a nudge before homework piles up."
-              }
               countBadge={bumpList.length}
               tone={bumpList.length > 0 ? "bad" : "good"}
             />
@@ -314,9 +352,6 @@ export default async function TutorDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="text-[13px] font-bold text-ink truncate">
                               {l.className}
-                            </div>
-                            <div className="text-[11px] text-muted mt-0.5 truncate">
-                              {l.subjectName}
                             </div>
                           </div>
                           <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
@@ -388,7 +423,7 @@ function RichHeader({
   icon: React.ReactNode;
   iconBg: string;
   title: string;
-  tagline: string;
+  tagline?: string;
   actionHref?: string;
   actionLabel?: string;
   countBadge?: number;
@@ -421,7 +456,9 @@ function RichHeader({
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          {tagline && (
+            <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          )}
         </div>
       </div>
       {actionHref && actionLabel && (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClipboardCheck, SquarePen, NotebookPen } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
@@ -73,9 +74,9 @@ export default async function StudentProfilePage({
         }
       />
 
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <StatChip
-          icon="✓"
+          icon={<ClipboardCheck className="h-5 w-5" aria-hidden />}
           hue={
             attendanceRate === null
               ? "brand"
@@ -89,13 +90,13 @@ export default async function StudentProfilePage({
           label="Attendance rate"
         />
         <StatChip
-          icon="📝"
+          icon={<SquarePen className="h-5 w-5" aria-hidden />}
           hue="brand"
           value={homework.length}
           label="Homework"
         />
         <StatChip
-          icon="📓"
+          icon={<NotebookPen className="h-5 w-5" aria-hidden />}
           hue="grape"
           value={notes.length}
           label="Lesson notes"

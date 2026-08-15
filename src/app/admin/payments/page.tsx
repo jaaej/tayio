@@ -110,12 +110,11 @@ export default async function PaymentsPage() {
     }).format(n);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Invoices"
         title="Who has paid, who hasn't"
-        sub="Manual invoice tracking for the MVP. Stripe integration arrives in Phase 3 - mark payments here as they clear in your bank."
       />
 
       <section className="grid sm:grid-cols-3 gap-4 rise">

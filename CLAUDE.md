@@ -37,6 +37,23 @@ These apply to every agent working in this repo, ahead of everything below.
 - New notification types must be classified in `src/lib/notification-groups.ts` and covered by its unit tests.
 - A notification UI change is incomplete until its behaviour and styling are checked across admin, tutor, student, and parent routes.
 
+## Cross-role UI & feature consistency (non-negotiable)
+
+The notification rule above is one instance of a general law: **any feature or surface that appears in more than one role's portal (student / parent / tutor / admin) must look and behave the same in every role it appears in.**
+This covers discussions, calendars and timetables, resource libraries, cards, tables, stat tiles, page headers, buttons, empty states, and any other shared concept.
+
+- **One feature, one implementation.**
+  A shared feature must be built as a single shared component and reused across roles, never reimplemented per role.
+  If the same feature renders differently in different roles (e.g. a rich designed page for one role and a bare list for another), that is a bug to fix, not a per-role style choice.
+- **Audit by feature, not just by token.**
+  When reviewing or changing UI, open the SAME feature in all four roles and compare them directly.
+  "The design tokens match" (fonts, colours, radii) is NOT the same as "the feature matches" - a token-only audit will miss a page that is elaborate in one role and skeletal in another. Always do the feature-parity pass.
+- **Match each role's mental model (ties to the IA rule below).**
+  A layout that is unintuitive for how a role actually works - e.g. a flat student list for a tutor who thinks in classes - is a defect even if it "works". Group and label by the real workflow.
+- **Never silently defer a known inconsistency.**
+  If you find a cross-role inconsistency you are not fixing in this pass, say so explicitly and record it. Do not quietly ship the inconsistent state, and do not report "consistent / done" when you only unified tokens and left the structure divergent.
+- A cross-role UI change is incomplete until the same feature is verified to look and behave the same across admin, tutor, student, and parent.
+
 **About the user:** solo builder shipping the portal as a personal/startup product. **Building toward the FINAL, deploy-ready product - not a throwaway MVP. Every change must be production-quality and shippable** (proper error handling, security, edge cases, no stubs/placeholders left behind). Still values function over decorative polish, but "it's just an MVP" is no longer an acceptable reason to cut corners. Wants honest engineering judgment over agreeable hedging, and wants to understand WHY something works or fails - not just the fix. Gets frustrated by recommendation flip-flops, repeated failed approaches, padded tradeoff tables, claims of "it works" before real testing, and destructive suggestions made without first naming what gets lost.
 
 **What the rules below enforce:** (1) recommendations driven by technical merit, not the direction of the user's last question; (2) a one-level-up premise check before drilling into A/B/C tradeoffs - especially important here, where role/permission decisions cascade across all four portals; (3) success claims tied to verified evidence (passing build, working dev server, an actual request against the route under the right role - not "the code looks right"); (4) destructive actions (dropping tables, `drizzle-kit push` against prod, deleting Supabase rows containing student/parent/payment data, `rm -rf`) gated behind explicit disclosure of what data is lost and whether it is recoverable.
@@ -100,6 +117,32 @@ When the user asks for a design or style change ("make this more engaging", "fol
 - **Hierarchy moves** - distinguishing a "featured" card from peers via size, span, accent intensity, or unique decoration.
 
 When the user gives a reference (zip, screenshot, URL), extract the exact tokens from it (radii, gradient stops, shadow values, font weight, tile sizes) and use them. Don't substitute with `rounded-lg` / `shadow-md` defaults.
+
+## Intuitive navigation & information architecture (non-negotiable)
+
+Apply this lens to **every** UI/navigation decision, in every role and portal - not only when a request explicitly mentions it.
+The goal: a first-time, non-technical user can find and complete any task without training.
+Remove the skill/experience barrier to traversing the portal.
+
+- **Optimise for zero-training discoverability.** Before shipping any UI change, ask: "Could someone who has never seen this portal find and finish this task without being told where to look?" If not, rework it.
+- **Fewer, clearer destinations beat many overlapping tabs.** If two tabs surface the same data or the same task lives in more than one place, combine them. Question every new tab/page: does this belong inside an existing surface instead?
+- **One obvious home per task.** Don't scatter a single workflow across separate tabs (e.g. "today's class" in one tab and "mark attendance" in another). Put the action where the user already is, in context.
+- **Separate summary surfaces from working surfaces.** A home/dashboard *summarises and routes* (glanceable tiles that link out); deeper pages *do the work*. Don't blur the two.
+- **Surface time-relevant actions in context.** Put the action the user needs *now* one tap away (e.g. a "View class" action on the day of a class), instead of making them hunt through a menu.
+- **Gate, don't dangle.** Hide or lock things that aren't actionable yet rather than showing a dead tab or empty page (e.g. quiz editing locked until an admin requests it; route the request as a notification, not a standalone tab).
+- **Match labels to the user's mental model,** not the database schema or internal role names.
+
+When a change touches navigation or IA, briefly state how it reduces steps or ambiguity for a first-time user. If it adds steps or a new place to look, justify why or find a simpler path.
+
+## Microcopy: no redundant subtitles or state-narration (non-negotiable)
+
+Do not add explanatory microcopy that restates what a UI element already makes obvious, or that narrates the UI's own state back to the user. This clutters the interface and reads as filler. Let labels and content speak.
+
+- **No descriptive subtitles under section/page headings that just list or paraphrase the contents.** E.g. under a "Learning updates" heading, do NOT add "Quizzes, homework, feedback, and discussions"; under "Action needed", do NOT add "Requests, changes, deadlines, and decisions". The heading is enough.
+- **No meta-count / state narration.** E.g. "8 unread across 3 sections", "Showing 12 of 40", "You have 3 items in 2 groups". A single functional count is fine where it's actionable (a badge on an item, "3 to mark"); a sentence that summarizes the UI's own layout is not.
+- **Allowed:** a genuine empty-state message ("Nothing here yet"), a real instruction the user needs to act ("Click a pill to mark yourself available"), a status that conveys new information ("An admin requested changes"). The test: does the text tell the user something they can't already see from the labels and content? If not, cut it.
+
+When you add or edit any header/section, apply this test and omit the subtitle rather than inventing one. When you spot an existing violation, remove it.
 
 ## Karpathy Guidelines
 

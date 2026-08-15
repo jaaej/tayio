@@ -8,22 +8,35 @@ import {
   Empty,
 } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
+import { isUnrestrictedAdmin } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
 import { formatMoney, relativeTime } from "@/lib/format";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
-import { getRevenueSummary, getRecentPayments } from "@/app/admin/_lib/queries";
+import {
+  getRevenueSummary,
+  getRecentPayments,
+  getReportTerms,
+} from "@/app/admin/_lib/queries";
 import { AdminPinPrompt } from "@/components/admin/pin-gate";
+import { RevenueReportDownload } from "./_components/report-download";
 
 export const dynamic = "force-dynamic";
 
 export default async function RevenuePage() {
-  await requireRole("admin");
+  // The owner sees revenue with no PIN. Reception (admin_restricted) must enter
+  // the PIN the owner set - the PIN's only job is to gate reception from money.
+  const user = await requireRole("admin");
+  const owner = isUnrestrictedAdmin(
+    user.app_metadata?.role as UserRole | undefined,
+  );
   const { unlocked, pinSet } = await getAdminSecurityState();
+  const canView = owner || unlocked;
 
-  // Locked: never query or render any figure - the number must not reach the
-  // DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
-  if (!unlocked) {
+  // Locked reception: never query or render any figure - the number must not
+  // reach the DOM. Show the PIN prompt (or a "set a PIN" nudge) instead.
+  if (!canView) {
     return (
-      <div className="space-y-6 max-w-[1400px]">
+      <div className="space-y-6">
         <PageHeader className="rise" eyebrow="Finance" title="Revenue" />
         <Card className="rise">
           <div className="flex flex-col items-start gap-3 p-6">
@@ -43,9 +56,10 @@ export default async function RevenuePage() {
   }
 
   const now = new Date();
-  const [summary, payments] = await Promise.all([
+  const [summary, payments, reportTerms] = await Promise.all([
     getRevenueSummary(now),
     getRecentPayments(8),
+    getReportTerms(),
   ]);
 
   const delta =
@@ -58,12 +72,11 @@ export default async function RevenuePage() {
       : null;
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Finance"
         title="Revenue"
-        sub="Payments received, by month. Visible only while the admin PIN is unlocked."
         actions={<Pill tone="good">Unlocked</Pill>}
       />
 
@@ -101,6 +114,17 @@ export default async function RevenuePage() {
           {summary.overdueCount === 1 ? "" : "s"}
         </p>
       )}
+
+      <Card className="rise">
+        <CardHead title="Financial report" />
+        <div className="p-5 space-y-2.5">
+          <p className="text-[13px] text-muted">
+            Download a branded PDF of revenue collected and overdue invoices for
+            a month, term, or custom range.
+          </p>
+          <RevenueReportDownload terms={reportTerms} />
+        </div>
+      </Card>
 
       <Card className="rise">
         <CardHead

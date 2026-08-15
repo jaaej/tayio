@@ -13,10 +13,19 @@ import {
   subjects,
 } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
-import { expandAvailability, type AvailableSlot } from "@/lib/availability";
+import {
+  expandAvailability,
+  markTakenSlots,
+  type AvailableSlot,
+} from "@/lib/availability";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 
 const HOUR = 3600 * 1000;
+
+/** An executor is either `db` directly or a `db.transaction(...)` callback's
+ *  `tx` - both expose the same query-builder API, so writes can be pointed at
+ *  whichever is in scope without duplicating call sites. */
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type ReschedulePath = "group_direct" | "approval";
 
@@ -198,7 +207,7 @@ export async function getOneOnOneSlots(
     .from(profiles)
     .where(eq(profiles.id, original.tutorId))
     .limit(1);
-  return expandAvailability(
+  const slots = await expandAvailability(
     [
       {
         id: original.tutorId,
@@ -210,6 +219,7 @@ export async function getOneOnOneSlots(
     now,
     4,
   );
+  return markTakenSlots(slots);
 }
 
 // --- Execution primitives ---------------------------------------------------
@@ -271,7 +281,7 @@ export async function executeMakeupReschedule(p: {
     })
     .returning({ id: lessons.id });
 
-  await markAbsentOnOriginal(original.id, p.studentId, p.reason, p.actorId);
+  await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
   await db.insert(attendance).values({
     lessonId: newLesson.id,
     studentId: p.studentId,
@@ -309,7 +319,7 @@ export async function executeSessionSwitch(p: {
     return { ok: false, error: "That session just filled up - pick another." };
   }
 
-  await markAbsentOnOriginal(original.id, p.studentId, p.reason, p.actorId);
+  await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
   await db
     .insert(attendance)
     .values({
@@ -413,13 +423,14 @@ async function supersedePriorReschedule(
   }
 }
 
-async function markAbsentOnOriginal(
+export async function markStudentAbsent(
   lessonId: string,
   studentId: string,
   reason: string,
   actorId: string,
+  executor: DbExecutor = db,
 ) {
-  await db
+  await executor
     .insert(attendance)
     .values({
       lessonId,
@@ -439,7 +450,7 @@ async function markAbsentOnOriginal(
     });
 }
 
-async function studentName(studentId: string): Promise<string> {
+export async function studentDisplayName(studentId: string): Promise<string> {
   const [s] = await db
     .select({ f: profiles.firstName, l: profiles.lastName })
     .from(profiles)
@@ -448,7 +459,7 @@ async function studentName(studentId: string): Promise<string> {
   return s ? `${s.f} ${s.l}`.trim() : "A student";
 }
 
-async function adminIds(): Promise<string[]> {
+export async function getAdminIds(): Promise<string[]> {
   const rows = await db
     .select({ id: profiles.id })
     .from(profiles)
@@ -471,9 +482,9 @@ async function notifyReschedule(o: {
     .from(familyLinks)
     .where(eq(familyLinks.studentId, o.studentId));
   for (const p of parents) recipients.add(p.id);
-  for (const a of await adminIds()) recipients.add(a);
+  for (const a of await getAdminIds()) recipients.add(a);
 
-  const name = await studentName(o.studentId);
+  const name = await studentDisplayName(o.studentId);
   const body =
     `${name}'s ${o.original.subjectName} lesson on ` +
     `${formatDateLong(o.original.date)} at ${formatTime(o.original.startTime)} ` +
@@ -543,8 +554,8 @@ export async function createRescheduleRequest(p: {
   const original = await getReschedulableLesson(p.originalLessonId);
   const recipients = new Set<string>();
   if (original) recipients.add(original.tutorId);
-  for (const a of await adminIds()) recipients.add(a);
-  const name = await studentName(p.studentId);
+  for (const a of await getAdminIds()) recipients.add(a);
+  const name = await studentDisplayName(p.studentId);
   const body =
     `${name} requested to reschedule their ${original?.subjectName ?? ""} lesson` +
     (original ? ` on ${formatDateLong(original.date)}` : "") +

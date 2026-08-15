@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { and, eq, inArray, sql, desc, isNull, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  announcements,
   classes,
   enrollments,
   lessons,
@@ -13,6 +14,8 @@ import {
   familyLinks,
   profiles,
   subjects,
+  studentLeave,
+  studentTrials,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
@@ -22,13 +25,14 @@ export async function requireTutor() {
   return { id: user.id, email: user.email ?? "" };
 }
 
+/** Local calendar date `YYYY-MM-DD` - matches the local dates stored in the
+ * `lessons.date` column. Using toISOString() would shift a day on AEST. */
+function isoDateLocal(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 function todayDateString() {
-  // The rest of the codebase (seed, MiniWeekCalendar, shared isoDate) keys
-  // dates as `local-midnight → toISOString`. In AEST this is "previous day in UTC".
-  // Match that convention so date comparisons line up with stored lesson rows.
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return isoDateLocal(new Date());
 }
 
 export async function getTutorClasses(tutorId: string) {
@@ -70,6 +74,78 @@ export async function getTutorClasses(tutorId: string) {
   return rows;
 }
 
+/**
+ * The tutor's today's-or-next lesson across ALL their classes - the one-tap
+ * attendance entry on the classes list. `null` when nothing is scheduled ahead.
+ */
+export async function getTutorNextLesson(tutorId: string) {
+  const today = todayDateString();
+
+  const [next] = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
+    .where(
+      and(
+        eq(classes.tutorId, tutorId),
+        sql`${lessons.date} >= ${today}`,
+        sql`${lessons.status} <> 'cancelled'`,
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime))
+    .limit(1);
+
+  if (!next) return null;
+  return { ...next, isToday: next.date === today };
+}
+
+/**
+ * A class's announcements (newest first) plus its active roster size, for the
+ * announcements card on the class curriculum page. Verifies the tutor owns the
+ * class (404 otherwise).
+ */
+export async function getClassAnnouncementsForTutor(
+  tutorId: string,
+  classId: string,
+) {
+  const [cls] = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.tutorId, tutorId)))
+    .limit(1);
+  if (!cls) notFound();
+
+  const [rows, [rosterRow]] = await Promise.all([
+    db
+      .select({
+        id: announcements.id,
+        title: announcements.title,
+        body: announcements.body,
+        publishedAt: announcements.publishedAt,
+      })
+      .from(announcements)
+      .where(eq(announcements.audienceClassId, classId))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(20),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(enrollments)
+      .where(
+        and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+      ),
+  ]);
+
+  return { announcements: rows, rosterCount: rosterRow?.count ?? 0 };
+}
+
 async function getTutorClassIds(tutorId: string): Promise<string[]> {
   const rows = await db
     .select({ id: classes.id })
@@ -99,6 +175,95 @@ export async function getTutorStudents(tutorId: string) {
       ),
     )
     .orderBy(asc(profiles.lastName), asc(profiles.firstName));
+}
+
+export type TutorClassRoster = {
+  classId: string;
+  className: string;
+  subjectName: string;
+  weekday: number | null;
+  startTime: string | null;
+  students: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    yearLevel: string | null;
+  }>;
+};
+
+/**
+ * The tutor's students grouped by the class they're in - the roster the way a
+ * tutor thinks about it. A student enrolled in two of the tutor's classes
+ * appears under each. Empty classes are still listed so the tutor sees every
+ * class they teach.
+ */
+export async function getTutorStudentsByClass(
+  tutorId: string,
+): Promise<{ classes: TutorClassRoster[]; totalStudents: number }> {
+  const rows = await db
+    .select({
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+      weekday: classes.weekday,
+      startTime: classes.startTime,
+      studentId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      email: profiles.email,
+      yearLevel: profiles.yearLevel,
+    })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(
+      enrollments,
+      and(
+        eq(enrollments.classId, classes.id),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
+    .leftJoin(
+      profiles,
+      and(
+        eq(profiles.id, enrollments.studentId),
+        inArray(profiles.role, STUDENT_TIERS),
+      ),
+    )
+    .where(eq(classes.tutorId, tutorId))
+    .orderBy(asc(classes.name), asc(profiles.lastName), asc(profiles.firstName));
+
+  const byClass = new Map<string, TutorClassRoster>();
+  const distinctStudents = new Set<string>();
+  for (const r of rows) {
+    let group = byClass.get(r.classId);
+    if (!group) {
+      group = {
+        classId: r.classId,
+        className: r.className,
+        subjectName: r.subjectName,
+        weekday: r.weekday,
+        startTime: r.startTime,
+        students: [],
+      };
+      byClass.set(r.classId, group);
+    }
+    if (r.studentId) {
+      group.students.push({
+        id: r.studentId,
+        firstName: r.firstName ?? "",
+        lastName: r.lastName ?? "",
+        email: r.email ?? "",
+        yearLevel: r.yearLevel,
+      });
+      distinctStudents.add(r.studentId);
+    }
+  }
+
+  return {
+    classes: Array.from(byClass.values()),
+    totalStudents: distinctStudents.size,
+  };
 }
 
 export type TutorDmContacts = {
@@ -267,8 +432,10 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       status: lessons.status,
       location: lessons.location,
       onlineLink: lessons.onlineLink,
+      recordingUrl: lessons.recordingUrl,
       classId: classes.id,
       className: classes.name,
+      lessonPlan: classes.lessonPlan,
       subjectName: subjects.name,
     })
     .from(lessons)
@@ -284,6 +451,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       yearLevel: profiles.yearLevel,
+      deliveryMode: enrollments.deliveryMode,
       attendanceStatus: attendance.status,
       attendanceNote: attendance.note,
     })
@@ -311,7 +479,45 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       and(eq(lessonNotes.lessonId, lessonId), eq(lessonNotes.tutorId, tutorId)),
     );
 
-  return { lesson, roster, notes: existingNotes };
+  // Flag students on a known leave/holiday spanning this lesson's date, so the
+  // tutor doesn't mark them absent. Leave is per-student (all classes).
+  const rosterIds = roster.map((r) => r.id);
+  const leaveRows = rosterIds.length
+    ? await db
+        .select({ studentId: studentLeave.studentId })
+        .from(studentLeave)
+        .where(
+          and(
+            inArray(studentLeave.studentId, rosterIds),
+            sql`${studentLeave.startDate} <= ${lesson.date}`,
+            sql`${studentLeave.endDate} >= ${lesson.date}`,
+          ),
+        )
+    : [];
+  const onLeaveIds = new Set(leaveRows.map((r) => r.studentId));
+
+  // Flag students on a free trial spanning this lesson's date.
+  const trialRows = rosterIds.length
+    ? await db
+        .select({ studentId: studentTrials.studentId })
+        .from(studentTrials)
+        .where(
+          and(
+            inArray(studentTrials.studentId, rosterIds),
+            sql`${studentTrials.startDate} <= ${lesson.date}`,
+            sql`${studentTrials.endDate} >= ${lesson.date}`,
+          ),
+        )
+    : [];
+  const onTrialIds = new Set(trialRows.map((r) => r.studentId));
+
+  const rosterWithFlags = roster.map((r) => ({
+    ...r,
+    onLeave: onLeaveIds.has(r.id),
+    onTrial: onTrialIds.has(r.id),
+  }));
+
+  return { lesson, roster: rosterWithFlags, notes: existingNotes };
 }
 
 export async function getTutorHomework(tutorId: string) {
@@ -464,8 +670,8 @@ export async function getTutorWeekLessons(
   weekStart: Date,
   weekEnd: Date,
 ) {
-  const start = weekStart.toISOString().slice(0, 10);
-  const end = weekEnd.toISOString().slice(0, 10);
+  const start = isoDateLocal(weekStart);
+  const end = isoDateLocal(weekEnd);
   return db
     .select({
       id: lessons.id,
@@ -533,8 +739,8 @@ export async function getTutorAttendanceOverview(
   since.setDate(since.getDate() - daysBack);
   const until = new Date(today);
   until.setDate(until.getDate() + daysAhead);
-  const sinceIso = since.toISOString().slice(0, 10);
-  const untilIso = until.toISOString().slice(0, 10);
+  const sinceIso = isoDateLocal(since);
+  const untilIso = isoDateLocal(until);
 
   const lessonRows = await db
     .select({
@@ -654,7 +860,7 @@ export async function getLessonsMissingNotes(tutorId: string, limit = 6) {
   const today = todayDateString();
   const sevenAgo = new Date();
   sevenAgo.setDate(sevenAgo.getDate() - 7);
-  const since = sevenAgo.toISOString().slice(0, 10);
+  const since = isoDateLocal(sevenAgo);
   return db
     .select({
       id: lessons.id,

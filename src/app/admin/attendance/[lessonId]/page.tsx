@@ -93,7 +93,7 @@ export default async function AdminLessonAttendancePage({
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href="/admin/attendance">Back to attendance</BackLink>
 
       <Hero

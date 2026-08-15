@@ -82,7 +82,7 @@ export function RescheduleRequestList({ requests }: { requests: PendingRow[] }) 
                 type="button"
                 onClick={() => act(r.id, "approve")}
                 disabled={pending && busyId === r.id}
-                className="rounded-[10px] bg-brand-500 px-3.5 py-1.5 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+                className="rounded-full bg-brand-500 px-3.5 py-1.5 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50"
               >
                 {pending && busyId === r.id ? "…" : "Approve"}
               </button>

@@ -9,6 +9,7 @@ import {
   CreditCard,
   CalendarDays,
   CalendarClock,
+  CalendarCheck,
   Megaphone,
   MessagesSquare,
   MessageCircle,
@@ -17,15 +18,22 @@ import {
   Wallet,
   Settings,
   LogOut,
-  Search,
   FolderOpen,
+  GraduationCap,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
+import { isUnrestrictedAdmin } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
+
+// Owner-only destinations - reception (admin_restricted) is redirected away by
+// requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
+// Revenue is NOT here: reception can open it and enter the PIN to view figures.
+const OWNER_ONLY_HREFS = new Set(["/admin/settings", "/admin/tutors"]);
 
 const IC = "h-[18px] w-[18px]";
 
@@ -33,12 +41,14 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Operations",
     items: [
-      { label: "Operations", href: "/admin", icon: <LayoutDashboard className={IC} /> },
+      { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className={IC} /> },
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
       { label: "Quizzes", href: "/admin/quizzes", icon: <HelpCircle className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
+      { label: "Tutors", href: "/admin/tutors", icon: <GraduationCap className={IC} /> },
+      { label: "Tutor availability", href: "/admin/tutors/availability", icon: <CalendarCheck className={IC} /> },
     ],
   },
   {
@@ -71,8 +81,8 @@ const SECTIONS: NavSection[] = [
 function BrandMark() {
   return (
     <Link href="/admin" className="flex items-center gap-2.5">
-      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center text-brand-ink">
-        <ToriiMark className="h-5 w-5" color="currentColor" />
+      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center">
+        <ToriiMark width={24} />
       </div>
       <div className="leading-tight">
         <div className="text-[13px] font-extrabold tracking-[0.04em] uppercase text-ink">
@@ -124,14 +134,19 @@ export async function AdminShell({
       notifUnread = 0;
     }
   }
+  const canSeeOwnerNav = isUnrestrictedAdmin(
+    user?.app_metadata?.role as UserRole | undefined,
+  );
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
-    items: s.items.map((item) => {
-      if (item.href === "/admin/messages") return { ...item, badge: unread };
-      if (item.href === "/admin/notifications") return { ...item, badge: notifUnread };
-      return item;
-    }),
-  }));
+    items: s.items
+      .filter((item) => canSeeOwnerNav || !OWNER_ONLY_HREFS.has(item.href))
+      .map((item) => {
+        if (item.href === "/admin/messages") return { ...item, badge: unread };
+        if (item.href === "/admin/notifications") return { ...item, badge: notifUnread };
+        return item;
+      }),
+  })).filter((s) => s.items.length > 0);
   const initial = userName.charAt(0).toUpperCase();
 
   return (
@@ -140,16 +155,6 @@ export async function AdminShell({
       <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
         <div className="w-[222px] pr-2 flex items-center">
           <BrandMark />
-        </div>
-
-        <div className="flex-1 max-w-[520px] flex items-center gap-2 bg-surface-2 border border-line rounded-full px-3.5 py-[7px] text-muted">
-          <Search className="h-4 w-4 shrink-0" />
-          <input
-            type="search"
-            placeholder="Search users, classes, payments…"
-            className="flex-1 bg-transparent border-0 outline-none text-[13px] text-ink placeholder:text-muted-2"
-          />
-          <span className="text-[11px] font-mono text-muted-2 shrink-0">⌘K</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">

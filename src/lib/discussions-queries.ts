@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -202,6 +202,78 @@ export async function listThreadsForBoard(
     lastActivityAt: r.lastActivityAt,
     createdAt: r.createdAt,
     deletedAt: r.deletedAt,
+  }));
+}
+
+export type RecentThreadSummary = ThreadSummary & {
+  board: BoardId;
+  boardLabel: string;
+};
+
+/**
+ * Most recently active threads across every board the user can see, so the
+ * discussions landing page answers "what's happened since I was last here?"
+ * without making them open each board to find out.
+ *
+ * Deleted threads are left out: a "[removed by admin]" row carries no activity
+ * worth surfacing on a summary page (the board itself still shows the tombstone
+ * so a permalink doesn't dead-end).
+ */
+export async function listRecentThreads(
+  userId: string,
+  role: UserRole,
+  limit = 20,
+): Promise<RecentThreadSummary[]> {
+  const subjectIds = await accessibleSubjectIds(userId, role);
+
+  // The Admin / Tech board (subject_id IS NULL) is open to everyone.
+  const visible = subjectIds.length
+    ? or(
+        isNull(discussionThreads.subjectId),
+        inArray(discussionThreads.subjectId, subjectIds),
+      )
+    : isNull(discussionThreads.subjectId);
+
+  const rows = await db
+    .select({
+      id: discussionThreads.id,
+      title: discussionThreads.title,
+      createdAt: discussionThreads.createdAt,
+      lastActivityAt: discussionThreads.lastActivityAt,
+      deletedAt: discussionThreads.deletedAt,
+      subjectId: discussionThreads.subjectId,
+      subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
+      authorName: sql<string>`coalesce(${profiles.firstName} || ' ' || ${profiles.lastName}, ${profiles.firstName}, 'Unknown')`,
+      authorRole: profiles.role,
+      replyCount: sql<number>`(select count(*)::int from ${discussionReplies} dr where dr.thread_id = ${discussionThreads.id} and dr.deleted_at is null)`,
+    })
+    .from(discussionThreads)
+    .innerJoin(profiles, eq(profiles.id, discussionThreads.authorId))
+    .leftJoin(subjects, eq(subjects.id, discussionThreads.subjectId))
+    .where(and(isNull(discussionThreads.deletedAt), visible))
+    .orderBy(desc(discussionThreads.lastActivityAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    authorName: r.authorName,
+    authorRole: r.authorRole,
+    replyCount: r.replyCount,
+    lastActivityAt: r.lastActivityAt,
+    createdAt: r.createdAt,
+    deletedAt: r.deletedAt,
+    board: r.subjectId
+      ? { kind: "subject", subjectId: r.subjectId }
+      : { kind: "admin" },
+    boardLabel:
+      r.subjectId && r.subjectName
+        ? subjectBoardLabel({
+            name: r.subjectName,
+            yearLevel: r.subjectYearLevel,
+          })
+        : adminBoardLabel(),
   }));
 }
 

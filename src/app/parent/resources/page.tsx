@@ -9,7 +9,6 @@ export default async function ParentResourcesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Resources"
-        sub="Past papers, worksheets, notes and videos for your children's subjects."
       />
 
       <div className="rise" style={{ animationDelay: "60ms" }}>

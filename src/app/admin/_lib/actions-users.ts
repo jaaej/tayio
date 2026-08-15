@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -8,7 +9,17 @@ import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
-import { coarseRole } from "@/lib/roles";
+import { coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import type { UserRole } from "@/db/schema";
+
+/** The signed-in admin's tiered role (from server-only app_metadata). */
+function currentAdminRole(
+  user: Awaited<ReturnType<typeof requireAdmin>>,
+): UserRole | undefined {
+  return (user.app_metadata as Record<string, unknown> | undefined)?.role as
+    | UserRole
+    | undefined;
+}
 
 // Accepts tiered roles; legacy coarse values kept for safety on any un-migrated
 // caller. New/edited accounts should always use a tiered value.
@@ -25,7 +36,8 @@ const roleEnum = z.enum([
 
 const createUserSchema = z.object({
   email: z.string().email().max(320),
-  password: z.string().min(8).max(128),
+  /** Absent means "generate one" - see `generateTempPassword`. */
+  password: z.string().min(8).max(128).optional(),
   role: roleEnum,
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -34,9 +46,34 @@ const createUserSchema = z.object({
   school: z.string().max(200).optional(),
 });
 
+/**
+ * Temporary password for an account the admin did not set one for. 12 random
+ * bytes is 16 base64url characters (~96 bits); the fixed suffix guarantees a
+ * digit and a symbol so it clears any character-class password policy.
+ */
+function generateTempPassword(): string {
+  return `${randomBytes(12).toString("base64url")}7!`;
+}
+
 export async function createUser(input: z.infer<typeof createUserSchema>) {
-  await requireAdmin();
-  const data = createUserSchema.parse(input);
+  const user = await requireAdmin();
+  // An empty box means "generate one", so normalise it away before validation:
+  // the minimum length should only apply to a password an admin actually typed.
+  const data = createUserSchema.parse({
+    ...input,
+    password: input.password?.trim() || undefined,
+  });
+  const password = data.password ?? generateTempPassword();
+
+  // Creating a privileged account (any admin tier or tutor) is owner-only.
+  const targetPrivileged =
+    coarseRole(data.role) === "admin" || data.role === "tutor";
+  if (targetPrivileged && !isUnrestrictedAdmin(currentAdminRole(user))) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can create admin or tutor accounts.",
+    };
+  }
 
   const admin = createAdminClient();
   // Role goes into app_metadata (server-only). user_metadata is user-mutable
@@ -44,7 +81,7 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
   // self-promote to admin immediately after creation.
   const { data: created, error } = await admin.auth.admin.createUser({
     email: data.email,
-    password: data.password,
+    password,
     email_confirm: true,
     app_metadata: {
       role: data.role,
@@ -78,7 +115,13 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
-  return { ok: true as const, id: created.user.id };
+  return {
+    ok: true as const,
+    id: created.user.id,
+    // Only handed back when we generated it - there is nothing to reveal about
+    // a password the admin typed themselves.
+    tempPassword: data.password ? undefined : password,
+  };
 }
 
 const updateUserSchema = z.object({
@@ -94,6 +137,20 @@ const updateUserSchema = z.object({
 export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   const user = await requireAdmin();
   const data = updateUserSchema.parse(input);
+
+  // Changing a user's role is owner-only and behind the PIN step-up. Editing
+  // the other profile fields (name/phone/school) stays open to reception.
+  const [existing] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, data.id));
+  const roleChanging = !!existing && existing.role !== data.role;
+  if (roleChanging && !isUnrestrictedAdmin(currentAdminRole(user))) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can change a user's role.",
+    };
+  }
 
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx

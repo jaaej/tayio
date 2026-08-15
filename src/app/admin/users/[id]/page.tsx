@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { CalendarClock } from "lucide-react";
 import { db } from "@/db/client";
-import { familyLinks, profiles } from "@/db/schema";
-import { STUDENT_TIERS, coarseRole } from "@/lib/roles";
+import { familyLinks, profiles, type UserRole } from "@/db/schema";
+import { STUDENT_TIERS, coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/auth";
 import { alias } from "drizzle-orm/pg-core";
 import {
   Card,
@@ -17,9 +18,22 @@ import {
   Empty,
 } from "@/components/admin/ui";
 import { formatDateLong, formatTime } from "@/lib/format";
-import { getStudentUpcomingLessons } from "@/app/admin/_lib/queries";
+import {
+  getStudentUpcomingLessons,
+  getStudentLeave,
+} from "@/app/admin/_lib/queries";
+import {
+  getStudentActivity,
+  getStudentAllowanceSummary,
+  getStudentEnrolledSubjects,
+} from "@/lib/admin-credits";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
+import { CreditManagement } from "./_components/credit-management";
+import { StudentLeaveManager } from "./_components/student-leave-manager";
+import { StudentReportControls } from "./_components/student-report-controls";
+import { StudentTrialManager } from "./_components/student-trial-manager";
+import { getReportTerms, getStudentTrial } from "@/app/admin/_lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +50,32 @@ export default async function UserDetailPage({
   const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
   if (!user) notFound();
 
-  const upcomingLessons =
-    coarseRole(user.role) === "student"
-      ? await getStudentUpcomingLessons(id, 21)
-      : [];
+  const me = await getCurrentUser();
+  const canManageRoles = isUnrestrictedAdmin(
+    me?.app_metadata?.role as UserRole | undefined,
+  );
+
+  const isStudent = coarseRole(user.role) === "student";
+  const upcomingLessons = isStudent
+    ? await getStudentUpcomingLessons(id, 21)
+    : [];
+  const [
+    creditActivity,
+    allowanceSummary,
+    enrolledSubjects,
+    leavePeriods,
+    reportTerms,
+    trial,
+  ] = isStudent
+    ? await Promise.all([
+        getStudentActivity(id),
+        getStudentAllowanceSummary(id),
+        getStudentEnrolledSubjects(id),
+        getStudentLeave(id),
+        getReportTerms(),
+        getStudentTrial(id),
+      ])
+    : [null, null, null, null, [], null];
 
   const allStudents = await db
     .select({
@@ -104,7 +140,7 @@ export default async function UserDetailPage({
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href="/admin/users">All users</BackLink>
 
       <Hero
@@ -141,6 +177,7 @@ export default async function UserDetailPage({
               yearLevel={user.yearLevel ?? ""}
               school={user.school ?? ""}
               role={user.role}
+              canManageRoles={canManageRoles}
             />
           </CardBody>
         </Card>
@@ -202,7 +239,7 @@ export default async function UserDetailPage({
                     )}
                     <Link
                       href={`/admin/users/${id}/reschedule/${l.id}`}
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
                     >
                       <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                       Reschedule
@@ -213,6 +250,76 @@ export default async function UserDetailPage({
             )}
           </Card>
         </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "110ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Leave / holidays"
+              action={
+                <span className="text-[12px] text-muted">
+                  Away from all classes
+                </span>
+              }
+            />
+            <CardBody>
+              <StudentLeaveManager
+                studentId={user.id}
+                periods={leavePeriods ?? []}
+              />
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "115ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Free trial"
+              action={
+                <span className="text-[12px] text-muted">
+                  Tutors see a trial pill
+                </span>
+              }
+            />
+            <CardBody>
+              <StudentTrialManager studentId={user.id} trial={trial ?? null} />
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {isStudent && (
+        <section className="rise" style={{ animationDelay: "120ms" }}>
+          <Card accent="brand">
+            <CardHead
+              title="Term reports"
+              action={
+                <span className="text-[12px] text-muted">PDF + notify family</span>
+              }
+            />
+            <CardBody>
+              <StudentReportControls
+                studentId={user.id}
+                terms={(reportTerms ?? []).map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                }))}
+              />
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {isStudent && creditActivity && allowanceSummary && enrolledSubjects && (
+        <CreditManagement
+          studentId={user.id}
+          activity={creditActivity}
+          subjects={enrolledSubjects}
+          summary={allowanceSummary}
+        />
       )}
 
       {(coarseRole(user.role) === "parent" || coarseRole(user.role) === "student") && (

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
@@ -18,8 +18,9 @@ import { getLessonContextForStudent } from "./queries";
 
 const slotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  // Availability times come through as HH:MM or HH:MM:SS (postgres `time`).
+  startTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
   tutorId: z.string().uuid(),
 });
 
@@ -74,6 +75,26 @@ export async function rescheduleStudentLesson(formData: FormData) {
   if (lessonStart < new Date()) {
     redirect(
       `/admin/users/${studentId}/reschedule/${lessonId}?error=lesson-past`,
+    );
+  }
+
+  // Don't double-book the tutor: reject if they already have a lesson
+  // overlapping the picked slot.
+  const clash = await db
+    .select({ id: lessons.id })
+    .from(lessons)
+    .where(
+      and(
+        eq(lessons.tutorId, slot.tutorId),
+        eq(lessons.date, slot.date),
+        lt(lessons.startTime, slot.endTime),
+        gt(lessons.endTime, slot.startTime),
+      ),
+    )
+    .limit(1);
+  if (clash.length) {
+    redirect(
+      `/admin/users/${studentId}/reschedule/${lessonId}?error=slot-taken`,
     );
   }
 

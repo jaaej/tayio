@@ -9,7 +9,7 @@ import {
 export async function resolveCurrentTerm(
   date: Date = new Date(),
 ): Promise<Term | null> {
-  const isoDate = date.toISOString().slice(0, 10);
+  const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   const [row] = await db
     .select()
     .from(terms)
@@ -22,7 +22,7 @@ export async function resolveCurrentTerm(
 export async function resolveMostRecentPastTerm(
   date: Date = new Date(),
 ): Promise<Term | null> {
-  const isoDate = date.toISOString().slice(0, 10);
+  const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   const [row] = await db
     .select()
     .from(terms)

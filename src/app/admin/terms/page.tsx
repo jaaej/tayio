@@ -13,8 +13,9 @@ export default async function AdminTermsPage() {
     .orderBy(desc(terms.year), desc(terms.termNumber));
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <PageHeader
+        className="rise"
         eyebrow="Academic Calendar"
         title="Terms"
         sub="Define academic terms. Curriculum is organised per subject per term."

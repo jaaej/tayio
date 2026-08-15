@@ -1,7 +1,7 @@
 import { asc, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { subjects, subjectTopics } from "@/db/schema";
-import { Card } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/student/card";
 import { enrolledSubjectIds, listResourcesForSubjects } from "@/lib/resources";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { openResource } from "@/app/_actions/resources";
@@ -22,9 +22,11 @@ export async function LibraryBrowser({ studentId }: { studentId: string }) {
   if (subjectIds.length === 0) {
     return (
       <Card>
-        <div className="py-6 text-sm text-ink-soft">
-          You aren't enrolled in any subjects yet.
-        </div>
+        <CardBody>
+          <div className="text-sm text-muted">
+            You aren't enrolled in any subjects yet.
+          </div>
+        </CardBody>
       </Card>
     );
   }

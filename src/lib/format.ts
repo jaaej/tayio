@@ -78,12 +78,17 @@ export function startOfMondayWeek(d: Date): Date {
 }
 
 export function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  // Local calendar date, NOT toISOString(): lesson/date columns store local
+  // calendar dates, so keying via UTC shifts a day on any timezone ahead of UTC
+  // (e.g. AEST/UTC+10) and mismatches the data. Local components are correct on
+  // any server timezone.
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 export function weekKey(date: string): string {
   const monday = startOfMondayWeek(parseLessonDate(date));
-  return monday.toISOString().slice(0, 10);
+  return isoDate(monday);
 }
 
 export function weekRangeLabel(weekStartIso: string): string {

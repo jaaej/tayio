@@ -11,6 +11,38 @@ import {
 } from "../../_lib/format";
 import { getLessonRecap } from "../../_lib/queries";
 
+/**
+ * Turn a hosted video URL into an embeddable player src for the common hosts
+ * (YouTube, Vimeo). Returns null for anything we can't safely embed, so the
+ * caller falls back to a plain "Watch recording" link.
+ */
+function videoEmbedSrc(raw: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\./, "");
+  if (host === "youtu.be") {
+    const id = u.pathname.slice(1);
+    return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+  }
+  if (host === "youtube.com" || host === "m.youtube.com") {
+    if (u.pathname === "/watch") {
+      const id = u.searchParams.get("v");
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+    }
+    if (u.pathname.startsWith("/embed/"))
+      return `https://www.youtube-nocookie.com${u.pathname}`;
+  }
+  if (host === "vimeo.com") {
+    const id = u.pathname.split("/").filter(Boolean)[0];
+    return id && /^\d+$/.test(id) ? `https://player.vimeo.com/video/${id}` : null;
+  }
+  return null;
+}
+
 export default async function LessonRecapPage({
   params,
 }: {
@@ -28,6 +60,10 @@ export default async function LessonRecapPage({
     !!lesson.struggles ||
     !!lesson.nextLessonFocus ||
     !!lesson.parentVisibleComment;
+
+  const embedSrc = lesson.recordingUrl
+    ? videoEmbedSrc(lesson.recordingUrl)
+    : null;
 
   return (
     <div className="space-y-10">
@@ -59,6 +95,34 @@ export default async function LessonRecapPage({
           />
         </div>
       </header>
+
+      {lesson.recordingUrl && (
+        <section className="rise" style={{ animationDelay: "90ms" }}>
+          <CardLabel>Lesson recording</CardLabel>
+          {embedSrc ? (
+            <div className="mt-3 aspect-video w-full overflow-hidden rounded-2xl border border-hairline/60 bg-black">
+              <iframe
+                src={embedSrc}
+                title="Lesson recording"
+                className="h-full w-full"
+                allow="accelerated-media; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <Card className="mt-3">
+              <a
+                href={lesson.recordingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                ▶ Watch recording ↗
+              </a>
+            </Card>
+          )}
+        </section>
+      )}
 
       {!hasAnyNotes ? (
         <Card>

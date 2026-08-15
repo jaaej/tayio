@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
+import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { getLessonReschedules } from "@/lib/reschedule";
-import { saveAttendance, saveLessonNote } from "../../_actions";
+import { LessonPlanEditor } from "@/app/tutor/_components/lesson-plan-editor";
+import {
+  saveAttendance,
+  saveLessonNote,
+  saveLessonRecording,
+} from "../../_actions";
 import { getLessonForTutor, requireTutor } from "../../_data";
 
 const ATTENDANCE_OPTIONS = [
@@ -14,6 +20,14 @@ const ATTENDANCE_OPTIONS = [
   { value: "absent", label: "Absent" },
   { value: "makeup_attended", label: "Make-up" },
 ] as const;
+
+// Read-only per-enrolment delivery mode (admin-set). Only render an explicit
+// badge when a student deviates from the class default (online / in person);
+// a null/default mode shows nothing so the roster row stays uncluttered.
+const DELIVERY_BADGE = {
+  online: { label: "Online", tone: "info" },
+  in_person: { label: "In person", tone: "neutral" },
+} as const;
 
 const INPUT_CLS =
   "h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
@@ -76,8 +90,8 @@ export default async function LessonDetailPage({
                 const current = s.attendanceStatus ?? "";
                 return (
                   <li key={s.id} className="px-4 py-3 space-y-2">
-                    <div className="flex items-baseline justify-between">
-                      <div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <div className="flex items-baseline gap-3">
                         <Link
                           href={`/tutor/students/${s.id}`}
                           className="text-[13px] font-bold text-ink hover:text-brand-700"
@@ -85,9 +99,27 @@ export default async function LessonDetailPage({
                           {s.firstName} {s.lastName}
                         </Link>
                         {s.yearLevel && (
-                          <span className="ml-3 text-[11px] text-muted">
+                          <span className="text-[11px] text-muted">
                             {s.yearLevel}
                           </span>
+                        )}
+                        {s.deliveryMode && (
+                          <Pill
+                            tone={DELIVERY_BADGE[s.deliveryMode].tone}
+                            className="translate-y-[1px]"
+                          >
+                            {DELIVERY_BADGE[s.deliveryMode].label}
+                          </Pill>
+                        )}
+                        {s.onLeave && (
+                          <Pill tone="warn" className="translate-y-[1px]">
+                            On leave
+                          </Pill>
+                        )}
+                        {s.onTrial && (
+                          <Pill tone="info" className="translate-y-[1px]">
+                            Free trial
+                          </Pill>
                         )}
                       </div>
                       {movedOutById.has(s.id) && (
@@ -154,6 +186,71 @@ export default async function LessonDetailPage({
             </ul>
           </div>
         )}
+      </Card>
+
+      {/* Lesson plan - forward-looking, visible to students + parents */}
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Lesson plan"
+          action={<span className="text-[12px] text-muted">What's coming up</span>}
+        />
+        <CardBody>
+          <LessonPlanEditor
+            classId={lesson.classId}
+            initial={lesson.lessonPlan ?? ""}
+          />
+        </CardBody>
+      </Card>
+
+      {/* Recording link - a hosted video the class's students can watch back */}
+      <Card className="overflow-hidden">
+        <CardHead
+          title="Recording"
+          action={
+            lesson.recordingUrl ? (
+              <span className="text-good">Link added</span>
+            ) : (
+              <span className="text-muted">Optional</span>
+            )
+          }
+        />
+        <CardBody>
+          <form action={saveLessonRecording} className="space-y-2.5">
+            <input type="hidden" name="lessonId" value={lesson.id} />
+            <Label htmlFor="recording-url">Video link</Label>
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <input
+                id="recording-url"
+                name="recordingUrl"
+                type="url"
+                inputMode="url"
+                defaultValue={lesson.recordingUrl ?? ""}
+                placeholder="https://youtube.com/… or Vimeo / Drive link"
+                className={INPUT_CLS}
+              />
+              <button
+                type="submit"
+                className="h-10 shrink-0 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
+              >
+                Save link
+              </button>
+            </div>
+            <p className="text-[12px] text-muted">
+              Paste a hosted video URL; students watch it from their Recorded
+              lessons. Leave blank and save to remove.
+            </p>
+            {lesson.recordingUrl && (
+              <a
+                href={lesson.recordingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[12px] font-bold text-brand-600 hover:text-brand-700"
+              >
+                Open current link ↗
+              </a>
+            )}
+          </form>
+        </CardBody>
       </Card>
 
       <div>

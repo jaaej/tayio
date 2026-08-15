@@ -67,17 +67,11 @@ export default async function AdminResourcesPage({
   ]);
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Resource library"
         title="Resource moderation"
-        sub="Every resource across every subject, including unpublished and removed items."
-        actions={
-          <Pill tone="brand">
-            {rows.length} {rows.length === 1 ? "resource" : "resources"}
-          </Pill>
-        }
       />
 
       <section className="rise" style={{ animationDelay: "60ms" }}>

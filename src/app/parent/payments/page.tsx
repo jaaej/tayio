@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { CreditCard, CheckCircle2, AlertTriangle } from "lucide-react";
 import {
   Card,
-  Button,
   StatTile,
   PageHeader,
   Empty,
@@ -30,11 +30,10 @@ export default async function ParentPaymentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Payments & invoices"
-        sub="Your invoice history and upcoming payments."
       />
 
       <section
-        className="grid grid-cols-3 gap-4 rise"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4 rise"
         style={{ animationDelay: "30ms" }}
       >
         <StatTile
@@ -77,13 +76,17 @@ export default async function ParentPaymentsPage() {
                   {formatMoney(outstanding)}
                 </div>
                 <div className="mt-1 text-xs text-muted">
-                  Payments are processed externally - confirmation arrives by
-                  email.
+                  Payments are made by bank transfer or in person. Message the
+                  office if you need bank details or a receipt - confirmation
+                  arrives by email once it clears.
                 </div>
               </div>
-              <Button type="button" variant="brand" disabled>
-                Pay (coming soon)
-              </Button>
+              <Link
+                href="/parent/messages"
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-brand-500 px-4 text-sm font-bold text-white hover:bg-brand-600 transition-colors"
+              >
+                Contact the office
+              </Link>
             </div>
           </Card>
         </div>

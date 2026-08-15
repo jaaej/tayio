@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
@@ -21,7 +22,6 @@ export default async function ParentFeedbackPage({
       <div className="space-y-6">
         <PageHeader
           title="Tutor feedback"
-          sub="Your tutor's comments after each lesson."
         />
         <EmptyChildrenNotice />
       </div>
@@ -34,7 +34,6 @@ export default async function ParentFeedbackPage({
     <div className="space-y-6">
       <PageHeader
         title={`Feedback for ${selected.firstName}`}
-        sub="Your tutor's parent-visible comments after each lesson."
       />
 
       {children.length > 1 && (
@@ -75,8 +74,16 @@ export default async function ParentFeedbackPage({
                 <p className="text-lg text-ink leading-relaxed">
                   {r.parentVisibleComment}
                 </p>
-                <div className="mt-3 text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
-                  {relativeTime(r.createdAt)}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
+                    {relativeTime(r.createdAt)}
+                  </div>
+                  <Link
+                    href={`/parent/classes/${r.classId}?child=${selected.id}`}
+                    className="text-[12px] font-bold text-brand-700 hover:text-brand-800 shrink-0"
+                  >
+                    View class →
+                  </Link>
                 </div>
               </div>
             </Card>

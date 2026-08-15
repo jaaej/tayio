@@ -52,6 +52,7 @@ export default async function ClassEditPage({
       email: profiles.email,
       school: profiles.school,
       deliveryMode: enrollments.deliveryMode,
+      adminNotes: enrollments.adminNotes,
     })
     .from(enrollments)
     .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
@@ -86,7 +87,7 @@ export default async function ClassEditPage({
       : "No recurring slot";
 
   return (
-    <div className="space-y-6 max-w-[1100px]">
+    <div className="space-y-6">
       <BackLink href="/admin/classes">All classes</BackLink>
 
       <Hero

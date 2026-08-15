@@ -2,8 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { submitReschedule } from "@/app/_actions/reschedule";
+import { submitReschedule, grantRescheduleCredit } from "@/app/_actions/reschedule";
+import { cancelLesson } from "@/app/_actions/credits";
+import { CANCEL_CAP, RESCHEDULE_CAP } from "@/lib/reschedule-credits";
+
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2";
 
 export type SlotOption = {
   tutorId: string;
@@ -54,8 +60,9 @@ function fmtTime(hhmm: string) {
 /**
  * Shared reschedule picker used by the student and parent portals.
  * mode "makeup" (1-on-1) picks a same-tutor availability slot; mode "switch"
- * (group) picks another same-subject session. `approvalRequired` only affects
- * the button label + confirmation copy - the server re-derives the real path.
+ * (group) picks another same-subject session. Approval is retired - every
+ * reschedule moves the lesson directly once the 7-day notice + per-term cap
+ * pass; the server re-derives and enforces both regardless of `canReschedule`.
  *
  * Options are laid out on a Mon-first month calendar (like the admin reschedule
  * screen): each date cell lists its clickable slots/sessions.
@@ -64,7 +71,15 @@ export function RescheduleForm(props: {
   lessonId: string;
   studentId?: string;
   mode: "makeup" | "switch";
-  approvalRequired: boolean;
+  /** Server-computed: term resolved + 7-day notice met + reschedule cap not
+   *  reached. When false, the picker is replaced with a "message the office"
+   *  state - the server re-checks all of this regardless. */
+  canReschedule: boolean;
+  /** Shown when `canReschedule` is false, explaining why. */
+  rescheduleIneligibleReason?: string;
+  /** Remaining reschedules this term, shown as an allowance label. Omit or
+   *  pass null when not in a resolved term. */
+  rescheduleRemaining?: number | null;
   slots?: SlotOption[];
   targets?: TargetOption[];
   backHref: string;
@@ -200,6 +215,16 @@ export function RescheduleForm(props: {
     });
   }
 
+  function useCreditInstead() {
+    const fd = new FormData();
+    fd.set("lessonId", props.lessonId);
+    if (props.studentId) fd.set("studentId", props.studentId);
+    start(async () => {
+      const res = await grantRescheduleCredit(fd);
+      setResult(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+    });
+  }
+
   if (result?.ok) {
     return (
       <div className="rounded-[14px] border border-line bg-surface p-6 text-center">
@@ -214,18 +239,21 @@ export function RescheduleForm(props: {
     );
   }
 
-  if (empty) {
+  if (!props.canReschedule) {
     return (
       <div className="rounded-[14px] border border-line bg-surface p-6">
         <div className="text-[14px] text-muted">
-          {props.mode === "makeup"
-            ? "Your tutor has no open slots in the next few weeks. Please contact the office."
-            : "No other sessions are available this week. Please contact the office."}
+          {props.rescheduleIneligibleReason ??
+            "This lesson can no longer be rescheduled."}{" "}
+          Please contact the office.
         </div>
         {props.adminId && (
           <Link
             href={`/parent/messages/with/${props.adminId}`}
-            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+            className={
+              "mt-4 inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 " +
+              FOCUS_RING
+            }
           >
             Message the office
           </Link>
@@ -234,13 +262,59 @@ export function RescheduleForm(props: {
     );
   }
 
+  if (empty) {
+    return (
+      <div className="rounded-[14px] border border-line bg-surface p-6">
+        <div className="text-[14px] text-muted">
+          {props.mode === "makeup"
+            ? "Your tutor has no open slots in the next few weeks. Please contact the office, or convert this lesson to a class credit instead."
+            : "No other sessions are available this week. Please contact the office."}
+        </div>
+        {result && !result.ok && (
+          <div className="mt-3 text-[13px] font-semibold text-bad">{result.text}</div>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={useCreditInstead}
+            disabled={pending}
+            className={
+              "inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50 " +
+              FOCUS_RING
+            }
+          >
+            {pending ? "Working…" : "Get a class credit instead"}
+          </button>
+          {props.adminId && (
+            <Link
+              href={`/parent/messages/with/${props.adminId}`}
+              className={
+                "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300 " +
+                FOCUS_RING
+              }
+            >
+              Message the office
+            </Link>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="space-y-5">
       {/* Calendar header */}
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[18px] font-extrabold tracking-[-0.01em] text-ink tabular-nums">
-          {MONTH_NAMES[view.month]} {view.year}
-        </h3>
+        <div className="flex items-baseline gap-2.5">
+          <h3 className="text-[18px] font-extrabold tracking-[-0.01em] text-ink tabular-nums">
+            {MONTH_NAMES[view.month]} {view.year}
+          </h3>
+          {typeof props.rescheduleRemaining === "number" && (
+            <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted">
+              {props.rescheduleRemaining} of {RESCHEDULE_CAP} left
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -392,22 +466,149 @@ export function RescheduleForm(props: {
       <div className="flex items-center justify-end gap-3">
         <Link
           href={props.backHref}
-          className="text-[13px] font-bold text-muted hover:text-ink"
+          className={"min-h-11 inline-flex items-center text-[13px] font-bold text-muted hover:text-ink " + FOCUS_RING}
         >
-          Cancel
+          Back
         </Link>
         <button
           type="submit"
           disabled={!picked || pending}
-          className="rounded-[12px] bg-brand-500 px-5 py-2.5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
+          className={
+            "min-h-11 rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50 " +
+            FOCUS_RING
+          }
         >
-          {pending
-            ? "Submitting…"
-            : props.approvalRequired
-              ? "Request reschedule"
-              : "Confirm reschedule"}
+          {pending ? "Submitting…" : "Confirm reschedule"}
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Standalone cancel-lesson action for the parent (and unrestricted student)
+ * reschedule detail page. Kept as its own component/card rather than folded
+ * into `RescheduleForm` so each card carries a single primary action -
+ * "Confirm reschedule" here, "Cancel lesson" there.
+ */
+export function CancelLessonAction(props: {
+  lessonId: string;
+  studentId?: string;
+  /** Server-computed: term resolved + 24h notice met + cancellation cap not
+   *  reached + lesson not already moved/cancelled. The server re-checks all
+   *  of this regardless. */
+  canCancel: boolean;
+  /** Shown when `canCancel` is false, explaining why. */
+  cancelIneligibleReason?: string;
+  /** Remaining cancellations this term, shown as an allowance label. Omit or
+   *  pass null when not in a resolved term. */
+  cancelRemaining?: number | null;
+  /** Admin office profile id to message when cancellation isn't available.
+   *  Null if no admin contact is available (falls back to plain text). */
+  adminId?: string | null;
+}) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [pending, start] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function confirmCancel() {
+    const fd = new FormData();
+    fd.set("lessonId", props.lessonId);
+    if (props.studentId) fd.set("studentId", props.studentId);
+    start(async () => {
+      const res = await cancelLesson(fd);
+      setConfirming(false);
+      setResult(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+      if (res.ok) router.refresh();
+    });
+  }
+
+  if (result?.ok) {
+    return (
+      <div className="rounded-[14px] border border-line bg-surface p-6 text-center">
+        <div className="text-[15px] font-bold text-ink">{result.text}</div>
+      </div>
+    );
+  }
+
+  if (!props.canCancel) {
+    return (
+      <div className="rounded-[14px] border border-line bg-surface p-6">
+        <div className="text-[14px] text-muted">
+          {props.cancelIneligibleReason ?? "This lesson can no longer be cancelled."}{" "}
+          Please contact the office.
+        </div>
+        {props.adminId && (
+          <Link
+            href={`/parent/messages/with/${props.adminId}`}
+            className={
+              "mt-4 inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300 " +
+              FOCUS_RING
+            }
+          >
+            Message the office
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[14px] border border-line bg-surface p-6 space-y-3">
+      <div className="text-[14px] text-muted">
+        Cancelling adds a class credit you can redeem for another time with
+        the same tutor.
+      </div>
+
+      {result && !result.ok && (
+        <div className="text-[13px] font-semibold text-bad">{result.text}</div>
+      )}
+
+      {confirming ? (
+        <div className="rounded-[12px] border border-bad/40 bg-surface p-4 space-y-3">
+          <div className="text-[13px] font-semibold text-ink">
+            This uses 1 of your {CANCEL_CAP} term cancellations and adds a
+            class credit.
+          </div>
+          <div className="flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className={
+                "min-h-11 rounded-[10px] px-4 text-[13px] font-bold text-muted transition-colors hover:bg-surface-2 " +
+                FOCUS_RING
+              }
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={confirmCancel}
+              disabled={pending}
+              className={
+                "min-h-11 rounded-[10px] bg-bad px-4 text-[13px] font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50 " +
+                FOCUS_RING
+              }
+            >
+              {pending ? "Cancelling…" : "Cancel lesson"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className={
+            "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-bad/40 bg-surface px-5 text-[14px] font-bold text-bad transition-colors hover:bg-bad-bg " +
+            FOCUS_RING
+          }
+        >
+          {typeof props.cancelRemaining === "number"
+            ? `Cancel lesson (${props.cancelRemaining} of ${CANCEL_CAP} left)`
+            : "Cancel lesson"}
+        </button>
+      )}
+    </div>
   );
 }

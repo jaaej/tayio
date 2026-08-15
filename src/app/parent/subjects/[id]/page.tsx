@@ -5,7 +5,11 @@ import { requireRole } from "@/lib/auth";
 import { resolveSelectedChild } from "@/app/parent/_data";
 import { currentWeekNumber } from "@/lib/curriculum";
 import { getParentCurriculum } from "./_queries";
-import { WeekStripParent } from "./_components/week-strip";
+import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
+import {
+  CurriculumRail,
+  type RailWeek,
+} from "@/components/subjects/curriculum-rail";
 import { WeekContentParent } from "./_components/week-content";
 
 type SearchParams = Promise<{ child?: string; term?: string; week?: string }>;
@@ -54,32 +58,42 @@ export default async function ParentSubjectPage({
     data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
     data.weeks[0];
 
-  const weekStripItems = data.weeks.map((w) => ({
-    subjectWeekId: w.subjectWeekId,
-    weekNumber: w.weekNumber,
-    title: w.title,
-    topicId: w.topicId,
-    topicName: w.topicName,
-    videoWatched: Boolean(w.videoWatchedAt),
-    bookletOpened: Boolean(w.bookletOpenedAt),
-    homeworkTotal: w.homework.length,
-    homeworkDone: w.homework.filter(
+  const railWeeks: RailWeek[] = data.weeks.map((w) => {
+    const homeworkTotal = w.homework.length;
+    const homeworkDone = w.homework.filter(
       (h) =>
         h.status === "marked" ||
         h.status === "submitted" ||
         h.status === "returned",
-    ).length,
-  }));
+    ).length;
+    const tasksTotal = 2 + (homeworkTotal > 0 ? 1 : 0);
+    const tasksDone =
+      (w.videoWatchedAt ? 1 : 0) +
+      (w.bookletOpenedAt ? 1 : 0) +
+      (homeworkTotal > 0 && homeworkDone >= homeworkTotal ? 1 : 0);
+    return {
+      id: w.subjectWeekId,
+      weekNumber: w.weekNumber,
+      title: w.title,
+      topicId: w.topicId,
+      topicName: w.topicName,
+      complete: tasksTotal > 0 && tasksDone === tasksTotal,
+      pills:
+        homeworkTotal > 0
+          ? [
+              {
+                label: `${homeworkDone}/${homeworkTotal}`,
+                tone: homeworkDone >= homeworkTotal ? "good" : "warn",
+              },
+            ]
+          : [],
+    };
+  });
 
+  // The way back to the overview lives in the week hero (same control as the
+  // student page), so the page no longer opens with a lone back-link row.
   return (
-    <div className="space-y-6">
-      <Link
-        href={`/parent?child=${resolved.selected.id}`}
-        className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-      >
-        ← Overview
-      </Link>
-
+    <div>
       <Card>
         <div className="px-6 py-5 border-b border-line">
           <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-muted">
@@ -94,20 +108,59 @@ export default async function ParentSubjectPage({
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 p-6">
-          <WeekStripParent
-            subjectId={subjectId}
-            childId={resolved.selected.id}
-            currentTermId={data.currentTerm.id}
-            termsAvailable={data.termsAvailable}
-            weeks={weekStripItems}
-            selectedWeekId={selected?.subjectWeekId ?? null}
-            currentWeekIdHint={currentWeekHint}
-          />
-          <div className="lg:border-l lg:border-line lg:pl-6">
-            {selected && <WeekContentParent week={selected} />}
+        {data.lessonPlan && (
+          <div className="px-6 py-5 border-b border-line bg-surface-2">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
+              What's coming up
+            </div>
+            <p className="mt-2 text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">
+              {data.lessonPlan}
+            </p>
           </div>
-        </div>
+        )}
+
+        {!selected && (
+          // No hero to carry the back link in this branch, so it lives here -
+          // otherwise a term with no weeks is a dead end.
+          <div className="space-y-3 px-6 py-6">
+            <p className="text-sm text-muted">
+              No curriculum has been set up for {data.subjectName} this term
+              yet.
+            </p>
+            <Link
+              href={`/parent?child=${resolved.selected.id}`}
+              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-bold text-ink transition-colors hover:border-brand-300 hover:bg-brand-50"
+            >
+              ← Overview
+            </Link>
+          </div>
+        )}
+
+        {selected && (
+          <CurriculumLayout
+            rail={
+              <CurriculumRail
+                basePath={`/parent/subjects/${subjectId}`}
+                extraParams={{ child: resolved.selected.id }}
+                currentTermId={data.currentTerm.id}
+                terms={data.termsAvailable.map((t) => ({
+                  id: t.id,
+                  label: `Term ${t.termNumber} · ${t.year}`,
+                }))}
+                weeks={railWeeks}
+                selectedWeekId={selected.subjectWeekId}
+                currentWeekIdHint={currentWeekHint}
+                showTermSelect={false}
+              />
+            }
+          >
+            <WeekContentParent
+              week={selected}
+              subjectName={data.subjectName}
+              backHref={`/parent?child=${resolved.selected.id}`}
+            />
+          </CurriculumLayout>
+        )}
       </Card>
     </div>
   );

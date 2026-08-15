@@ -55,6 +55,26 @@ export function isUnrestrictedStudent(
 }
 
 /**
+ * An admin's tier. Only the explicit `admin_restricted` value is restricted
+ * (reception / front-desk). The legacy `admin` value migrated to
+ * `admin_unrestricted` (0018), so it - like `admin_unrestricted` - means full
+ * access. `unrestricted` is therefore the safe reading for any admin role that
+ * is not explicitly `admin_restricted`.
+ */
+export function adminTier(
+  role: UserRole | null | undefined,
+): "restricted" | "unrestricted" {
+  return role === "admin_restricted" ? "restricted" : "unrestricted";
+}
+
+/** True for an owner-level admin (full access); false for reception. */
+export function isUnrestrictedAdmin(
+  role: UserRole | null | undefined,
+): boolean {
+  return !!role && coarseRole(role) === "admin" && role !== "admin_restricted";
+}
+
+/**
  * Assignable account roles for the admin user-management forms, with
  * human-readable labels. Only tiered values are offered - new/edited accounts
  * should always carry a tier, never a bare coarse role.

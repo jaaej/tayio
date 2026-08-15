@@ -23,6 +23,13 @@ const ALLOW_NO_RLS = new Set([
   "admin_settings", // PIN hash + lockout state, migration 0020
   "math_game_scores", // app-validated score writes, migration 0022
   "reschedule_requests", // role-guarded workflow, migration 0019
+  "class_credits", // role-guarded workflow, migration 0031
+  "lesson_cancellations", // role-guarded workflow, migration 0031
+  "allowance_adjustments", // admin-only allowance top-ups, migration 0032
+  "student_leave", // admin-managed leave/holiday periods, migration 0033
+  "tutor_bank_details", // owner-only tutor payroll PII, migration 0035
+  "quiz_attempts", // server-written practice quiz scores, migration 0036
+  "student_trials", // admin-managed free-trial periods, migration 0037
 ]);
 
 const sql = postgres(url, { prepare: false, max: 1 });

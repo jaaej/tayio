@@ -6,7 +6,11 @@ import { db } from "@/db/client";
 import { subjectWeeks, subjects, terms, subjectTopics } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { resolveCurrentTerm } from "@/lib/curriculum";
-import { WeekStripAdmin } from "./_components/week-strip-admin";
+import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
+import {
+  CurriculumRail,
+  type RailWeek,
+} from "@/components/subjects/curriculum-rail";
 import { WeekEditor } from "./_components/week-editor";
 import { TopicsPanel } from "./_components/topics-panel";
 
@@ -40,7 +44,7 @@ export default async function AdminSubjectCurriculumPage({
 
   if (!currentTerm) {
     return (
-      <div className="space-y-6 max-w-[1200px]">
+      <div className="space-y-6">
         <BackLink href="/admin/classes">Back to classes</BackLink>
         <Hero
           eyebrow="Curriculum"
@@ -86,8 +90,17 @@ export default async function AdminSubjectCurriculumPage({
     ? weeks.find((w) => w.id === weekParam)
     : weeks[0];
 
+  const topicNameById = new Map(topics.map((t) => [t.id, t.name]));
+  const railWeeks: RailWeek[] = weeks.map((w) => ({
+    id: w.id,
+    weekNumber: w.weekNumber,
+    title: w.title,
+    topicId: w.topicId,
+    topicName: w.topicId ? (topicNameById.get(w.topicId) ?? null) : null,
+  }));
+
   return (
-    <div className="space-y-6 max-w-[1200px]">
+    <div className="space-y-6">
       <BackLink href="/admin/classes">Back to classes</BackLink>
 
       <Hero
@@ -109,27 +122,39 @@ export default async function AdminSubjectCurriculumPage({
         <div className="p-6 pb-0">
           <TopicsPanel subjectId={subjectId} topics={topics} weekCounts={weekCounts} />
         </div>
-        <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] gap-6 p-6">
-          <WeekStripAdmin
-            weeks={weeks}
-            terms={allTerms}
-            currentTermId={currentTerm.id}
-            subjectId={subjectId}
-            selectedWeekId={selectedWeek?.id ?? null}
-          />
-          <div className="lg:border-l lg:border-line lg:pl-6">
-            {isNew || !selectedWeek ? (
-              <WeekEditor subjectId={subjectId} termId={currentTerm.id} topics={topics} />
-            ) : (
-              <WeekEditor
-                existing={selectedWeek}
-                subjectId={subjectId}
-                termId={currentTerm.id}
-                topics={topics}
-              />
-            )}
-          </div>
-        </div>
+        <CurriculumLayout
+          rail={
+            <CurriculumRail
+              basePath={`/admin/subjects/${subjectId}/curriculum`}
+              currentTermId={currentTerm.id}
+              terms={allTerms.map((t) => ({
+                id: t.id,
+                label: `${t.year} · Term ${t.termNumber}`,
+              }))}
+              weeks={railWeeks}
+              selectedWeekId={selectedWeek?.id ?? null}
+              footer={
+                <Link
+                  href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
+                  className="mt-1.5 block rounded-[12px] border border-dashed border-brand-300 bg-brand-50/40 px-3 py-2.5 text-center text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-400 hover:bg-brand-100"
+                >
+                  + Add week
+                </Link>
+              }
+            />
+          }
+        >
+          {isNew || !selectedWeek ? (
+            <WeekEditor subjectId={subjectId} termId={currentTerm.id} topics={topics} />
+          ) : (
+            <WeekEditor
+              existing={selectedWeek}
+              subjectId={subjectId}
+              termId={currentTerm.id}
+              topics={topics}
+            />
+          )}
+        </CurriculumLayout>
       </Card>
     </div>
   );
