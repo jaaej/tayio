@@ -29,9 +29,18 @@ The dev database contains `term_test_attempts` and `term_test_answers`, but `mai
 Production will therefore **not** have those tables, which is correct (the feature is not on `main`), but it means dev is not a faithful preview of what `db:bootstrap` produces.
 Do not read "it works in dev" as proof that a table exists in prod.
 
-The underlying cause is that nothing records which migrations have been applied to which database - `apply-migration.mjs` just executes whatever files it is handed.
-With a single database that was survivable; with dev and prod it will bite again.
-A `schema_migrations` ledger table, stamped by `db:bootstrap` and checked by `apply-migration.mjs`, is the fix, and it is much easier to add before production exists than after.
+**This is now tracked rather than guessed at.** `public.schema_migrations` records every migration applied to a database; `apply-migration.mjs` writes to it and skips anything already recorded, and `db:bootstrap` stamps the whole set as it goes.
+
+```
+npm run db:status     # applied vs pending, for whichever database DIRECT_URL points at
+```
+
+The dev database was back-stamped on 2026-08-15 after verifying each migration's artifacts actually existed.
+It reports `37 of 37` plus three "recorded but not in this checkout": `0028`/`0029` from the unmerged `feat/term-test` branch, and `0030` from the archived `free-trials` branch, whose dead `enrollments.trial_starts_at`/`trial_ends_at` columns exist in dev and will never exist in prod.
+That section of the output is the drift signal - anything listed there was applied from a branch, and a fresh production database will not have it.
+
+The ledger is created idempotently by `scripts/migration-ledger.mjs` rather than by a numbered migration, because it has to exist before the first migration can be recorded.
+It is deliberately absent from `src/db/schema.ts` - it is tooling, not application schema - which also means a stray `drizzle-kit push` would drop it. That would already be a catastrophe for RLS, so it is not a new risk.
 
 ---
 
@@ -50,6 +59,7 @@ A `schema_migrations` ledger table, stamped by `db:bootstrap` and checked by `ap
    `DIRECT_URL` must be the session pooler (port 5432) - DDL needs it.
 3. `npm run db:bootstrap -- --confirm`
    This runs `drizzle-kit push` → all migrations in order → `check-rls`, and stops on the first failure.
+   Then `npm run db:status` should report every on-disk migration applied and nothing in the "recorded but not in this checkout" section.
 4. Create five **private** storage buckets:
    `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`.
    Missing buckets do not fail at build - they fail at runtime with `Bucket not found` and a 500 (this already happened once in dev; checklist E7/E8).

@@ -26,6 +26,7 @@ import postgres from "postgres";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { ensureLedger, record } from "./migration-ledger.mjs";
 
 loadEnv({ path: ".env.local" });
 
@@ -96,9 +97,12 @@ if (files.length === 0) {
 
 const migrate = postgres(url, { prepare: false, max: 1 });
 try {
+  await ensureLedger(migrate);
   for (const file of files) {
-    process.stdout.write(`     ${path.basename(file)} ... `);
+    const name = path.basename(file);
+    process.stdout.write(`     ${name} ... `);
     await migrate.unsafe(readFileSync(file, "utf8"));
+    await record(migrate, name);
     console.log("OK");
   }
 } catch (error) {

@@ -12,6 +12,7 @@
     "db:push": "node scripts/db-push-guard.mjs",
     "db:check-rls": "node scripts/check-rls.mjs",
     "db:bootstrap": "node scripts/bootstrap-db.mjs",
+    "db:status": "node scripts/apply-migration.mjs --status",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
