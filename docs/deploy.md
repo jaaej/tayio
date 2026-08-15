@@ -7,6 +7,17 @@ The launch gate itself lives in `docs/security-checklist.md` §K5.
 This file is the ordered "how", and it records which of those items each phase actually needs.
 Incident procedures are in `docs/runbooks.md`.
 
+**Hosting decision (2026-08-15): the owner hosts on their own Supabase and Vercel accounts**, and the portal is operated for a separate tutoring company.
+Two consequences worth keeping in view.
+
+First, the owner is holding another organisation's data - including minors' personal data - on their behalf, which makes them a data processor rather than the controller.
+That is a written-agreement question, not a code question, and it decides who carries the notification duties in `docs/runbooks.md` §I3.
+
+Second, keep the deployment **transferable**, in case the client later wants to own it.
+The codebase is single-tenant (no `org_id` anywhere in `src/db/schema.ts`), so one Supabase project serves exactly one company - which is fortunate here, because it means the whole project can be handed over wholesale.
+Never put a second client's data in this project, and never point a second deployment at this database.
+A custom domain works either way: the client can keep their own DNS and point a CNAME at Vercel without owning the hosting.
+
 ---
 
 ## 0. The thing that is easy to get wrong
