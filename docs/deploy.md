@@ -30,8 +30,9 @@ The detailed reasoning for each item is in the phase sections further down; this
 
 It is the only part that cannot be compressed on the day.
 
-1. Register the domain, or pick the subdomain. If it is the client's domain they only need to add a CNAME later, so you are not blocked on them.
-2. Sign up at Resend, add the domain, put its SPF/DKIM records into DNS. Do this **before** anything else - verification is the long pole and everything below runs while it propagates.
+1. **Domain: `portal.taiyotuition.com`** (decided 2026-08-16). The client already owns `taiyotuition.com` - `src/app/page.tsx` links to it - so they add one CNAME pointing `portal` at Vercel and you keep the hosting.
+   Chosen deliberately over a domain of your own: nothing in the code hardcodes the portal URL and the auth callback derives its origin from the request, so a later switch is cheap in code - but it means re-verifying SMTP DNS, resetting sender reputation, and breaking every saved password, since browsers store credentials per origin. This URL survives a handover of the hosting untouched.
+2. Sign up at Resend, add `taiyotuition.com`, put its SPF/DKIM records into DNS. Do this **before** anything else - verification is the long pole and everything below runs while it propagates. Send the CNAME request and the DNS-record request to the client in the same message.
 
 ### 2. Create the production Supabase project
 
