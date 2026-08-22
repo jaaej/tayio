@@ -23,18 +23,29 @@ begin;
 -- Enums
 -- ---------------------------------------------------------------------------
 
-create type resource_type as enum (
-  'past_paper', 'worksheet', 'answer_sheet', 'notes',
-  'formula_sheet', 'writing_template', 'exam_guide', 'video'
-);
+-- Guarded like 0019/0022/0031/0032: CREATE TYPE has no IF NOT EXISTS, and on a
+-- fresh bootstrap `drizzle-kit push` has already created these enums from
+-- schema.ts before the migrations run.
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'resource_type') then
+    create type resource_type as enum (
+      'past_paper', 'worksheet', 'answer_sheet', 'notes',
+      'formula_sheet', 'writing_template', 'exam_guide', 'video'
+    );
+  end if;
+end $$;
 
-create type resource_kind as enum ('file', 'link');
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'resource_kind') then
+    create type resource_kind as enum ('file', 'link');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Table
 -- ---------------------------------------------------------------------------
 
-create table resources (
+create table if not exists resources (
   id                   uuid        primary key default gen_random_uuid(),
   subject_id           uuid        not null references subjects(id) on delete cascade,
   topic_id             uuid        references subject_topics(id) on delete set null,
@@ -65,9 +76,9 @@ create table resources (
   )
 );
 
-create index resources_subject_published_idx on resources (subject_id, is_published);
-create index resources_subject_type_idx      on resources (subject_id, type);
-create index resources_topic_idx             on resources (topic_id);
+create index if not exists resources_subject_published_idx on resources (subject_id, is_published);
+create index if not exists resources_subject_type_idx      on resources (subject_id, type);
+create index if not exists resources_topic_idx             on resources (topic_id);
 
 -- ---------------------------------------------------------------------------
 -- RLS

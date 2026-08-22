@@ -21,17 +21,28 @@ begin;
 -- Enums
 -- ---------------------------------------------------------------------------
 
-create type quiz_status as enum (
-  'draft', 'requested', 'pending_review', 'changes_requested', 'approved'
-);
+-- Guarded like 0019/0022/0031/0032: CREATE TYPE has no IF NOT EXISTS, and on a
+-- fresh bootstrap `drizzle-kit push` has already created these enums from
+-- schema.ts before the migrations run.
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'quiz_status') then
+    create type quiz_status as enum (
+      'draft', 'requested', 'pending_review', 'changes_requested', 'approved'
+    );
+  end if;
+end $$;
 
-create type quiz_question_type as enum ('multiple_choice', 'true_false');
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'quiz_question_type') then
+    create type quiz_question_type as enum ('multiple_choice', 'true_false');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Tables
 -- ---------------------------------------------------------------------------
 
-create table quizzes (
+create table if not exists quizzes (
   id uuid primary key default gen_random_uuid(),
   subject_id uuid not null references subjects(id) on delete cascade,
   subject_week_id uuid not null references subject_weeks(id) on delete cascade,
@@ -45,10 +56,10 @@ create table quizzes (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index quizzes_subject_week_idx on quizzes(subject_week_id);
-create index quizzes_assigned_tutor_idx on quizzes(assigned_tutor_id);
+create index if not exists quizzes_subject_week_idx on quizzes(subject_week_id);
+create index if not exists quizzes_assigned_tutor_idx on quizzes(assigned_tutor_id);
 
-create table quiz_questions (
+create table if not exists quiz_questions (
   id uuid primary key default gen_random_uuid(),
   quiz_id uuid not null references quizzes(id) on delete cascade,
   prompt text not null,
@@ -56,16 +67,16 @@ create table quiz_questions (
   position integer not null,
   created_at timestamptz not null default now()
 );
-create index quiz_questions_quiz_idx on quiz_questions(quiz_id);
+create index if not exists quiz_questions_quiz_idx on quiz_questions(quiz_id);
 
-create table quiz_options (
+create table if not exists quiz_options (
   id uuid primary key default gen_random_uuid(),
   question_id uuid not null references quiz_questions(id) on delete cascade,
   text text not null,
   is_correct boolean not null default false,
   position integer not null
 );
-create index quiz_options_question_idx on quiz_options(question_id);
+create index if not exists quiz_options_question_idx on quiz_options(question_id);
 
 -- ---------------------------------------------------------------------------
 -- RLS
