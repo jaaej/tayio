@@ -77,7 +77,10 @@ export function CardHead({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-5 py-3.5 border-b border-line-strong bg-surface-2",
+        // Hairline rule, no tinted band: parent, student and tutor all head
+        // their cards this way, and the grey band was the one thing making the
+        // admin portal's cards read as a different, older component.
+        "flex items-center justify-between gap-3 px-5 py-4 border-b border-line",
         className,
       )}
     >
