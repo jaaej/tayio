@@ -27,7 +27,7 @@ export default async function TutorQuizDetailPage({
   return (
     <div className={quiz.note ? "space-y-5 pb-28" : "space-y-5"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-soft">
           {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
           {quiz.weekNumber}
         </div>

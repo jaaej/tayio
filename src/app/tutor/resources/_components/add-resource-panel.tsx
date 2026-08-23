@@ -151,7 +151,9 @@ export function AddToSubjectButton({
     <Button
       type="button"
       variant="link"
-      className="px-1.5"
+      // Sits on the page wash, not on a card: the variant's --brand-600 drops
+      // to 2.8:1 against the dark end of the gradient, --brand-ink holds 5.9:1.
+      className="px-1.5 text-brand-ink hover:text-ink"
       onClick={() => open(subjectId)}
     >
       <Plus className="h-3.5 w-3.5" aria-hidden />

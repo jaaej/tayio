@@ -57,7 +57,7 @@ export default async function LessonDetailPage({
     <div className="space-y-5">
       <Link
         href="/tutor"
-        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-600 hover:text-brand-700"
+        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-ink hover:text-ink"
       >
         ← Today
       </Link>

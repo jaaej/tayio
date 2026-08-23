@@ -162,7 +162,7 @@ function EmptyCurriculum() {
     <div className="space-y-4">
       <Link
         href="/student/subjects"
-        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink"
+        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink"
       >
         ← All subjects
       </Link>

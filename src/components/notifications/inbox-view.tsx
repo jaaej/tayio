@@ -172,7 +172,7 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
                 <div className="mb-2.5 flex items-center gap-3 px-1">
                   <h2
                     id={`notifications-${section.key}`}
-                    className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-muted"
+                    className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-ink-soft"
                   >
                     {section.label}
                   </h2>
@@ -260,7 +260,7 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-56 place-items-center rounded-[20px] border-2 border-dashed border-line bg-surface/70 p-6 text-center">
+    <div className="grid min-h-56 place-items-center rounded-[20px] border-2 border-dashed border-line bg-surface p-6 text-center">
       <div>
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-[14px] bg-surface-2 text-muted">
           <Bell className="h-5 w-5" />

@@ -196,7 +196,7 @@ export function StudentPracticeQuiz({
     <div className="mx-auto w-full max-w-[1180px] space-y-5">
       <Link
         href={hrefBack}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-ink transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         <ArrowLeft className="h-4 w-4" /> Back to week {quiz.weekNumber}
       </Link>

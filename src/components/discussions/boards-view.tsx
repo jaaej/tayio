@@ -111,7 +111,7 @@ export function DiscussionsBoardsView({
             <h3 className="m-0 text-[18px] font-bold tracking-[-0.01em] text-ink">
               Subject boards
             </h3>
-            <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
+            <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-ink-soft">
               {subjectBoards.length}{" "}
               {subjectBoards.length === 1 ? "subject" : "subjects"}
             </span>

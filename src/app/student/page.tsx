@@ -267,7 +267,7 @@ function SectionHead({
       {actionHref && actionLabel && (
         <a
           href={actionHref}
-          className="text-[12px] font-bold text-brand-600 hover:text-brand-700"
+          className="text-[12px] font-bold text-brand-ink hover:text-ink"
         >
           {actionLabel}
         </a>

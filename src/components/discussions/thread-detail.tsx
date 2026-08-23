@@ -71,7 +71,7 @@ export function DiscussionThreadDetail({
       <div className="relative z-10 space-y-6">
         <Link
           href={`/${rolePrefix}/discussions/${boardId}`}
-          className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-muted hover:text-ink transition-colors"
+          className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-ink-soft hover:text-ink transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
           Back to {boardLabel}

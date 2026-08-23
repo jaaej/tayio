@@ -53,7 +53,7 @@ export default async function AdminSubjectCurriculumPage({
         />
         <p className="text-[13px] text-ink-soft">
           No terms defined yet.{" "}
-          <Link href="/admin/terms" className="text-brand-600 font-semibold hover:underline">
+          <Link href="/admin/terms" className="text-brand-ink font-semibold hover:underline">
             Create one →
           </Link>
         </p>

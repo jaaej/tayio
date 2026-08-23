@@ -239,7 +239,7 @@ export function QuizMaker({
     <div className="space-y-5">
       <Link
         href={hrefBack}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-ink transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         <ArrowLeft className="h-4 w-4" /> Back to quizzes
       </Link>
@@ -285,14 +285,14 @@ export function QuizMaker({
         <main className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-ink">
                 Question canvas
               </div>
               <h2 className="mt-2 text-[20px] font-extrabold tracking-[-0.02em] text-ink">
                 Build the quiz
               </h2>
             </div>
-            <span className="text-[12px] font-semibold text-muted">
+            <span className="text-[12px] font-semibold text-ink-soft">
               Changes save when you leave a field
             </span>
           </div>

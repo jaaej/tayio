@@ -5,6 +5,10 @@ import { cn } from "@/lib/utils";
  * PageHead - top-of-page header in the v2 design.
  * Eyebrow (optional uppercase tag) above an H1, with optional sub line
  * and right-aligned action slot.
+ *
+ * Secondary text here is --ink-soft, not --muted: the header sits straight on
+ * the page wash (see the gradient in globals.css), where --muted bottoms out
+ * around 1.9:1. --ink-soft holds 5.1:1 against the darkest end of the wash.
  */
 export function PageHead({
   eyebrow,
@@ -28,7 +32,7 @@ export function PageHead({
     >
       <div className="min-w-0">
         {eyebrow && (
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted font-bold mb-1.5">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-ink-soft font-bold mb-1.5">
             {eyebrow}
           </div>
         )}
@@ -36,7 +40,7 @@ export function PageHead({
           {title}
         </h1>
         {sub && (
-          <div className="mt-1.5 text-[13px] text-muted">{sub}</div>
+          <div className="mt-1.5 text-[13px] text-ink-soft">{sub}</div>
         )}
       </div>
       {actions && (
@@ -69,7 +73,7 @@ export function SectionHead({
       {actionHref && actionLabel && (
         <a
           href={actionHref}
-          className="text-[12px] font-bold text-brand-600 hover:text-brand-700"
+          className="text-[12px] font-bold text-brand-ink hover:text-ink"
         >
           {actionLabel}
         </a>

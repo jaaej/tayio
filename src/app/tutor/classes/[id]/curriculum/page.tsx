@@ -85,7 +85,7 @@ export default async function TutorClassCurriculumPage({
       <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line">
         <Link
           href="/tutor/classes"
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted hover:text-ink"
+          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-soft hover:text-ink"
         >
           ← Back to classes
         </Link>
@@ -97,7 +97,7 @@ export default async function TutorClassCurriculumPage({
             {initial}
           </span>
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted font-bold">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft font-bold">
               {data.subjectName} · {data.currentTerm.year} · Term{" "}
               {data.currentTerm.termNumber}
             </div>

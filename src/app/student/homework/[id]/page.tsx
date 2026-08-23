@@ -81,7 +81,7 @@ export default async function HomeworkDetailPage({
     <div className="space-y-4 max-w-[860px]">
       <Link
         href="/student/subjects"
-        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-muted hover:text-ink transition-colors"
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-ink-soft hover:text-ink transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
         All homework
