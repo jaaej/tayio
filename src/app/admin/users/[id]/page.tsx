@@ -22,6 +22,8 @@ import { formatDateLong, formatTime } from "@/lib/format";
 import {
   getStudentUpcomingLessons,
   getStudentLeave,
+  getTutorRecord,
+  getTutorAvailabilityForTutor,
 } from "@/app/admin/_lib/queries";
 import {
   getStudentActivity,
@@ -35,6 +37,8 @@ import { StudentLeaveManager } from "./_components/student-leave-manager";
 import { StudentReportControls } from "./_components/student-report-controls";
 import { StudentTrialManager } from "./_components/student-trial-manager";
 import { getReportTerms, getStudentTrial } from "@/app/admin/_lib/queries";
+import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
+import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
 import { parseTabParam, type UserTab } from "@/lib/user-detail-tabs";
 import { UserTabs } from "./_components/user-tabs";
 import { AtAGlance } from "./_components/at-a-glance";
@@ -84,6 +88,16 @@ export default async function UserDetailPage({
         getStudentTrial(id),
       ])
     : [null, null, null, null, [], null];
+
+  // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
+  // fetched at all, so a reception admin never receives payroll PII.
+  const isTutor = coarseRole(user.role) === "tutor";
+  const [tutorRecord, tutorAvailability] = isTutor
+    ? await Promise.all([
+        getTutorRecord(id, canManageRoles),
+        getTutorAvailabilityForTutor(id),
+      ])
+    : [null, null];
 
   const allStudents = await db
     .select({
@@ -344,7 +358,68 @@ export default async function UserDetailPage({
     </section>
   );
 
-  // The tutor and availability panels are built in Task 4b.
+  const tutorClassesCard = tutorRecord && (
+    <section className="rise" style={{ animationDelay: "80ms" }}>
+      <Card>
+        <CardHead title="Classes" />
+        {tutorRecord.classes.length === 0 ? (
+          <Empty>Not assigned to any classes yet.</Empty>
+        ) : (
+          <div className="divide-y divide-line">
+            {tutorRecord.classes.map((c) => (
+              <Link
+                key={c.id}
+                href={`/admin/classes/${c.id}`}
+                className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-surface-2"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[14px] font-bold text-ink">
+                    {c.name}
+                  </div>
+                  <div className="truncate text-[12px] text-muted">
+                    {c.subjectName}
+                  </div>
+                </div>
+                <span className="shrink-0 text-[12px] font-semibold text-ink-soft tabular-nums">
+                  {c.studentCount}{" "}
+                  {c.studentCount === 1 ? "student" : "students"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+
+  // Owner-only: tutor_bank_details is payroll PII. Reception gets nothing here
+  // rather than a locked placeholder - gate, don't dangle.
+  const tutorBankCard = tutorRecord && canManageRoles && (
+    <section className="rise" style={{ animationDelay: "100ms" }}>
+      <Card>
+        <CardHead title="Payroll details" />
+        <CardBody>
+          <TutorBankForm tutorId={id} initial={tutorRecord.bank} />
+        </CardBody>
+      </Card>
+    </section>
+  );
+
+  const tutorAvailabilityCard = tutorAvailability && (
+    <section className="rise" style={{ animationDelay: "80ms" }}>
+      <Card>
+        <CardHead title="Weekly availability" />
+        <CardBody>
+          <TutorAvailabilityEditor
+            tutorId={id}
+            subjects={tutorAvailability.subjects}
+            slots={tutorAvailability.slots}
+          />
+        </CardBody>
+      </Card>
+    </section>
+  );
+
   const panels: Record<UserTab, ReactNode> = {
     profile: (
       <>
@@ -360,8 +435,13 @@ export default async function UserDetailPage({
     ),
     credits: creditsCard,
     reports: reportsCard,
-    tutor: <></>,
-    availability: <></>,
+    tutor: (
+      <>
+        {tutorClassesCard}
+        {tutorBankCard}
+      </>
+    ),
+    availability: tutorAvailabilityCard,
   };
 
   return (

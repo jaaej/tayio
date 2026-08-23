@@ -1176,6 +1176,151 @@ export async function getTutorDirectory(): Promise<TutorDirectoryEntry[]> {
   });
 }
 
+export type TutorRecord = {
+  classes: Array<{
+    id: string;
+    name: string;
+    subjectName: string;
+    studentCount: number;
+  }>;
+  bank: {
+    accountName: string | null;
+    bsb: string | null;
+    accountNumber: string | null;
+    note: string | null;
+  } | null;
+};
+
+/**
+ * One tutor's teaching record: the classes they take and their bank details.
+ * Sibling of getTutorDirectory(), which returns the whole board.
+ *
+ * `bank` is only populated when includeBank is true. The caller passes the
+ * result of isUnrestrictedAdmin, because tutor_bank_details is payroll PII
+ * (migration 0035) that a reception admin must not see. Gating at the query
+ * keeps the row out of the payload entirely rather than merely hiding it in
+ * the markup.
+ */
+export async function getTutorRecord(
+  tutorId: string,
+  includeBank: boolean,
+): Promise<TutorRecord> {
+  // Left join so a class with nobody enrolled still lists, with a count of 0.
+  const classRows = await db
+    .select({
+      id: classes.id,
+      name: classes.name,
+      subjectName: subjects.name,
+      studentCount: sql<number>`count(${enrollments.studentId})::int`,
+    })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(
+      enrollments,
+      and(eq(enrollments.classId, classes.id), isNull(enrollments.withdrawnAt)),
+    )
+    .where(eq(classes.tutorId, tutorId))
+    .groupBy(classes.id, classes.name, subjects.name)
+    .orderBy(asc(subjects.name), asc(classes.name));
+
+  if (!includeBank) return { classes: classRows, bank: null };
+
+  const [bank] = await db
+    .select()
+    .from(tutorBankDetails)
+    .where(eq(tutorBankDetails.tutorId, tutorId))
+    .limit(1);
+
+  return {
+    classes: classRows,
+    bank: bank
+      ? {
+          accountName: bank.accountName,
+          bsb: bank.bsb,
+          accountNumber: bank.accountNumber,
+          note: bank.note,
+        }
+      : null,
+  };
+}
+
+/**
+ * One tutor's recurring weekly availability plus the subjects they can be
+ * scoped to. Sibling of getTutorWeeklyAvailabilityBoard(), filtered to a
+ * single tutor and shaped to TutorAvailabilityEditor's { subjects, slots }.
+ *
+ * Same rules as the board: recurring weekly rules only (date null, available),
+ * duplicates collapsed, subjects derived from the tutor's assigned classes.
+ * Unlike the board this does not require an active profile - the record page
+ * has already loaded the tutor, and an inactive tutor's slots still need
+ * editing.
+ */
+export async function getTutorAvailabilityForTutor(tutorId: string): Promise<{
+  subjects: Array<{ id: string; name: string }>;
+  slots: TutorAvailabilitySlot[];
+}> {
+  const availabilitySubject = alias(subjects, "availability_subject");
+
+  const rows = await db
+    .select({
+      weekday: tutorAvailability.weekday,
+      startTime: tutorAvailability.startTime,
+      endTime: tutorAvailability.endTime,
+      subjectId: tutorAvailability.subjectId,
+      subjectName: availabilitySubject.name,
+    })
+    .from(tutorAvailability)
+    .leftJoin(
+      availabilitySubject,
+      eq(availabilitySubject.id, tutorAvailability.subjectId),
+    )
+    .where(
+      and(
+        eq(tutorAvailability.tutorId, tutorId),
+        isNull(tutorAvailability.date),
+        eq(tutorAvailability.isAvailable, true),
+      ),
+    );
+
+  const slots: TutorAvailabilitySlot[] = [];
+  for (const r of rows) {
+    if (r.weekday === null) continue;
+    // Dedup identical (subject, weekday, start, end) rows so a duplicated rule
+    // renders once - but the same window under two subjects stays two slots.
+    const dup = slots.some(
+      (s) =>
+        s.subjectId === r.subjectId &&
+        s.weekday === r.weekday &&
+        s.startTime === r.startTime &&
+        s.endTime === r.endTime,
+    );
+    if (!dup) {
+      slots.push({
+        weekday: r.weekday,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        subjectId: r.subjectId,
+        subjectName: r.subjectName,
+      });
+    }
+  }
+  slots.sort(
+    (a, b) =>
+      a.weekday - b.weekday ||
+      a.startTime.localeCompare(b.startTime) ||
+      (a.subjectName ?? "").localeCompare(b.subjectName ?? ""),
+  );
+
+  const taught = await db
+    .selectDistinct({ id: subjects.id, name: subjects.name })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(eq(classes.tutorId, tutorId))
+    .orderBy(asc(subjects.name));
+
+  return { subjects: taught, slots };
+}
+
 export type FinancialReportLine = {
   id: string;
   parentName: string;
