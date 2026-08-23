@@ -345,7 +345,7 @@ export function CreditManagement({
       </section>
 
       <section className="rise" style={{ animationDelay: "150ms" }}>
-        <Card accent="brand">
+        <Card>
           <CardHead
             title="Admin actions"
             eyebrow={summary.termLabel ?? "No active term"}

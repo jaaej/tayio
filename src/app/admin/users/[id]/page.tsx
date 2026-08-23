@@ -166,7 +166,7 @@ export default async function UserDetailPage({
       />
 
       <section className="rise" style={{ animationDelay: "80ms" }}>
-        <Card accent="brand">
+        <Card>
           <CardHead title="Profile" />
           <CardBody>
             <EditUserForm
@@ -184,7 +184,7 @@ export default async function UserDetailPage({
       </section>
 
       {reschedule === "ok" && (
-        <Card accent="good">
+        <Card>
           <CardBody className="text-[13px] text-good font-medium">
             Reschedule saved. The original tutor, new tutor, and linked parents
             have been notified.
@@ -192,7 +192,7 @@ export default async function UserDetailPage({
         </Card>
       )}
       {reschedule === "error" && (
-        <Card accent="bad">
+        <Card>
           <CardBody className="text-[13px] text-bad font-medium">
             Couldn't save that reschedule. Try again.
           </CardBody>
@@ -212,34 +212,41 @@ export default async function UserDetailPage({
               <Empty>No upcoming lessons in the next 3 weeks.</Empty>
             ) : (
               <div className="divide-y divide-line">
+                {/* Grid, not flex-wrap: with wrap every row lays itself out
+                    independently, so nothing lines up column to column, and a
+                    squeezed cell breaks "Year 10 Maths" across three lines.
+                    Fixed tracks keep the columns honest and let long names
+                    truncate instead. Stacks to one column below sm. */}
                 {upcomingLessons.map((l) => (
                   <div
                     key={l.id}
-                    className="px-5 py-3.5 flex items-center gap-3 flex-wrap hover:bg-surface-2 transition-colors"
+                    className="grid grid-cols-1 gap-y-1 px-5 py-3.5 transition-colors hover:bg-surface-2 sm:grid-cols-[minmax(0,1.5fr)_9.5rem_9.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-0"
                   >
-                    <div className="min-w-[180px]">
-                      <div className="text-[14px] font-bold text-ink">
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-bold text-ink">
                         {l.subjectName}
                       </div>
-                      <div className="text-[12px] text-muted truncate">
+                      <div className="truncate text-[12px] text-muted">
                         {l.className}
                       </div>
                     </div>
-                    <div className="min-w-[140px] text-[13px] text-ink-soft tabular-nums">
+                    <div className="text-[13px] text-ink-soft tabular-nums">
                       {formatDateLong(l.date)}
                     </div>
-                    <div className="min-w-[110px] text-[13px] text-ink-soft tabular-nums">
+                    <div className="text-[13px] text-ink-soft tabular-nums">
                       {formatTime(l.startTime)} – {formatTime(l.endTime)}
                     </div>
-                    <div className="min-w-[140px] text-[13px] text-ink-soft">
-                      {l.tutorFirstName} {l.tutorLastName}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-[13px] text-ink-soft">
+                        {l.tutorFirstName} {l.tutorLastName}
+                      </span>
+                      {l.status !== "upcoming" && (
+                        <Pill tone="default">{l.status}</Pill>
+                      )}
                     </div>
-                    {l.status !== "upcoming" && (
-                      <Pill tone="default">{l.status}</Pill>
-                    )}
                     <Link
                       href={`/admin/users/${id}/reschedule/${l.id}`}
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-[12px] font-bold text-ink-soft hover:bg-surface-2 hover:text-brand-700 transition-colors"
+                      className="inline-flex min-h-9 items-center justify-center gap-1.5 justify-self-start rounded-full border border-line-strong bg-surface px-3.5 text-[12px] font-bold text-ink-soft transition-colors hover:bg-surface-2 hover:text-brand-700 sm:justify-self-end"
                     >
                       <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                       Reschedule
@@ -254,7 +261,7 @@ export default async function UserDetailPage({
 
       {isStudent && (
         <section className="rise" style={{ animationDelay: "110ms" }}>
-          <Card accent="brand">
+          <Card>
             <CardHead
               title="Leave / holidays"
               action={
@@ -275,7 +282,7 @@ export default async function UserDetailPage({
 
       {isStudent && (
         <section className="rise" style={{ animationDelay: "115ms" }}>
-          <Card accent="brand">
+          <Card>
             <CardHead
               title="Free trial"
               action={
@@ -293,7 +300,7 @@ export default async function UserDetailPage({
 
       {isStudent && (
         <section className="rise" style={{ animationDelay: "120ms" }}>
-          <Card accent="brand">
+          <Card>
             <CardHead
               title="Term reports"
               action={
