@@ -12,6 +12,7 @@ export function EditUserForm(props: {
   id: string;
   firstName: string;
   lastName: string;
+  email: string;
   phone: string;
   yearLevel: string;
   school: string;
@@ -37,12 +38,17 @@ export function EditUserForm(props: {
               id: props.id,
               firstName: String(fd.get("firstName") || ""),
               lastName: String(fd.get("lastName") || ""),
+              email: String(fd.get("email") || ""),
               phone: String(fd.get("phone") || "") || null,
               yearLevel: String(fd.get("yearLevel") || "") || null,
               school: String(fd.get("school") || "") || null,
               role,
             });
-            if (res.ok) setOk(true);
+            if (res.ok) {
+              setOk(true);
+            } else {
+              setError(res.error);
+            }
           } catch (err) {
             setError(err instanceof Error ? err.message : "Save failed");
           }
@@ -64,6 +70,17 @@ export function EditUserForm(props: {
           id="lastName"
           name="lastName"
           defaultValue={props.lastName}
+          required
+        />
+      </div>
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          defaultValue={props.email}
+          autoComplete="email"
           required
         />
       </div>

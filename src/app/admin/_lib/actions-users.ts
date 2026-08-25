@@ -128,6 +128,7 @@ const updateUserSchema = z.object({
   id: z.string().uuid(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
+  email: z.string().email().max(320),
   phone: z.string().max(40).optional().nullable(),
   yearLevel: z.string().max(40).optional().nullable(),
   school: z.string().max(200).optional().nullable(),
@@ -136,14 +137,25 @@ const updateUserSchema = z.object({
 
 export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   const user = await requireAdmin();
-  const data = updateUserSchema.parse(input);
+  const data = updateUserSchema.parse({
+    ...input,
+    email: input.email.trim().toLowerCase(),
+  });
 
   // Changing a user's role is owner-only and behind the PIN step-up. Editing
   // the other profile fields (name/phone/school) stays open to reception.
   const [existing] = await db
-    .select({ role: profiles.role })
+    .select({
+      email: profiles.email,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      role: profiles.role,
+    })
     .from(profiles)
     .where(eq(profiles.id, data.id));
+  if (!existing) {
+    return { ok: false as const, error: "User account not found." };
+  }
   const roleChanging = !!existing && existing.role !== data.role;
   if (roleChanging && !isUnrestrictedAdmin(currentAdminRole(user))) {
     return {
@@ -152,31 +164,64 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
     };
   }
 
-  await withActor({ id: user.id, role: "admin" }, (tx) =>
-    tx
-      .update(profiles)
-      .set({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone || null,
-        yearLevel: data.yearLevel || null,
-        school: data.school || null,
-        role: data.role,
-        updatedAt: new Date(),
-      })
-      .where(eq(profiles.id, data.id)),
-  );
+  const emailChanging = existing.email !== data.email;
+  if (emailChanging) {
+    const [emailOwner] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.email, data.email))
+      .limit(1);
+    if (emailOwner && emailOwner.id !== data.id) {
+      return { ok: false as const, error: "That email address is already in use." };
+    }
+  }
 
   const admin = createAdminClient();
-  await admin.auth.admin.updateUserById(data.id, {
+  const { error: authError } = await admin.auth.admin.updateUserById(data.id, {
+    ...(emailChanging ? { email: data.email, email_confirm: true } : {}),
     app_metadata: {
       role: data.role,
       first_name: data.firstName,
       last_name: data.lastName,
     },
   });
+  if (authError) {
+    return { ok: false as const, error: authError.message };
+  }
+
+  try {
+    await withActor({ id: user.id, role: "admin" }, (tx) =>
+      tx
+        .update(profiles)
+        .set({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone || null,
+          yearLevel: data.yearLevel || null,
+          school: data.school || null,
+          role: data.role,
+          updatedAt: new Date(),
+        })
+        .where(eq(profiles.id, data.id)),
+    );
+  } catch (error) {
+    await admin.auth.admin.updateUserById(data.id, {
+      ...(emailChanging ? { email: existing.email, email_confirm: true } : {}),
+      app_metadata: {
+        role: existing.role,
+        first_name: existing.firstName,
+        last_name: existing.lastName,
+      },
+    });
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : "Failed to update user.",
+    };
+  }
 
   revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${data.id}`);
   return { ok: true as const };
 }
 

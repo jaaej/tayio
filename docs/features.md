@@ -250,7 +250,7 @@ Conventions referenced throughout:
 
 ### User management + account creation
 1. **What it is** - Create, edit, deactivate, and role-assign accounts across all roles.
-2. **How it works** - `/admin/users`, `/admin/users/[id]`. Actions in `src/app/admin/_lib/actions-users.ts` (`createUser`, `updateUser`, `setUserActive`). Auth-user CRUD uses `createAdminClient()` (true service-role). Table: `profiles` (+ `auth.users`). Guard: `requireAdmin()`.
+2. **How it works** - `/admin/users`, `/admin/users/[id]`. Actions in `src/app/admin/_lib/actions-users.ts` (`createUser`, `updateUser`, `setUserActive`). Admin edits keep `profiles.email` and `auth.users.email` in sync through the server-only Supabase admin client. Table: `profiles` (+ `auth.users`). Guard: `requireAdmin()`.
 3. **Rationale:** `createAdminClient()` (service-role) is used *only* here for `auth.users` CRUD, where RLS-bypass is genuinely required, and is `server-only`-guarded (per security-checklist C6). New/edited accounts must always carry a *tiered* role (never a bare coarse value) - `ROLE_OPTIONS` in `src/lib/roles.ts` offers only tiered values. `profiles.role` is additionally locked by a BEFORE-UPDATE trigger (migration 0013 / security A8) so it can't be silently changed out of band.
 
 ### Family links editor

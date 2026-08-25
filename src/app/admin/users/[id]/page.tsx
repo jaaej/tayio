@@ -12,7 +12,6 @@ import {
   CardHead,
   CardBody,
   Hero,
-  HeroChip,
   BackLink,
   Empty,
 } from "@/components/admin/ui";
@@ -176,6 +175,7 @@ export default async function UserDetailPage({
             id={user.id}
             firstName={user.firstName}
             lastName={user.lastName}
+            email={user.email}
             phone={user.phone ?? ""}
             yearLevel={user.yearLevel ?? ""}
             school={user.school ?? ""}
@@ -417,13 +417,6 @@ export default async function UserDetailPage({
         eyebrow="User profile"
         icon={initials}
         title={`${user.firstName} ${user.lastName}`}
-        chips={
-          <>
-            <HeroChip>{user.role}</HeroChip>
-            <HeroChip>{user.isActive ? "Active" : "Inactive"}</HeroChip>
-            <HeroChip>{user.email}</HeroChip>
-          </>
-        }
         right={
           <a
             href={`/admin/messages/with/${user.id}`}
