@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -13,6 +12,13 @@ import {
   profiles,
 } from "@/db/schema";
 import { formatDateLong, formatTime } from "@/lib/format";
+import {
+  expandAvailability,
+  getAllTutors,
+  getEligibleTutors,
+  markTakenSlots,
+  type AvailableSlot,
+} from "@/lib/availability";
 import { requireAdmin } from "./guard";
 import { getLessonContextForStudent } from "./queries";
 
@@ -47,7 +53,9 @@ function parseSlot(raw: string) {
  * The original lesson itself is NOT mutated - other enrolled students still
  * attend it normally.
  */
-export async function rescheduleStudentLesson(formData: FormData) {
+export async function rescheduleStudentLesson(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const admin = await requireAdmin();
   const studentId = String(formData.get("studentId") ?? "");
   const lessonId = String(formData.get("lessonId") ?? "");
@@ -55,27 +63,23 @@ export async function rescheduleStudentLesson(formData: FormData) {
   const reason = String(formData.get("reason") ?? "").trim();
 
   if (!studentId || !lessonId || reason.length > 2000) {
-    redirect(`/admin/users/${studentId}?reschedule=error`);
+    return { ok: false, error: "Missing lesson details." };
   }
 
   const slot = parseSlot(slotRaw);
   if (!slot) {
-    redirect(
-      `/admin/users/${studentId}/reschedule/${lessonId}?error=invalid-slot`,
-    );
+    return { ok: false, error: "That slot is no longer valid." };
   }
 
   const original = await getLessonContextForStudent(studentId, lessonId);
   if (!original) {
-    redirect(`/admin/users/${studentId}?reschedule=error`);
+    return { ok: false, error: "Missing lesson details." };
   }
 
   // Sanity: don't reschedule a lesson that's already happened
   const lessonStart = new Date(`${original.date}T${original.startTime}`);
   if (lessonStart < new Date()) {
-    redirect(
-      `/admin/users/${studentId}/reschedule/${lessonId}?error=lesson-past`,
-    );
+    return { ok: false, error: "That lesson has already happened." };
   }
 
   // Don't double-book the tutor: reject if they already have a lesson
@@ -93,9 +97,7 @@ export async function rescheduleStudentLesson(formData: FormData) {
     )
     .limit(1);
   if (clash.length) {
-    redirect(
-      `/admin/users/${studentId}/reschedule/${lessonId}?error=slot-taken`,
-    );
+    return { ok: false, error: "Someone just took that slot. Pick another." };
   }
 
   // 1. Create the makeup lesson
@@ -197,5 +199,38 @@ export async function rescheduleStudentLesson(formData: FormData) {
   revalidatePath("/admin/attendance");
   revalidatePath(`/tutor/lessons/${newLesson.id}`);
 
-  redirect(`/admin/users/${studentId}?reschedule=ok`);
+  return { ok: true };
+}
+
+/**
+ * Slots an admin may move a lesson into. An admin can select a tutor outside
+ * the lesson's subject roster, so both the default and override lists are
+ * returned together.
+ */
+export async function loadAdminRescheduleOptions(
+  studentId: string,
+  lessonId: string,
+): Promise<
+  | { ok: true; sameSubject: AvailableSlot[]; allTutors: AvailableSlot[] }
+  | { ok: false; error: string }
+> {
+  await requireAdmin();
+  const lesson = await getLessonContextForStudent(studentId, lessonId);
+  if (!lesson) return { ok: false, error: "Lesson not found." };
+
+  const now = new Date();
+  const [sameSubjectTutors, allTutors] = await Promise.all([
+    getEligibleTutors(lesson.classId),
+    getAllTutors(lesson.tutorId),
+  ]);
+  const [sameSubjectSlots, allTutorSlots] = await Promise.all([
+    expandAvailability(sameSubjectTutors, now, 4),
+    expandAvailability(allTutors, now, 4),
+  ]);
+  const [sameSubject, allTutorsMarked] = await Promise.all([
+    markTakenSlots(sameSubjectSlots),
+    markTakenSlots(allTutorSlots),
+  ]);
+
+  return { ok: true, sameSubject, allTutors: allTutorsMarked };
 }

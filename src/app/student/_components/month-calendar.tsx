@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatTime, startOfMondayWeek } from "@/lib/format";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -130,61 +131,10 @@ export function MonthCalendar({
    */
   subjectColorHomework?: boolean;
 }) {
-  const firstOfMonth = new Date(year, month, 1);
-  const firstDow = firstOfMonth.getDay();
-  const mondayOffset = (firstDow + 6) % 7;
-  const gridStart = new Date(year, month, 1 - mondayOffset);
-
-  const todayIso = isoLocal(new Date());
-
-  const lessonsByDate = new Map<string, MonthLesson[]>();
-  for (const l of lessons) {
-    if (!lessonsByDate.has(l.date)) lessonsByDate.set(l.date, []);
-    lessonsByDate.get(l.date)!.push(l);
-  }
-  for (const list of lessonsByDate.values()) {
-    list.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }
-
-  const homeworkByDate = new Map<string, MonthHomework[]>();
-  for (const h of homework) {
-    if (!homeworkByDate.has(h.dueDate)) homeworkByDate.set(h.dueDate, []);
-    homeworkByDate.get(h.dueDate)!.push(h);
-  }
-
-  type Day = {
-    iso: string;
-    dayNum: number;
-    inMonth: boolean;
-    isToday: boolean;
-    isWeekend: boolean;
-    lessons: MonthLesson[];
-    homework: MonthHomework[];
-  };
-
-  const days: Day[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart);
-    d.setDate(gridStart.getDate() + i);
-    const iso = isoLocal(d);
-    days.push({
-      iso,
-      dayNum: d.getDate(),
-      inMonth: d.getMonth() === month,
-      isToday: iso === todayIso,
-      isWeekend: d.getDay() === 0 || d.getDay() === 6,
-      lessons: lessonsByDate.get(iso) ?? [],
-      homework: homeworkByDate.get(iso) ?? [],
-    });
-  }
-
-  const rowCount = Math.ceil(days.length / 7);
-  let usedRows = rowCount;
-  if (rowCount === 6) {
-    const lastRow = days.slice(35, 42);
-    if (lastRow.every((d) => !d.inMonth)) usedRows = 5;
-  }
-  const visibleDays = days.slice(0, usedRows * 7);
+  const chips: MonthChip[] = [
+    ...lessons.map((lesson) => lessonToMonthChip(lesson)),
+    ...homework.map((item) => homeworkToMonthChip(item, subjectColorHomework)),
+  ];
 
   const prev = navigateMonth(year, month, -1);
   const next = navigateMonth(year, month, 1);
@@ -225,36 +175,86 @@ export function MonthCalendar({
         </div>
       </div>
 
-      {/* Calendar grid wrapped in a tinted frame so the cells read as
-          a single object on the cornflower page background. */}
-      <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
-        <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
-          {DAY_LABELS.map((d, i) => (
-            <div
-              key={d}
-              className={cn(
-                "text-center py-2",
-                (i === 5 || i === 6) && "text-muted",
-              )}
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {visibleDays.map((d) => (
-            <DayCell
-              key={d.iso}
-              day={d}
-              subjectColorHomework={subjectColorHomework}
-            />
-          ))}
-        </div>
-      </div>
+      <MonthGrid year={year} month={month} chips={chips} />
 
       <CalendarLegend subjectColorHomework={subjectColorHomework} />
     </div>
   );
+}
+
+function lessonToMonthChip(lesson: MonthLesson): MonthChip {
+  const moved = lesson.studentState === "moved_out";
+  const makeup = lesson.studentState === "makeup_in";
+  const pending =
+    lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
+  const tone =
+    moved || makeup || pending
+      ? { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" }
+      : lessonTone(lesson.status, lesson.date, lesson.subjectName);
+
+  return {
+    id: `lesson-${lesson.id}`,
+    date: lesson.date,
+    label: formatTime(lesson.startTime),
+    sublabel: lesson.moveLabel
+      ? `${lesson.subjectName} · ${lesson.moveLabel}`
+      : lesson.subjectName,
+    sortKey: `0-${lesson.startTime}`,
+    tone: moved ? "line-through" : "",
+    href: lesson.rescheduleHref,
+    style: { backgroundColor: tone.bg, color: tone.text },
+    barStyle: { backgroundColor: tone.bar },
+    title: lesson.rescheduleHref ? "Reschedule this lesson" : undefined,
+  };
+}
+
+function homeworkToMonthChip(
+  homework: MonthHomework,
+  subjectColorHomework: boolean,
+): MonthChip {
+  const done = homework.status === "submitted" || homework.status === "marked";
+  const subject = homework.className ?? "Homework";
+
+  if (!subjectColorHomework) {
+    return {
+      id: `homework-${homework.id}`,
+      date: homework.dueDate,
+      label: homework.title,
+      sortKey: `1-${homework.title}`,
+      tone: done ? "bg-good-bg text-good" : "bg-warn-bg text-warn",
+      href: `/student/homework/${homework.id}`,
+      barStyle: { backgroundColor: done ? "var(--good)" : "var(--warn)" },
+    };
+  }
+
+  const tokens = getAccentTokens(colorFamilyForSubject(subject));
+  const overdue =
+    !done &&
+    (homework.status === "late" || homework.dueDate < isoLocal(new Date()));
+  return {
+    id: `homework-${homework.id}`,
+    date: homework.dueDate,
+    label: homework.title,
+    sortKey: `1-${homework.title}`,
+    tone: cn(
+      overdue && "ring-1 ring-inset ring-bad/60",
+      done && "opacity-50",
+    ),
+    href: `/student/homework/${homework.id}`,
+    style: {
+      backgroundColor: done ? tokens.bgTo : tokens.pillBg,
+      color: tokens.pillText,
+    },
+    barStyle: {
+      backgroundColor: overdue
+        ? "var(--bad)"
+        : done
+          ? "var(--good)"
+          : tokens.arrow,
+    },
+    title: `${homework.title} - ${subject}`,
+    ariaLabel: `${homework.title} - ${subject}, due ${homework.dueDate}${overdue ? ", overdue" : done ? ", submitted" : ""}`,
+  };
 }
 
 /**

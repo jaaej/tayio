@@ -626,6 +626,59 @@ export async function getStudentUpcomingLessons(
 }
 
 /**
+ * Lessons for one student between two local calendar dates, inclusive.
+ * Sibling of getStudentUpcomingLessons, which only looks forward from today
+ * and so cannot fill a calendar the admin can page backwards through.
+ */
+export async function getStudentLessonsInRange(
+  studentId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<StudentLesson[]> {
+  const rows = await db
+    .select({
+      id: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      status: lessons.status,
+      classId: classes.id,
+      className: classes.name,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      tutorId: profiles.id,
+      tutorFirstName: profiles.firstName,
+      tutorLastName: profiles.lastName,
+      rescheduledFrom: lessons.rescheduledFrom,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
+        gte(lessons.date, fromIso),
+        lte(lessons.date, toIso),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+
+  // A rescheduled or cancelled-out lesson remains in the class timetable for
+  // other students. Hide it from this student's calendar only.
+  const absentRows = await db
+    .select({ lessonId: attendance.lessonId })
+    .from(attendance)
+    .where(
+      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
+    );
+  const absentIds = new Set(absentRows.map((attendanceRow) => attendanceRow.lessonId));
+  return rows.filter((lesson) => !absentIds.has(lesson.id));
+}
+
+/**
  * Single lesson with subject/class/tutor context. Used by the reschedule
  * picker to confirm the lesson belongs to the student before showing slots.
  */

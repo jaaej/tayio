@@ -294,9 +294,9 @@ Conventions referenced throughout:
 3. **Rationale:** The coarse `userRoleEnum` values (student/parent/tutor/admin) survive specifically as announcement audience targets even after every account moved to a tiered role (per `src/lib/roles.ts` comment / role-tiers memory).
 
 ### Reschedule approvals (admin)
-1. **What it is** - Queue of all pending reschedule requests + admin-initiated one-off reschedules.
-2. **How it works** - `/admin/reschedules`; one-off at `/admin/users/[id]/reschedule/[lessonId]`. Table: `rescheduleRequests`. Shared `getAvailableSlots`. Guard: `requireAdmin()`.
-3. **Rationale:** Admin one-off reschedule reuses the same `getAvailableSlots` availability query as parent/student flows so all reschedule surfaces stay in sync (per `docs/checklist.md` / reschedule spec).
+1. **What it is** - Read-only credits and allowance usage plus admin-initiated one-off reschedules.
+2. **How it works** - `/admin/reschedules` is the credits/usage view. An admin opens a student record's Lessons & leave tab and moves a future lesson in its inline panel. The panel loads same-subject or all-tutor slots with `loadAdminRescheduleOptions`; `rescheduleStudentLesson` performs the guarded write. Guard: `requireAdmin()`.
+3. **Rationale:** The inline panel keeps the one-off workflow in the lesson context and replaces the former standalone route. It uses the same shared availability expansion and taken-slot checks as the other rescheduling flows.
 
 ### Curriculum & terms management
 1. **What it is** - Define terms, subject topics, and the canonical week-by-week curriculum per subject.
