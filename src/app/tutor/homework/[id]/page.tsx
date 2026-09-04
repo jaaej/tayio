@@ -7,8 +7,9 @@ import { formatDueDate, relativeTime } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
 import { HOMEWORK_BUCKET, signHomeworkAttachment } from "@/app/student/homework/_storage";
-import { markSubmission, updateHomework } from "../../_actions";
+import { markSubmission } from "../../_actions";
 import { getHomeworkDetail, requireTutor } from "../../_data";
+import { EditHomeworkForm } from "./_components/edit-homework-form";
 
 /** Format a Date as a local-time value for <input type="datetime-local">. */
 function toDateTimeLocal(d: Date): string {
@@ -57,10 +58,7 @@ export default async function HomeworkDetailPage({
     })),
   );
 
-  const attachmentHref = await signHomeworkAttachment(
-    await createClient(),
-    homework.attachmentUrl,
-  );
+  const attachmentHref = await signHomeworkAttachment(homework.attachmentUrl);
 
   const toMarkCount = signedSubmissions.filter(
     (s) => s.status === "submitted" || s.status === "late",
@@ -111,112 +109,15 @@ export default async function HomeworkDetailPage({
       )}
 
       <Card>
-        <details className="group">
-          <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-[13px] font-bold text-ink [&::-webkit-details-marker]:hidden">
-            Edit homework details
-            <span className="text-[11px] font-semibold text-brand-600 group-open:hidden">
-              Edit ↓
-            </span>
-            <span className="hidden text-[11px] font-semibold text-muted group-open:inline">
-              Close ↑
-            </span>
-          </summary>
-          <form
-            action={updateHomework}
-            className="space-y-3 border-t border-line px-4 py-4"
-          >
-            <input type="hidden" name="homeworkId" value={homework.id} />
-
-            <div className="space-y-1">
-              <Label htmlFor="edit-title">Title</Label>
-              <input
-                id="edit-title"
-                name="title"
-                required
-                defaultValue={homework.title}
-                maxLength={200}
-                className={INPUT_CLS}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="edit-due">Due date</Label>
-                <input
-                  id="edit-due"
-                  name="dueDate"
-                  type="datetime-local"
-                  required
-                  defaultValue={toDateTimeLocal(new Date(homework.dueDate))}
-                  className={INPUT_CLS}
-                />
-              </div>
-              <div className="flex flex-col justify-end gap-2 pb-1">
-                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                  <input
-                    type="checkbox"
-                    name="allowResubmission"
-                    defaultChecked={homework.allowResubmission}
-                    className="accent-brand-600"
-                  />
-                  Allow resubmission
-                </label>
-                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                  <input
-                    type="checkbox"
-                    name="isTest"
-                    defaultChecked={homework.isTest}
-                    className="accent-brand-600"
-                  />
-                  Mark as test (counts toward rankings)
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="edit-description">Description</Label>
-              <textarea
-                id="edit-description"
-                name="description"
-                rows={3}
-                defaultValue={homework.description ?? ""}
-                placeholder="Description (optional)"
-                className={`${INPUT_CLS} h-auto py-2`}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="edit-attachment">
-                {homework.attachmentUrl ? "Replace attachment" : "Add attachment"}
-              </Label>
-              <input
-                id="edit-attachment"
-                name="attachment"
-                type="file"
-                className="block w-full text-[12px] text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-[12px] file:font-bold file:text-brand-700 hover:file:bg-brand-100"
-              />
-              {homework.attachmentUrl && (
-                <label className="mt-1.5 flex items-center gap-2 text-[12px] text-ink-soft">
-                  <input
-                    type="checkbox"
-                    name="removeAttachment"
-                    className="accent-brand-600"
-                  />
-                  Remove the current attachment
-                </label>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="submit"
-                className="h-10 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
-              >
-                Save changes
-              </button>
-            </div>
-          </form>
-        </details>
+        <EditHomeworkForm
+          homeworkId={homework.id}
+          title={homework.title}
+          description={homework.description}
+          dueDate={toDateTimeLocal(new Date(homework.dueDate))}
+          allowResubmission={homework.allowResubmission}
+          isTest={homework.isTest}
+          hasAttachment={Boolean(homework.attachmentUrl)}
+        />
       </Card>
 
       <Card className="overflow-hidden">

@@ -57,6 +57,9 @@ export type ValidateResult =
   | { ok: true; file: ValidatedUpload }
   | { ok: false; error: string };
 
+/** The small, serialisable part of a browser File used before a direct upload. */
+export type UploadMetadata = Pick<Blob, "size" | "type">;
+
 function matches(bytes: Uint8Array, offset: number, sig: number[]): boolean {
   if (bytes.length < offset + sig.length) return false;
   for (let i = 0; i < sig.length; i++) {
@@ -91,10 +94,10 @@ function isUtf8Text(b: Uint8Array): boolean {
   }
 }
 
-export async function validateUpload(
-  file: File,
+export function validateUploadMetadata(
+  file: UploadMetadata,
   policy: UploadPolicy,
-): Promise<ValidateResult> {
+): ValidateResult {
   if (file.size === 0) return { ok: false, error: "Empty file" };
   if (file.size > policy.maxBytes) {
     return {
@@ -117,6 +120,21 @@ export async function validateUpload(
     };
   }
 
+  return { ok: true, file: { ext: entry.ext, contentType: entry.mime } };
+}
+
+export async function validateUpload(
+  file: Blob,
+  policy: UploadPolicy,
+): Promise<ValidateResult> {
+  const metadata = validateUploadMetadata(file, policy);
+  if (!metadata.ok) return metadata;
+
+  const entry = policy.allowed[file.type.toLowerCase().split(";")[0].trim()];
+  // validateUploadMetadata already proved this lookup exists. Keeping this
+  // guard makes the relationship explicit to TypeScript and future editors.
+  if (!entry) return { ok: false, error: "Unsupported file type" };
+
   if (entry.family === "text") {
     // No binary signature to match; a text file is validated by reading it and
     // confirming it decodes as UTF-8 with no NUL bytes, and doesn't actually
@@ -136,7 +154,7 @@ export async function validateUpload(
     }
   }
 
-  return { ok: true, file: { ext: entry.ext, contentType: entry.mime } };
+  return metadata;
 }
 
 // --- Policies ---------------------------------------------------------------

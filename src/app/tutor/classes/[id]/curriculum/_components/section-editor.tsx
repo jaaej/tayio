@@ -18,12 +18,15 @@ import {
 } from "lucide-react";
 import { promoteAttachment } from "@/app/_actions/resources";
 import {
-  addTutorWeekAttachment,
   addTutorWeekLink,
   createHomework,
+  finalizeTutorWeekAttachmentUpload,
+  prepareTutorHomeworkAttachmentUpload,
+  prepareTutorWeekAttachmentUpload,
   removeTutorWeekAttachment,
   upsertTutorWeekNote,
 } from "@/app/tutor/_actions";
+import { createClient } from "@/lib/supabase/client";
 import { formatDueDate } from "@/lib/format";
 import { RESOURCE_TYPES } from "@/lib/resource-types";
 import { httpHref } from "@/lib/safe-url";
@@ -74,7 +77,40 @@ export function SectionEditor({
     formData.set("subjectWeekId", week.subjectWeekId);
     setError(null);
     startTransition(async () => {
-      const res = await addTutorWeekAttachment(formData);
+      const file = formData.get("file");
+      if (!(file instanceof File) || file.size === 0) {
+        setError("Choose a file to upload");
+        return;
+      }
+
+      const prepared = await prepareTutorWeekAttachmentUpload({
+        classId,
+        subjectWeekId: week.subjectWeekId,
+        fileName: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+      });
+      if (!prepared.ok) {
+        setError(prepared.error);
+        return;
+      }
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(prepared.value.bucket)
+        .uploadToSignedUrl(prepared.value.path, prepared.value.token, file, {
+          contentType: prepared.value.contentType,
+        });
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+
+      const res = await finalizeTutorWeekAttachmentUpload({
+        classId,
+        subjectWeekId: week.subjectWeekId,
+        ticket: prepared.value.ticket,
+      });
       if (!res.ok) setError(res.error);
     });
   }
@@ -86,6 +122,42 @@ export function SectionEditor({
     startTransition(async () => {
       const res = await addTutorWeekLink(formData);
       if (!res.ok) setError(res.error);
+    });
+  }
+
+  function submitHomework(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const file = formData.get("attachment");
+      if (file instanceof File && file.size > 0) {
+        const prepared = await prepareTutorHomeworkAttachmentUpload({
+          classId,
+          subjectWeekId: week.subjectWeekId,
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+        });
+        if (!prepared.ok) {
+          setError(prepared.error);
+          return;
+        }
+
+        const supabase = createClient();
+        const { error: uploadError } = await supabase.storage
+          .from(prepared.value.bucket)
+          .uploadToSignedUrl(prepared.value.path, prepared.value.token, file, {
+            contentType: prepared.value.contentType,
+          });
+        if (uploadError) {
+          setError(uploadError.message);
+          return;
+        }
+        formData.set("uploadTicket", prepared.value.ticket);
+      }
+
+      // Never forward even an empty File through the Server Action request.
+      formData.delete("attachment");
+      await createHomework(formData);
     });
   }
 
@@ -441,7 +513,7 @@ export function SectionEditor({
           )}
 
           <form
-            action={createHomework}
+            action={submitHomework}
             className="space-y-3 border-t border-line pt-4"
           >
             <input type="hidden" name="classId" value={classId} />
@@ -494,9 +566,11 @@ export function SectionEditor({
             />
             <button
               type="submit"
+              disabled={pending}
               className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
             >
-              <Plus className="h-3.5 w-3.5" /> Assign homework
+              <Plus className="h-3.5 w-3.5" />
+              {pending ? "Saving…" : "Assign homework"}
             </button>
           </form>
         </section>

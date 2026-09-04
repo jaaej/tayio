@@ -23,19 +23,40 @@ import {
   tutorWeekAttachments,
   tutorWeekSections,
 } from "@/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 import { requireRole } from "@/lib/auth";
-import { uploadTutorAttachment, removeCurriculumObject } from "@/lib/curriculum-storage";
-import { validateUpload, HOMEWORK_POLICY } from "@/lib/upload-validation";
+import { BUCKET, removeCurriculumObject } from "@/lib/curriculum-storage";
+import {
+  discardDirectUpload,
+  createDirectUploadGrant,
+  finalizeDirectUpload,
+} from "@/lib/direct-upload";
+import {
+  ATTACHMENT_POLICY,
+  validateUploadMetadata,
+  HOMEWORK_POLICY,
+} from "@/lib/upload-validation";
 import { optionalText, requiredText } from "@/lib/validation";
 import { withActor } from "@/lib/with-actor";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
 const HOMEWORK_BUCKET = "homework-attachments";
+const TUTOR_HOMEWORK_UPLOAD_PURPOSE = "tutor-homework-attachment";
+const TUTOR_HOMEWORK_EDIT_UPLOAD_PURPOSE = "tutor-homework-edit-attachment";
 
 const attendanceStatusSchema = z.enum(attendanceStatusEnum.enumValues);
 const homeworkStatusSchema = z.enum(homeworkStatusEnum.enumValues);
+const directFileSchema = z.object({
+  classId: z.string().uuid(),
+  subjectWeekId: z.string().uuid(),
+  fileName: z.string().trim().min(1).max(255),
+  contentType: z.string().trim().min(1).max(200),
+  sizeBytes: z.number().int().positive(),
+});
+const homeworkEditFileSchema = directFileSchema
+  .omit({ classId: true, subjectWeekId: true })
+  .extend({ homeworkId: z.string().uuid() });
 
 async function assertOwnsLesson(tutorId: string, lessonId: string) {
   const [row] = await db
@@ -356,44 +377,43 @@ export async function createHomework(formData: FormData) {
     );
   }
 
-  // Upload attachment if present
+  // The browser uploads the file directly to private Supabase Storage. This
+  // action receives only the signed ticket, so Vercel's 4.5 MB request limit
+  // never sees the PDF bytes.
   let attachmentUrl: string | null = null;
-  const file = formData.get("attachment");
-  if (file instanceof File && file.size > 0) {
-    const validated = await validateUpload(file, HOMEWORK_POLICY);
-    if (!validated.ok) throw new Error(validated.error);
-    const supabase = await createClient();
-    const path = `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`;
-    const { error } = await supabase.storage
-      .from(HOMEWORK_BUCKET)
-      .upload(path, file, {
-        contentType: validated.file.contentType,
-        upsert: false,
-      });
-    if (error) {
-      // Soft-fail: persist homework without attachment, surface message on next page.
-      console.error("homework upload failed", error.message);
-    } else {
-      // Store the storage path (not a public URL); signed on read so the bucket
-      // can be private. See student/homework/_storage.ts:signHomeworkAttachment.
-      attachmentUrl = path;
-    }
+  const uploadTicket = String(formData.get("uploadTicket") ?? "");
+  if (uploadTicket) {
+    const verified = await finalizeDirectUpload({
+      ticket: uploadTicket,
+      expectedPurpose: TUTOR_HOMEWORK_UPLOAD_PURPOSE,
+      expectedUserId: tutor.id,
+      expectedScope: `${classId ?? ""}:${weekId ?? ""}`,
+      policy: HOMEWORK_POLICY,
+    });
+    if (!verified.ok) throw new Error(verified.error);
+    attachmentUrl = verified.value.path;
   }
 
-  const [created] = await db
-    .insert(homework)
-    .values({
-      tutorId: tutor.id,
-      classId,
-      title,
-      description: description || null,
-      dueDate,
-      attachmentUrl,
-      allowResubmission,
-      isTest,
-      weekId,
-    })
-    .returning({ id: homework.id });
+  let created: { id: string };
+  try {
+    [created] = await db
+      .insert(homework)
+      .values({
+        tutorId: tutor.id,
+        classId,
+        title,
+        description: description || null,
+        dueDate,
+        attachmentUrl,
+        allowResubmission,
+        isTest,
+        weekId,
+      })
+      .returning({ id: homework.id });
+  } catch (error) {
+    if (uploadTicket) await discardDirectUpload(uploadTicket);
+    throw error;
+  }
 
   if (assignedStudentIds.length) {
     await db
@@ -413,12 +433,74 @@ export async function createHomework(formData: FormData) {
   redirect(`/tutor/homework/${created.id}`);
 }
 
+export async function prepareTutorHomeworkAttachmentUpload(input: {
+  classId: string;
+  subjectWeekId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}) {
+  const tutor = await requireTutor();
+  const parsed = directFileSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  await assertOwnsClass(tutor.id, parsed.data.classId);
+  if (!(await tutorTeachesSubjectWeek(tutor.id, parsed.data.subjectWeekId))) {
+    return { ok: false as const, error: "Not your subject" };
+  }
+
+  const validated = validateUploadMetadata(
+    { size: parsed.data.sizeBytes, type: parsed.data.contentType },
+    HOMEWORK_POLICY,
+  );
+  if (!validated.ok) return validated;
+  return createDirectUploadGrant({
+    purpose: TUTOR_HOMEWORK_UPLOAD_PURPOSE,
+    userId: tutor.id,
+    scope: `${parsed.data.classId}:${parsed.data.subjectWeekId}`,
+    bucket: HOMEWORK_BUCKET,
+    path: `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`,
+    fileName: parsed.data.fileName,
+    sizeBytes: parsed.data.sizeBytes,
+    contentType: parsed.data.contentType,
+    policy: HOMEWORK_POLICY,
+  });
+}
+
+export async function prepareTutorHomeworkEditAttachmentUpload(input: {
+  homeworkId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}) {
+  const tutor = await requireTutor();
+  const parsed = homeworkEditFileSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  await assertOwnsHomework(tutor.id, parsed.data.homeworkId);
+
+  const validated = validateUploadMetadata(
+    { size: parsed.data.sizeBytes, type: parsed.data.contentType },
+    HOMEWORK_POLICY,
+  );
+  if (!validated.ok) return validated;
+  return createDirectUploadGrant({
+    purpose: TUTOR_HOMEWORK_EDIT_UPLOAD_PURPOSE,
+    userId: tutor.id,
+    scope: parsed.data.homeworkId,
+    bucket: HOMEWORK_BUCKET,
+    path: `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`,
+    fileName: parsed.data.fileName,
+    sizeBytes: parsed.data.sizeBytes,
+    contentType: parsed.data.contentType,
+    policy: HOMEWORK_POLICY,
+  });
+}
+
 /**
  * Edit an existing homework's own fields (title, description, due date,
  * resubmission/test flags, attachment). Student assignments are left
  * untouched - this only changes the task definition, so it is safe to run
- * after students have already submitted. Attachment can be replaced (upload
- * a new file) or removed; the old storage object is deleted best-effort.
+ * after students have already submitted. Attachment can be replaced via a
+ * browser-to-Storage upload or removed; the old object is deleted best-effort.
  */
 export async function updateHomework(formData: FormData) {
   const tutor = await requireTutor();
@@ -444,31 +526,43 @@ export async function updateHomework(formData: FormData) {
 
   let attachmentUrl = existing.attachmentUrl;
   const oldPath = existing.attachmentUrl;
-  const file = formData.get("attachment");
-  const hasNewFile = file instanceof File && file.size > 0;
+  const uploadTicket = String(formData.get("uploadTicket") ?? "");
+  const hasNewFile = Boolean(uploadTicket);
 
-  if (hasNewFile) {
-    const validated = await validateUpload(file, HOMEWORK_POLICY);
-    if (!validated.ok) throw new Error(validated.error);
-    const supabase = await createClient();
-    const path = `${tutor.id}/${Date.now()}-${randomUUID()}.${validated.file.ext}`;
-    const { error } = await supabase.storage
-      .from(HOMEWORK_BUCKET)
-      .upload(path, file, {
-        contentType: validated.file.contentType,
-        upsert: false,
-      });
-    if (error) {
-      console.error("homework upload failed", error.message);
-    } else {
-      attachmentUrl = path;
-    }
+  if (uploadTicket) {
+    const verified = await finalizeDirectUpload({
+      ticket: uploadTicket,
+      expectedPurpose: TUTOR_HOMEWORK_EDIT_UPLOAD_PURPOSE,
+      expectedUserId: tutor.id,
+      expectedScope: homeworkId,
+      policy: HOMEWORK_POLICY,
+    });
+    if (!verified.ok) throw new Error(verified.error);
+    attachmentUrl = verified.value.path;
   } else if (removeAttachment) {
     attachmentUrl = null;
   }
 
-  // Best-effort cleanup of the replaced/removed object (only for stored paths,
-  // never external links). Never blocks the metadata update.
+  try {
+    await db
+      .update(homework)
+      .set({
+        title,
+        description: description || null,
+        dueDate,
+        allowResubmission,
+        isTest,
+        attachmentUrl,
+      })
+      .where(eq(homework.id, homeworkId));
+  } catch (error) {
+    if (uploadTicket) await discardDirectUpload(uploadTicket);
+    throw error;
+  }
+
+  // Best-effort cleanup only after the database points at the replacement.
+  // The service client is required because this private bucket intentionally
+  // has no broad storage.objects policy.
   if (
     (hasNewFile || removeAttachment) &&
     oldPath &&
@@ -476,24 +570,11 @@ export async function updateHomework(formData: FormData) {
     !oldPath.startsWith("http")
   ) {
     try {
-      const supabase = await createClient();
-      await supabase.storage.from(HOMEWORK_BUCKET).remove([oldPath]);
+      await createAdminClient().storage.from(HOMEWORK_BUCKET).remove([oldPath]);
     } catch (err) {
       console.error("homework old attachment cleanup failed", err);
     }
   }
-
-  await db
-    .update(homework)
-    .set({
-      title,
-      description: description || null,
-      dueDate,
-      allowResubmission,
-      isTest,
-      attachmentUrl,
-    })
-    .where(eq(homework.id, homeworkId));
 
   revalidatePath(`/tutor/homework/${homeworkId}`);
   revalidatePath("/tutor/homework");
@@ -737,33 +818,82 @@ const attachmentMetaSchema = z.object({
   subjectWeekId: z.string().uuid(),
 });
 
-export async function addTutorWeekAttachment(formData: FormData) {
+const TUTOR_WEEK_UPLOAD_PURPOSE = "tutor-week-attachment";
+
+/**
+ * Return a one-file Supabase upload token after checking that this tutor owns
+ * the selected subject week. The PDF itself travels browser -> Supabase, not
+ * through the Vercel Server Action request body.
+ */
+export async function prepareTutorWeekAttachmentUpload(input: {
+  classId: string;
+  subjectWeekId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}) {
   const user = await requireRole("tutor");
-  const parsed = attachmentMetaSchema.safeParse({
-    classId: formData.get("classId"),
-    subjectWeekId: formData.get("subjectWeekId"),
-  });
+  const parsed = directFileSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.message };
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false as const, error: "No file provided" };
-  }
+  await assertOwnsClass(user.id, parsed.data.classId);
   if (!(await tutorTeachesSubjectWeek(user.id, parsed.data.subjectWeekId))) {
     return { ok: false as const, error: "Not your subject" };
   }
+
   const sectionId = await ensureTutorSection(user.id, parsed.data.subjectWeekId);
-  const up = await uploadTutorAttachment(sectionId, randomUUID(), file);
-  if (!up.ok) return { ok: false as const, error: up.error };
+  const validated = validateUploadMetadata(
+    { size: parsed.data.sizeBytes, type: parsed.data.contentType },
+    ATTACHMENT_POLICY,
+  );
+  if (!validated.ok) return validated;
+  return createDirectUploadGrant({
+    purpose: TUTOR_WEEK_UPLOAD_PURPOSE,
+    userId: user.id,
+    scope: parsed.data.subjectWeekId,
+    bucket: BUCKET,
+    path: `tutor-sections/${sectionId}/${randomUUID()}.${validated.file.ext}`,
+    fileName: parsed.data.fileName,
+    sizeBytes: parsed.data.sizeBytes,
+    contentType: parsed.data.contentType,
+    policy: ATTACHMENT_POLICY,
+  });
+}
+
+export async function finalizeTutorWeekAttachmentUpload(input: {
+  classId: string;
+  subjectWeekId: string;
+  ticket: string;
+}) {
+  const user = await requireRole("tutor");
+  const parsed = attachmentMetaSchema
+    .extend({ ticket: z.string().min(1).max(4096) })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
+  await assertOwnsClass(user.id, parsed.data.classId);
+  if (!(await tutorTeachesSubjectWeek(user.id, parsed.data.subjectWeekId))) {
+    return { ok: false as const, error: "Not your subject" };
+  }
+
+  const verified = await finalizeDirectUpload({
+    ticket: parsed.data.ticket,
+    expectedPurpose: TUTOR_WEEK_UPLOAD_PURPOSE,
+    expectedUserId: user.id,
+    expectedScope: parsed.data.subjectWeekId,
+    policy: ATTACHMENT_POLICY,
+  });
+  if (!verified.ok) return verified;
+
+  const sectionId = await ensureTutorSection(user.id, parsed.data.subjectWeekId);
   try {
     await db.insert(tutorWeekAttachments).values({
       sectionId,
-      fileName: file.name,
-      storagePath: up.path,
-      contentType: file.type || null,
-      sizeBytes: file.size,
+      fileName: verified.value.fileName,
+      storagePath: verified.value.path,
+      contentType: verified.value.contentType,
+      sizeBytes: verified.value.sizeBytes,
     });
   } catch (err) {
-    await removeCurriculumObject(up.path);
+    await discardDirectUpload(parsed.data.ticket);
     return { ok: false as const, error: (err as Error).message };
   }
   revalidatePath(`/tutor/classes/${parsed.data.classId}/curriculum`);

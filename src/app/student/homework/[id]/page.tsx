@@ -56,7 +56,7 @@ export default async function HomeworkDetailPage({
 
   const supabase = await createClient();
   const submissionLink = await signedSubmissionLink(supabase, hw.submissionUrl);
-  const attachmentHref = await signHomeworkAttachment(supabase, hw.attachmentUrl);
+  const attachmentHref = await signHomeworkAttachment(hw.attachmentUrl);
 
   // effectiveStatus is "not_started" → "viewed" by now, so omit it here.
   const canSubmit =

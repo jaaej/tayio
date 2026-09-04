@@ -1,7 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import "server-only";
+
+import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 import {
   validateUpload,
-  ATTACHMENT_POLICY,
   VIDEO_POLICY,
   BOOKLET_POLICY,
 } from "@/lib/upload-validation";
@@ -13,7 +14,7 @@ export async function signCurriculumUrl(
   path: string | null,
 ): Promise<string | null> {
   if (!path) return null;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
@@ -34,7 +35,7 @@ export async function uploadCurriculumFile(
 
   const path = `${kind}/${ownerId}.${validated.file.ext}`;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, file, {
@@ -46,26 +47,7 @@ export async function uploadCurriculumFile(
   return { ok: true, path };
 }
 
-export async function uploadTutorAttachment(
-  sectionId: string,
-  fileId: string,
-  file: File,
-): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
-  const validated = await validateUpload(file, ATTACHMENT_POLICY);
-  if (!validated.ok) return validated;
-  const path = `tutor-sections/${sectionId}/${fileId}.${validated.file.ext}`;
-  const supabase = await createClient();
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, {
-      upsert: false,
-      contentType: validated.file.contentType,
-    });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, path };
-}
-
 export async function removeCurriculumObject(path: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   await supabase.storage.from(BUCKET).remove([path]);
 }
