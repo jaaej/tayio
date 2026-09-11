@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { canDM, getUserRole } from "@/lib/dm-permissions";
+import { coarseRole } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
 
 const BODY_MAX = 4000;
@@ -85,7 +86,7 @@ export async function sendMessage(formData: FormData) {
       .where(eq(dmThreads.id, t.id));
   });
 
-  const recipientHref = `/${otherRole}/messages/${t.id}`;
+  const recipientHref = `/${coarseRole(otherRole)}/messages/${t.id}`;
   const existing = await db
     .select({ id: notifications.id })
     .from(notifications)

@@ -113,6 +113,7 @@ export default async function TimetablePage({
     status: l.status,
     subjectName: l.subjectName,
     className: l.className,
+    location: l.location,
     studentState: l.studentState,
     moveLabel: l.moveLabel,
   }));

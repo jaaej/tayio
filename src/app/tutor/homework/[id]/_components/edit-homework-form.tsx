@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { FileText, ExternalLink } from "lucide-react";
 import {
   prepareTutorHomeworkEditAttachmentUpload,
   updateHomework,
@@ -19,6 +20,7 @@ export function EditHomeworkForm({
   allowResubmission,
   isTest,
   hasAttachment,
+  attachmentHref,
 }: {
   homeworkId: string;
   title: string;
@@ -27,6 +29,7 @@ export function EditHomeworkForm({
   allowResubmission: boolean;
   isTest: boolean;
   hasAttachment: boolean;
+  attachmentHref: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -140,6 +143,31 @@ export function EditHomeworkForm({
         </div>
 
         <div className="space-y-1">
+          {hasAttachment && (
+            <div className="mb-3 flex items-center gap-3 rounded-[12px] border border-brand-200 bg-brand-50 p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-surface text-brand-600">
+                <FileText className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-extrabold text-ink">
+                  Current homework attachment
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted">
+                  Open the current file, replace it below, or remove it.
+                </p>
+              </div>
+              {attachmentHref && (
+                <a
+                  href={attachmentHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-3 text-[11px] font-bold text-white hover:bg-brand-700"
+                >
+                  Open file <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              )}
+            </div>
+          )}
           <Label htmlFor="edit-attachment">
             {hasAttachment ? "Replace attachment" : "Add attachment"}
           </Label>

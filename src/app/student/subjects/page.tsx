@@ -119,7 +119,7 @@ export default async function StudentSubjectsIndex({
       {/* Main grid */}
       <div className="grid lg:grid-cols-[2fr_1fr] gap-5 items-start">
         {/* LEFT */}
-        <div className="space-y-5 min-w-0">
+        <div className="min-w-0">
           {/* Subject grid */}
           <div>
             <SectionHead
@@ -139,79 +139,6 @@ export default async function StudentSubjectsIndex({
             </div>
           </div>
 
-          {/* Homework - at-a-glance due-date calendar; the full list lives on /student/homework */}
-          <div>
-            <SectionHead
-              title="Homework due dates"
-              actionHref="/student/homework"
-              actionLabel="All homework →"
-            />
-            {allHomework.length === 0 ? (
-              <Card>
-                <CardBody>
-                  <div className="text-sm text-muted text-center py-2">
-                    No homework assigned yet.
-                  </div>
-                </CardBody>
-              </Card>
-            ) : (
-              <Card className="overflow-hidden">
-                <CardHead
-                  title="Due dates"
-                  action={
-                    <div
-                      role="group"
-                      aria-label="Calendar view"
-                      className="inline-flex rounded-lg border border-line overflow-hidden"
-                    >
-                      <Link
-                        href="/student/subjects"
-                        aria-current={!isMonthView ? "page" : undefined}
-                        className={
-                          !isMonthView
-                            ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
-                            : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
-                        }
-                      >
-                        Week
-                      </Link>
-                      <Link
-                        href={`/student/subjects?month=${monthKey}`}
-                        aria-current={isMonthView ? "page" : undefined}
-                        className={
-                          isMonthView
-                            ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
-                            : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
-                        }
-                      >
-                        Full month
-                      </Link>
-                    </div>
-                  }
-                />
-                <div className="p-4 lg:p-5">
-                  {isMonthView ? (
-                    <MonthCalendar
-                      year={year}
-                      month={month}
-                      lessons={[]}
-                      homework={calendarHomework}
-                      basePath="/student/subjects"
-                      subjectColorHomework
-                    />
-                  ) : (
-                    <WeekCalendar
-                      weekStart={weekStart}
-                      lessons={[]}
-                      homework={calendarHomework}
-                      basePath="/student/subjects"
-                      subjectColorHomework
-                    />
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
         </div>
 
         {/* RIGHT */}
@@ -253,6 +180,80 @@ export default async function StudentSubjectsIndex({
             </CardBody>
           </Card>
         </div>
+      </div>
+
+      {/* Homework spans the full content width beneath subjects and tutors. */}
+      <div>
+        <SectionHead
+          title="Homework due dates"
+          actionHref="/student/homework"
+          actionLabel="All homework →"
+        />
+        {allHomework.length === 0 ? (
+          <Card>
+            <CardBody>
+              <div className="text-sm text-muted text-center py-2">
+                No homework assigned yet.
+              </div>
+            </CardBody>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <CardHead
+              title="Due dates"
+              action={
+                <div
+                  role="group"
+                  aria-label="Calendar view"
+                  className="inline-flex rounded-lg border border-line overflow-hidden"
+                >
+                  <Link
+                    href="/student/subjects"
+                    aria-current={!isMonthView ? "page" : undefined}
+                    className={
+                      !isMonthView
+                        ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
+                        : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
+                    }
+                  >
+                    Week
+                  </Link>
+                  <Link
+                    href={`/student/subjects?month=${monthKey}`}
+                    aria-current={isMonthView ? "page" : undefined}
+                    className={
+                      isMonthView
+                        ? "px-3 py-1.5 text-[11px] font-bold bg-brand-500 text-white"
+                        : "px-3 py-1.5 text-[11px] font-bold text-ink-soft hover:bg-surface-2 transition-colors"
+                    }
+                  >
+                    Full month
+                  </Link>
+                </div>
+              }
+            />
+            <div className="p-4 lg:p-5">
+              {isMonthView ? (
+                <MonthCalendar
+                  year={year}
+                  month={month}
+                  lessons={[]}
+                  homework={calendarHomework}
+                  basePath="/student/subjects"
+                  subjectColorHomework
+                />
+              ) : (
+                <WeekCalendar
+                  weekStart={weekStart}
+                  lessons={[]}
+                  homework={calendarHomework}
+                  basePath="/student/subjects"
+                  subjectColorHomework
+                />
+              )}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

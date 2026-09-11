@@ -72,20 +72,16 @@ export async function StudentShell({
 }) {
   const user = await getCurrentUser();
   let unread = 0;
-  if (user) {
-    try {
-      unread = await getUnreadThreadCount(user.id);
-    } catch (err) {
-      console.error("[student-shell] getUnreadThreadCount failed:", err);
-      unread = 0;
-    }
-  }
   let notifUnread = 0;
   if (user) {
     try {
-      notifUnread = await getUnreadCount(user.id);
+      [unread, notifUnread] = await Promise.all([
+        getUnreadThreadCount(user.id),
+        getUnreadCount(user.id),
+      ]);
     } catch (err) {
-      console.error("[student-shell] getUnreadCount failed:", err);
+      console.error("[student-shell] badge counts failed:", err);
+      unread = 0;
       notifUnread = 0;
     }
   }
@@ -186,7 +182,7 @@ export async function StudentShell({
               <Gamepad2 className="h-5 w-5" />
             </div>
             <div className="leading-tight">
-              <div className="text-[13px] font-extrabold">Math Blitz</div>
+              <div className="text-[13px] font-extrabold">Taiyo Blitz</div>
               <div className="text-[11px] text-white/80">Play &amp; climb the board</div>
             </div>
           </div>

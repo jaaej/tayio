@@ -4,6 +4,7 @@ import { Card } from "@/components/student/card";
 import { StatusBadge } from "@/components/data/status-badge";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import { LESSON_STATUS_LABEL, LESSON_STATUS_STYLE } from "@/lib/status";
 import { getStudentLessonsWithNotes } from "../_lib/queries";
 import { PageHead } from "@/components/student/page-head";
@@ -72,8 +73,7 @@ async function RecordedLessonsTab({ studentId }: { studentId: string }) {
                   </div>
                 </div>
                 <div className="text-sm text-ink-soft">
-                  {l.subjectName}
-                  <span className="text-muted"> · {l.className}</span>
+                  {classDisplayName(l.subjectName, l.className)}
                 </div>
                 <div className="md:justify-self-end">
                   <StatusBadge

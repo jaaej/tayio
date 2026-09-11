@@ -45,6 +45,15 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("routes urgent tutor cover alerts to action needed", () => {
+    expect(
+      notificationGroupFor({
+        title: "URGENT: Cover still needed within 24h",
+        href: "/admin/reschedules#tutor-cover",
+      }),
+    ).toBe("action");
+  });
+
   it("keeps a submitted quiz in the admin action section", () => {
     expect(
       notificationGroupFor({

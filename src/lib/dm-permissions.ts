@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -69,7 +69,13 @@ async function parentTutorShareClass(
     .from(familyLinks)
     .innerJoin(enrollments, eq(enrollments.studentId, familyLinks.studentId))
     .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(and(eq(familyLinks.parentId, parentId), eq(classes.tutorId, tutorId)))
+    .where(
+      and(
+        eq(familyLinks.parentId, parentId),
+        eq(classes.tutorId, tutorId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }
@@ -82,7 +88,13 @@ async function studentTutorShareClass(
     .select({ id: classes.id })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(and(eq(enrollments.studentId, studentId), eq(classes.tutorId, tutorId)))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(classes.tutorId, tutorId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }

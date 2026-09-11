@@ -33,6 +33,7 @@ export type TimetableChip = {
   subjectId: string;
   subjectName: string;
   className: string;
+  location: string | null;
   studentState:
     | "normal"
     | "moved_out"
@@ -699,6 +700,11 @@ function LessonChip({
       <div className={cn("mt-0.5 text-[11px] truncate font-bold", struck && "line-through")}>
         {lesson.subjectName}
       </div>
+      {lesson.location && (
+        <div className="mt-0.5 truncate text-[9px] font-semibold" title={lesson.location}>
+          Location: {lesson.location}
+        </div>
+      )}
       {cancelled ? (
         <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
           Cancelled
@@ -753,6 +759,13 @@ function LessonChip({
           >
             Go to subject
           </Link>
+
+          {lesson.location && (
+            <div className="rounded-md px-2.5 py-2 text-[11px] text-muted">
+              <span className="font-bold text-ink">Location:</span>{" "}
+              {lesson.location}
+            </div>
+          )}
 
           {cancelled ? (
             <div

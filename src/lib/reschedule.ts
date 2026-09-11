@@ -19,6 +19,7 @@ import {
   type AvailableSlot,
 } from "@/lib/availability";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { isCompatibleRescheduleTarget } from "@/lib/reschedule-rules";
 
 const HOUR = 3600 * 1000;
 
@@ -34,6 +35,7 @@ export type ReschedulableLesson = {
   classId: string;
   subjectId: string;
   subjectName: string;
+  subjectYearLevel: string | null;
   className: string;
   tutorId: string;
   tutorName: string;
@@ -64,6 +66,7 @@ export async function getReschedulableLesson(
       classId: lessons.classId,
       subjectId: classes.subjectId,
       subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
       className: classes.name,
       tutorId: lessons.tutorId,
       tutorFirst: profiles.firstName,
@@ -246,6 +249,9 @@ export async function executeMakeupReschedule(p: {
 }): Promise<MakeupResult> {
   const original = await getReschedulableLesson(p.originalLessonId);
   if (!original) return { ok: false, error: "Lesson not found" };
+  if (p.tutorId !== original.tutorId) {
+    return { ok: false, error: "The make-up must stay with the assigned tutor." };
+  }
 
   // Double-booking guard: any lesson for this tutor overlapping the slot?
   const clash = await db
@@ -314,6 +320,16 @@ export async function executeSessionSwitch(p: {
   const original = await getReschedulableLesson(p.originalLessonId);
   const target = await getReschedulableLesson(p.targetLessonId);
   if (!original || !target) return { ok: false, error: "Lesson not found" };
+
+  if (!isCompatibleRescheduleTarget(original, target)) {
+    return {
+      ok: false,
+      error: "The make-up class must have the same subject and year level.",
+    };
+  }
+  if (original.id === target.id || target.classType !== "group") {
+    return { ok: false, error: "Pick another eligible group class." };
+  }
 
   if ((await seatsLeftOn(target.classId, target.id, target.capacity)) <= 0) {
     return { ok: false, error: "That session just filled up - pick another." };

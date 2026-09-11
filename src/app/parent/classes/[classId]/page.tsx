@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { classNameDetail } from "@/lib/class-display";
 import { notFound } from "next/navigation";
 import { ClipboardCheck, UserX, CalendarDays, BookOpen } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
@@ -57,6 +58,10 @@ export default async function ParentClassDetailPage({
   const rate = total > 0 ? Math.round((present / total) * 100) : null;
 
   const childQs = `?child=${selected.id}`;
+  const classDetail = classNameDetail(detail.subjectName, detail.className);
+  const classMeta = [classDetail, scheduleLabel, detail.tutorName]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="space-y-6">
@@ -69,9 +74,7 @@ export default async function ParentClassDetailPage({
 
       <PageHeader
         title={detail.subjectName}
-        sub={`${detail.className} · ${scheduleLabel}${
-          detail.tutorName ? ` · ${detail.tutorName}` : ""
-        }`}
+        sub={classMeta}
       />
 
       <div className="rise" style={{ animationDelay: "20ms" }}>

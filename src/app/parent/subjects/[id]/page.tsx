@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { classNameDetail } from "@/lib/class-display";
 import Link from "next/link";
 import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
@@ -92,6 +93,7 @@ export default async function ParentSubjectPage({
 
   // The way back to the overview lives in the week hero (same control as the
   // student page), so the page no longer opens with a lone back-link row.
+  const classDetail = classNameDetail(data.subjectName, data.className);
   return (
     <div>
       <Card>
@@ -103,8 +105,9 @@ export default async function ParentSubjectPage({
             {data.subjectName}
           </h1>
           <p className="text-sm text-muted mt-1 truncate">
-            {data.className} · {data.currentTerm.year} · Term{" "}
-            {data.currentTerm.termNumber}
+            {[classDetail, data.currentTerm.year, `Term ${data.currentTerm.termNumber}`]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
 

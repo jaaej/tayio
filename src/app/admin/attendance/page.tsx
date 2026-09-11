@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import { DayPicker } from "./_components/day-picker";
 
 type SearchParams = Promise<{ from?: string; date?: string }>;
@@ -151,11 +152,8 @@ export default async function AdminAttendancePage({
                         </div>
                       </div>
                       <div className="col-span-4 min-w-0">
-                        <div className="text-[13px] text-ink truncate">
-                          {r.className}
-                        </div>
-                        <div className="text-[12px] text-muted truncate mt-0.5">
-                          {r.subjectName}
+                        <div className="text-[13px] font-medium text-ink truncate">
+                          {classDisplayName(r.subjectName, r.className)}
                         </div>
                       </div>
                       <div className="col-span-2 text-[13px] text-ink-soft truncate">

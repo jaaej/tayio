@@ -117,6 +117,7 @@ export default async function HomeworkDetailPage({
           allowResubmission={homework.allowResubmission}
           isTest={homework.isTest}
           hasAttachment={Boolean(homework.attachmentUrl)}
+          attachmentHref={attachmentHref}
         />
       </Card>
 

@@ -7,7 +7,6 @@ import {
   Clock,
   Flame,
   Inbox,
-  Send,
 } from "lucide-react";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { SectionHead } from "@/components/student/page-head";
@@ -22,6 +21,7 @@ import {
   startOfMondayWeek,
 } from "@/lib/format";
 import { requireRole } from "@/lib/auth";
+import { classDisplayName } from "@/lib/class-display";
 import {
   getLessonsMissingNotes,
   getRecentLessonNotes,
@@ -30,6 +30,7 @@ import {
   getTutorWeekLessons,
   requireTutor,
 } from "./_data";
+import { BumpMessageButton } from "./_components/bump-message-button";
 
 
 export default async function TutorDashboard() {
@@ -198,7 +199,7 @@ export default async function TutorDashboard() {
                             the subject ("Year 10 Maths · Monday PM"), so it
                             printed the same words twice. */}
                         <div className="text-[14px] font-extrabold text-ink leading-tight truncate">
-                          {l.className}
+                          {classDisplayName(l.subjectName, l.className)}
                         </div>
                         <div className="text-[12px] text-muted tabular-nums">
                           {formatTime(l.startTime)}–{formatTime(l.endTime)}
@@ -351,7 +352,7 @@ export default async function TutorDashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-[13px] font-bold text-ink truncate">
-                              {l.className}
+                              {classDisplayName(l.subjectName, l.className)}
                             </div>
                           </div>
                           <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
@@ -705,13 +706,7 @@ function BumpCard({ bump: b }: { bump: BumpItem }) {
         >
           View profile
         </Link>
-        <Link
-          href={`/tutor/messages/with/${b.studentId}`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 text-[11px] uppercase tracking-[0.12em] font-extrabold transition-all group-hover:translate-x-0.5 shadow-[0_4px_12px_-4px_rgba(50,58,145,0.4)]"
-        >
-          <Send className="h-3.5 w-3.5" />
-          Bump
-        </Link>
+        <BumpMessageButton studentId={b.studentId} />
       </div>
     </div>
   );

@@ -1,8 +1,18 @@
-import { Card, CardHead, Empty, PageHeader, Pill, type PillTone } from "@/components/admin/ui";
+import { Card, CardBody, CardHead, Empty, PageHeader, Pill, type PillTone } from "@/components/admin/ui";
 import { getCreditsOverview } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, formatTime } from "@/lib/format";
 import { type CreditStatus } from "@/lib/reschedule-credits";
+import { getAdminCoverOverview, runTutorCoverReminders } from "@/lib/tutor-cover";
+import {
+  tutorCoverClassLabel,
+  tutorCoverDateLabel,
+} from "@/lib/tutor-cover-rules";
+import {
+  AssignCoverForm,
+  LeaveDecisionButtons,
+  ReopenCoverButton,
+} from "./_components/cover-controls";
 
 const STATUS_TONE: Record<CreditStatus, PillTone> = {
   active: "good",
@@ -27,15 +37,135 @@ const REASON_LABEL: Record<
 
 export default async function AdminReschedulesPage() {
   await requireRole("admin");
-  const { credits, creditsTruncated, usage } = await getCreditsOverview();
+  await runTutorCoverReminders();
+  const [creditData, coverData] = await Promise.all([
+    getCreditsOverview(),
+    getAdminCoverOverview(),
+  ]);
+  const { credits, creditsTruncated, usage } = creditData;
 
   return (
     <div className="space-y-6">
       <PageHeader
         className="rise"
         eyebrow="Reschedules"
-        title="Reschedule credits"
+        title="Reschedules & tutor cover"
       />
+
+      <div id="tutor-cover" className="scroll-mt-20 space-y-6">
+        <Card className="rise" accent={coverData.pendingLeaves.length ? "bad" : "good"}>
+          <CardHead
+            title="Extended leave approvals"
+            eyebrow="Admin action required"
+            action={
+              <Pill tone={coverData.pendingLeaves.length ? "bad" : "good"}>
+                {coverData.pendingLeaves.length} pending
+              </Pill>
+            }
+          />
+          {coverData.pendingLeaves.length === 0 ? (
+            <Empty>No extended leave requests need approval.</Empty>
+          ) : (
+            <ul className="divide-y divide-line">
+              {coverData.pendingLeaves.map((leave) => (
+                <li
+                  key={leave.id}
+                  className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-extrabold text-ink">
+                        {leave.tutorFirst} {leave.tutorLast}
+                      </span>
+                      <Pill tone="warn">
+                        {formatDateLong(leave.startDate)}–{formatDateLong(leave.endDate)}
+                      </Pill>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-[12px] leading-relaxed text-muted">
+                      {leave.reason}
+                    </p>
+                  </div>
+                  <LeaveDecisionButtons leaveRequestId={leave.id} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card className="rise" accent={coverData.board.some((row) => row.status === "open") ? "warn" : "good"}>
+          <CardHead
+            title="Tutor cover notice board"
+            eyebrow="Upcoming classes"
+            action={
+              <Pill tone={coverData.board.some((row) => row.status === "open") ? "warn" : "good"}>
+                {coverData.board.filter((row) => row.status === "open").length} open
+              </Pill>
+            }
+          />
+          {coverData.board.length === 0 ? (
+            <Empty>No upcoming cover requests.</Empty>
+          ) : (
+            <ul className="divide-y divide-line">
+              {coverData.board.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-extrabold text-ink">
+                        {tutorCoverClassLabel(row.subjectName, row.className)}
+                      </span>
+                      <Pill
+                        tone={
+                          row.status === "claimed"
+                            ? "good"
+                            : row.hoursRemaining <= 48
+                              ? "bad"
+                              : "warn"
+                        }
+                      >
+                        {row.status === "claimed"
+                          ? "Covered"
+                          : row.hoursRemaining <= 24
+                            ? "Under 24h"
+                            : row.hoursRemaining <= 48
+                              ? "Under 48h"
+                              : "Needs cover"}
+                      </Pill>
+                    </div>
+                    <div className="mt-1 text-[12px] font-semibold text-ink-soft">
+                      {tutorCoverDateLabel(row.date, row.className)} · {formatTime(row.startTime)}–{formatTime(row.endTime)} · {row.location ?? "Location TBC"}
+                    </div>
+                    <p className="mt-1 text-[12px] text-muted">
+                      {row.originalTutorFirst} {row.originalTutorLast}: {row.reason}
+                    </p>
+                    {row.status === "claimed" && (
+                      <p className="mt-1 text-[12px] font-bold text-good">
+                        Covered by {row.replacementTutorFirst} {row.replacementTutorLast}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <AssignCoverForm
+                      coverRequestId={row.id}
+                      originalTutorId={row.originalTutorId}
+                      currentReplacementTutorId={row.replacementTutorId}
+                      tutors={coverData.tutors}
+                    />
+                    {row.status === "claimed" && (
+                      <ReopenCoverButton coverRequestId={row.id} />
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <CardBody className="border-t border-line bg-surface-2/60 py-3 text-[11px] text-muted">
+            All active tutors may claim a shift. The system blocks timetable clashes and notifies admin whenever cover is posted, claimed, or released.
+          </CardBody>
+        </Card>
+      </div>
 
       <Card className="rise">
         <CardHead

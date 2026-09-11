@@ -27,6 +27,22 @@ export const STUDENT_TIERS = [
   "student_restricted",
 ] as const satisfies readonly UserRole[];
 
+/** Human-readable account labels. Keep storage and permission values internal. */
+export const USER_ROLE_LABELS = {
+  student: "Student – parental access",
+  student_restricted: "Student – parental access",
+  student_unrestricted: "Student",
+  parent: "Parent",
+  tutor: "Tutor",
+  admin: "Admin – owner",
+  admin_restricted: "Admin – reception",
+  admin_unrestricted: "Admin – owner",
+} as const satisfies Record<UserRole, string>;
+
+export function roleLabel(role: UserRole): string {
+  return USER_ROLE_LABELS[role];
+}
+
 /** Collapse a (possibly tiered) role to its coarse family. */
 export function coarseRole(role: UserRole): CoarseRole {
   if (role.startsWith("admin")) return "admin";
@@ -74,16 +90,43 @@ export function isUnrestrictedAdmin(
   return !!role && coarseRole(role) === "admin" && role !== "admin_restricted";
 }
 
+/** Reception can manage operational student/parent/tutor records, but another
+ * admin account is an owner-controlled security boundary. Use this for account
+ * edits, resets, and activation changes as well as for role assignment. */
+export function canAdminManageAccount(
+  actorRole: UserRole | null | undefined,
+  targetRole: UserRole,
+): boolean {
+  if (!actorRole || coarseRole(actorRole) !== "admin") return false;
+  return isUnrestrictedAdmin(actorRole) || coarseRole(targetRole) !== "admin";
+}
+
 /**
  * Assignable account roles for the admin user-management forms, with
  * human-readable labels. Only tiered values are offered - new/edited accounts
  * should always carry a tier, never a bare coarse role.
  */
 export const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "student_restricted", label: "Student - restricted" },
-  { value: "student_unrestricted", label: "Student - unrestricted" },
-  { value: "parent", label: "Parent" },
-  { value: "tutor", label: "Tutor" },
-  { value: "admin_restricted", label: "Admin - reception" },
-  { value: "admin_unrestricted", label: "Admin - owner" },
+  { value: "student_restricted", label: roleLabel("student_restricted") },
+  { value: "student_unrestricted", label: roleLabel("student_unrestricted") },
+  { value: "parent", label: roleLabel("parent") },
+  { value: "tutor", label: roleLabel("tutor") },
+  { value: "admin_restricted", label: roleLabel("admin_restricted") },
+  { value: "admin_unrestricted", label: roleLabel("admin_unrestricted") },
 ];
+
+/**
+ * Roles offered by the create-user form. Reception can create student and
+ * parent accounts, but tutor/admin creation remains owner-only. Keeping the
+ * filtering here makes the visual choices match the server-side permission
+ * boundary and gives that boundary a small regression-testable surface.
+ */
+export function createUserRoleOptions(
+  canManagePrivilegedRoles: boolean,
+): { value: UserRole; label: string }[] {
+  if (canManagePrivilegedRoles) return ROLE_OPTIONS;
+  return ROLE_OPTIONS.filter(
+    (option) =>
+      coarseRole(option.value) !== "admin" && option.value !== "tutor",
+  );
+}

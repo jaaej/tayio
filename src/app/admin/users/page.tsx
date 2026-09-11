@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { Users, GraduationCap, UserCog, Baby } from "lucide-react";
 import type { UserRole } from "@/db/schema";
-import { coarseRole, isUnrestrictedAdmin, type CoarseRole } from "@/lib/roles";
+import {
+  coarseRole,
+  isUnrestrictedAdmin,
+  roleLabel,
+  type CoarseRole,
+} from "@/lib/roles";
 import { getCurrentUser } from "@/lib/auth";
 import {
   directoryStatus,
@@ -109,7 +114,12 @@ export default async function UsersPage({
       (!roleFilter || coarseRole(u.role) === roleFilter) &&
       (!query ||
         `${u.firstName} ${u.lastName}`.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query)),
+        u.email.toLowerCase().includes(query) ||
+        u.classInfo.some(
+          (item) =>
+            item.name.toLowerCase().includes(query) ||
+            item.subjectName.toLowerCase().includes(query),
+        )),
   );
 
   const sorted = [...listed].sort((a, b) => {
@@ -157,7 +167,7 @@ export default async function UsersPage({
           {/* Search and role live at the top of the table's own card: they are
               the table's controls, not a separate surface to look in. */}
           <FilterToolbar
-            searchPlaceholder="Search name or email"
+            searchPlaceholder="Search name, email, class, or subject"
             pillParam="role"
             pills={ROLE_PILLS}
           />
@@ -177,12 +187,20 @@ export default async function UsersPage({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <Empty>No accounts match these filters.</Empty>
                     </td>
                   </tr>
                 ) : (
-                  rows.map((u) => <UserRow key={u.id} user={u} />)
+                  rows.map((u) => (
+                    <UserRow
+                      key={u.id}
+                      user={u}
+                      canManageAccount={
+                        canManageRoles || coarseRole(u.role) !== "admin"
+                      }
+                    />
+                  ))
                 )}
               </tbody>
             </table>
@@ -193,8 +211,22 @@ export default async function UsersPage({
   );
 }
 
-function UserRow({ user: u }: { user: DirectoryUser }) {
+function UserRow({
+  user: u,
+  canManageAccount,
+}: {
+  user: DirectoryUser;
+  canManageAccount: boolean;
+}) {
   const status = directoryStatus(u);
+  // This directory answers "what do they teach/study?". Collapse several
+  // class slots for the same subject and keep weekday/session details on the
+  // linked class page itself.
+  const subjectBadges = Array.from(
+    new Map(
+      u.classInfo.map((item) => [item.subjectName.trim().toLowerCase(), item]),
+    ).values(),
+  );
 
   return (
     <tr className="border-b border-line hover:bg-surface-2 transition-colors">
@@ -205,14 +237,86 @@ function UserRow({ user: u }: { user: DirectoryUser }) {
         >
           {u.firstName} {u.lastName}
         </Link>
+        {u.linkedFamily.length > 0 && (
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] font-medium text-muted">
+            <span>{coarseRole(u.role) === "parent" ? "Children:" : "Parents:"}</span>
+            {u.linkedFamily.map((person, index) => (
+              <span key={person.id} className="inline-flex items-center gap-1">
+                {index > 0 && <span aria-hidden>·</span>}
+                <Link
+                  href={`/admin/users/${person.id}`}
+                  className="font-bold text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  {person.name}
+                </Link>
+              </span>
+            ))}
+          </div>
+        )}
+        {u.adminNotes.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {u.adminNotes.slice(0, 2).map((item) => (
+              <div
+                key={item.classId}
+                title={`${item.className}: ${item.note}`}
+                className="max-w-[300px] rounded-[8px] border border-warn/25 bg-warn-bg px-2.5 py-1.5 text-[11px] font-medium leading-snug text-warn"
+              >
+                <span className="font-bold">Note · {item.className}:</span>{" "}
+                <span className="line-clamp-2">{item.note}</span>
+              </div>
+            ))}
+            {u.adminNotes.length > 2 && (
+              <span className="block text-[10px] font-bold text-muted">
+                +{u.adminNotes.length - 2} more note
+                {u.adminNotes.length - 2 === 1 ? "" : "s"} in profile
+              </span>
+            )}
+          </div>
+        )}
       </Td>
       <Td className="text-muted">{u.email}</Td>
       <Td>
-        <Pill tone={ROLE_TONE[coarseRole(u.role)]}>{u.role}</Pill>
+        <Pill tone={ROLE_TONE[coarseRole(u.role)]}>{roleLabel(u.role)}</Pill>
       </Td>
       <Td className="text-muted">
         {u.yearLevel ? `Yr ${u.yearLevel}` : "-"}
         {u.school ? ` · ${u.school}` : ""}
+      </Td>
+      <Td>
+        {u.classInfo.length === 0 && u.deliveryModes.length === 0 ? (
+          <span className="text-muted">-</span>
+        ) : (
+          <div className="min-w-[210px] space-y-1.5">
+            {subjectBadges.length > 0 && (
+              <div className="flex max-w-[330px] flex-wrap gap-1">
+                {subjectBadges.slice(0, 3).map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/admin/classes/${item.id}`}
+                    title={item.subjectName}
+                    className="inline-flex max-w-[210px] items-center truncate rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700 hover:border-brand-400 hover:bg-brand-100"
+                  >
+                    {item.subjectName}
+                  </Link>
+                ))}
+                {subjectBadges.length > 3 && (
+                  <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[11px] font-bold text-muted">
+                    +{subjectBadges.length - 3} more
+                  </span>
+                )}
+              </div>
+            )}
+            {u.deliveryModes.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {u.deliveryModes.map((mode) => (
+                  <Pill key={mode} tone={mode === "online" ? "info" : "mint"}>
+                    {mode === "online" ? "Online" : "In person"}
+                  </Pill>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Td>
       <Td>
         <div className="flex flex-col items-start gap-1">
@@ -236,6 +340,7 @@ function UserRow({ user: u }: { user: DirectoryUser }) {
           email={u.email}
           isActive={u.isActive}
           name={`${u.firstName} ${u.lastName}`}
+          canManageAccount={canManageAccount}
         />
       </Td>
     </tr>

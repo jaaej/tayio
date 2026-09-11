@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -175,7 +175,10 @@ export async function getStudentActivity(
     .where(
       and(
         eq(rescheduleRequests.studentId, studentId),
-        eq(rescheduleRequests.status, "approved"),
+        // Keep this enum constant in SQL. It avoids a stale dev/pooler
+        // parameter type being reused as boolean ("f"), which otherwise makes
+        // the optional activity panel take down the whole user profile.
+        sql`${rescheduleRequests.status} = 'approved'::reschedule_status`,
       ),
     )
     .orderBy(desc(rescheduleRequests.createdAt));

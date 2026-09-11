@@ -49,7 +49,9 @@ export async function getCancellationsUsed(
   termId: string,
 ): Promise<number> {
   const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({
+      count: sql<number>`count(distinct ${lessonCancellations.lessonId})::int`,
+    })
     .from(lessonCancellations)
     .where(
       and(
@@ -72,7 +74,12 @@ export async function getReschedulesUsed(
   if (!term) return 0;
 
   const [{ count: rescheduleCount }] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({
+      // A student can change the destination of the same original lesson. It
+      // remains one allowance use, even if legacy/duplicate history contains
+      // more than one approved row for that source lesson.
+      count: sql<number>`count(distinct ${rescheduleRequests.originalLessonId})::int`,
+    })
     .from(rescheduleRequests)
     .innerJoin(lessons, eq(lessons.id, rescheduleRequests.originalLessonId))
     .innerJoin(profiles, eq(profiles.id, rescheduleRequests.requestedById))
@@ -87,7 +94,9 @@ export async function getReschedulesUsed(
     );
 
   const [{ count: creditCount }] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({
+      count: sql<number>`count(distinct ${classCredits.grantedFromLessonId})::int`,
+    })
     .from(classCredits)
     .where(
       and(

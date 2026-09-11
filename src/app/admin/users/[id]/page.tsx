@@ -4,8 +4,15 @@ import { notFound } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { familyLinks, profiles, type UserRole } from "@/db/schema";
-import { STUDENT_TIERS, coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import {
+  STUDENT_TIERS,
+  canAdminManageAccount,
+  coarseRole,
+  isUnrestrictedAdmin,
+  roleLabel,
+} from "@/lib/roles";
 import { getCurrentUser } from "@/lib/auth";
+import { classDisplayName } from "@/lib/class-display";
 import { alias } from "drizzle-orm/pg-core";
 import {
   Card,
@@ -56,16 +63,22 @@ export default async function UserDetailPage({
   const { id } = await params;
   const { tab, month } = await searchParams;
 
-  const [user] = await db.select().from(profiles).where(eq(profiles.id, id));
+  const [[user], me] = await Promise.all([
+    db.select().from(profiles).where(eq(profiles.id, id)),
+    getCurrentUser(),
+  ]);
   if (!user) notFound();
 
   // Parsed against the role, so a stale cross-role link falls back to Profile
   // instead of rendering an empty panel.
   const activeTab = parseTabParam(tab, user.role);
 
-  const me = await getCurrentUser();
   const canManageRoles = isUnrestrictedAdmin(
     me?.app_metadata?.role as UserRole | undefined,
+  );
+  const canEditProfile = canAdminManageAccount(
+    me?.app_metadata?.role as UserRole | undefined,
+    user.role,
   );
 
   const isStudent = coarseRole(user.role) === "student";
@@ -83,13 +96,19 @@ export default async function UserDetailPage({
     calendarLessons,
   ] = isStudent
     ? await Promise.all([
-        getStudentActivity(id),
-        getStudentAllowanceSummary(id),
-        getStudentEnrolledSubjects(id),
-        getStudentLeave(id),
-        getReportTerms(),
+        activeTab === "credits" ? getStudentActivity(id) : Promise.resolve(null),
+        activeTab === "credits"
+          ? getStudentAllowanceSummary(id)
+          : Promise.resolve(null),
+        activeTab === "credits"
+          ? getStudentEnrolledSubjects(id)
+          : Promise.resolve(null),
+        activeTab === "lessons" ? getStudentLeave(id) : Promise.resolve(null),
+        activeTab === "reports" ? getReportTerms() : Promise.resolve([]),
         getStudentTrial(id),
-        getStudentLessonsInRange(id, fromIso, toIso),
+        activeTab === "lessons"
+          ? getStudentLessonsInRange(id, fromIso, toIso)
+          : Promise.resolve([]),
       ])
     : [null, null, null, null, [], null, []];
 
@@ -103,25 +122,30 @@ export default async function UserDetailPage({
       ])
     : [null, null];
 
-  const allStudents = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-    })
-    .from(profiles)
-    .where(inArray(profiles.role, STUDENT_TIERS));
-
-  const allParents = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-    })
-    .from(profiles)
-    .where(eq(profiles.role, "parent"));
+  const [allStudents, allParents] = await Promise.all([
+    user.role === "parent"
+      ? db
+          .select({
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            email: profiles.email,
+          })
+          .from(profiles)
+          .where(inArray(profiles.role, STUDENT_TIERS))
+      : Promise.resolve([]),
+    isStudent
+      ? db
+          .select({
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            email: profiles.email,
+          })
+          .from(profiles)
+          .where(eq(profiles.role, "parent"))
+      : Promise.resolve([]),
+  ]);
 
   type LinkedPerson = {
     id: string;
@@ -181,6 +205,7 @@ export default async function UserDetailPage({
             school={user.school ?? ""}
             role={user.role}
             canManageRoles={canManageRoles}
+            canEditProfile={canEditProfile}
           />
         </CardBody>
       </Card>
@@ -338,10 +363,7 @@ export default async function UserDetailPage({
               >
                 <div className="min-w-0">
                   <div className="truncate text-[14px] font-bold text-ink">
-                    {c.name}
-                  </div>
-                  <div className="truncate text-[12px] text-muted">
-                    {c.subjectName}
+                    {classDisplayName(c.subjectName, c.name)}
                   </div>
                 </div>
                 <span className="shrink-0 text-[12px] font-semibold text-ink-soft tabular-nums">
@@ -439,7 +461,7 @@ export default async function UserDetailPage({
           <AtAGlance
             rows={[
               { label: "Status", value: user.isActive ? "Active" : "Inactive" },
-              { label: "Role", value: user.role },
+              { label: "Role", value: roleLabel(user.role) },
               ...(isStudent
                 ? [
                     { label: "Year level", value: user.yearLevel ?? "Not set" },

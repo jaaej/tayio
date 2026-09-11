@@ -15,10 +15,12 @@ export function TopicsPanel({
   subjectId,
   topics,
   weekCounts,
+  embedded = false,
 }: {
   subjectId: string;
   topics: Topic[];
   weekCounts: Record<string, number>;
+  embedded?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -34,8 +36,14 @@ export function TopicsPanel({
   }
 
   return (
-    <div className="rounded-[14px] border border-line bg-surface p-4 space-y-3">
-      <div className="text-[14px] font-bold text-ink">Topics</div>
+    <div
+      className={
+        embedded
+          ? "space-y-4"
+          : "space-y-3 rounded-[14px] border border-line bg-surface p-4"
+      }
+    >
+      {!embedded && <div className="text-[14px] font-bold text-ink">Topics</div>}
 
       {topics.length === 0 ? (
         <div className="text-[13px] text-ink-soft">
@@ -44,7 +52,10 @@ export function TopicsPanel({
       ) : (
         <ul className="space-y-1.5">
           {topics.map((t, i) => (
-            <li key={t.id} className="flex items-center gap-2">
+            <li
+              key={t.id}
+              className="flex flex-wrap items-center gap-2 rounded-[12px] border border-line bg-surface-2 px-3 py-2.5"
+            >
               {editingId === t.id ? (
                 <form
                   action={(fd) => run(() => renameSubjectTopic(t.id, subjectId, fd))}
@@ -113,7 +124,7 @@ export function TopicsPanel({
           fd.set("subjectId", subjectId);
           run(() => createSubjectTopic(fd));
         }}
-        className="flex items-center gap-2 pt-1"
+        className="flex flex-wrap items-center gap-2 rounded-[12px] border border-dashed border-line-strong bg-surface px-3 py-3"
       >
         <input
           name="name"

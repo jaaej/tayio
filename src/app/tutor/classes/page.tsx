@@ -8,6 +8,7 @@ import {
   type CalendarEvent,
 } from "@/components/data/mini-week-calendar";
 import { formatDateLong, formatTime, startOfMondayWeek } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -131,7 +132,11 @@ export default async function TutorClassesPage() {
                         </span>
                       </div>
                       <div className="text-[12px] text-muted mt-0.5 truncate">
-                        {nextLesson.className} ·{" "}
+                        {classDisplayName(
+                          nextLesson.subjectName,
+                          nextLesson.className,
+                        )}{" "}
+                        ·{" "}
                         {nextLesson.isToday
                           ? "Open to mark attendance and write notes"
                           : "Open the lesson"}
@@ -185,7 +190,7 @@ export default async function TutorClassesPage() {
                         className="text-[14px] font-extrabold leading-tight truncate"
                         style={{ color: accent.title }}
                       >
-                        {c.name}
+                        {classDisplayName(c.subjectName, c.name)}
                       </div>
                     </div>
                   </div>

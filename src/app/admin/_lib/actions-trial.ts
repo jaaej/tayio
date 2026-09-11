@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -9,6 +10,7 @@ import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
 import { coarseRole } from "@/lib/roles";
 import { validateTrialRange } from "@/lib/student-trial";
+import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
 
 const setSchema = z.object({
   studentId: z.string().uuid(),
@@ -55,6 +57,19 @@ export async function setStudentTrial(input: z.infer<typeof setSchema>) {
         },
       }),
   );
+
+  // The trial is already committed, so return the form response immediately.
+  // The idempotent sweep can safely finish after the response (and the daily
+  // cron remains the fallback) without making an admin wait on every trial and
+  // lesson query in the system.
+  after(async () => {
+    try {
+      await runFreeTrialNotifications();
+      revalidatePath("/admin/notifications");
+    } catch (error) {
+      console.error("[student-trial] notification sweep failed:", error);
+    }
+  });
 
   revalidatePath(`/admin/users/${data.studentId}`);
   return { ok: true as const };

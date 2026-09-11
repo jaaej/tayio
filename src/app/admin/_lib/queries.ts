@@ -35,6 +35,7 @@ import {
   classCredits,
   classes,
   enrollments,
+  familyLinks,
   homeworkAssignments,
   invoices,
   lessonCancellations,
@@ -733,6 +734,14 @@ export type DirectoryUser = {
   withdrawnClasses: number;
   /** Most recent withdrawal date, or null if they have never withdrawn. */
   lastWithdrawnAt: Date | null;
+  /** Parent/child accounts linked through the family relationship table. */
+  linkedFamily: Array<{ id: string; name: string }>;
+  /** Current class and subject context for student and tutor directory rows. */
+  classInfo: Array<{ id: string; name: string; subjectName: string }>;
+  /** Short internal notes attached to the student's current enrolments. */
+  adminNotes: Array<{ classId: string; className: string; note: string }>;
+  /** Delivery modes used across the user's current classes. */
+  deliveryModes: Array<"in_person" | "online">;
 };
 
 /**
@@ -741,7 +750,15 @@ export type DirectoryUser = {
  * "Discontinued" tab (and, before that, the standalone `/admin/leaving` page).
  */
 export async function getUserDirectory(): Promise<DirectoryUser[]> {
-  const [people, enrolmentTotals] = await Promise.all([
+  const linkedParent = alias(profiles, "directory_linked_parent");
+  const linkedStudent = alias(profiles, "directory_linked_student");
+  const [
+    people,
+    enrolmentTotals,
+    linkedRows,
+    studentClassRows,
+    tutorClassRows,
+  ] = await Promise.all([
     db
       .select({
         id: profiles.id,
@@ -763,17 +780,145 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       })
       .from(enrollments)
       .groupBy(enrollments.studentId),
+    db
+      .select({
+        parentId: familyLinks.parentId,
+        parentFirstName: linkedParent.firstName,
+        parentLastName: linkedParent.lastName,
+        studentId: familyLinks.studentId,
+        studentFirstName: linkedStudent.firstName,
+        studentLastName: linkedStudent.lastName,
+      })
+      .from(familyLinks)
+      .innerJoin(linkedParent, eq(linkedParent.id, familyLinks.parentId))
+      .innerJoin(linkedStudent, eq(linkedStudent.id, familyLinks.studentId)),
+    db
+      .select({
+        userId: enrollments.studentId,
+        classId: classes.id,
+        className: classes.name,
+        subjectName: subjects.name,
+        deliveryMode: enrollments.deliveryMode,
+        location: classes.location,
+        onlineLink: classes.onlineLink,
+        adminNote: enrollments.adminNotes,
+      })
+      .from(enrollments)
+      .innerJoin(classes, eq(classes.id, enrollments.classId))
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+      .where(isNull(enrollments.withdrawnAt)),
+    db
+      .select({
+        userId: classes.tutorId,
+        classId: classes.id,
+        className: classes.name,
+        subjectName: subjects.name,
+        location: classes.location,
+        onlineLink: classes.onlineLink,
+      })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId)),
   ]);
 
   const totals = new Map(enrolmentTotals.map((t) => [t.studentId, t]));
+  const linkedByUser = new Map<string, Array<{ id: string; name: string }>>();
+  const addLink = (userId: string, linked: { id: string; name: string }) => {
+    const list = linkedByUser.get(userId) ?? [];
+    list.push(linked);
+    linkedByUser.set(userId, list);
+  };
+  for (const row of linkedRows) {
+    addLink(row.parentId, {
+      id: row.studentId,
+      name: `${row.studentFirstName} ${row.studentLastName}`.trim(),
+    });
+    addLink(row.studentId, {
+      id: row.parentId,
+      name: `${row.parentFirstName} ${row.parentLastName}`.trim(),
+    });
+  }
+
+  type ClassInfo = DirectoryUser["classInfo"][number];
+  type AdminNote = DirectoryUser["adminNotes"][number];
+  type DeliveryMode = DirectoryUser["deliveryModes"][number];
+  const classesByUser = new Map<string, Map<string, ClassInfo>>();
+  const notesByUser = new Map<string, AdminNote[]>();
+  const modesByUser = new Map<string, Set<DeliveryMode>>();
+
+  const addClass = (userId: string, item: ClassInfo) => {
+    const items = classesByUser.get(userId) ?? new Map<string, ClassInfo>();
+    items.set(item.id, item);
+    classesByUser.set(userId, items);
+  };
+  const addMode = (userId: string, mode: DeliveryMode) => {
+    const modes = modesByUser.get(userId) ?? new Set<DeliveryMode>();
+    modes.add(mode);
+    modesByUser.set(userId, modes);
+  };
+  const addClassDefaultModes = (
+    userId: string,
+    location: string | null,
+    onlineLink: string | null,
+  ) => {
+    if (location?.trim()) addMode(userId, "in_person");
+    if (onlineLink?.trim()) addMode(userId, "online");
+  };
+
+  for (const row of studentClassRows) {
+    addClass(row.userId, {
+      id: row.classId,
+      name: row.className,
+      subjectName: row.subjectName,
+    });
+    if (row.deliveryMode) {
+      addMode(row.userId, row.deliveryMode);
+    } else {
+      addClassDefaultModes(row.userId, row.location, row.onlineLink);
+    }
+
+    const note = row.adminNote?.trim();
+    if (note) {
+      const notes = notesByUser.get(row.userId) ?? [];
+      notes.push({
+        classId: row.classId,
+        className: row.className,
+        note,
+      });
+      notesByUser.set(row.userId, notes);
+    }
+  }
+
+  for (const row of tutorClassRows) {
+    addClass(row.userId, {
+      id: row.classId,
+      name: row.className,
+      subjectName: row.subjectName,
+    });
+    addClassDefaultModes(row.userId, row.location, row.onlineLink);
+  }
 
   return people.map((p) => {
     const t = totals.get(p.id);
+    const classInfo = Array.from(classesByUser.get(p.id)?.values() ?? []).sort(
+      (a, b) =>
+        a.subjectName.localeCompare(b.subjectName) || a.name.localeCompare(b.name),
+    );
+    const deliveryModeSet = modesByUser.get(p.id);
     return {
       ...p,
       activeClasses: Number(t?.activeClasses ?? 0),
       withdrawnClasses: Number(t?.withdrawnClasses ?? 0),
       lastWithdrawnAt: t?.lastWithdrawnAt ? new Date(t.lastWithdrawnAt) : null,
+      linkedFamily: (linkedByUser.get(p.id) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+      classInfo,
+      adminNotes: (notesByUser.get(p.id) ?? []).sort((a, b) =>
+        a.className.localeCompare(b.className),
+      ),
+      deliveryModes: (["in_person", "online"] as const).filter((mode) =>
+        deliveryModeSet?.has(mode),
+      ),
     };
   });
 }

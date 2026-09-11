@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { UserRole } from "@/db/schema";
+import { roleLabel } from "@/lib/roles";
 import { initialOf, roleColor } from "./dm-visuals";
 
 /**
@@ -40,7 +41,7 @@ export function ConversationHeader({
           className="text-[10px] font-bold uppercase tracking-[0.14em]"
           style={{ color }}
         >
-          {otherRole}
+          {roleLabel(otherRole)}
         </div>
       </div>
     </div>

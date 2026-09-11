@@ -3,6 +3,7 @@ import { CalendarCheck, ChevronDown } from "lucide-react";
 import { Card, CardBody, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { formatTime } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import { getTutorDirectory } from "@/app/admin/_lib/queries";
 import { TutorBankForm } from "./_components/tutor-bank-form";
 
@@ -110,10 +111,7 @@ export default async function AdminTutorsPage() {
                             >
                               <div className="min-w-0">
                                 <div className="text-[13px] font-bold text-ink truncate">
-                                  {c.className}
-                                </div>
-                                <div className="text-[11px] text-muted truncate">
-                                  {c.subjectName}
+                                  {classDisplayName(c.subjectName, c.className)}
                                 </div>
                               </div>
                               <div className="text-[12px] font-semibold text-ink-soft tabular-nums shrink-0">

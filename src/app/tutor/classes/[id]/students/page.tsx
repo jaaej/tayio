@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { classNameDetail } from "@/lib/class-display";
 
 export default async function TutorClassStudentsPage({
   params,
@@ -35,6 +36,7 @@ export default async function TutorClassStudentsPage({
     .where(and(eq(classes.id, classId), eq(classes.tutorId, user.id)))
     .limit(1);
   if (!cls) notFound();
+  const classDetail = classNameDetail(cls.subjectName, cls.name);
 
   const students = await db
     .select({
@@ -120,8 +122,8 @@ export default async function TutorClassStudentsPage({
       </Link>
 
       <PageHead
-        eyebrow={cls.subjectName}
-        title={`${cls.name} - Students`}
+        eyebrow={classDetail ? cls.subjectName : undefined}
+        title={`${classDetail || cls.subjectName} - Students`}
       />
 
       {todaysLesson ? (

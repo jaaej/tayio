@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
 import { Card, CardHead, CardBody, Pill, PageHeader, Empty } from "@/components/admin/ui";
 import { formatTime } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { CreateSubjectPanel } from "./_components/create-subject-panel";
@@ -111,7 +112,23 @@ export default async function ClassesPage({
         className="rise"
         eyebrow="Operations"
         title="Class Management"
-        actions={<CreateClassPanel tutors={tutors} subjects={subjectList} />}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href="/admin/tutors/availability"
+              className="inline-flex min-h-9 items-center rounded-[9px] border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink transition-colors hover:border-brand-400 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              Review tutor availability
+            </Link>
+            <Link
+              href="/admin/terms"
+              className="inline-flex min-h-9 items-center rounded-[9px] border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink transition-colors hover:border-brand-400 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              Manage terms
+            </Link>
+            <CreateClassPanel tutors={tutors} subjects={subjectList} />
+          </div>
+        }
       />
 
       {/* Subjects lead: they are the shortest surface on the page and a class
@@ -413,7 +430,7 @@ function MonthView({
                       key={c.id}
                       href={`/admin/classes/${c.id}`}
                       className="block rounded-lg px-1.5 py-1 text-[10px] leading-tight bg-brand-50 hover:bg-brand-100 transition-colors"
-                      title={`${c.name} · ${c.subject} · ${c.tutorFirst} ${c.tutorLast} · ${c.startTime ?? ""}-${c.endTime ?? ""}`}
+                      title={`${classDisplayName(c.subject, c.name)} · ${c.tutorFirst} ${c.tutorLast} · ${c.startTime ?? ""}-${c.endTime ?? ""}`}
                     >
                       <div className="font-bold text-ink truncate">
                         {c.subject}
@@ -595,7 +612,7 @@ function ScheduleHourRow({
                     ? { height: `${c.spanHours * 4 + (c.spanHours - 1) * 0.375}rem` }
                     : { height: "4rem" }
                 }
-                title={`${c.name} · ${c.subject} · ${c.tutor} · ${formatTime(c.startTime)}-${formatTime(c.endTime)}`}
+                title={`${classDisplayName(c.subject, c.name)} · ${c.tutor} · ${formatTime(c.startTime)}-${formatTime(c.endTime)}`}
               >
                 <div className="text-[11px] font-bold text-ink truncate">
                   {c.subject}

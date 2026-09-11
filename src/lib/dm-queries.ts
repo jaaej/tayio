@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   dmMessages,
@@ -29,63 +29,61 @@ export type MessageRow = {
 };
 
 export async function listMyThreads(meId: string): Promise<ThreadInboxRow[]> {
-  const threadRows = await db
-    .select({
-      threadId: dmThreads.id,
-      userAId: dmThreads.userAId,
-      userBId: dmThreads.userBId,
-      lastActivityAt: dmThreads.lastActivityAt,
-    })
-    .from(dmThreads)
-    .where(or(eq(dmThreads.userAId, meId), eq(dmThreads.userBId, meId)))
-    .orderBy(desc(dmThreads.lastActivityAt));
+  const rows = await db.execute<{
+    threadId: string;
+    otherUserId: string;
+    otherFirst: string;
+    otherLast: string;
+    otherRole: UserRole;
+    lastMessagePreview: string | null;
+    lastActivityAt: Date;
+    unread: boolean;
+  }>(sql`
+    select
+      t.id as "threadId",
+      other_profile.id as "otherUserId",
+      other_profile.first_name as "otherFirst",
+      other_profile.last_name as "otherLast",
+      other_profile.role as "otherRole",
+      latest.body as "lastMessagePreview",
+      t.last_activity_at as "lastActivityAt",
+      (
+        latest.sender_id is not null
+        and latest.sender_id <> ${meId}
+        and latest.created_at > coalesce(
+          read_state.last_read_at,
+          timestamp with time zone 'epoch'
+        )
+      ) as unread
+    from ${dmThreads} t
+    join ${profiles} other_profile
+      on other_profile.id = case
+        when t.user_a_id = ${meId} then t.user_b_id
+        else t.user_a_id
+      end
+    left join lateral (
+      select message.sender_id, message.body, message.created_at
+      from ${dmMessages} message
+      where message.thread_id = t.id
+      order by message.created_at desc, message.id desc
+      limit 1
+    ) latest on true
+    left join ${dmReads} read_state
+      on read_state.thread_id = t.id
+      and read_state.user_id = ${meId}
+    where t.user_a_id = ${meId} or t.user_b_id = ${meId}
+    order by t.last_activity_at desc
+  `);
 
-  if (threadRows.length === 0) return [];
-
-  const out: ThreadInboxRow[] = [];
-  for (const t of threadRows) {
-    const otherId = t.userAId === meId ? t.userBId : t.userAId;
-
-    const other = await db
-      .select({
-        firstName: profiles.firstName,
-        lastName: profiles.lastName,
-        role: profiles.role,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, otherId))
-      .limit(1);
-    if (other.length === 0) continue;
-
-    const lastMsg = await db
-      .select({ body: dmMessages.body, senderId: dmMessages.senderId })
-      .from(dmMessages)
-      .where(eq(dmMessages.threadId, t.threadId))
-      .orderBy(desc(dmMessages.createdAt))
-      .limit(1);
-
-    const readRow = await db
-      .select({ lastReadAt: dmReads.lastReadAt })
-      .from(dmReads)
-      .where(and(eq(dmReads.userId, meId), eq(dmReads.threadId, t.threadId)))
-      .limit(1);
-
-    const lastReadAt = readRow[0]?.lastReadAt ?? new Date(0);
-    const lastMsgSentByOther =
-      lastMsg.length > 0 && lastMsg[0].senderId !== meId;
-    const unread = lastMsgSentByOther && lastReadAt < t.lastActivityAt;
-
-    out.push({
-      threadId: t.threadId,
-      otherUserId: otherId,
-      otherName: `${other[0].firstName} ${other[0].lastName}`.trim(),
-      otherRole: other[0].role,
-      lastMessagePreview: lastMsg[0]?.body ?? null,
-      lastActivityAt: t.lastActivityAt,
-      unread,
-    });
-  }
-  return out;
+  return rows.map((row) => ({
+    threadId: row.threadId,
+    otherUserId: row.otherUserId,
+    otherName: `${row.otherFirst} ${row.otherLast}`.trim(),
+    otherRole: row.otherRole,
+    lastMessagePreview: row.lastMessagePreview,
+    lastActivityAt: row.lastActivityAt,
+    unread: Boolean(row.unread),
+  }));
 }
 
 export async function getThreadForMe(
@@ -167,8 +165,31 @@ export async function getOrCreateThread(
 }
 
 export async function getUnreadThreadCount(meId: string): Promise<number> {
-  const threads = await listMyThreads(meId);
-  return threads.filter((t) => t.unread).length;
+  // This badge is rendered in every portal shell. The old implementation
+  // loaded the full inbox and issued three extra queries per thread, making
+  // every page slower as a user's message history grew. Count unread threads
+  // in one database round trip instead.
+  const rows = await db.execute<{ count: number }>(sql`
+    select count(*)::int as count
+    from ${dmThreads} t
+    join lateral (
+      select message.sender_id, message.created_at
+      from ${dmMessages} message
+      where message.thread_id = t.id
+      order by message.created_at desc
+      limit 1
+    ) latest on true
+    left join ${dmReads} read_state
+      on read_state.thread_id = t.id
+      and read_state.user_id = ${meId}
+    where (t.user_a_id = ${meId} or t.user_b_id = ${meId})
+      and latest.sender_id <> ${meId}
+      and latest.created_at > coalesce(
+        read_state.last_read_at,
+        timestamp with time zone 'epoch'
+      )
+  `);
+  return Number(rows[0]?.count ?? 0);
 }
 
 export type DmDirectoryEntry = {

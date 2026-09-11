@@ -13,6 +13,7 @@ import {
   Button,
 } from "@/components/admin/ui";
 import { formatTime } from "@/lib/format";
+import { classNameDetail } from "@/lib/class-display";
 import { EditClassForm } from "./_components/edit-class-form";
 import { EnrollmentsManager } from "./_components/enrollments-manager";
 
@@ -80,6 +81,9 @@ export default async function ClassEditPage({
 
   const subjectName =
     subjectList.find((s) => s.id === row.subjectId)?.name ?? null;
+  const classDetail = classNameDetail(subjectName, row.name);
+  const classTitle = classDetail || subjectName || row.name;
+  const showSubjectChip = Boolean(subjectName && classDetail);
 
   const scheduleChip =
     row.isRecurring && row.weekday !== null && row.startTime && row.endTime
@@ -93,11 +97,11 @@ export default async function ClassEditPage({
       <Hero
         className="rise"
         eyebrow="Edit class"
-        title={row.name}
+        title={classTitle}
         icon={row.name.charAt(0).toUpperCase()}
         chips={
           <>
-            {subjectName && <HeroChip>{subjectName}</HeroChip>}
+            {showSubjectChip && <HeroChip>{subjectName}</HeroChip>}
             <HeroChip>{scheduleChip}</HeroChip>
             <HeroChip>
               {enrolled.length}/{row.capacity} enrolled

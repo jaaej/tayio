@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
@@ -10,6 +10,8 @@ import {
   attendance,
   attendanceStatusEnum,
   classes,
+  dmMessages,
+  dmThreads,
   enrollments,
   homework,
   homeworkAssignments,
@@ -17,6 +19,7 @@ import {
   lessonNotes,
   lessons,
   notifications,
+  profiles,
   resources,
   subjectWeeks,
   tutorAvailability,
@@ -37,7 +40,14 @@ import {
   HOMEWORK_POLICY,
 } from "@/lib/upload-validation";
 import { optionalText, requiredText } from "@/lib/validation";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { withActor } from "@/lib/with-actor";
+import { canDM } from "@/lib/dm-permissions";
+import { getOrCreateThread } from "@/lib/dm-queries";
+import { coarseRole } from "@/lib/roles";
+import { rateLimit } from "@/lib/rate-limit";
+import { buildHomeworkBumpMessage } from "@/lib/homework-bump";
+import type { UserRole } from "@/db/schema";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 
@@ -101,10 +111,128 @@ async function assertTeachesStudent(tutorId: string, studentId: string) {
           tutorClasses.map((c) => c.id),
         ),
         eq(enrollments.studentId, studentId),
+        isNull(enrollments.withdrawnAt),
       ),
     )
     .limit(1);
   if (!row) throw new Error("Not authorised");
+}
+
+/** Send a task-specific reminder from the dashboard's Students to bump card.
+ * The server reloads the overdue work and tutor/student relationship, so a
+ * forged student id or stale browser card cannot send an arbitrary message. */
+export async function sendHomeworkBump(studentIdInput: string) {
+  const tutor = await requireTutor();
+  const studentId = z.string().uuid().parse(studentIdInput);
+
+  if (
+    !(await rateLimit({
+      bucket: "homework_bump",
+      identifier: tutor.id,
+      max: 20,
+      windowSeconds: 60,
+    }))
+  ) {
+    return { ok: false as const, error: "Too many reminders. Wait a moment." };
+  }
+
+  await assertTeachesStudent(tutor.id, studentId);
+  const today = melbourneDate(new Date());
+  const [overdue, student, tutorProfile] = await Promise.all([
+    db
+      .select({ title: homework.title })
+      .from(homeworkAssignments)
+      .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+      .where(
+        and(
+          eq(homework.tutorId, tutor.id),
+          eq(homeworkAssignments.studentId, studentId),
+          inArray(homeworkAssignments.status, [
+            "not_started",
+            "viewed",
+            "resubmission_requested",
+          ]),
+          sql`${homework.dueDate} < ${today}::timestamp`,
+        ),
+      )
+      .orderBy(homework.dueDate)
+      .limit(20),
+    db
+      .select({
+        firstName: profiles.firstName,
+        role: profiles.role,
+        isActive: profiles.isActive,
+      })
+      .from(profiles)
+      .where(eq(profiles.id, studentId))
+      .limit(1),
+    db
+      .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.id, tutor.id))
+      .limit(1),
+  ]);
+
+  const target = student[0];
+  if (
+    !target ||
+    !target.isActive ||
+    coarseRole(target.role) !== "student" ||
+    !(await canDM(tutor.id, "tutor", studentId, target.role as UserRole))
+  ) {
+    return { ok: false as const, error: "This student can’t receive a reminder." };
+  }
+  if (overdue.length === 0) {
+    return { ok: false as const, error: "This student no longer has overdue work." };
+  }
+
+  const body = buildHomeworkBumpMessage({
+    studentFirstName: target.firstName,
+    homeworkTitles: overdue.map((item) => item.title),
+  });
+  const threadId = await getOrCreateThread(tutor.id, studentId);
+
+  await db.transaction(async (tx) => {
+    await tx.insert(dmMessages).values({
+      threadId,
+      senderId: tutor.id,
+      body,
+    });
+    await tx
+      .update(dmThreads)
+      .set({ lastActivityAt: new Date() })
+      .where(eq(dmThreads.id, threadId));
+  });
+
+  const recipientHref = `/student/messages/${threadId}`;
+  const [unreadNotification] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, studentId),
+        eq(notifications.href, recipientHref),
+        isNull(notifications.readAt),
+      ),
+    )
+    .limit(1);
+  if (!unreadNotification) {
+    const tutorName = tutorProfile[0]
+      ? `${tutorProfile[0].firstName} ${tutorProfile[0].lastName}`.trim()
+      : "Your tutor";
+    await db.insert(notifications).values({
+      userId: studentId,
+      channel: "in_app",
+      title: `Homework reminder from ${tutorName}`,
+      body: overdue.length === 1 ? overdue[0].title : `${overdue.length} overdue tasks`,
+      href: recipientHref,
+    });
+  }
+
+  revalidatePath("/tutor");
+  revalidatePath("/tutor/messages");
+  revalidatePath(recipientHref);
+  return { ok: true as const, threadId };
 }
 
 export async function saveAttendance(formData: FormData) {
@@ -430,7 +558,10 @@ export async function createHomework(formData: FormData) {
 
   revalidatePath("/tutor/homework");
   revalidatePath("/tutor");
-  redirect(`/tutor/homework/${created.id}`);
+  if (classId) {
+    revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  }
+  return { ok: true as const, id: created.id };
 }
 
 export async function prepareTutorHomeworkAttachmentUpload(input: {
@@ -624,139 +755,242 @@ export async function markSubmission(formData: FormData) {
 }
 
 const weekdaySchema = z.coerce.number().int().min(0).max(6);
-const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-
-export async function toggleAvailabilityRule(formData: FormData) {
-  const tutor = await requireTutor();
-  const weekday = weekdaySchema.parse(formData.get("weekday"));
-  const startTime = timeSchema.parse(formData.get("startTime"));
-  const endTime = timeSchema.parse(formData.get("endTime"));
-
-  const existing = await db
-    .select({ id: tutorAvailability.id })
-    .from(tutorAvailability)
-    .where(
-      and(
-        eq(tutorAvailability.tutorId, tutor.id),
-        eq(tutorAvailability.weekday, weekday),
-        eq(tutorAvailability.startTime, startTime),
-        eq(tutorAvailability.endTime, endTime),
-        isNull(tutorAvailability.date),
-      ),
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    await db
-      .delete(tutorAvailability)
-      .where(eq(tutorAvailability.id, existing[0].id));
-  } else {
-    await db.insert(tutorAvailability).values({
-      tutorId: tutor.id,
-      weekday,
-      startTime,
-      endTime,
-      isAvailable: true,
-    });
-  }
-
-  revalidatePath("/tutor/timetable");
-}
 
 /**
  * Day isolation sentinel: a `tutor_availability` row with
  * start_time='00:00:00', end_time='23:59:59', is_available=false flags the
  * date as detached from the recurring weekly rules. `expandAvailability`
  * suppresses weekly rules for that (tutor, date) pair; the day's actual
- * availability is then driven solely by per-date override rows
- * (toggleDateOverride). Toggling off re-attaches the weekly rules.
+ * availability is then driven solely by positive per-date rows. The UI calls
+ * this a one-date change; tutors do not need to understand the sentinel.
  */
 const DAY_ISO_START = "00:00:00";
 const DAY_ISO_END = "23:59:59";
 
-export async function toggleDayIsolation(formData: FormData) {
+type AvailabilityActionResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+const hourTimeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):00$/, "Choose a whole-hour time");
+const availabilityWindowSchema = z.object({
+  startTime: hourTimeSchema,
+  endTime: hourTimeSchema,
+});
+
+function hourlyWindows(startTime: string, endTime: string) {
+  const start = Number(startTime.slice(0, 2));
+  const end = Number(endTime.slice(0, 2));
+  if (end <= start) return [];
+  return Array.from({ length: end - start }, (_, index) => {
+    const hour = start + index;
+    return {
+      startTime: `${String(hour).padStart(2, "0")}:00`,
+      endTime: `${String(hour + 1).padStart(2, "0")}:00`,
+    };
+  });
+}
+
+function parseDate(value: FormDataEntryValue | null) {
+  const parsed = isoDateSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const instant = new Date(`${parsed.data}T00:00:00.000Z`);
+  if (
+    Number.isNaN(instant.getTime()) ||
+    instant.toISOString().slice(0, 10) !== parsed.data
+  ) {
+    return null;
+  }
+  return parsed.data;
+}
+
+/** Add a readable recurring window while retaining hourly booking slots. */
+export async function addRecurringAvailability(
+  formData: FormData,
+): Promise<AvailabilityActionResult> {
   const tutor = await requireTutor();
-  const date = isoDateSchema.parse(formData.get("date"));
+  const parsed = z
+    .object({
+      weekday: weekdaySchema,
+      startTime: hourTimeSchema,
+      endTime: hourTimeSchema,
+    })
+    .safeParse({
+      weekday: formData.get("weekday"),
+      startTime: formData.get("startTime"),
+      endTime: formData.get("endTime"),
+    });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid hours." };
+  }
+  const windows = hourlyWindows(parsed.data.startTime, parsed.data.endTime);
+  if (windows.length === 0) {
+    return { ok: false, error: "The finish time must be after the start time." };
+  }
 
-  const existing = await db
-    .select({ id: tutorAvailability.id })
-    .from(tutorAvailability)
-    .where(
-      and(
-        eq(tutorAvailability.tutorId, tutor.id),
-        eq(tutorAvailability.date, date),
-        eq(tutorAvailability.startTime, DAY_ISO_START),
-        eq(tutorAvailability.endTime, DAY_ISO_END),
-        eq(tutorAvailability.isAvailable, false),
-      ),
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    // Un-isolate: drop the sentinel AND any positive date overrides for this
-    // date (they were specific to the isolated picker - leaving them around
-    // would silently expand availability once the weekly rules reapply).
-    await db
-      .delete(tutorAvailability)
-      .where(eq(tutorAvailability.id, existing[0].id));
-    await db
-      .delete(tutorAvailability)
+  const added = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`availability:${tutor.id}:weekday:${parsed.data.weekday}`}))`,
+    );
+    const existing = await tx
+      .select({
+        startTime: tutorAvailability.startTime,
+        endTime: tutorAvailability.endTime,
+      })
+      .from(tutorAvailability)
       .where(
         and(
           eq(tutorAvailability.tutorId, tutor.id),
-          eq(tutorAvailability.date, date),
+          eq(tutorAvailability.weekday, parsed.data.weekday),
+          isNull(tutorAvailability.date),
           eq(tutorAvailability.isAvailable, true),
         ),
       );
-  } else {
-    await db.insert(tutorAvailability).values({
+    const missing = windows.filter(
+      (window) =>
+        !existing.some(
+          (row) =>
+            row.startTime.slice(0, 5) <= window.startTime &&
+            row.endTime.slice(0, 5) >= window.endTime,
+        ),
+    );
+    if (missing.length) {
+      await tx.insert(tutorAvailability).values(
+        missing.map((window) => ({
+          tutorId: tutor.id,
+          weekday: parsed.data.weekday,
+          startTime: window.startTime,
+          endTime: window.endTime,
+          isAvailable: true,
+        })),
+      );
+    }
+    return missing.length;
+  });
+
+  revalidatePath("/tutor/timetable");
+  return {
+    ok: true,
+    message: added ? "Recurring availability added." : "Those hours are already available.",
+  };
+}
+
+export async function removeRecurringAvailability(
+  formData: FormData,
+): Promise<AvailabilityActionResult> {
+  const tutor = await requireTutor();
+  const parsed = z.array(z.string().uuid()).min(1).safeParse(formData.getAll("ruleId"));
+  if (!parsed.success) return { ok: false, error: "Availability window not found." };
+  await db
+    .delete(tutorAvailability)
+    .where(
+      and(
+        eq(tutorAvailability.tutorId, tutor.id),
+        inArray(tutorAvailability.id, parsed.data),
+        isNull(tutorAvailability.date),
+      ),
+    );
+  revalidatePath("/tutor/timetable");
+  return { ok: true, message: "Recurring hours removed." };
+}
+
+export async function setDateUnavailable(
+  formData: FormData,
+): Promise<AvailabilityActionResult> {
+  const tutor = await requireTutor();
+  const date = parseDate(formData.get("date"));
+  if (!date) return { ok: false, error: "Choose a valid date." };
+  if (date < melbourneDate()) {
+    return { ok: false, error: "A past date cannot be changed." };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`availability:${tutor.id}:date:${date}`}))`,
+    );
+    await tx
+      .delete(tutorAvailability)
+      .where(
+        and(eq(tutorAvailability.tutorId, tutor.id), eq(tutorAvailability.date, date)),
+      );
+    await tx.insert(tutorAvailability).values({
       tutorId: tutor.id,
       date,
       startTime: DAY_ISO_START,
       endTime: DAY_ISO_END,
       isAvailable: false,
     });
-  }
-
+  });
   revalidatePath("/tutor/timetable");
+  return { ok: true, message: "You are marked unavailable for that date." };
 }
 
-export async function toggleDateOverride(formData: FormData) {
+export async function setDateCustomAvailability(
+  formData: FormData,
+): Promise<AvailabilityActionResult> {
   const tutor = await requireTutor();
-  const date = isoDateSchema.parse(formData.get("date"));
-  const startTime = timeSchema.parse(formData.get("startTime"));
-  const endTime = timeSchema.parse(formData.get("endTime"));
-  const setUnavailable = formData.get("setUnavailable") === "1";
-
-  const existing = await db
-    .select({ id: tutorAvailability.id, isAvailable: tutorAvailability.isAvailable })
-    .from(tutorAvailability)
-    .where(
-      and(
-        eq(tutorAvailability.tutorId, tutor.id),
-        eq(tutorAvailability.date, date),
-        eq(tutorAvailability.startTime, startTime),
-        eq(tutorAvailability.endTime, endTime),
-      ),
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    await db
-      .delete(tutorAvailability)
-      .where(eq(tutorAvailability.id, existing[0].id));
-  } else {
-    await db.insert(tutorAvailability).values({
-      tutorId: tutor.id,
-      date,
-      startTime,
-      endTime,
-      isAvailable: !setUnavailable,
-    });
+  const date = parseDate(formData.get("date"));
+  const window = availabilityWindowSchema.safeParse({
+    startTime: formData.get("startTime"),
+    endTime: formData.get("endTime"),
+  });
+  if (!date) return { ok: false, error: "Choose a valid date." };
+  if (date < melbourneDate()) {
+    return { ok: false, error: "A past date cannot be changed." };
+  }
+  if (!window.success) {
+    return { ok: false, error: window.error.issues[0]?.message ?? "Invalid hours." };
+  }
+  const windows = hourlyWindows(window.data.startTime, window.data.endTime);
+  if (windows.length === 0) {
+    return { ok: false, error: "The finish time must be after the start time." };
   }
 
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`availability:${tutor.id}:date:${date}`}))`,
+    );
+    await tx
+      .delete(tutorAvailability)
+      .where(
+        and(eq(tutorAvailability.tutorId, tutor.id), eq(tutorAvailability.date, date)),
+      );
+    await tx.insert(tutorAvailability).values([
+      {
+        tutorId: tutor.id,
+        date,
+        startTime: DAY_ISO_START,
+        endTime: DAY_ISO_END,
+        isAvailable: false,
+      },
+      ...windows.map((slot) => ({
+        tutorId: tutor.id,
+        date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isAvailable: true,
+      })),
+    ]);
+  });
   revalidatePath("/tutor/timetable");
+  return { ok: true, message: "Custom hours saved for that date." };
+}
+
+export async function restoreRecurringAvailability(
+  formData: FormData,
+): Promise<AvailabilityActionResult> {
+  const tutor = await requireTutor();
+  const date = parseDate(formData.get("date"));
+  if (!date) return { ok: false, error: "Date change not found." };
+  await db
+    .delete(tutorAvailability)
+    .where(
+      and(eq(tutorAvailability.tutorId, tutor.id), eq(tutorAvailability.date, date)),
+    );
+  revalidatePath("/tutor/timetable");
+  return { ok: true, message: "This date now follows your weekly hours again." };
 }
 
 // --- Tutor week section note + attachments ----------------------------------

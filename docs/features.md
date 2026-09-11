@@ -84,12 +84,12 @@ Conventions referenced throughout:
 ### Reschedule (unrestricted only)
 1. **What it is** - Self-serve rescheduling of an upcoming lesson via the interactive timetable, routed to either a direct switch or a tutor/admin approval queue.
 2. **How it works** - Initiated on `/student/timetable` (`interactive-timetable.tsx`); `submitReschedule` server action in `src/lib/reschedule.ts` + student `_actions`. Tables: `rescheduleRequests`, `lessons` (status `makeup`/`rescheduled`), `attendance` (`makeup_attended`). Slots come from `tutorAvailability` via `getAvailableSlots` (`src/lib/availability.ts`). Guard: `requireUnrestrictedStudent()` + lesson ownership.
-3. **Rationale:** The model unified on **tutor-availability slots** (every reschedule is a per-student make-up at a tutor-free time); the original "switch to another group session" model was dropped after user testing (per memory `project_role_tiers_spec1_2026_07_10.md`, migration 0019, commit `30b6a37`). Routing: 1-on-1 always + group `<24h` need approval; group `≥24h` executes directly. A **second** reschedule of the same lesson always needs approval and supersedes the prior make-up (same memory note). `executeSessionSwitch`/`getGroupSwitchTargets` remain in the codebase but are now dead code (kept, unused).
+3. **Rationale:** The model unified on **tutor-availability slots** (every reschedule is a per-student make-up at a tutor-free time). The active flow keeps the assigned tutor and original class. The retained group-switch compatibility primitive also revalidates matching subject/year on the server. Allowance usage counts distinct original lessons, so changing one lesson's make-up destination remains one use even if legacy history contains multiple approved rows.
 
-### Math game ("Math Sprint" / "Math Blitz")
+### Taiyo Blitz
 1. **What it is** - A Zetamac-style 60-second mental-math speed drill with five difficulty tiers, per-difficulty leaderboards, and a pick-your-sound reward.
 2. **How it works** - `/student/math-game` (`page.tsx`, `_queries.ts`, `_actions.ts`, `_components/`). Table: `mathGameScores` (append-only; enum `mathGameDifficultyEnum` = sprint/easy/medium/hard/genius). `submitScore` validates with Zod + a per-tier plausibility cap. Leaderboard = `max(score)` per student per difficulty, name shown as first name + last initial. Question generator is unit-tested (vitest). Guard: `requireRole("student")` (both tiers).
-3. **Rationale:** Available to *all* students, not gated by tier - it's an engagement feature with no academic weight (per `docs/superpowers/specs/2026-07-12-student-math-game-design.md` §Access). Sound plays via the Web Audio API (decoded buffers), not an `<audio>` element, because HTML audio lags too much for rapid-fire play (same spec §Sound). The plausibility cap is explicitly "a guardrail, not a guarantee" - full server-authoritative anti-cheat would require per-answer round-trips that latency-kill a reflex game (same spec). Purple arcade gradient is a deliberate identity break from the portal's cornflower theme (same spec §Visual identity).
+3. **Rationale:** Available to *all* students, not gated by tier - it's an engagement feature with no academic weight. Sound plays through the Web Audio API for rapid feedback and includes a persistent Mute choice. Correct answers trigger a short accessible `+1 Correct!` burst and score pop; `prefers-reduced-motion` disables the animations. The plausibility cap remains a guardrail rather than server-authoritative per-answer checking, which would add reflex-game latency.
 
 ### Notifications inbox
 1. **What it is** - In-app inbox of notifications (DMs, discussion replies, reschedule updates).
@@ -174,19 +174,24 @@ Conventions referenced throughout:
 ## Tutor
 
 ### Class timetable
-1. **What it is** - Dashboard + monthly grid of the tutor's classes (amber pills) and availability (green pills), with an edit toggle.
-2. **How it works** - `/tutor` dashboard, `/tutor/classes` (weekly snapshot), `/tutor/timetable` (monthly grid, "Manage availability" toggle). Tables: `classes`, `lessons`, `tutorAvailability`. Guard: `requireRole("tutor")`.
+1. **What it is** - Dashboard plus a monthly grid of the tutor's classes, recurring availability, and absence/leave requests.
+2. **How it works** - `/tutor` dashboard, `/tutor/classes` (weekly snapshot), `/tutor/timetable` (schedule, availability, and absence hub). Tables: `classes`, `lessons`, `tutorAvailability`. Guard: `requireRole("tutor")`.
 3. **Rationale:** Consolidated 2026-06-03 - previously split across `/tutor/schedule` + `/tutor/availability` (per `docs/checklist.md` Tutor "Class timetable").
 
 ### Tutor availability
-1. **What it is** - Weekly recurring slot picker with per-date isolation, feeding both parent and admin reschedule flows.
-2. **How it works** - `/tutor/timetable` "Manage availability". Table: `tutorAvailability` (`weekday` for recurring rules, `date` for date-specific rows). Consumed by `getAvailableSlots` (`src/lib/availability.ts`). Guard: `requireRole("tutor")` + `tutor_id = me`.
-3. **Rationale:** Sync is deliberate and verified - the *same* `tutor_availability` rows feed parent reschedule + admin one-off reschedule via one shared query, so availability can't drift between surfaces (per `docs/checklist.md` Tutor "(extra) Tutor availability"). Per-day "isolate" detaches a specific date from the recurring weekly rules so a one-off change doesn't ripple to other weeks (same note).
+1. **What it is** - One scheduling hub for recurring weekly hours, class absences, and extended leave.
+2. **How it works** - `/tutor/timetable` uses a wide slide-over with full day/time fields rather than hour pills. Weekly windows are stored as hourly `tutorAvailability` rows (`weekday`). The same page posts an assigned-class absence or submits extended leave through a second wide slide-over. Admin reads and may edit the same rows at `/admin/tutors/availability` or on the tutor's user profile; the Classes page links to this board for cross-checking before class creation. `getAvailableSlots` (`src/lib/availability.ts`) consumes the saved availability for make-up/reschedule slots. Guard: `requireRole("tutor")` + `tutor_id = me`.
+3. **Rationale:** The tutor-facing one-date/isolation control was removed because an actual inability to teach belongs in the absence/leave workflow, where admin receives notification. Class creation currently does not automatically reject a tutor outside these recurring hours, so admin reviews the shared availability board before choosing the tutor; automatic allocation guidance remains a separate scheduling feature.
+
+### Tutor leave & cover board
+1. **What it is** - Tutors can post one class they cannot teach or request multi-day leave. Extended leave requires admin approval; approval publishes each affected class to a shared board where any active, non-conflicting tutor can claim it.
+2. **How it works** - Requests are submitted from the `Absence or leave request` slide-over on `/tutor/timetable` (`?panel=leave` opens it directly); `/tutor/cover` is the notice board for claims, releases, and status. `/admin/reschedules#tutor-cover` handles leave approval, manual assignment/reassignment, and returning an accidental claim to the open board. Tables: `tutorLeaveRequests`, `tutorCoverRequests` (migration 0043). Claiming atomically moves `lessons.tutorId` to the replacement while retaining `originalTutorId` on the cover record; reopening restores the original lesson tutor before another claim. Server actions recheck role, lesson ownership, the 48-hour submission gate, active-tutor status, timetable clashes, and the expected current claim before mutation.
+3. **Rationale:** Multi-day leave is an approval envelope, while each lesson is independently claimable and auditable. Admin receives immediate workflow notifications, urgent 48h/24h alerts, and one reminder per day while approved leave remains partly uncovered. A secured daily Vercel cron is backed by an idempotent five-minute check while an admin has the portal open, matching Hobby's once-daily cron limit without producing duplicate alerts.
 
 ### Homework marking
 1. **What it is** - Mark submissions, record scores/feedback, request resubmission.
-2. **How it works** - `/tutor/homework`, `/tutor/homework/[id]`. Writes `homeworkAssignments` (`score`, `feedback`, `status`, `markedBy`). `homework.is_test` (migration 0008) drives student ranking. Guard: `requireRole("tutor")` + `assertTeaches*` ownership.
-3. **Rationale:** A homework can be flagged `is_test` to drive anonymous student ranking, but there is **no tutor UI to set the flag yet** - currently set via SQL (per `docs/checklist.md` Tutor "Class test / booklet mark").
+2. **How it works** - `/tutor/homework`, `/tutor/homework/[id]`. Writes `homeworkAssignments` (`score`, `feedback`, `status`, `markedBy`). The tutor dashboard's `Students to bump` action reloads current overdue tasks server-side and writes a task-specific DM plus one unread inbox notification. Guard: `requireRole("tutor")`, current-enrolment scope, DM relationship checks, and a per-tutor rate limit.
+3. **Rationale:** Reminder text is generated from server-loaded homework titles rather than browser input, preventing a forged one-click action from sending arbitrary content or messaging an unrelated/withdrawn student.
 
 ### Lesson notes (parent-visible + internal split)
 1. **What it is** - Per-student lesson notes with a strict split between a parent-visible comment and an internal-only note.
@@ -205,7 +210,7 @@ Conventions referenced throughout:
 
 ### Curriculum sections (per-tutor additive)
 1. **What it is** - A tutor can add a note + file attachments to any week of a subject they teach, layered on top of the locked admin base, visible only to their own students.
-2. **How it works** - `/tutor/classes/[id]/curriculum`. Tables: `tutorWeekSections` (unique `(tutorId, subjectWeekId)`), `tutorWeekAttachments` (`kind` = file/link, migration 0015). Actions `upsertTutorWeekNote`, `addTutorWeekAttachment`, `removeTutorWeekAttachment` in `src/app/tutor/_actions.ts`. Guard: `requireRole("tutor")` + `tutorTeachesSubjectWeek`.
+2. **How it works** - `/tutor/classes/[id]/curriculum` mirrors the learner hierarchy with a subject-coloured Overview, separate lesson materials, tutor notes, quiz, and homework. Tutor note editing is opt-in and the new-homework form remains collapsed until requested. Tables: `tutorWeekSections` (unique `(tutorId, subjectWeekId)`), `tutorWeekAttachments` (`kind` = file/link, migration 0015). Actions `upsertTutorWeekNote`, `addTutorWeekAttachment`, `removeTutorWeekAttachment` in `src/app/tutor/_actions.ts`. Guard: `requireRole("tutor")` + `tutorTeachesSubjectWeek`.
 3. **Rationale:** Scoped per-`(tutor, subject-week)` (shared across all that tutor's classes of the subject, separate from other tutors) so additions are *additive* and never mutate the admin's locked base curriculum; this replaced the retired `class_week_overrides` "replace the base" model, which contradicted "base is locked" (per `docs/superpowers/specs/2026-07-01-tutor-sections-design.md`). Reads are scoped to the tutor's own students/parents at the query layer (commit `ed02764`).
 
 ### Discussions
@@ -217,11 +222,6 @@ Conventions referenced throughout:
 1. **What it is** - 1:1 DMs with admin, the tutor's students, and parents of taught students.
 2. **How it works** - `/tutor/messages` (+ `[threadId]`, `with/[userId]`). `canDM` allows tutor↔student and tutor↔parent only on a shared class. Guard: `requireRole("tutor")` + `canDM`.
 3. **Rationale:** Relationship clauses reuse existing joins (`classes.tutorId → enrollments`, `→ family_links`); same-role pairs are always denied (no tutor↔tutor) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
-
-### Reschedule approvals
-1. **What it is** - Queue of pending reschedule requests for the tutor's own classes, with accept/reject.
-2. **How it works** - `/tutor/reschedules`. `approveReschedule`/`rejectReschedule` (`src/lib/reschedule.ts`) run the matching execution primitive on accept. Table: `rescheduleRequests`. Guard: `requireRole("tutor")` + class-tutor check.
-3. **Rationale:** First-to-act wins between tutor and admin (reject if not `pending`); 1-on-1 and group-`<24h` reschedules always land here rather than executing directly (per `docs/superpowers/specs/2026-07-10-reschedule-design.md`).
 
 ### Notifications inbox
 1. **What it is** - In-app inbox.
@@ -251,7 +251,7 @@ Conventions referenced throughout:
 ### User management + account creation
 1. **What it is** - Create, edit, deactivate, and role-assign accounts across all roles.
 2. **How it works** - `/admin/users`, `/admin/users/[id]`. Actions in `src/app/admin/_lib/actions-users.ts` (`createUser`, `updateUser`, `setUserActive`). Admin edits keep `profiles.email` and `auth.users.email` in sync through the server-only Supabase admin client. Table: `profiles` (+ `auth.users`). Guard: `requireAdmin()`.
-3. **Rationale:** `createAdminClient()` (service-role) is used *only* here for `auth.users` CRUD, where RLS-bypass is genuinely required, and is `server-only`-guarded (per security-checklist C6). New/edited accounts must always carry a *tiered* role (never a bare coarse value) - `ROLE_OPTIONS` in `src/lib/roles.ts` offers only tiered values. `profiles.role` is additionally locked by a BEFORE-UPDATE trigger (migration 0013 / security A8) so it can't be silently changed out of band.
+3. **Rationale:** `createAdminClient()` (service-role) is used *only* here for `auth.users` CRUD, where RLS-bypass is genuinely required, and is `server-only`-guarded. Reception can manage operational student/parent/tutor records, but cannot create privileged accounts, change roles, or edit/reset/deactivate any admin account. Those boundaries are repeated inside server actions; hidden or disabled controls are not treated as authorization.
 
 ### Family links editor
 1. **What it is** - Editor for parent↔child relationships on the user detail page.
@@ -281,11 +281,11 @@ Conventions referenced throughout:
 ### Revenue (PIN-walled)
 1. **What it is** - A dedicated page showing this/last-month cash received and overdue outstanding, gated behind a separate admin PIN (step-up auth).
 2. **How it works** - `/admin/revenue` (`src/app/admin/revenue/page.tsx`, nav Insight → Revenue). Server component returns the PIN prompt *before* any query if `!isAdminUnlocked()`. Queries `getRevenueSummary` (cash bucketed by `paidAt`) + `getRecentPayments` (`admin/_lib/queries.ts`). Table: `admin_settings` (`pin_hash`, `failed_attempts`, `locked_until`; migrations 0020/0021). Lock logic in `src/lib/admin-lock.ts` (scrypt hash + HMAC-signed httpOnly `admin_unlock` cookie, ~30 min, user-bound). Actions in `actions-security.ts` (`setAdminPin`, `unlockAdmin`). PIN set/changed at `/admin/settings`. Guard: `requireAdmin()` + PIN unlock.
-3. **Rationale:** The PIN wall's **final scope gates ONLY `/admin/revenue`** - the earlier reception/owner role split + push-approval was descoped after runtime testing, and creating users / changing roles / deactivating accounts are all *un-walled* (per memory `project_role_tiers_spec1_2026_07_10.md`, commit `6015330`). The revenue figure is never rendered while locked (checked before any query) so it can't be exfiltrated via view-source (per admin-pin spec §E). Lockout: 5 misses → 15-min lock (commit `53a6aad`). Unlock cookie is only marked `Secure` in production so dev/HTTP doesn't silently drop it (commit `51e71eb`). The `admin_restricted`/`admin_unrestricted` enum tiers remain **dormant/unused** (memory note; admin-pin spec §Scope).
+3. **Rationale:** The PIN wall gates financial figures on `/admin/revenue`: the owner bypasses it and reception must unlock it. Separate role-tier controls protect account security—reception cannot create privileged users, change roles, manage admin accounts, or change the shared PIN. Revenue values are never queried or rendered before the viewer passes the relevant gate. Lockout remains 5 misses followed by 15 minutes.
 
 ### Admin settings (PIN)
 1. **What it is** - Set or change the admin PIN.
-2. **How it works** - `/admin/settings` (`_components/`). `setAdminPin({ current?, next })` scrypt-hashes into `admin_settings.pin_hash`. Guard: `requireAdmin()`.
+2. **How it works** - `/admin/settings` (`_components/`). `setAdminPin({ current?, next })` scrypt-hashes into `admin_settings.pin_hash`. Both the page and mutation use `requireUnrestrictedAdmin()`.
 3. **Rationale:** The wall stays *open* until a PIN is set (no accidental lockout on first deploy) (commit `1744333`). PIN is 6–8 digits (commit `53a6aad`).
 
 ### Announcements
@@ -293,14 +293,14 @@ Conventions referenced throughout:
 2. **How it works** - `/admin/announcements` (`_components/`). Table: `announcements` (`audienceRole` uses `userRoleEnum`, `audienceClassId` → `classes`). Guard: `requireAdmin()`.
 3. **Rationale:** The coarse `userRoleEnum` values (student/parent/tutor/admin) survive specifically as announcement audience targets even after every account moved to a tiered role (per `src/lib/roles.ts` comment / role-tiers memory).
 
-### Reschedule approvals (admin)
-1. **What it is** - Read-only credits and allowance usage plus admin-initiated one-off reschedules.
-2. **How it works** - `/admin/reschedules` is the credits/usage view. An admin opens a student record's Lessons & leave tab and moves a future lesson in its inline panel. The panel loads same-subject or all-tutor slots with `loadAdminRescheduleOptions`; `rescheduleStudentLesson` performs the guarded write. Guard: `requireAdmin()`.
-3. **Rationale:** The inline panel keeps the one-off workflow in the lesson context and replaces the former standalone route. It uses the same shared availability expansion and taken-slot checks as the other rescheduling flows.
+### Reschedules & tutor cover (admin)
+1. **What it is** - Tutor leave approval, open/claimed class-cover operations, read-only student credits/allowance usage, and admin-initiated student reschedules.
+2. **How it works** - `/admin/reschedules#tutor-cover` is the operational leave/cover queue; admin may approve/reject leave, assign or change to any active non-conflicting tutor, and return a claimed shift to the open board. The same page retains class-credit and usage tables. Admin moves an individual student's future lesson from the user detail panel via `rescheduleStudentLesson`. Guard: `requireRole("admin")` / `requireAdmin()`.
+3. **Rationale:** Cover is placed at the top of the existing reschedule destination so urgent notification links land directly in the admin's schedule workflow. Tutor self-claims and admin assignments share one clash-checked mutation, preventing the two paths from drifting.
 
 ### Curriculum & terms management
 1. **What it is** - Define terms, subject topics, and the canonical week-by-week curriculum per subject.
-2. **How it works** - `/admin/terms`, `/admin/subjects/[id]/curriculum`. Tables: `terms`, `subjects`, `subjectTopics`, `subjectWeeks`. Actions in `actions-curriculum.ts` + `actions-topics.ts`. Guard: `requireAdmin()`.
+2. **How it works** - `/admin/terms`, `/admin/subjects/[id]/curriculum`. Existing weeks open in a learner-style reading view with a subject-coloured Overview and clear material cards. `Edit week` and `Manage topics` open focused side panels; a new-week route keeps the creation form visible until the first save. Tables: `terms`, `subjects`, `subjectTopics`, `subjectWeeks`. Actions in `actions-curriculum.ts` + `actions-topics.ts`. Guard: `requireAdmin()`.
 3. **Rationale:** `subjectWeeks.topicId` is nullable with `onDelete: set null` so adding topics is non-destructive (existing weeks stay valid) and deleting a topic never deletes curriculum content - weeks fall back to "unassigned" (per `docs/superpowers/specs/2026-06-30-curriculum-topics-design.md`). Topics are subject-level (not term-level) because a topic like "Algebra" spans weeks across any term (same spec).
 
 ### Discussions oversight
@@ -319,9 +319,9 @@ Conventions referenced throughout:
 3. **Rationale:** Built to move the "Students Leaving" workflow out of the spreadsheet (per memory `project_admin_excel_gap_2026_05_26`).
 
 ### Notifications inbox (admin)
-1. **What it is** - In-app inbox.
-2. **How it works** - `/admin/notifications` (`NotificationsInbox`). Table `notifications`.
-3. **Rationale:** In-app only.
+1. **What it is** - In-app operational inbox with an urgent filter and visually prominent urgent rows.
+2. **How it works** - `/admin/notifications` (`NotificationsInbox`). Table `notifications`; titles prefixed `URGENT:` drive the urgent presentation and bell state. Cover reminders deep-link to `/admin/reschedules#tutor-cover`. The secured daily cron also creates same-day free-trial notices for admin/assigned tutors and one post-trial admin follow-up. Migration 0044 adds a per-recipient dedupe key.
+3. **Rationale:** Scheduled notifications are event notifications rather than passive state. Database uniqueness on `(user_id, dedupe_key)` makes cron retries and admin-triggered reconciliation safe without hiding legitimate alerts for a different lesson or later trial period.
 
 ### Reporting
 1. **What it is** - Attendance + payment reporting (stub).
@@ -334,9 +334,7 @@ Conventions referenced throughout:
 3. **Rationale:** The model is **instant-publish + admin moderation**, not a pre-approval queue - tutors publish immediately and admin reviews/acts after the fact (unpublish, remove with a reason, restore), trading a moderation step for tutor velocity while keeping oversight (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Decisions). Every moderation action is audited via `withActor`, consistent with the portal's audit-log non-negotiable (security-checklist G1).
 
 ### Planned / not yet built (admin)
-- **Admin board to view other tutors' availability** - `/admin/tutors/availability` not built; admin can't coordinate cover across the roster (checklist 🔶).
-- **Auto-find replacements on tutor leave** - needs matching logic (checklist ⬜).
-- **Per-feature `admin_restricted` vs `admin_unrestricted` gating** - enum values exist but the only enforced financial gate is the revenue PIN wall; the full reception/owner matrix is a *target spec*, not current behaviour (checklist 🔶, admin-pin spec).
+- **Automatic subject/skill matching for replacement tutors** - the cover board intentionally permits any active tutor and blocks timetable clashes, but does not rank tutors by subject expertise.
 - **Reporting aggregation** - see above.
 
 ---

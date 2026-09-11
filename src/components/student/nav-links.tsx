@@ -91,7 +91,7 @@ export function StudentNavLinksMobile({ sections }: { sections: NavSection[] }) 
         }}
       >
         <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
-        Math Blitz
+        Taiyo Blitz
       </Link>
       {items.map((item) => {
         const active = isActive(pathname, item.href);

@@ -82,20 +82,16 @@ export async function ParentShell({
 }) {
   const user = await getCurrentUser();
   let unread = 0;
-  if (user) {
-    try {
-      unread = await getUnreadThreadCount(user.id);
-    } catch (err) {
-      console.error("[parent-shell] getUnreadThreadCount failed:", err);
-      unread = 0;
-    }
-  }
   let notifUnread = 0;
   if (user) {
     try {
-      notifUnread = await getUnreadCount(user.id);
+      [unread, notifUnread] = await Promise.all([
+        getUnreadThreadCount(user.id),
+        getUnreadCount(user.id),
+      ]);
     } catch (err) {
-      console.error("[parent-shell] getUnreadCount failed:", err);
+      console.error("[parent-shell] badge counts failed:", err);
+      unread = 0;
       notifUnread = 0;
     }
   }

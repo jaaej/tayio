@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { Select } from "@/components/ui/select";
@@ -51,9 +52,12 @@ export function FamilyLinksManager({
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-bold text-ink truncate">
+                  <Link
+                    href={`/admin/users/${p.id}`}
+                    className="truncate rounded text-[14px] font-bold text-ink transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  >
                     {p.name}
-                  </span>
+                  </Link>
                   {p.isPrimaryContact && (
                     <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-700">
                       Primary
@@ -61,6 +65,12 @@ export function FamilyLinksManager({
                   )}
                 </div>
                 <div className="text-[12px] text-muted truncate">{p.email}</div>
+                <Link
+                  href={`/admin/users/${p.id}`}
+                  className="mt-1 inline-flex rounded text-[11px] font-bold text-brand-600 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  View profile →
+                </Link>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button

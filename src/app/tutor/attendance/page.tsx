@@ -3,6 +3,7 @@ import { Card, CardBody, CardHead } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { classDisplayName, classNameDetail } from "@/lib/class-display";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { getTutorAttendanceOverview, requireTutor } from "../_data";
 
@@ -81,6 +82,7 @@ export default async function TutorAttendancePage() {
         classGroups.map((g) => {
           const accent = getAccentTokens(colorFamilyForSubject(g.subjectName));
           const initial = g.subjectName.charAt(0).toUpperCase();
+          const classDetail = classNameDetail(g.subjectName, g.className);
           const unmarked = g.lessons.filter(
             (l) =>
               l.date < todayIso && (l.marked === 0 || l.marked < l.roster),
@@ -100,17 +102,19 @@ export default async function TutorAttendancePage() {
                   {initial}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div
-                    className="text-[10px] uppercase tracking-[0.12em] font-bold"
-                    style={{ color: accent.meta }}
-                  >
-                    {g.subjectName}
-                  </div>
+                  {classDetail && (
+                    <div
+                      className="text-[10px] uppercase tracking-[0.12em] font-bold"
+                      style={{ color: accent.meta }}
+                    >
+                      {g.subjectName}
+                    </div>
+                  )}
                   <div
                     className="text-[14px] font-extrabold leading-tight truncate"
                     style={{ color: accent.title }}
                   >
-                    {g.className}
+                    {classDetail || g.subjectName}
                   </div>
                 </div>
                 {unmarked > 0 ? (
@@ -186,10 +190,10 @@ function LessonRow({ lesson: l, hideClass = false }: LessonRowProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[13px] font-bold text-ink truncate">
-                {l.className}
+                {classDisplayName(l.subjectName, l.className)}
               </div>
               <div className="text-[11px] text-muted truncate mt-0.5">
-                {l.subjectName} · {l.roster} enrolled
+                {l.roster} enrolled
               </div>
             </div>
           </>

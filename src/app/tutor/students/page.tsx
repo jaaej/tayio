@@ -3,6 +3,7 @@ import { Card, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { FilterToolbar, type FilterPill } from "@/components/ui/filter-toolbar";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { classDisplayName } from "@/lib/class-display";
 import { getTutorStudentsByClass, requireTutor } from "../_data";
 
 type RosterEntry = {
@@ -226,7 +227,7 @@ function ClassPill({ name, subject }: { name: string; subject: string }) {
       className="inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-bold leading-none whitespace-nowrap"
       style={{ background: tokens.pillBg, color: tokens.pillText }}
     >
-      {name}
+      {classDisplayName(subject, name)}
     </span>
   );
 }

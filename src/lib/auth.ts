@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/db/schema";
 import { coarseRole, isCoarseRole, isUnrestrictedAdmin } from "@/lib/roles";
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async function getCurrentUser() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
 /**
  * Does `userRole` satisfy the `accept` spec? A coarse literal ("admin" /

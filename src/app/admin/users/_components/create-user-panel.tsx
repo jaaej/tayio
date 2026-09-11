@@ -5,12 +5,23 @@ import { Check, Copy, Plus } from "lucide-react";
 import { Button, SidePanel } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 import { CreateUserForm, type CreateUserValues } from "./create-user-form";
+import { roleLabel } from "@/lib/roles";
 
 /** Only one create panel exists per page, so a literal id is enough to wire
  *  the footer submit button back to the form via the `form` attribute. */
 const FORM_ID = "create-user-form";
 
-type Created = { name: string; email: string; tempPassword?: string };
+type CreatedAccount = {
+  label: string;
+  name: string;
+  email: string;
+  tempPassword?: string;
+};
+
+type Created = {
+  primary: CreatedAccount;
+  linkedParent?: CreatedAccount;
+};
 
 export function CreateUserPanel({
   canManagePrivilegedRoles,
@@ -40,9 +51,20 @@ export function CreateUserPanel({
         return;
       }
       setCreated({
-        name: `${values.firstName} ${values.lastName}`,
-        email: values.email,
-        tempPassword: res.tempPassword,
+        primary: {
+          label: roleLabel(values.role),
+          name: `${values.firstName} ${values.lastName}`,
+          email: values.email,
+          tempPassword: res.tempPassword,
+        },
+        linkedParent: values.linkedParent
+          ? {
+              label: "Parent",
+              name: `${values.linkedParent.firstName} ${values.linkedParent.lastName}`,
+              email: values.linkedParent.email,
+              tempPassword: res.linkedParent?.tempPassword,
+            }
+          : undefined,
       });
     });
   }
@@ -106,6 +128,7 @@ export function CreateUserPanel({
         onClose={() => setOpen(false)}
         title="New user"
         footer={footer}
+        size="wide"
       >
         {created ? (
           <CreatedSummary created={created} />
@@ -125,6 +148,35 @@ export function CreateUserPanel({
 }
 
 function CreatedSummary({ created }: { created: Created }) {
+  const hasParent = Boolean(created.linkedParent);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-good-bg text-good">
+            <Check className="h-4 w-4" aria-hidden />
+          </span>
+          <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+            {hasParent ? "Accounts created and linked" : "Account created"}
+          </h3>
+        </div>
+        {hasParent && (
+          <p className="mt-2 text-[13px] text-ink-soft">
+            The parent is linked as this student&apos;s primary contact.
+          </p>
+        )}
+      </div>
+
+      <CreatedAccountCard account={created.primary} />
+      {created.linkedParent && (
+        <CreatedAccountCard account={created.linkedParent} />
+      )}
+    </div>
+  );
+}
+
+function CreatedAccountCard({ account }: { account: CreatedAccount }) {
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copyPassword(password: string) {
@@ -138,35 +190,27 @@ function CreatedSummary({ created }: { created: Created }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-good-bg text-good">
-            <Check className="h-4 w-4" aria-hidden />
-          </span>
-          <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
-            Account created
-          </h3>
-        </div>
-        <p className="mt-2 text-[13px] text-ink-soft">
-          {created.name} · {created.email}
-        </p>
-      </div>
+    <div className="rounded-[12px] border border-line bg-surface-2 p-4">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
+        {account.label}
+      </p>
+      <p className="mt-1 text-[13px] font-bold text-ink">{account.name}</p>
+      <p className="text-[12px] text-ink-soft">{account.email}</p>
 
-      {created.tempPassword && (
-        <div className="rounded-[10px] border border-line bg-surface-2 p-3">
+      {account.tempPassword && (
+        <div className="mt-4 border-t border-line pt-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
             Temporary password
           </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-[8px] border border-line bg-surface px-3 py-2.5 font-mono text-[13px] text-ink">
-              {created.tempPassword}
+              {account.tempPassword}
             </code>
             <Button
               type="button"
               size="lg"
               variant="outline"
-              onClick={() => copyPassword(created.tempPassword as string)}
+              onClick={() => copyPassword(account.tempPassword as string)}
             >
               {copy === "copied" ? (
                 <Check className="h-4 w-4" aria-hidden />
@@ -181,7 +225,7 @@ function CreatedSummary({ created }: { created: Created }) {
             </Button>
           </div>
           <p className="mt-2 text-[12px] text-ink-soft">
-            Give this to {created.name} - it will not be shown again.
+            Give this to {account.name} - it will not be shown again.
           </p>
         </div>
       )}

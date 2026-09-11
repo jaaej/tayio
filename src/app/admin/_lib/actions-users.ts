@@ -9,7 +9,11 @@ import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
-import { coarseRole, isUnrestrictedAdmin } from "@/lib/roles";
+import {
+  canAdminManageAccount,
+  coarseRole,
+  isUnrestrictedAdmin,
+} from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 
 /** The signed-in admin's tiered role (from server-only app_metadata). */
@@ -34,17 +38,48 @@ const roleEnum = z.enum([
   "admin",
 ]);
 
-const createUserSchema = z.object({
-  email: z.string().email().max(320),
+const linkedParentSchema = z.object({
+  email: z.string().email("Enter a valid parent email.").max(320),
   /** Absent means "generate one" - see `generateTempPassword`. */
   password: z.string().min(8).max(128).optional(),
-  role: roleEnum,
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
+  firstName: z.string().min(1, "Enter the parent's first name.").max(100),
+  lastName: z.string().min(1, "Enter the parent's last name.").max(100),
   phone: z.string().max(40).optional(),
-  yearLevel: z.string().max(40).optional(),
-  school: z.string().max(200).optional(),
+  relationship: z.string().min(1).max(60).optional(),
 });
+
+const createUserSchema = z
+  .object({
+    email: z.string().email().max(320),
+    /** Absent means "generate one" - see `generateTempPassword`. */
+    password: z.string().min(8).max(128).optional(),
+    role: roleEnum,
+    firstName: z.string().min(1).max(100),
+    lastName: z.string().min(1).max(100),
+    phone: z.string().max(40).optional(),
+    yearLevel: z.string().max(40).optional(),
+    school: z.string().max(200).optional(),
+    linkedParent: linkedParentSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.linkedParent && coarseRole(data.role) !== "student") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["linkedParent"],
+        message: "A parent account can only be linked while creating a student.",
+      });
+    }
+    if (
+      data.linkedParent &&
+      data.linkedParent.email.toLowerCase() === data.email.toLowerCase()
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["linkedParent", "email"],
+        message: "The parent and student must use different email addresses.",
+      });
+    }
+  });
 
 /**
  * Temporary password for an account the admin did not set one for. 12 random
@@ -59,11 +94,38 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
   const user = await requireAdmin();
   // An empty box means "generate one", so normalise it away before validation:
   // the minimum length should only apply to a password an admin actually typed.
-  const data = createUserSchema.parse({
+  const parsed = createUserSchema.safeParse({
     ...input,
+    email: input.email.trim().toLowerCase(),
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    phone: input.phone?.trim() || undefined,
+    yearLevel: input.yearLevel?.trim() || undefined,
+    school: input.school?.trim() || undefined,
     password: input.password?.trim() || undefined,
+    linkedParent: input.linkedParent
+      ? {
+          ...input.linkedParent,
+          email: input.linkedParent.email.trim().toLowerCase(),
+          firstName: input.linkedParent.firstName.trim(),
+          lastName: input.linkedParent.lastName.trim(),
+          phone: input.linkedParent.phone?.trim() || undefined,
+          relationship: input.linkedParent.relationship?.trim() || undefined,
+          password: input.linkedParent.password?.trim() || undefined,
+        }
+      : undefined,
   });
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Check the account details.",
+    };
+  }
+  const data = parsed.data;
   const password = data.password ?? generateTempPassword();
+  const parentPassword = data.linkedParent
+    ? data.linkedParent.password ?? generateTempPassword()
+    : undefined;
 
   // Creating a privileged account (any admin tier or tutor) is owner-only.
   const targetPrivileged =
@@ -93,23 +155,111 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     return { ok: false as const, error: error?.message ?? "Failed to create user" };
   }
 
+  let createdParentId: string | undefined;
+  if (data.linkedParent && parentPassword) {
+    const { data: parentCreated, error: parentError } =
+      await admin.auth.admin.createUser({
+        email: data.linkedParent.email,
+        password: parentPassword,
+        email_confirm: true,
+        app_metadata: {
+          role: "parent",
+          first_name: data.linkedParent.firstName,
+          last_name: data.linkedParent.lastName,
+        },
+      });
+
+    if (parentError || !parentCreated.user) {
+      await admin.auth.admin.deleteUser(created.user.id);
+      return {
+        ok: false as const,
+        error: `Parent account could not be created: ${
+          parentError?.message ?? "unknown error"
+        }. The student account was rolled back.`,
+      };
+    }
+    createdParentId = parentCreated.user.id;
+  }
+
   try {
-    await db.insert(profiles).values({
-      id: created.user.id,
-      role: data.role,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone ?? null,
-      yearLevel: data.yearLevel ?? null,
-      school: data.school ?? null,
-    });
+    await withActor(
+      { id: user.id, role: currentAdminRole(user) ?? "admin" },
+      async (tx) => {
+        await tx
+          .insert(profiles)
+          .values({
+            id: created.user.id,
+            role: data.role,
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            phone: data.phone ?? null,
+            yearLevel: data.yearLevel ?? null,
+            school: data.school ?? null,
+          })
+          .onConflictDoUpdate({
+            target: profiles.id,
+            set: {
+              role: data.role,
+              email: data.email,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              phone: data.phone ?? null,
+              yearLevel: data.yearLevel ?? null,
+              school: data.school ?? null,
+              updatedAt: new Date(),
+            },
+          });
+
+        if (data.linkedParent && createdParentId) {
+          await tx
+            .insert(profiles)
+            .values({
+              id: createdParentId,
+              role: "parent",
+              email: data.linkedParent.email,
+              firstName: data.linkedParent.firstName,
+              lastName: data.linkedParent.lastName,
+              phone: data.linkedParent.phone ?? null,
+            })
+            .onConflictDoUpdate({
+              target: profiles.id,
+              set: {
+                role: "parent",
+                email: data.linkedParent.email,
+                firstName: data.linkedParent.firstName,
+                lastName: data.linkedParent.lastName,
+                phone: data.linkedParent.phone ?? null,
+                updatedAt: new Date(),
+              },
+            });
+
+          await tx
+            .insert(familyLinks)
+            .values({
+              parentId: createdParentId,
+              studentId: created.user.id,
+              relationship: data.linkedParent.relationship ?? "Parent",
+              isPrimaryContact: true,
+            })
+            .onConflictDoUpdate({
+              target: [familyLinks.parentId, familyLinks.studentId],
+              set: {
+                relationship: data.linkedParent.relationship ?? "Parent",
+                isPrimaryContact: true,
+              },
+            });
+        }
+      },
+    );
   } catch (e) {
-    // Roll back the auth user so we don't leak orphans
+    // Roll back both auth users so a failed profile/link transaction cannot
+    // leave a half-created family behind.
+    if (createdParentId) await admin.auth.admin.deleteUser(createdParentId);
     await admin.auth.admin.deleteUser(created.user.id);
     return {
       ok: false as const,
-      error: e instanceof Error ? e.message : "Failed to insert profile",
+      error: e instanceof Error ? e.message : "Failed to create the accounts",
     };
   }
 
@@ -121,6 +271,14 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     // Only handed back when we generated it - there is nothing to reveal about
     // a password the admin typed themselves.
     tempPassword: data.password ? undefined : password,
+    linkedParent: data.linkedParent
+      ? {
+          id: createdParentId as string,
+          tempPassword: data.linkedParent.password
+            ? undefined
+            : parentPassword,
+        }
+      : undefined,
   };
 }
 
@@ -155,6 +313,12 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
     .where(eq(profiles.id, data.id));
   if (!existing) {
     return { ok: false as const, error: "User account not found." };
+  }
+  if (!canAdminManageAccount(currentAdminRole(user), existing.role)) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can edit another admin account.",
+    };
   }
   const roleChanging = !!existing && existing.role !== data.role;
   if (roleChanging && !isUnrestrictedAdmin(currentAdminRole(user))) {
@@ -229,6 +393,19 @@ export async function setUserActive(id: string, isActive: boolean) {
   const user = await requireAdmin();
   z.string().uuid().parse(id);
 
+  const [target] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, id))
+    .limit(1);
+  if (!target) return { ok: false as const, error: "User account not found." };
+  if (!canAdminManageAccount(currentAdminRole(user), target.role)) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can deactivate or reactivate an admin.",
+    };
+  }
+
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
       .update(profiles)
@@ -246,10 +423,22 @@ export async function setUserActive(id: string, isActive: boolean) {
 }
 
 export async function sendPasswordReset(email: string) {
-  await requireAdmin();
-  z.string().email().parse(email);
+  const user = await requireAdmin();
+  const parsedEmail = z.string().email().parse(email).trim().toLowerCase();
+  const [target] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.email, parsedEmail))
+    .limit(1);
+  if (!target) return { ok: false as const, error: "User account not found." };
+  if (!canAdminManageAccount(currentAdminRole(user), target.role)) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can reset another admin’s password.",
+    };
+  }
   const admin = createAdminClient();
-  const { error } = await admin.auth.resetPasswordForEmail(email);
+  const { error } = await admin.auth.resetPasswordForEmail(parsedEmail);
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };
 }

@@ -15,6 +15,8 @@ export function roleColor(role: UserRole | string): string {
     case "admin":
       return "#7C6AE0"; // violet
     case "student":
+    case "student_restricted":
+    case "student_unrestricted":
     default:
       return "#4F5BD5"; // cornflower / brand
   }

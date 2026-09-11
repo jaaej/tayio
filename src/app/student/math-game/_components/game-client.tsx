@@ -36,7 +36,9 @@ export function GameClient({
   const [neg, setNeg] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [score, setScore] = useState(0);
+  const [correctBurst, setCorrectBurst] = useState(0);
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const correctTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Countdown 3 -> 2 -> 1 -> play
@@ -78,6 +80,9 @@ export function GameClient({
 
   const advance = useCallback(() => {
     setScore((s) => s + 1);
+    setCorrectBurst((burst) => burst + 1);
+    if (correctTimer.current) clearTimeout(correctTimer.current);
+    correctTimer.current = setTimeout(() => setCorrectBurst(0), 720);
     playSound(sound);
     setQuestion(generateQuestion(difficulty));
     setInput("");
@@ -95,6 +100,7 @@ export function GameClient({
 
   useEffect(() => () => {
     if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    if (correctTimer.current) clearTimeout(correctTimer.current);
   }, []);
 
   // Auto-advance the instant the entered value (digits + sign) equals the
@@ -141,6 +147,8 @@ export function GameClient({
     setInput("");
     setNeg(false);
     setWrong(false);
+    setCorrectBurst(0);
+    if (correctTimer.current) clearTimeout(correctTimer.current);
     setQuestion(generateQuestion(difficulty));
     setCount(3);
     setPhase("countdown");
@@ -183,7 +191,7 @@ export function GameClient({
             onClick={onExit}
             className="h-10 px-5 rounded-[14px] border border-line-strong text-ink text-[14px] font-semibold hover:bg-surface-2 transition-colors"
           >
-            Back
+            Back to levels
           </button>
         </div>
       </div>
@@ -192,10 +200,27 @@ export function GameClient({
 
   // phase === "playing"
   return (
-    <div className="grid place-items-center gap-8 py-14">
+    <div className="relative grid place-items-center gap-8 py-14">
+      <span className="sr-only" aria-live="polite">
+        {correctBurst > 0 ? `Correct. Score ${score}.` : ""}
+      </span>
+      {correctBurst > 0 && (
+        <div key={correctBurst} className="blitz-correct-burst" aria-hidden>
+          <span>+1 Correct!</span>
+          {Array.from({ length: 10 }, (_, index) => (
+            <i key={index} />
+          ))}
+        </div>
+      )}
       <div className="flex w-full max-w-md items-center justify-between text-[15px] font-semibold">
         <span className="text-muted">
-          Score <span className="text-ink tabular-nums text-[17px]">{score}</span>
+          Score{" "}
+          <span
+            key={score}
+            className={`${score > 0 ? "blitz-score-pop" : ""} inline-block text-[17px] text-ink tabular-nums`}
+          >
+            {score}
+          </span>
         </span>
         <span
           className={

@@ -3,8 +3,17 @@
 import { useId, useState, type ReactNode } from "react";
 import { Input, Label } from "@/components/ui/input";
 import type { UserRole } from "@/db/schema";
-import { ROLE_OPTIONS, coarseRole } from "@/lib/roles";
+import { coarseRole, createUserRoleOptions } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+
+export type LinkedParentValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  relationship?: string;
+  password?: string;
+};
 
 export type CreateUserValues = {
   firstName: string;
@@ -15,6 +24,7 @@ export type CreateUserValues = {
   school?: string;
   phone?: string;
   password?: string;
+  linkedParent?: LinkedParentValues;
 };
 
 /**
@@ -36,14 +46,12 @@ export function CreateUserForm({
   onSubmit: (values: CreateUserValues) => void;
 }) {
   const [role, setRole] = useState<UserRole>("student_restricted");
+  const [includeParent, setIncludeParent] = useState(false);
 
   // Reception (restricted admin) cannot create admin or tutor accounts, so the
   // form never offers those roles. The server re-checks this regardless.
-  const roleOptions = canManagePrivilegedRoles
-    ? ROLE_OPTIONS
-    : ROLE_OPTIONS.filter(
-        (r) => coarseRole(r.value) !== "admin" && r.value !== "tutor",
-      );
+  const roleOptions = createUserRoleOptions(canManagePrivilegedRoles);
+  const isStudent = coarseRole(role) === "student";
 
   return (
     <form
@@ -53,6 +61,17 @@ export function CreateUserForm({
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         const text = (key: string) => String(fd.get(key) ?? "").trim();
+        const linkedParent =
+          isStudent && includeParent
+            ? {
+                firstName: text("parentFirstName"),
+                lastName: text("parentLastName"),
+                email: text("parentEmail"),
+                phone: text("parentPhone") || undefined,
+                relationship: text("parentRelationship") || "Parent",
+                password: text("parentPassword") || undefined,
+              }
+            : undefined;
         onSubmit({
           firstName: text("firstName"),
           lastName: text("lastName"),
@@ -62,6 +81,7 @@ export function CreateUserForm({
           school: text("school") || undefined,
           phone: text("phone") || undefined,
           password: text("password") || undefined,
+          linkedParent,
         });
       }}
     >
@@ -85,9 +105,26 @@ export function CreateUserForm({
           />
         </Field>
 
-        <RoleRadioGroup options={roleOptions} value={role} onChange={setRole} />
+        <Field id="phone" label="Phone">
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            placeholder="04xx xxx xxx"
+            autoComplete="tel"
+          />
+        </Field>
 
-        {coarseRole(role) === "student" && (
+        <RoleRadioGroup
+          options={roleOptions}
+          value={role}
+          onChange={(nextRole) => {
+            setRole(nextRole);
+            if (coarseRole(nextRole) !== "student") setIncludeParent(false);
+          }}
+        />
+
+        {isStudent && (
           <div className="grid grid-cols-2 gap-3">
             <Field id="yearLevel" label="Year level">
               <Input id="yearLevel" name="yearLevel" placeholder="e.g. 10" />
@@ -98,32 +135,121 @@ export function CreateUserForm({
           </div>
         )}
 
-        <div className="border-t border-line pt-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-2">
-            Optional
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field id="phone" label="Phone">
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="04xx xxx xxx"
-                autoComplete="off"
-              />
-            </Field>
-            <Field id="password" label="Temporary password">
-              <Input
-                id="password"
-                name="password"
-                type="text"
-                minLength={8}
-                placeholder="Auto-generated"
-                autoComplete="off"
-              />
-            </Field>
-          </div>
-        </div>
+        <Field
+          id="password"
+          label={isStudent ? "Student temporary password" : "Temporary password"}
+        >
+          <Input
+            id="password"
+            name="password"
+            type="text"
+            minLength={8}
+            placeholder="Auto-generated"
+            autoComplete="off"
+          />
+        </Field>
+
+        {isStudent && (
+          <section className="rounded-[14px] border border-line-strong bg-surface-2 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[14px] font-extrabold text-ink">
+                    Linked parent account
+                  </h3>
+                  <span className="rounded-full bg-info-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-info">
+                    Parent
+                  </span>
+                  <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted">
+                    Optional
+                  </span>
+                </div>
+                <p className="mt-1 max-w-xl text-[12px] leading-5 text-ink-soft">
+                  Create the parent or guardian at the same time and link them
+                  as this student&apos;s primary contact.
+                </p>
+              </div>
+
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[12px] font-bold text-ink">
+                <input
+                  type="checkbox"
+                  checked={includeParent}
+                  onChange={(event) => setIncludeParent(event.target.checked)}
+                  className="h-4 w-4 accent-brand-500"
+                />
+                Add parent details
+              </label>
+            </div>
+
+            {includeParent && (
+              <div className="mt-4 space-y-4 border-t border-line pt-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field id="parentFirstName" label="Parent first name">
+                    <Input
+                      id="parentFirstName"
+                      name="parentFirstName"
+                      required
+                      autoComplete="off"
+                    />
+                  </Field>
+                  <Field id="parentLastName" label="Parent last name">
+                    <Input
+                      id="parentLastName"
+                      name="parentLastName"
+                      required
+                      autoComplete="off"
+                    />
+                  </Field>
+                </div>
+
+                <Field id="parentEmail" label="Parent email">
+                  <Input
+                    id="parentEmail"
+                    name="parentEmail"
+                    type="email"
+                    required
+                    autoComplete="off"
+                  />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Field id="parentPhone" label="Parent phone">
+                    <Input
+                      id="parentPhone"
+                      name="parentPhone"
+                      type="tel"
+                      placeholder="04xx xxx xxx"
+                      autoComplete="off"
+                    />
+                  </Field>
+                  <Field id="parentRelationship" label="Relationship">
+                    <Input
+                      id="parentRelationship"
+                      name="parentRelationship"
+                      defaultValue="Parent"
+                      placeholder="e.g. Parent or guardian"
+                      autoComplete="off"
+                    />
+                  </Field>
+                </div>
+
+                <Field
+                  id="parentPassword"
+                  label="Parent temporary password"
+                >
+                  <Input
+                    id="parentPassword"
+                    name="parentPassword"
+                    type="text"
+                    minLength={8}
+                    placeholder="Auto-generated"
+                    autoComplete="off"
+                  />
+                </Field>
+              </div>
+            )}
+          </section>
+        )}
       </fieldset>
 
       {error && (

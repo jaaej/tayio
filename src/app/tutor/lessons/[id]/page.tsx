@@ -4,6 +4,7 @@ import { PageHead, SectionHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { classNameDetail } from "@/lib/class-display";
 import { getLessonReschedules } from "@/lib/reschedule";
 import { LessonPlanEditor } from "@/app/tutor/_components/lesson-plan-editor";
 import {
@@ -11,7 +12,11 @@ import {
   saveLessonNote,
   saveLessonRecording,
 } from "../../_actions";
-import { getLessonForTutor, requireTutor } from "../../_data";
+import {
+  getLessonForTutor,
+  getStudentTrialsOnDate,
+  requireTutor,
+} from "../../_data";
 
 const ATTENDANCE_OPTIONS = [
   { value: "present", label: "Present" },
@@ -52,6 +57,14 @@ export default async function LessonDetailPage({
   // Reschedules - who moved out of this lesson (and where) and who's a make-up in.
   const { movedOut, movedIn } = await getLessonReschedules(id);
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
+  const movedInTrials = await getStudentTrialsOnDate(
+    movedIn.map((m) => m.studentId),
+    lesson.date,
+  );
+  const movedInTrialsByStudent = new Map(
+    movedInTrials.map((trial) => [trial.studentId, trial]),
+  );
+  const classDetail = classNameDetail(lesson.subjectName, lesson.className);
 
   return (
     <div className="space-y-5">
@@ -63,8 +76,8 @@ export default async function LessonDetailPage({
       </Link>
 
       <PageHead
-        eyebrow={lesson.subjectName}
-        title={lesson.className}
+        eyebrow={classDetail ? lesson.subjectName : undefined}
+        title={classDetail || lesson.subjectName}
         sub={
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
             <span>{formatDateLong(lesson.date)}</span>
@@ -128,6 +141,12 @@ export default async function LessonDetailPage({
                         </span>
                       )}
                     </div>
+                    {s.trialNote && (
+                      <div className="rounded-[10px] border border-info/25 bg-info-bg px-3 py-2 text-[12px] leading-relaxed text-info">
+                        <span className="font-bold">Free-trial note:</span>{" "}
+                        {s.trialNote}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                       {ATTENDANCE_OPTIONS.map((opt) => (
                         <label key={opt.value} className="cursor-pointer">
@@ -170,19 +189,31 @@ export default async function LessonDetailPage({
               Make-up attendees
             </div>
             <ul className="divide-y divide-line">
-              {movedIn.map((m) => (
-                <li
-                  key={m.studentId}
-                  className="px-4 py-3 flex items-baseline justify-between gap-3"
-                >
-                  <div className="text-[13px] font-bold text-ink">
-                    {m.studentName}
-                  </div>
-                  <span className="inline-flex items-center rounded-full border border-good/40 bg-good-bg px-2.5 py-1 text-[11px] font-bold text-good">
-                    Make-up ← {m.fromLabel}
-                  </span>
-                </li>
-              ))}
+              {movedIn.map((m) => {
+                const trial = movedInTrialsByStudent.get(m.studentId);
+                const trialNote = trial?.note?.trim();
+                return (
+                  <li key={m.studentId} className="space-y-2 px-4 py-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-3">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <div className="text-[13px] font-bold text-ink">
+                          {m.studentName}
+                        </div>
+                        {trial && <Pill tone="info">Free trial</Pill>}
+                      </div>
+                      <span className="inline-flex items-center rounded-full border border-good/40 bg-good-bg px-2.5 py-1 text-[11px] font-bold text-good">
+                        Make-up ← {m.fromLabel}
+                      </span>
+                    </div>
+                    {trialNote && (
+                      <div className="rounded-[10px] border border-info/25 bg-info-bg px-3 py-2 text-[12px] leading-relaxed text-info">
+                        <span className="font-bold">Free-trial note:</span>{" "}
+                        {trialNote}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

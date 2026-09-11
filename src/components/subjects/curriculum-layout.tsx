@@ -32,11 +32,14 @@ export function CurriculumLayout({
   children,
   attached = false,
   subjectName,
+  flushTabTop = false,
 }: {
   rail: React.ReactNode;
   children: React.ReactNode;
   attached?: boolean;
   subjectName?: string;
+  /** Staff pages can align the collapsed subject tile directly to the hero. */
+  flushTabTop?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -139,13 +142,19 @@ export function CurriculumLayout({
               aria-expanded={false}
               // Square-cornered, like the rail it opens into - the two are the
               // same block in two states, so the closed tab keeps no rounding.
-              className="absolute inset-y-0 left-0 flex w-[44px] flex-col items-center gap-2 border border-l-0 border-line-strong bg-surface pb-4 pt-3 text-ink shadow-[3px_0_16px_-5px_rgba(31,40,90,0.3)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400/50"
+              className={cn(
+                "absolute inset-y-0 left-0 flex w-[44px] flex-col items-center gap-2 border border-l-0 border-line-strong bg-surface pb-4 text-ink shadow-[3px_0_16px_-5px_rgba(31,40,90,0.3)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400/50",
+                flushTabTop ? "pt-0" : "pt-3",
+              )}
             >
               {subject ? (
                 <>
                   <span
                     aria-hidden
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold"
+                    className={cn(
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold",
+                      flushTabTop && "rounded-t-none",
+                    )}
                     style={{
                       background: subject.tokens.bgFrom,
                       color: subject.tokens.arrow,

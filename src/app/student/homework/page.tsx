@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardList } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Card, CardBody, CardHead } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { StatTile } from "@/components/student/kpi";
@@ -93,12 +93,7 @@ export default async function HomeworkListPage({
     bucket: bucketOf(row, startOfToday, weekFromNow),
   }));
 
-  const countOf = (b: Bucket) =>
-    bucketed.filter((e) => e.bucket === b).length;
-  const overdueCount = countOf("overdue");
-  const dueThisWeekCount = countOf("due-this-week");
-  const markedCount = countOf("marked");
-  const openCount = overdueCount + dueThisWeekCount + countOf("coming-up");
+  const markedCount = bucketed.filter((e) => e.bucket === "marked").length;
 
   // One list, priority-ordered, so the work that matters now leads. Within a
   // bucket the open work reads soonest-first and the finished work newest-first.
@@ -129,25 +124,9 @@ export default async function HomeworkListPage({
       <PageHead eyebrow="Homework" title="Your homework" />
 
       <section
-        className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 rise"
+        className="max-w-sm rise"
         style={{ animationDelay: "40ms" } as React.CSSProperties}
       >
-        <StatTile
-          label="Open"
-          value={openCount}
-          icon={<ClipboardList className="h-5 w-5" aria-hidden />}
-          tone={overdueCount > 0 ? "warn" : "brand"}
-          accent
-          sub={overdueCount > 0 ? `${overdueCount} overdue` : undefined}
-          subTone={overdueCount > 0 ? "down" : "flat"}
-        />
-        <StatTile
-          label="Due this week"
-          value={dueThisWeekCount}
-          icon={<CalendarClock className="h-5 w-5" aria-hidden />}
-          tone="sky"
-          accent
-        />
         <StatTile
           label="Marked this term"
           value={markedCount}

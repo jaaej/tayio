@@ -1,28 +1,37 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { and, asc, eq, gte, isNotNull, lt } from "drizzle-orm";
+import { ChevronLeft, ChevronRight, Handshake } from "lucide-react";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
 import { Card } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
+import { PageHead, SectionHead } from "@/components/student/page-head";
 import { db } from "@/db/client";
-import {
-  classes,
-  lessons,
-  subjects,
-  tutorAvailability,
-} from "@/db/schema";
+import { classes, lessons, subjects } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatTime } from "@/lib/format";
+import { formatDateLong, formatTime } from "@/lib/format";
+import { classDisplayName } from "@/lib/class-display";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { getTutorAbsenceLessonOptions } from "@/lib/tutor-cover";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
-import { requireTutor } from "../_data";
-import { getWeeklyRules } from "../_lib/availability";
+import { AbsenceLeavePanel } from "../cover/_components/cover-controls";
 import {
-  toggleAvailabilityRule,
-  toggleDateOverride,
-  toggleDayIsolation,
-} from "../_actions";
+  getWeeklyRules,
+  type WeeklyRule,
+} from "../_lib/availability";
+import {
+  AvailabilityControls,
+  type WeeklyAvailabilityWindow,
+} from "./_components/availability-controls";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 const MONTH_NAMES = [
   "January",
   "February",
@@ -37,7 +46,6 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 8..20
 
 function isoLocal(d: Date) {
   const y = d.getFullYear();
@@ -45,45 +53,86 @@ function isoLocal(d: Date) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
 function monthKey(year: number, month: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
-function hh(n: number): string {
-  return `${String(n).padStart(2, "0")}:00`;
-}
+
 function parseMonthParam(value: string | undefined): {
   year: number;
   month: number;
 } {
   if (value && /^\d{4}-\d{2}$/.test(value)) {
-    const [y, m] = value.split("-").map(Number);
-    if (m >= 1 && m <= 12) return { year: y, month: m - 1 };
+    const [year, month] = value.split("-").map(Number);
+    if (month >= 1 && month <= 12) return { year, month: month - 1 };
   }
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() };
-}
-function navigate(year: number, month: number, delta: number) {
-  const d = new Date(year, month + delta, 1);
-  return { year: d.getFullYear(), month: d.getMonth() };
+  const [year, month] = melbourneDate().split("-").map(Number);
+  return { year, month: month - 1 };
 }
 
-type SearchParams = Promise<{ m?: string; edit?: string }>;
+function navigate(year: number, month: number, delta: number) {
+  const date = new Date(year, month + delta, 1);
+  return { year: date.getFullYear(), month: date.getMonth() };
+}
+
+function mergeWeeklyRules(rules: WeeklyRule[]): WeeklyAvailabilityWindow[] {
+  const sorted = [...rules].sort(
+    (a, b) =>
+      (a.weekday === 0 ? 7 : a.weekday) -
+        (b.weekday === 0 ? 7 : b.weekday) ||
+      a.startTime.localeCompare(b.startTime) ||
+      a.endTime.localeCompare(b.endTime),
+  );
+  const merged: Array<{
+    weekday: number;
+    startTime: string;
+    endTime: string;
+    ruleIds: string[];
+  }> = [];
+
+  for (const rule of sorted) {
+    const current = merged.at(-1);
+    if (
+      current &&
+      current.weekday === rule.weekday &&
+      rule.startTime <= current.endTime
+    ) {
+      if (rule.endTime > current.endTime) current.endTime = rule.endTime;
+      current.ruleIds.push(rule.id);
+    } else {
+      merged.push({
+        weekday: rule.weekday,
+        startTime: rule.startTime,
+        endTime: rule.endTime,
+        ruleIds: [rule.id],
+      });
+    }
+  }
+
+  return merged.map((window) => ({
+    weekday: window.weekday,
+    dayLabel: DAY_NAMES[window.weekday],
+    timeLabel: `${formatTime(window.startTime)}–${formatTime(window.endTime)}`,
+    ruleIds: window.ruleIds,
+  }));
+}
+
+type SearchParams = Promise<{ m?: string; panel?: string }>;
 
 export default async function TutorTimetablePage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  await requireRole("tutor");
-  const tutor = await requireTutor();
-  const { m, edit } = await searchParams;
+  const tutor = await requireRole("tutor");
+  const { m, panel } = await searchParams;
   const { year, month } = parseMonthParam(m);
-  const isEdit = edit === "avail";
 
   const fromIso = isoLocal(new Date(year, month, 1));
   const toIso = isoLocal(new Date(year, month + 1, 1));
+  const todayIso = melbourneDate();
 
-  const [lessonRows, rules, dateOverrideRows] = await Promise.all([
+  const [lessonRows, rules, absenceLessons] = await Promise.all([
     db
       .select({
         id: lessons.id,
@@ -105,221 +154,131 @@ export default async function TutorTimetablePage({
       )
       .orderBy(asc(lessons.date), asc(lessons.startTime)),
     getWeeklyRules(tutor.id),
-    // All date-specific override rows for this tutor in the visible month
-    // range. Two flavors live here:
-    //   1. Isolation sentinel: 00:00:00–23:59:59, isAvailable=false →
-    //      detaches the date from recurring weekly rules.
-    //   2. Hourly date override: isAvailable=true, e.g. 15:00–16:00 →
-    //      adds an isolated-day-only slot.
-    db
-      .select({
-        date: tutorAvailability.date,
-        startTime: tutorAvailability.startTime,
-        endTime: tutorAvailability.endTime,
-        isAvailable: tutorAvailability.isAvailable,
-      })
-      .from(tutorAvailability)
-      .where(
-        and(
-          eq(tutorAvailability.tutorId, tutor.id),
-          isNotNull(tutorAvailability.date),
-        ),
-      ),
+    getTutorAbsenceLessonOptions(tutor.id),
   ]);
-  const isolatedDates = new Set<string>();
-  // Map<dateIso, Set<hour>> of positive date overrides - used when the day
-  // is isolated to drive its independent hour pills.
-  const dateOverrideHours = new Map<string, Set<number>>();
-  for (const r of dateOverrideRows) {
-    if (!r.date) continue;
-    if (
-      !r.isAvailable &&
-      r.startTime === "00:00:00" &&
-      r.endTime === "23:59:59"
-    ) {
-      isolatedDates.add(r.date);
-    } else if (r.isAvailable) {
-      const h = parseInt(r.startTime.slice(0, 2), 10);
-      if (!dateOverrideHours.has(r.date))
-        dateOverrideHours.set(r.date, new Set());
-      dateOverrideHours.get(r.date)!.add(h);
-    }
+
+  const weeklyWindows = mergeWeeklyRules(rules);
+  const lessonOptions = absenceLessons.map((lesson) => ({
+    id: lesson.id,
+    label:
+      `${formatDateLong(lesson.date)} · ${formatTime(lesson.startTime)} · ` +
+      classDisplayName(lesson.subjectName, lesson.className),
+  }));
+
+  const lessonsByDate = new Map<string, typeof lessonRows>();
+  for (const lesson of lessonRows) {
+    const list = lessonsByDate.get(lesson.date) ?? [];
+    list.push(lesson);
+    lessonsByDate.set(lesson.date, list);
   }
 
   const firstOfMonth = new Date(year, month, 1);
-  const firstDow = firstOfMonth.getDay();
-  const mondayOffset = (firstDow + 6) % 7;
+  const mondayOffset = (firstOfMonth.getDay() + 6) % 7;
   const gridStart = new Date(year, month, 1 - mondayOffset);
-  const todayIso = isoLocal(new Date());
-
-  const lessonsByDate = new Map<string, typeof lessonRows>();
-  for (const l of lessonRows) {
-    if (!lessonsByDate.has(l.date)) lessonsByDate.set(l.date, []);
-    lessonsByDate.get(l.date)!.push(l);
-  }
-
-  const availByCell = new Set<string>();
-  for (const r of rules) {
-    const startH = parseInt(r.startTime.slice(0, 2), 10);
-    const endH = parseInt(r.endTime.slice(0, 2), 10);
-    for (let h = startH; h < endH; h++) {
-      availByCell.add(`${r.weekday}-${h}`);
-    }
-  }
-
-  type Day = {
-    iso: string;
-    dayNum: number;
-    weekday: number;
-    inMonth: boolean;
-    isToday: boolean;
-    isWeekend: boolean;
-    isIsolated: boolean;
-    isPast: boolean;
-    dateOverrideHours: Set<number>;
-    lessons: typeof lessonRows;
-  };
-  const days: Day[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart);
-    d.setDate(gridStart.getDate() + i);
-    const iso = isoLocal(d);
+  const days: DayShape[] = [];
+  for (let index = 0; index < 42; index++) {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const iso = isoLocal(date);
     days.push({
       iso,
-      dayNum: d.getDate(),
-      weekday: d.getDay(),
-      inMonth: d.getMonth() === month,
+      dayNum: date.getDate(),
+      inMonth: date.getMonth() === month,
       isToday: iso === todayIso,
-      isWeekend: d.getDay() === 0 || d.getDay() === 6,
-      isIsolated: isolatedDates.has(iso),
-      isPast: iso < todayIso,
-      dateOverrideHours: dateOverrideHours.get(iso) ?? new Set(),
       lessons: lessonsByDate.get(iso) ?? [],
     });
   }
   let usedRows = 6;
   while (
     usedRows > 4 &&
-    days.slice((usedRows - 1) * 7, usedRows * 7).every((d) => !d.inMonth)
-  )
-    usedRows--;
+    days
+      .slice((usedRows - 1) * 7, usedRows * 7)
+      .every((day) => !day.inMonth)
+  ) {
+    usedRows -= 1;
+  }
   const visibleDays = days.slice(0, usedRows * 7);
-
-  const prev = navigate(year, month, -1);
-  const next = navigate(year, month, 1);
-  const editParam = isEdit ? "" : "&edit=avail";
-  const editToggleHref = `/tutor/timetable?m=${monthKey(year, month)}${editParam}`;
-  const navHref = (mt: { year: number; month: number }) =>
-    `/tutor/timetable?m=${monthKey(mt.year, mt.month)}${isEdit ? "&edit=avail" : ""}`;
-
-  const lessonCount = lessonRows.length;
-  const availCount = rules.length;
+  const previousMonth = navigate(year, month, -1);
+  const nextMonth = navigate(year, month, 1);
 
   return (
     <div className="space-y-5">
       <PageHead
-        eyebrow="Timetable"
-        title={`${MONTH_NAMES[month]} ${year}`}
+        eyebrow="Schedule"
+        title="Schedule & availability"
+        sub="Review your timetable, set recurring teaching hours, or report time away."
         actions={
-          <Link
-            href={editToggleHref}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-[12px] font-bold transition-colors",
-              isEdit
-                ? "bg-good text-white hover:opacity-90"
-                : "bg-brand-600 text-white hover:bg-brand-700",
-            )}
-          >
-            {isEdit ? "Done editing" : "Manage availability"}
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <AvailabilityControls weeklyWindows={weeklyWindows} />
+            <AbsenceLeavePanel
+              lessons={lessonOptions}
+              initialOpen={panel === "leave"}
+            />
+            <Link
+              href="/tutor/cover"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink hover:border-brand-400 hover:text-brand-700"
+            >
+              <Handshake className="h-4 w-4" aria-hidden />
+              Open cover board
+            </Link>
+          </div>
         }
       />
 
-      {isEdit && (
-        <div className="rounded-[12px] border border-good/40 bg-good-bg px-3.5 py-2.5 text-[12px] text-good leading-snug">
-          <strong className="font-extrabold">Edit mode.</strong> Click any empty
-          hour pill to mark yourself available that weekday <em>every</em>{" "}
-          week. Click a green pill to remove it. To make one specific date
-          differ from your weekly rules (e.g. only 3pm available on week 3
-          Tuesday), click the small <span className="text-grape">·</span>{" "}
-          button in that day's corner to <em>isolate</em> it, then its pills
-          edit that date only. Amber pills are existing lessons (read-only).
-          Availability is visible to admins for parent reschedule + class
-          assignment.
-        </div>
-      )}
-
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 flex items-center justify-between border-b border-line">
-          <Link
-            href={`/tutor/timetable${isEdit ? "?edit=avail" : ""}`}
-            className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 hover:text-brand-700"
-          >
-            Today
-          </Link>
-          <div className="flex items-center gap-1.5">
-            <Link
-              href={navHref(prev)}
-              aria-label="Previous month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              href={navHref(next)}
-              aria-label="Next month"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-muted hover:border-brand-300 hover:text-ink transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
-        </div>
-
-        <div className="p-4 space-y-3">
-          <div className="grid grid-cols-7 gap-1.5 text-[10px] uppercase tracking-[0.12em] text-muted font-bold">
-            {DAY_LABELS.map((d) => (
-              <div key={d} className="text-center py-1.5">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1.5">
-            {visibleDays.map((d) => (
-              <DayCell
-                key={d.iso}
-                day={d}
-                isEdit={isEdit}
-                availByCell={availByCell}
+      <section aria-labelledby="calendar-heading">
+        <SectionHead
+          title={<span id="calendar-heading">Your monthly timetable</span>}
+        />
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <div>
+              <h2 className="text-[15px] font-extrabold text-ink">
+                {MONTH_NAMES[month]} {year}
+              </h2>
+              <Link
+                href="/tutor/timetable#calendar-heading"
+                className="mt-0.5 inline-block text-[11px] font-bold text-brand-600 hover:text-brand-700"
+              >
+                Return to this month
+              </Link>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MonthButton
+                month={previousMonth}
+                label="Previous month"
+                direction="left"
               />
-            ))}
+              <MonthButton
+                month={nextMonth}
+                label="Next month"
+                direction="right"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5 pt-3 border-t border-line text-[10px] uppercase tracking-[0.12em] text-muted font-bold">
-            <Legend color="bg-brand-500" label="Teaching" />
-            <Legend
-              color="bg-grape-bg border border-grape/50"
-              label="Isolated day"
-            />
-            {isEdit && (
-              <>
-                <Legend
-                  color="bg-good-bg border border-good/50"
-                  label="Available (weekly)"
-                />
-                <Legend
-                  color="bg-grape-bg border border-grape/50"
-                  label="Available (this day only)"
-                />
-                <Legend
-                  color="bg-surface border border-line"
-                  label="Empty - click to add"
-                />
-              </>
-            )}
+          <div className="space-y-3 p-4">
+            <div className="overflow-x-auto pb-1">
+              <div className="min-w-[720px] space-y-1.5">
+                <div className="grid grid-cols-7 gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                  {DAY_LABELS.map((day) => (
+                    <div key={day} className="py-1.5 text-center">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {visibleDays.map((day) => (
+                    <DayCell key={day.iso} day={day} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-5 border-t border-line pt-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+              <Legend color="bg-brand-500" label="Teaching" />
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </section>
     </div>
   );
 }
@@ -327,13 +286,8 @@ export default async function TutorTimetablePage({
 type DayShape = {
   iso: string;
   dayNum: number;
-  weekday: number;
   inMonth: boolean;
   isToday: boolean;
-  isWeekend: boolean;
-  isIsolated: boolean;
-  isPast: boolean;
-  dateOverrideHours: Set<number>;
   lessons: Array<{
     id: string;
     startTime: string;
@@ -343,226 +297,96 @@ type DayShape = {
   }>;
 };
 
-function hourLabel(h: number): string {
-  const suffix = h >= 12 ? "p" : "a";
-  const hr = h % 12 === 0 ? 12 : h % 12;
-  return `${hr}${suffix}`;
-}
-
-function DayCell({
-  day,
-  isEdit,
-  availByCell,
-}: {
-  day: DayShape;
-  isEdit: boolean;
-  availByCell: Set<string>;
-}) {
-  const lessonHours = new Map<
-    number,
-    { className: string; subjectName: string }
-  >();
-  for (const l of day.lessons) {
-    const startH = parseInt(l.startTime.slice(0, 2), 10);
-    const endH = parseInt(l.endTime.slice(0, 2), 10);
-    for (let h = startH; h < endH; h++) {
-      lessonHours.set(h, {
-        className: l.className,
-        subjectName: l.subjectName,
-      });
-    }
-  }
-
-  const canToggleIsolation = day.inMonth && !day.isPast;
-
+function DayCell({ day }: { day: DayShape }) {
   return (
     <div
       className={cn(
-        "rounded-xl border p-1.5 flex flex-col gap-1.5",
-        isEdit ? "min-h-[260px]" : "min-h-[150px]",
-        day.isIsolated
-          ? "bg-grape-bg border-grape/50"
-          : day.isToday
-            ? "bg-surface border-brand-400 ring-1 ring-brand-300/40"
-            : day.inMonth
-              ? "bg-surface border-line"
-              : "bg-surface-2 border-line",
+        "min-h-[150px] rounded-xl border p-1.5",
+        day.isToday
+          ? "border-brand-400 bg-surface ring-1 ring-brand-300/40"
+          : day.inMonth
+            ? "border-line bg-surface"
+            : "border-line bg-surface-2",
       )}
     >
-      <div className="flex items-center justify-between gap-1 px-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-1 px-0.5">
         {day.isToday ? (
-          <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-brand-500 text-white text-[12px] font-extrabold tabular-nums leading-none">
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[12px] font-extrabold leading-none text-white">
             {day.dayNum}
           </span>
         ) : (
           <span
             className={cn(
-              "text-[13px] tabular-nums font-bold leading-none",
+              "text-[13px] font-bold leading-none",
               day.inMonth ? "text-ink" : "text-muted-2",
-              day.isIsolated && "text-grape",
             )}
           >
             {day.dayNum}
           </span>
         )}
-        {canToggleIsolation && (
-          <form action={toggleDayIsolation} className="contents">
-            <input type="hidden" name="date" value={day.iso} />
-            <button
-              type="submit"
-              className={cn(
-                "h-4 w-4 rounded-[4px] border flex items-center justify-center text-[9px] font-bold leading-none transition-colors",
-                day.isIsolated
-                  ? "bg-grape border-grape text-white hover:opacity-90"
-                  : "bg-surface border-line text-muted-2 hover:border-grape hover:text-grape",
-              )}
-              title={
-                day.isIsolated
-                  ? "Re-link to weekly rules (this day's custom slots will be cleared)"
-                  : "Isolate this day - edit its slots independently of the weekly rules"
-              }
-              aria-pressed={day.isIsolated}
-              aria-label={
-                day.isIsolated
-                  ? `Re-link ${day.iso} to weekly rules`
-                  : `Isolate ${day.iso} from weekly rules`
-              }
-            >
-              {day.isIsolated ? "✕" : "·"}
-            </button>
-          </form>
-        )}
       </div>
-      {day.isIsolated && (
-        <div className="px-0.5 text-[9px] uppercase tracking-[0.1em] font-extrabold text-grape">
-          Isolated
-        </div>
-      )}
 
       {day.lessons.length > 0 && (
-        <div className="space-y-1">
-          {day.lessons.slice(0, 2).map((l) => {
-            // Subject-accent chip, matching the shared MonthCalendar's lesson
-            // chips (and the tutor classes hub) so a subject reads the same
-            // colour everywhere - not a flat amber.
-            const t = getAccentTokens(colorFamilyForSubject(l.subjectName));
+        <div className="mt-2 space-y-1">
+          {day.lessons.slice(0, 3).map((lesson) => {
+            const tokens = getAccentTokens(
+              colorFamilyForSubject(lesson.subjectName),
+            );
             return (
               <Link
-                key={l.id}
-                href={`/tutor/lessons/${l.id}`}
-                className="relative block rounded-md pl-2 pr-1.5 py-0.5 text-[10px] leading-tight overflow-hidden transition-transform hover:-translate-y-[1px]"
-                style={{ backgroundColor: t.pillBg, color: t.pillText }}
-                title={`${l.className} · ${formatTime(l.startTime)}-${formatTime(l.endTime)}`}
+                key={lesson.id}
+                href={`/tutor/lessons/${lesson.id}`}
+                className="relative block overflow-hidden rounded-md py-1 pl-2 pr-1.5 text-[10px] leading-tight transition-transform hover:-translate-y-[1px]"
+                style={{
+                  backgroundColor: tokens.pillBg,
+                  color: tokens.pillText,
+                }}
+                title={`${classDisplayName(lesson.subjectName, lesson.className)} · ${formatTime(lesson.startTime)}–${formatTime(lesson.endTime)}`}
               >
                 <span
                   aria-hidden
-                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
-                  style={{ backgroundColor: t.arrow }}
+                  className="absolute bottom-1 left-0 top-1 w-[3px] rounded-full"
+                  style={{ backgroundColor: tokens.arrow }}
                 />
-                <div className="font-bold truncate">{l.subjectName}</div>
+                <div className="truncate font-bold">{lesson.subjectName}</div>
                 <div className="tabular-nums opacity-80">
-                  {formatTime(l.startTime)}
+                  {formatTime(lesson.startTime)}
                 </div>
               </Link>
             );
           })}
-          {day.lessons.length > 2 && (
-            <div className="text-[10px] text-muted px-0.5">
-              +{day.lessons.length - 2} more
+          {day.lessons.length > 3 && (
+            <div className="px-0.5 text-[10px] text-muted">
+              +{day.lessons.length - 3} more
             </div>
           )}
         </div>
       )}
-
-      {isEdit && (
-      <div className="mt-auto pt-1 border-t border-line">
-        <div className="grid grid-cols-3 gap-0.5">
-          {HOURS.map((h) => {
-            const isLesson = lessonHours.has(h);
-            // Isolated day → state + writes go through date-specific
-            // overrides (toggleDateOverride). Normal day → recurring
-            // weekly rules (toggleAvailabilityRule).
-            const isAvail = day.isIsolated
-              ? day.dateOverrideHours.has(h)
-              : availByCell.has(`${day.weekday}-${h}`);
-            const label = hourLabel(h);
-            const baseClasses =
-              "h-6 rounded text-[10px] font-bold tabular-nums flex items-center justify-center transition-colors";
-            const availTone = day.isIsolated
-              ? "bg-grape-bg text-grape border border-grape/50"
-              : "bg-good-bg text-good border border-good/50";
-            const tone = isLesson
-              ? "bg-sun-100 text-sun-ink border border-sun-300"
-              : isAvail
-                ? availTone
-                : "bg-surface text-muted-2 border border-line";
-            const title = isLesson
-              ? `${formatTime(hh(h))} - ${lessonHours.get(h)!.subjectName}`
-              : isAvail
-                ? `${formatTime(hh(h))} - available${day.isIsolated ? " (this day only)" : ""} (click to remove)`
-                : `${formatTime(hh(h))} - empty (click to add${day.isIsolated ? " - this day only" : ""})`;
-
-            if (!isLesson) {
-              if (day.isIsolated) {
-                return (
-                  <form
-                    key={h}
-                    action={toggleDateOverride}
-                    className="contents"
-                  >
-                    <input type="hidden" name="date" value={day.iso} />
-                    <input type="hidden" name="startTime" value={hh(h)} />
-                    <input type="hidden" name="endTime" value={hh(h + 1)} />
-                    <input type="hidden" name="setUnavailable" value="0" />
-                    <button
-                      type="submit"
-                      className={cn(
-                        baseClasses,
-                        tone,
-                        "cursor-pointer hover:border-grape",
-                      )}
-                      title={title}
-                      aria-label={title}
-                    >
-                      {label}
-                    </button>
-                  </form>
-                );
-              }
-              return (
-                <form
-                  key={h}
-                  action={toggleAvailabilityRule}
-                  className="contents"
-                >
-                  <input type="hidden" name="weekday" value={day.weekday} />
-                  <input type="hidden" name="startTime" value={hh(h)} />
-                  <input type="hidden" name="endTime" value={hh(h + 1)} />
-                  <button
-                    type="submit"
-                    className={cn(
-                      baseClasses,
-                      tone,
-                      "cursor-pointer hover:border-brand-300",
-                    )}
-                    title={title}
-                    aria-label={title}
-                  >
-                    {label}
-                  </button>
-                </form>
-              );
-            }
-            return (
-              <div key={h} className={cn(baseClasses, tone)} title={title}>
-                {label}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      )}
     </div>
+  );
+}
+
+function MonthButton({
+  month,
+  label,
+  direction,
+}: {
+  month: { year: number; month: number };
+  label: string;
+  direction: "left" | "right";
+}) {
+  return (
+    <Link
+      href={`/tutor/timetable?m=${monthKey(month.year, month.month)}#calendar-heading`}
+      aria-label={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand-300 hover:text-ink"
+    >
+      {direction === "left" ? (
+        <ChevronLeft className="h-4 w-4" aria-hidden />
+      ) : (
+        <ChevronRight className="h-4 w-4" aria-hidden />
+      )}
+    </Link>
   );
 }
 

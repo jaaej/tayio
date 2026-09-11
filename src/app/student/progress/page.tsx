@@ -11,9 +11,9 @@ type Mastery = "not_started" | "needs_work" | "improving" | "strong";
 
 const MASTERY_LABEL: Record<Mastery, string> = {
   not_started: "Not started",
-  needs_work: "Needs work",
+  needs_work: "Needs focused effort",
   improving: "Improving",
-  strong: "Strong",
+  strong: "All good",
 };
 
 const MASTERY_TONE: Record<Mastery, { bg: string; text: string; dot: string }> =
@@ -29,16 +29,23 @@ const MASTERY_TONE: Record<Mastery, { bg: string; text: string; dot: string }> =
       dot: "var(--sky)",
     },
     needs_work: {
+      bg: "var(--bad-bg)",
+      text: "var(--bad)",
+      dot: "var(--bad)",
+    },
+    not_started: {
       bg: "var(--sun-100)",
       text: "var(--sun-600)",
       dot: "var(--sun-500)",
     },
-    not_started: {
-      bg: "var(--surface-2)",
-      text: "var(--muted)",
-      dot: "var(--muted-2)",
-    },
   };
+
+const MASTERY_GUIDE: Mastery[] = [
+  "needs_work",
+  "improving",
+  "strong",
+  "not_started",
+];
 
 export default async function ProgressPage() {
   const user = await requireRole("student");
@@ -129,6 +136,32 @@ export default async function ProgressPage() {
           </div>
         </div>
       </section>
+
+      <div
+        aria-label="Effort level colour guide"
+        className="flex flex-wrap items-center gap-2 rounded-[16px] border border-line bg-surface px-4 py-3"
+      >
+        <span className="mr-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+          Effort guide
+        </span>
+        {MASTERY_GUIDE.map((mastery) => {
+          const tone = MASTERY_TONE[mastery];
+          return (
+            <span
+              key={mastery}
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
+              style={{ background: tone.bg, color: tone.text }}
+            >
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: tone.dot }}
+              />
+              {MASTERY_LABEL[mastery]}
+            </span>
+          );
+        })}
+      </div>
 
       {subjects.length === 0 ? (
         <div className="rounded-[22px] border border-line bg-surface p-10 text-center space-y-2">

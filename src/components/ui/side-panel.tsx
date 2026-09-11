@@ -33,6 +33,7 @@ export function SidePanel({
   sub,
   footer,
   children,
+  size = "default",
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,6 +41,7 @@ export function SidePanel({
   sub?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
+  size?: "default" | "wide";
 }) {
   /** In the DOM - stays true through the exit transition. */
   const [mounted, setMounted] = useState(false);
@@ -161,7 +163,10 @@ export function SidePanel({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "absolute inset-y-0 right-0 flex w-full flex-col bg-surface outline-none sm:w-[440px]",
+          "absolute inset-y-0 right-0 flex w-full flex-col bg-surface outline-none",
+          size === "wide"
+            ? "sm:w-[640px] lg:w-[720px]"
+            : "sm:w-[440px]",
           "shadow-[0_24px_60px_-20px_rgba(31,40,90,0.45)]",
           "motion-reduce:transition-none",
           shown

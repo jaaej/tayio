@@ -497,27 +497,41 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
   const onLeaveIds = new Set(leaveRows.map((r) => r.studentId));
 
   // Flag students on a free trial spanning this lesson's date.
-  const trialRows = rosterIds.length
-    ? await db
-        .select({ studentId: studentTrials.studentId })
-        .from(studentTrials)
-        .where(
-          and(
-            inArray(studentTrials.studentId, rosterIds),
-            sql`${studentTrials.startDate} <= ${lesson.date}`,
-            sql`${studentTrials.endDate} >= ${lesson.date}`,
-          ),
-        )
-    : [];
-  const onTrialIds = new Set(trialRows.map((r) => r.studentId));
+  const trialRows = await getStudentTrialsOnDate(rosterIds, lesson.date);
+  const trialsByStudent = new Map(trialRows.map((r) => [r.studentId, r]));
 
   const rosterWithFlags = roster.map((r) => ({
     ...r,
     onLeave: onLeaveIds.has(r.id),
-    onTrial: onTrialIds.has(r.id),
+    onTrial: trialsByStudent.has(r.id),
+    trialNote: trialsByStudent.get(r.id)?.note?.trim() || null,
   }));
 
   return { lesson, roster: rosterWithFlags, notes: existingNotes };
+}
+
+/** Free-trial context that is safe for the assigned tutor to see in a lesson
+ * roll. Keeping the date condition here ensures notes never appear outside the
+ * configured trial period, including for temporary make-up attendees. */
+export async function getStudentTrialsOnDate(
+  studentIds: string[],
+  lessonDate: string,
+) {
+  if (studentIds.length === 0) return [];
+
+  return db
+    .select({
+      studentId: studentTrials.studentId,
+      note: studentTrials.note,
+    })
+    .from(studentTrials)
+    .where(
+      and(
+        inArray(studentTrials.studentId, studentIds),
+        sql`${studentTrials.startDate} <= ${lessonDate}`,
+        sql`${studentTrials.endDate} >= ${lessonDate}`,
+      ),
+    );
 }
 
 export async function getTutorHomework(tutorId: string) {

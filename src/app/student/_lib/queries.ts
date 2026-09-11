@@ -987,6 +987,7 @@ export type TimetableLesson = {
   subjectId: string;
   subjectName: string;
   className: string;
+  location: string | null;
   studentState:
     | "normal"
     | "moved_out"
@@ -1018,6 +1019,7 @@ export async function getStudentTimetableLessons(
     subjectId: classes.subjectId,
     subjectName: subjects.name,
     className: classes.name,
+    location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
   };
 
   const enrolledLessons = enrolledClassIds.length
@@ -1163,6 +1165,7 @@ export async function getStudentTimetableLessons(
         subjectId: orig?.subjectId ?? "",
         subjectName: orig?.subjectName ?? "Lesson",
         className: orig?.className ?? "",
+        location: orig?.location ?? null,
         studentState: "pending_in",
         moveLabel: "Waiting for approval",
       });

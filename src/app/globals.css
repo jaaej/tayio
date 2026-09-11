@@ -312,7 +312,7 @@ body > * {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Math Blitz game - engagement effects */
+/* Taiyo Blitz game - engagement effects */
 @keyframes blitz-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-14px); }
@@ -329,10 +329,81 @@ body > * {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
   50% { transform: translate3d(1.5%, -2%, 0) scale(1.12); }
 }
+@keyframes blitz-correct-badge {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.65) rotate(-5deg); }
+  24% { opacity: 1; transform: translate(-50%, 0) scale(1.12) rotate(2deg); }
+  70% { opacity: 1; transform: translate(-50%, -8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -22px) scale(0.92); }
+}
+@keyframes blitz-correct-particle {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  20% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) rotate(220deg) scale(1);
+  }
+}
+@keyframes blitz-score-pop {
+  0% { color: #0e7a4d; transform: scale(1.55); }
+  100% { color: inherit; transform: scale(1); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .blitz-float, .blitz-pop, .blitz-glow, .blitz-aurora { animation: none !important; }
+  .blitz-float, .blitz-pop, .blitz-glow, .blitz-aurora,
+  .blitz-correct-burst span, .blitz-correct-burst i, .blitz-score-pop {
+    animation: none !important;
+  }
 }
 .blitz-float { animation: blitz-float 7s ease-in-out infinite; }
 .blitz-pop { animation: blitz-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .blitz-glow { animation: blitz-glow 2.8s ease-in-out infinite; }
 .blitz-aurora { animation: blitz-aurora 18s ease-in-out infinite; }
+.blitz-score-pop { animation: blitz-score-pop 0.3s ease-out both; }
+.blitz-correct-burst {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  z-index: 10;
+  width: 1px;
+  height: 1px;
+}
+.blitz-correct-burst span {
+  position: absolute;
+  left: 0;
+  top: -62px;
+  width: max-content;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 999px;
+  background: rgba(236, 253, 245, 0.96);
+  box-shadow: 0 12px 30px -14px rgba(5, 150, 105, 0.8);
+  color: #0e7a4d;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 8px 14px;
+  animation: blitz-correct-badge 0.72s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.blitz-correct-burst i {
+  --burst-x: 0px;
+  --burst-y: -70px;
+  position: absolute;
+  left: 0;
+  top: -38px;
+  width: 7px;
+  height: 11px;
+  border-radius: 3px;
+  background: #7b6ef0;
+  animation: blitz-correct-particle 0.68s ease-out both;
+}
+.blitz-correct-burst i:nth-of-type(2n) { background: #10b981; }
+.blitz-correct-burst i:nth-of-type(3n) { background: #f59e0b; }
+.blitz-correct-burst i:nth-of-type(4n) { background: #f2616b; }
+.blitz-correct-burst i:nth-of-type(1) { --burst-x: -82px; --burst-y: -52px; }
+.blitz-correct-burst i:nth-of-type(2) { --burst-x: -58px; --burst-y: -86px; }
+.blitz-correct-burst i:nth-of-type(3) { --burst-x: -28px; --burst-y: -68px; }
+.blitz-correct-burst i:nth-of-type(4) { --burst-x: 2px; --burst-y: -94px; }
+.blitz-correct-burst i:nth-of-type(5) { --burst-x: 35px; --burst-y: -72px; }
+.blitz-correct-burst i:nth-of-type(6) { --burst-x: 72px; --burst-y: -55px; }
+.blitz-correct-burst i:nth-of-type(7) { --burst-x: -78px; --burst-y: 4px; }
+.blitz-correct-burst i:nth-of-type(8) { --burst-x: -38px; --burst-y: 24px; }
+.blitz-correct-burst i:nth-of-type(9) { --burst-x: 42px; --burst-y: 20px; }
+.blitz-correct-burst i:nth-of-type(10) { --burst-x: 80px; --burst-y: 0px; }

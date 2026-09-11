@@ -1,9 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { AlertCircle, Bell, CheckCheck } from "lucide-react";
-import { markAllNotificationsRead } from "@/app/_actions/notifications";
+import { useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  Bell,
+  CheckCheck,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/app/_actions/notifications";
 import { PageHero } from "@/components/ui/page-hero";
 import {
   NOTIFICATION_GROUPS,
@@ -24,13 +33,14 @@ export type InboxItem = {
   body: string | null;
   href: string | null;
   isUnread: boolean;
+  isUrgent: boolean;
   group: NotificationGroupKey;
   bucket: NotificationTimeBucket;
   createdAtIso: string;
   timeLabel: string;
 };
 
-type FilterKey = "all" | "unread" | NotificationGroupKey;
+type FilterKey = "all" | "unread" | "urgent" | NotificationGroupKey;
 
 /**
  * Shared notification inbox for all four portals.
@@ -44,17 +54,32 @@ type FilterKey = "all" | "unread" | NotificationGroupKey;
  * Filtering is client-side: every row is already in the payload, so a pill tap
  * is instant and costs no extra query.
  */
-export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
+export function NotificationsInboxView({
+  items,
+  showUnreadCallout = true,
+}: {
+  items: InboxItem[];
+  showUnreadCallout?: boolean;
+}) {
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 
-  const unread = items.filter((item) => item.isUnread).length;
+  const displayedItems = items.map((item) =>
+    readIds.has(item.id) ? { ...item, isUnread: false } : item,
+  );
+
+  const unread = displayedItems.filter((item) => item.isUnread).length;
   const counts = {
-    all: items.length,
+    all: displayedItems.length,
     unread,
+    urgent: displayedItems.filter((item) => item.isUrgent).length,
     ...Object.fromEntries(
       NOTIFICATION_GROUPS.map((group) => [
         group.key,
-        items.filter((item) => item.group === group.key).length,
+        displayedItems.filter((item) => item.group === group.key).length,
       ]),
     ),
   } as Record<FilterKey, number>;
@@ -62,6 +87,7 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
   const allPills: Array<{ key: FilterKey; label: string }> = [
     { key: "all", label: "All" },
     { key: "unread", label: "Unread" },
+    { key: "urgent", label: "Urgent" },
     ...NOTIFICATION_GROUPS,
   ];
   // Keep the active pill even once its last item is read away, so the row never
@@ -72,15 +98,67 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
 
   const visible =
     filter === "all"
-      ? items
+      ? displayedItems
       : filter === "unread"
-        ? items.filter((item) => item.isUnread)
-        : items.filter((item) => item.group === filter);
+        ? displayedItems.filter((item) => item.isUnread)
+        : filter === "urgent"
+          ? displayedItems.filter((item) => item.isUrgent)
+        : displayedItems.filter((item) => item.group === filter);
 
   const sections = NOTIFICATION_TIME_BUCKETS.map((bucket) => ({
     ...bucket,
     items: visible.filter((item) => item.bucket === bucket.key),
   })).filter((section) => section.items.length > 0);
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function openNotification(item: InboxItem) {
+    if (!item.href) toggleExpanded(item.id);
+
+    if (!item.isUnread || readIds.has(item.id)) {
+      if (item.href) router.push(item.href);
+      return;
+    }
+
+    setReadIds((current) => new Set(current).add(item.id));
+    setPendingIds((current) => new Set(current).add(item.id));
+
+    try {
+      const result = await markNotificationRead(item.id);
+      if (!result.ok) {
+        setReadIds((current) => {
+          const next = new Set(current);
+          next.delete(item.id);
+          return next;
+        });
+        return;
+      }
+
+      if (item.href) router.push(item.href);
+      // Refresh the shared shell too, so its notification badge uses the new
+      // database count rather than the count from the previous server render.
+      router.refresh();
+    } catch {
+      setReadIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
 
   return (
     <div className="w-full space-y-6">
@@ -102,10 +180,25 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
         }
       />
 
+      {showUnreadCallout && unread > 0 && (
+        <button
+          type="button"
+          onClick={() => setFilter("unread")}
+          aria-pressed={filter === "unread"}
+          className="inline-flex min-h-11 items-center gap-2.5 rounded-full bg-bad px-5 text-[13px] font-extrabold text-white shadow-[0_12px_26px_-16px_rgba(190,35,55,0.9)] transition-transform hover:-translate-y-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        >
+          <Bell className="h-4 w-4" aria-hidden />
+          New notifications
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-extrabold tabular-nums text-bad">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        </button>
+      )}
+
       {/* Filters sit with the list they act on, not with the hero: the tighter
           gap here than above is what tells you which one they belong to. */}
       <div className="space-y-4">
-        {items.length > 0 && (
+        {displayedItems.length > 0 && (
           <div
             role="group"
             aria-label="Filter notifications"
@@ -146,7 +239,7 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
           </div>
         )}
 
-        {items.length === 0 ? (
+        {displayedItems.length === 0 ? (
           <EmptyState
             title="Nothing here yet"
             message="New messages and updates will appear here."
@@ -183,16 +276,21 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
                   <ul className="divide-y divide-line">
                     {section.items.map((item) => (
                       <li key={item.id}>
-                        {item.href ? (
-                          <Link
-                            href={item.href}
-                            className="block transition-colors duration-200 hover:bg-brand-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 motion-reduce:transition-none"
-                          >
-                            <Row item={item} />
-                          </Link>
-                        ) : (
-                          <Row item={item} />
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openNotification(item)}
+                          disabled={pendingIds.has(item.id)}
+                          aria-label={`${item.isUnread ? "Open unread" : "Open"} notification: ${item.title}`}
+                          aria-expanded={
+                            item.href ? undefined : expandedIds.has(item.id)
+                          }
+                          className="block w-full text-left transition-colors duration-200 hover:bg-brand-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-70 motion-reduce:transition-none"
+                        >
+                          <Row
+                            item={item}
+                            expanded={expandedIds.has(item.id)}
+                          />
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -206,16 +304,23 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
   );
 }
 
-function Row({ item }: { item: InboxItem }) {
+function Row({ item, expanded }: { item: InboxItem; expanded: boolean }) {
   return (
-    <div className="flex min-h-[76px] items-start gap-3 px-4 py-3.5 sm:px-5">
-      <span
-        aria-hidden
-        className={cn(
-          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-          item.isUnread ? "bg-brand-500" : "bg-line-strong",
-        )}
-      />
+    <div
+      className={cn(
+        "flex min-h-[76px] items-start gap-3 px-4 py-3.5 sm:px-5",
+        item.isUrgent && "border-l-4 border-bad bg-bad-bg/45",
+      )}
+    >
+      {(item.isUrgent || item.isUnread) && (
+        <span
+          aria-hidden
+          className={cn(
+            "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+            item.isUrgent ? "bg-bad" : "bg-brand-500",
+          )}
+        />
+      )}
       <div className="min-w-0 flex-1">
         <div
           className={cn(
@@ -229,23 +334,46 @@ function Row({ item }: { item: InboxItem }) {
           {item.title}
         </div>
         {item.body && (
-          <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-relaxed text-muted">
+          <p
+            className={cn(
+              "mt-1 text-[12px] font-medium leading-relaxed text-muted",
+              !expanded && "line-clamp-2",
+            )}
+          >
             {item.body}
           </p>
         )}
-        {item.group === "action" && (
+        {item.isUrgent ? (
+          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-bad px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-white">
+            <AlertCircle className="h-3 w-3" aria-hidden />
+            Urgent
+          </span>
+        ) : item.group === "action" ? (
           <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-bad-bg px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-bad">
             <AlertCircle className="h-3 w-3" aria-hidden />
             Action needed
           </span>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 pt-0.5 text-muted">
+        <time
+          dateTime={item.createdAtIso}
+          className="text-[10px] font-bold uppercase tracking-[0.08em] tabular-nums"
+        >
+          {item.timeLabel}
+        </time>
+        {item.href ? (
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              expanded && "rotate-180",
+            )}
+            aria-hidden
+          />
         )}
       </div>
-      <time
-        dateTime={item.createdAtIso}
-        className="shrink-0 pt-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-muted tabular-nums"
-      >
-        {item.timeLabel}
-      </time>
     </div>
   );
 }

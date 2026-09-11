@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ThreadInboxRow } from "@/lib/dm-queries";
+import { roleLabel } from "@/lib/roles";
 import { initialOf, roleColor } from "./dm-visuals";
 
 export function ThreadRow({
@@ -49,7 +50,7 @@ export function ThreadRow({
             className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
             style={{ background: `${color}1a`, color }}
           >
-            {thread.otherRole}
+            {roleLabel(thread.otherRole)}
           </span>
           <span
             className={

@@ -35,6 +35,9 @@ export function notificationGroupFor(
     return "announcements";
   }
   if (
+    title.startsWith("urgent:") ||
+    title.includes("cover needed") ||
+    title.includes("cover request") ||
     title.includes("requested") ||
     title.includes("request") ||
     title.includes("ready for review") ||

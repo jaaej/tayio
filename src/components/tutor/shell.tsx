@@ -6,6 +6,7 @@ import {
   Users,
   SquarePen,
   CalendarDays,
+  Handshake,
   Library,
   MessagesSquare,
   MessageCircle,
@@ -35,7 +36,8 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Schedule",
     items: [
-      { label: "Timetable",   href: "/tutor/timetable",   icon: <CalendarDays className={IC} /> },
+      { label: "Schedule & availability", href: "/tutor/timetable", icon: <CalendarDays className={IC} /> },
+      { label: "Cover board", href: "/tutor/cover", icon: <Handshake className={IC} /> },
     ],
   },
   {
@@ -75,20 +77,16 @@ export async function TutorShell({
 }) {
   const user = await getCurrentUser();
   let unread = 0;
-  if (user) {
-    try {
-      unread = await getUnreadThreadCount(user.id);
-    } catch (err) {
-      console.error("[tutor-shell] getUnreadThreadCount failed:", err);
-      unread = 0;
-    }
-  }
   let notifUnread = 0;
   if (user) {
     try {
-      notifUnread = await getUnreadCount(user.id);
+      [unread, notifUnread] = await Promise.all([
+        getUnreadThreadCount(user.id),
+        getUnreadCount(user.id),
+      ]);
     } catch (err) {
-      console.error("[tutor-shell] getUnreadCount failed:", err);
+      console.error("[tutor-shell] badge counts failed:", err);
+      unread = 0;
       notifUnread = 0;
     }
   }

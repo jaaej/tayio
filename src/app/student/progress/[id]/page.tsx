@@ -23,9 +23,9 @@ type HomeworkStatus =
 
 const MASTERY_LABEL: Record<Mastery, string> = {
   not_started: "Not started",
-  needs_work: "Needs work",
+  needs_work: "Needs focused effort",
   improving: "Improving",
-  strong: "Strong",
+  strong: "All good",
 };
 
 const MASTERY_TONE: Record<
@@ -43,14 +43,14 @@ const MASTERY_TONE: Record<
     dot: "var(--sky)",
   },
   needs_work: {
+    bg: "var(--bad-bg)",
+    text: "var(--bad)",
+    dot: "var(--bad)",
+  },
+  not_started: {
     bg: "var(--sun-100)",
     text: "var(--sun-600)",
     dot: "var(--sun-500)",
-  },
-  not_started: {
-    bg: "var(--surface-2)",
-    text: "var(--muted)",
-    dot: "var(--muted-2)",
   },
 };
 

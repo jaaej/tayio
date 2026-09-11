@@ -58,8 +58,6 @@ export default async function TutorClassCurriculumPage({
       )
     : [];
 
-  const initial = data.subjectName.charAt(0).toUpperCase();
-
   const railWeeks: RailWeek[] = data.weeks.map((w) => ({
     id: w.subjectWeekId,
     weekNumber: w.weekNumber,
@@ -80,36 +78,10 @@ export default async function TutorClassCurriculumPage({
     <div
       className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col"
     >
-      {/* Transparent, unlike the learner pages' opaque strip: the header sits
-          on the page wash so the gradient reads as one field top to bottom. */}
-      <div className="px-5 lg:px-7 pt-2 pb-2.5 border-b border-line">
-        <Link
-          href="/tutor/classes"
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-soft hover:text-ink"
-        >
-          ← Back to classes
-        </Link>
-        <div className="mt-1.5 flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className="h-9 w-9 rounded-[10px] grid place-items-center text-[17px] font-extrabold shrink-0 bg-surface-2 text-ink"
-          >
-            {initial}
-          </span>
-          <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft font-bold">
-              {data.subjectName} · {data.currentTerm.year} · Term{" "}
-              {data.currentTerm.termNumber}
-            </div>
-            <h1 className="m-0 text-[20px] font-extrabold tracking-[-0.01em] leading-none truncate text-ink">
-              {data.className} - Curriculum
-            </h1>
-          </div>
-        </div>
-      </div>
+      <h1 className="sr-only">{data.className} - Curriculum</h1>
 
       {/* Class announcements - posted here now that the class hub is gone */}
-      <div className="px-3 lg:px-4 pt-3">
+      <div className="order-3 px-3 pb-3 lg:px-4">
         <Card className="overflow-hidden">
           <CardHead
             title="Announcements"
@@ -213,6 +185,9 @@ export default async function TutorClassCurriculumPage({
         </div>
       ) : (
         <CurriculumLayout
+          attached
+          subjectName={data.subjectName}
+          flushTabTop
           rail={
             <CurriculumRail
               basePath={`/tutor/classes/${classId}/curriculum`}
@@ -231,6 +206,7 @@ export default async function TutorClassCurriculumPage({
               classId={classId}
               week={selected}
               subjectName={data.subjectName}
+              className={data.className}
               topics={data.topics}
               videoSignedUrl={videoSignedUrl}
               bookletSignedUrl={bookletSignedUrl}

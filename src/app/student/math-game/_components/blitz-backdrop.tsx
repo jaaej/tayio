@@ -1,5 +1,5 @@
 /**
- * Full-screen aurora backdrop for the Math Blitz page: a soft, slowly-drifting
+ * Full-screen aurora backdrop for the Taiyo Blitz page: a soft, slowly-drifting
  * multi-colour gradient glow (violet · mint · sky) with no shapes or lines.
  *
  * Positioned `fixed` and pinned to the main content area (right of the sidebar,

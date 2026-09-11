@@ -11,8 +11,10 @@ import {
 
 export async function NotificationsInbox({
   userId,
+  showUnreadCallout = true,
 }: {
   userId: string;
+  showUnreadCallout?: boolean;
 }) {
   const rows = await getNotifications(userId, 100);
   // One clock for the whole render: bucketing every row against the same `now`
@@ -28,6 +30,7 @@ export async function NotificationsInbox({
       body: row.body,
       href: row.href,
       isUnread: !row.readAt,
+      isUrgent: row.title.toUpperCase().startsWith("URGENT:"),
       group: notificationGroupFor(row),
       bucket: notificationTimeBucket(createdAt, now),
       createdAtIso: createdAt.toISOString(),
@@ -35,5 +38,10 @@ export async function NotificationsInbox({
     };
   });
 
-  return <NotificationsInboxView items={items} />;
+  return (
+    <NotificationsInboxView
+      items={items}
+      showUnreadCallout={showUnreadCallout}
+    />
+  );
 }

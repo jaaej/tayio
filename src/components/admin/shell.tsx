@@ -7,8 +7,8 @@ import {
   HelpCircle,
   ClipboardCheck,
   CreditCard,
-  CalendarDays,
   CalendarClock,
+  CalendarRange,
   Megaphone,
   MessagesSquare,
   MessageCircle,
@@ -26,7 +26,10 @@ import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
+import { runTutorCoverReminders } from "@/lib/tutor-cover";
+import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
+import { CoverAlertPoller } from "./cover-alert-poller";
 
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
@@ -50,7 +53,11 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Schedule & money",
     items: [
-      { label: "Terms", href: "/admin/terms", icon: <CalendarDays className={IC} /> },
+      {
+        label: "Tutor availability",
+        href: "/admin/tutors/availability",
+        icon: <CalendarRange className={IC} />,
+      },
       { label: "Payments", href: "/admin/payments", icon: <CreditCard className={IC} /> },
     ],
   },
@@ -112,21 +119,29 @@ export async function AdminShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  let unread = 0;
+  // Hobby cron is daily, so reconcile on admin activity too. Durable deadline
+  // flags and notification dedupe keys make both sweeps retry-safe.
   if (user) {
     try {
-      unread = await getUnreadThreadCount(user.id);
+      await Promise.all([
+        runTutorCoverReminders(),
+        runFreeTrialNotifications(),
+      ]);
     } catch (err) {
-      console.error("[admin-shell] getUnreadThreadCount failed:", err);
-      unread = 0;
+      console.error("[admin-shell] daily notification sweep failed:", err);
     }
   }
+  let unread = 0;
   let notifUnread = 0;
   if (user) {
     try {
-      notifUnread = await getUnreadCount(user.id);
+      [unread, notifUnread] = await Promise.all([
+        getUnreadThreadCount(user.id),
+        getUnreadCount(user.id),
+      ]);
     } catch (err) {
-      console.error("[admin-shell] getUnreadCount failed:", err);
+      console.error("[admin-shell] badge counts failed:", err);
+      unread = 0;
       notifUnread = 0;
     }
   }
@@ -147,6 +162,7 @@ export async function AdminShell({
 
   return (
     <div className="theme-tutor min-h-screen grid lg:grid-rows-[56px_1fr] lg:grid-cols-[240px_1fr]">
+      <CoverAlertPoller />
       {/* Top bar */}
       <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
         <div className="w-[222px] pr-2 flex items-center">
@@ -156,12 +172,18 @@ export async function AdminShell({
         <div className="ml-auto flex items-center gap-2.5">
           <Link
             href="/admin/notifications"
-            className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            aria-label="Notifications"
+            className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
+            aria-label={
+              notifUnread > 0
+                ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
+                : "Notifications"
+            }
           >
             <Bell className="h-[18px] w-[18px]" />
             {notifUnread > 0 && (
-              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
+              <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
+                {notifUnread > 99 ? "99+" : notifUnread}
+              </span>
             )}
           </Link>
           <Link

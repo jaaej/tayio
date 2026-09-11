@@ -18,6 +18,7 @@ export function EditUserForm(props: {
   school: string;
   role: UserRole;
   canManageRoles: boolean;
+  canEditProfile: boolean;
 }) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<UserRole>(props.role);
@@ -61,6 +62,7 @@ export function EditUserForm(props: {
           id="firstName"
           name="firstName"
           defaultValue={props.firstName}
+          disabled={!props.canEditProfile}
           required
         />
       </div>
@@ -70,6 +72,7 @@ export function EditUserForm(props: {
           id="lastName"
           name="lastName"
           defaultValue={props.lastName}
+          disabled={!props.canEditProfile}
           required
         />
       </div>
@@ -80,13 +83,19 @@ export function EditUserForm(props: {
           name="email"
           type="email"
           defaultValue={props.email}
+          disabled={!props.canEditProfile}
           autoComplete="email"
           required
         />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" name="phone" defaultValue={props.phone} />
+        <Input
+          id="phone"
+          name="phone"
+          defaultValue={props.phone}
+          disabled={!props.canEditProfile}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="role">Role</Label>
@@ -94,7 +103,7 @@ export function EditUserForm(props: {
           id="role"
           name="role"
           value={role}
-          disabled={!props.canManageRoles}
+          disabled={!props.canManageRoles || !props.canEditProfile}
           onChange={(e) => setRole(e.target.value as UserRole)}
         >
           {ROLE_OPTIONS.map((r) => (
@@ -103,7 +112,7 @@ export function EditUserForm(props: {
             </option>
           ))}
         </Select>
-        {!props.canManageRoles && (
+        {!props.canManageRoles && props.canEditProfile && (
           <p className="text-[11px] text-muted">
             Only an owner-level admin can change a user&apos;s role.
           </p>
@@ -111,14 +120,28 @@ export function EditUserForm(props: {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="yearLevel">Year level</Label>
-        <Input id="yearLevel" name="yearLevel" defaultValue={props.yearLevel} />
+        <Input
+          id="yearLevel"
+          name="yearLevel"
+          defaultValue={props.yearLevel}
+          disabled={!props.canEditProfile}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="school">School</Label>
-        <Input id="school" name="school" defaultValue={props.school} />
+        <Input
+          id="school"
+          name="school"
+          defaultValue={props.school}
+          disabled={!props.canEditProfile}
+        />
       </div>
       <div className="sm:col-span-2 flex items-center gap-3 pt-2">
-        <Button type="submit" variant="brand" disabled={pending}>
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={pending || !props.canEditProfile}
+        >
           {pending ? "Saving…" : "Save changes"}
         </Button>
         {ok && (
@@ -126,6 +149,11 @@ export function EditUserForm(props: {
         )}
         {error && (
           <span className="text-[12px] font-semibold text-bad">{error}</span>
+        )}
+        {!props.canEditProfile && (
+          <span className="text-[12px] font-semibold text-muted">
+            Only an owner-level admin can edit another admin account.
+          </span>
         )}
       </div>
     </form>

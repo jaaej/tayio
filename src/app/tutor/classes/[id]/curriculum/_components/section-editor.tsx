@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Check,
@@ -35,6 +36,7 @@ import {
   getAccentTokens,
 } from "@/lib/subject-colors";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
+import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -43,6 +45,7 @@ export function SectionEditor({
   classId,
   week,
   subjectName,
+  className,
   topics,
   videoSignedUrl,
   bookletSignedUrl,
@@ -51,15 +54,20 @@ export function SectionEditor({
   classId: string;
   week: TutorCurriculumWeek;
   subjectName: string;
+  className: string;
   topics: Array<{ id: string; name: string }>;
   videoSignedUrl: string | null;
   bookletSignedUrl: string | null;
   attachmentsWithUrls: AttachmentWithUrl[];
 }) {
-  // Subject colour is spent only on the hero head block.
+  const router = useRouter();
+  const homeworkForm = useRef<HTMLFormElement>(null);
+  // Reuse the learner palette for the hero and read-only overview.
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
   const [editing, setEditing] = useState(false);
+  const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [homeworkSaved, setHomeworkSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function submitNote(formData: FormData) {
@@ -127,37 +135,48 @@ export function SectionEditor({
 
   function submitHomework(formData: FormData) {
     setError(null);
+    setHomeworkSaved(false);
     startTransition(async () => {
-      const file = formData.get("attachment");
-      if (file instanceof File && file.size > 0) {
-        const prepared = await prepareTutorHomeworkAttachmentUpload({
-          classId,
-          subjectWeekId: week.subjectWeekId,
-          fileName: file.name,
-          contentType: file.type,
-          sizeBytes: file.size,
-        });
-        if (!prepared.ok) {
-          setError(prepared.error);
-          return;
-        }
-
-        const supabase = createClient();
-        const { error: uploadError } = await supabase.storage
-          .from(prepared.value.bucket)
-          .uploadToSignedUrl(prepared.value.path, prepared.value.token, file, {
-            contentType: prepared.value.contentType,
+      try {
+        const file = formData.get("attachment");
+        if (file instanceof File && file.size > 0) {
+          const prepared = await prepareTutorHomeworkAttachmentUpload({
+            classId,
+            subjectWeekId: week.subjectWeekId,
+            fileName: file.name,
+            contentType: file.type,
+            sizeBytes: file.size,
           });
-        if (uploadError) {
-          setError(uploadError.message);
-          return;
-        }
-        formData.set("uploadTicket", prepared.value.ticket);
-      }
+          if (!prepared.ok) {
+            setError(prepared.error);
+            return;
+          }
 
-      // Never forward even an empty File through the Server Action request.
-      formData.delete("attachment");
-      await createHomework(formData);
+          const supabase = createClient();
+          const { error: uploadError } = await supabase.storage
+            .from(prepared.value.bucket)
+            .uploadToSignedUrl(prepared.value.path, prepared.value.token, file, {
+              contentType: prepared.value.contentType,
+            });
+          if (uploadError) {
+            setError(uploadError.message);
+            return;
+          }
+          formData.set("uploadTicket", prepared.value.ticket);
+        }
+
+        // Never forward even an empty File through the Server Action request.
+        formData.delete("attachment");
+        await createHomework(formData);
+        homeworkForm.current?.reset();
+        setHomeworkSaved(true);
+        setHomeworkOpen(false);
+        router.refresh();
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Homework could not be saved.",
+        );
+      }
     });
   }
 
@@ -173,9 +192,9 @@ export function SectionEditor({
     <div className="space-y-3.5">
       {/* HERO - the one coloured head block, subject-tinted */}
       <section
-        className="relative overflow-hidden rounded-[22px] px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
+        className="relative -mt-3 -mr-3 overflow-hidden rounded-none px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)] lg:-ml-4 lg:-mr-4 lg:px-7"
         style={{
-          background: `linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
+          background: `radial-gradient(140% 160% at 0% 0%, ${withAlpha(tokens.bgFrom, 0.65)} 0%, transparent 45%), radial-gradient(120% 140% at 100% 0%, ${withAlpha(tokens.bgFrom, 0.4)} 0%, transparent 55%), linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
         }}
       >
         <svg
@@ -188,9 +207,10 @@ export function SectionEditor({
           <circle cx="70" cy="30" r="20" fill="rgba(255,255,255,0.10)" />
           <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.14)" />
         </svg>
-        <div className="relative z-10">
+        <HeroBackLink href="/tutor/classes">← All classes</HeroBackLink>
+        <div className="relative z-10 mt-2">
           <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
-            Week {week.weekNumber}
+            Week {week.weekNumber} · {className}
           </div>
           <h2 className="m-0 mt-0.5 text-[22px] lg:text-[26px] font-extrabold tracking-[-0.02em] leading-tight">
             {week.title}
@@ -200,55 +220,64 @@ export function SectionEditor({
 
       {/* ONE connected block - split by dividers */}
       <div className="overflow-hidden rounded-[20px] border border-line bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)] divide-y divide-line">
-        {/* Overview + base content (set by admin, read-only) */}
-        <section className="p-4 lg:p-5 space-y-3">
+        {/* Read-first overview, matching the learner hierarchy. */}
+        <section
+          className="space-y-3 p-4 lg:p-5"
+          style={{
+            backgroundColor: tokens.title,
+            backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${tokens.arrow} 65%, ${tokens.title}) 0%, ${tokens.title} 100%)`,
+          }}
+        >
           <div className="flex items-center gap-2.5">
-            <span className="h-8 w-8 rounded-[10px] grid place-items-center shrink-0 bg-surface-2 text-muted">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white/15 text-white">
               <BookOpen className="h-4 w-4" />
             </span>
-            <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+            <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-white">
               Overview
             </h3>
-            <span className="ml-auto text-[10px] uppercase tracking-[0.14em] font-bold text-muted">
+            <span className="ml-auto rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/90">
               Set by admin
             </span>
           </div>
           {week.description ? (
-            <div className="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">
+            <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-white/90">
               {week.description}
             </div>
           ) : (
             !week.objectives?.trim() && (
-              <div className="text-[13px] text-muted italic">
+              <div className="text-[13px] italic text-white/70">
                 No overview set for this week yet.
               </div>
             )
           )}
-          <WeekObjectives objectives={week.objectives} />
-          {(videoSignedUrl || bookletSignedUrl) && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {videoSignedUrl && (
-                <a
-                  href={videoSignedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-bold text-ink hover:bg-surface transition-colors"
-                >
-                  <PlayCircle className="h-4 w-4 text-muted" /> Watch video
-                </a>
-              )}
-              {bookletSignedUrl && (
-                <a
-                  href={bookletSignedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-bold text-ink hover:bg-surface transition-colors"
-                >
-                  <FileText className="h-4 w-4 text-muted" /> Booklet
-                </a>
-              )}
-            </div>
-          )}
+          <WeekObjectives objectives={week.objectives} onDark />
+        </section>
+
+        <section className="space-y-3 p-4 lg:p-5">
+          <div>
+            <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+              Lesson &amp; materials
+            </h3>
+            <p className="mt-0.5 text-[12px] text-muted">
+              Admin-provided lesson resources for this week.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TutorMaterialCard
+              icon={<PlayCircle className="h-5 w-5" />}
+              label="Recorded lesson"
+              href={videoSignedUrl}
+              action="Watch video"
+              empty="No video uploaded yet"
+            />
+            <TutorMaterialCard
+              icon={<BookOpen className="h-5 w-5" />}
+              label="Week booklet"
+              href={bookletSignedUrl}
+              action="Open booklet"
+              empty="No booklet uploaded yet"
+            />
+          </div>
         </section>
 
         {/* Approved quiz */}
@@ -471,13 +500,26 @@ export function SectionEditor({
 
         {/* Homework */}
         <section className="p-4 lg:p-5 space-y-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <span className="h-8 w-8 rounded-[10px] grid place-items-center shrink-0 bg-surface-2 text-muted">
               <FileText className="h-4 w-4" />
             </span>
             <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
               Homework for this week
             </h3>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setHomeworkSaved(false);
+                setHomeworkOpen((value) => !value);
+              }}
+              aria-expanded={homeworkOpen}
+              className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-bold text-white transition-colors hover:bg-brand-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {homeworkOpen ? "Close form" : "Add new homework"}
+            </button>
           </div>
           <div className="text-[12px] text-muted">
             Shared across all your {subjectName} classes.
@@ -512,68 +554,119 @@ export function SectionEditor({
             </ul>
           )}
 
-          <form
-            action={submitHomework}
-            className="space-y-3 border-t border-line pt-4"
-          >
-            <input type="hidden" name="classId" value={classId} />
-            <input type="hidden" name="weekId" value={week.subjectWeekId} />
-            <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
-              Add new homework
-            </div>
-            <input
-              name="title"
-              required
-              placeholder="e.g. Practice problems 1-10"
-              className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
-            />
-            <div className="grid sm:grid-cols-2 gap-3">
-              <input
-                name="dueDate"
-                type="datetime-local"
-                required
-                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink focus:outline-none focus:border-line-strong"
-              />
-              <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                <input
-                  type="checkbox"
-                  name="allowResubmission"
-                  className="accent-ink"
-                />
-                Allow resubmission
-              </label>
-            </div>
-            <div>
-              <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                <input type="checkbox" name="isTest" className="accent-ink" />
-                Mark as test
-              </label>
-              <p className="mt-1 pl-6 text-[12px] text-muted">
-                Counts toward anonymous student rankings for this subject.
-              </p>
-            </div>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Description (optional)"
-              className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
-            />
-            <input
-              name="attachment"
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-              className="text-[13px] file:mr-2 file:rounded-md file:border file:border-line file:bg-surface file:px-2.5 file:py-1 file:text-[12px] file:font-bold file:text-ink file:cursor-pointer cursor-pointer"
-            />
-            <button
-              type="submit"
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
+          {homeworkSaved && (
+            <p
+              role="status"
+              className="rounded-[10px] border border-good/35 bg-good-bg px-3 py-2 text-[12px] font-semibold text-good"
             >
-              <Plus className="h-3.5 w-3.5" />
-              {pending ? "Saving…" : "Assign homework"}
-            </button>
-          </form>
+              Homework assigned. It now appears in this week.
+            </p>
+          )}
+
+          {homeworkOpen && (
+            <form
+              ref={homeworkForm}
+              action={submitHomework}
+              className="space-y-3 rounded-[14px] border border-line bg-surface-2 p-4"
+            >
+              <input type="hidden" name="classId" value={classId} />
+              <input type="hidden" name="weekId" value={week.subjectWeekId} />
+              <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
+                Add new homework
+              </div>
+              <input
+                name="title"
+                required
+                placeholder="e.g. Practice problems 1-10"
+                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
+              />
+              <div className="grid sm:grid-cols-2 gap-3">
+                <input
+                  name="dueDate"
+                  type="datetime-local"
+                  required
+                  className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink focus:outline-none focus:border-line-strong"
+                />
+                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
+                  <input
+                    type="checkbox"
+                    name="allowResubmission"
+                    className="accent-ink"
+                  />
+                  Allow resubmission
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
+                  <input type="checkbox" name="isTest" className="accent-ink" />
+                  Mark as test
+                </label>
+                <p className="mt-1 pl-6 text-[12px] text-muted">
+                  Counts toward anonymous student rankings for this subject.
+                </p>
+              </div>
+              <textarea
+                name="description"
+                rows={2}
+                placeholder="Description (optional)"
+                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
+              />
+              <input
+                name="attachment"
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                className="text-[13px] file:mr-2 file:rounded-md file:border file:border-line file:bg-surface file:px-2.5 file:py-1 file:text-[12px] file:font-bold file:text-ink file:cursor-pointer cursor-pointer"
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {pending ? "Saving…" : "Assign homework"}
+              </button>
+            </form>
+          )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+function TutorMaterialCard({
+  icon,
+  label,
+  href,
+  action,
+  empty,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  href: string | null;
+  action: string;
+  empty: string;
+}) {
+  return (
+    <div className="flex min-h-[112px] flex-col rounded-[14px] border border-line bg-surface-2 p-4">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-surface text-muted">
+          {icon}
+        </span>
+        <span className="text-[14px] font-extrabold text-ink">{label}</span>
+      </div>
+      <div className="mt-auto pt-3">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-9 items-center rounded-full bg-surface px-3.5 text-[12px] font-bold text-ink ring-1 ring-inset ring-line transition-colors hover:ring-line-strong"
+          >
+            {action} →
+          </a>
+        ) : (
+          <span className="text-[12px] font-semibold text-muted">{empty}</span>
+        )}
       </div>
     </div>
   );
@@ -696,4 +789,10 @@ function AttachmentChip({ att }: { att: AttachmentWithUrl }) {
       {att.fileName}
     </span>
   );
+}
+
+function withAlpha(rgb: string, alpha: number): string {
+  const match = rgb.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+  if (!match) return rgb;
+  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
 }

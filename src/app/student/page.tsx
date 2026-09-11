@@ -3,7 +3,6 @@ import { Card, CardHead, CardBody } from "@/components/student/card";
 import { Badge } from "@/components/student/pill";
 import { StudentHero } from "@/components/student/student-hero";
 import { SubjectCard } from "@/components/student/subject-card";
-import { QuestRow } from "@/components/student/quest-row";
 import { TodayTimeline, type TimelineItem } from "@/components/student/today-timeline";
 import { StatTile } from "@/components/student/kpi";
 import {
@@ -65,15 +64,6 @@ export default async function StudentDashboard() {
       getStudentTutors(user.id),
       isUnrestricted ? getAdminContactForStudent() : Promise.resolve(null),
     ]);
-
-  const openHomework = allHomework
-    .filter(
-      (h) =>
-        h.status === "not_started" ||
-        h.status === "viewed" ||
-        h.status === "resubmission_requested",
-    )
-    .slice(0, 5);
 
   const todayLessons = weekLessons.filter((l) => l.date === todayIso);
   const todayItems: TimelineItem[] = todayLessons.map((l) => {
@@ -164,29 +154,6 @@ export default async function StudentDashboard() {
             </CardBody>
           </Card>
 
-          <div>
-            <SectionHead title="Your quests" actionHref="/student/homework" actionLabel="All homework →" />
-            <Card flat accent="var(--mint)" className="overflow-hidden">
-              {openHomework.length === 0 ? (
-                <div className="px-4 py-8 text-center text-sm text-muted">
-                  You're caught up - no quests right now.
-                </div>
-              ) : (
-                <div className="divide-y divide-line">
-                  {openHomework.map((h) => (
-                    <QuestRow
-                      key={h.homeworkId}
-                      title={h.title}
-                      subject={h.className ?? "Homework"}
-                      meta={`due ${relativeTime(new Date(h.dueDate))}`}
-                      done={false}
-                      href={`/student/homework/${h.homeworkId}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
         </div>
 
         {/* RIGHT */}

@@ -42,7 +42,7 @@ export default async function MathGamePage() {
           </div>
           <div>
             <h1 className="text-[30px] lg:text-[38px] font-extrabold tracking-tight leading-none">
-              Math Blitz
+              Taiyo Blitz
             </h1>
             <p className="text-[14px] lg:text-[16px] text-white/85 mt-2.5">
               Solve as many as you can in 60 seconds. Pick a level and climb the

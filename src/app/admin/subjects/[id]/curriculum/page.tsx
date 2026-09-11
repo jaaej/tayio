@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { Card, Hero, HeroChip, BackLink } from "@/components/admin/ui";
+import { Hero, BackLink } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { subjectWeeks, subjects, terms, subjectTopics } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
@@ -12,7 +12,6 @@ import {
   type RailWeek,
 } from "@/components/subjects/curriculum-rail";
 import { WeekEditor } from "./_components/week-editor";
-import { TopicsPanel } from "./_components/topics-panel";
 
 type SearchParams = Promise<{ term?: string; week?: string; new?: string }>;
 
@@ -100,62 +99,53 @@ export default async function AdminSubjectCurriculumPage({
   }));
 
   return (
-    <div className="space-y-6">
-      <BackLink href="/admin/classes">Back to classes</BackLink>
+    <div className="-mx-5 -mt-6 -mb-6 flex min-h-[calc(100vh-56px)] flex-col lg:-mx-7 lg:-mb-16">
+      <h1 className="sr-only">{subject.name} - Curriculum</h1>
 
-      <Hero
-        eyebrow="Curriculum"
-        title={subject.name}
-        icon={subject.name.charAt(0).toUpperCase()}
-        chips={
-          <>
-            <HeroChip>{currentTerm.year}</HeroChip>
-            <HeroChip>Term {currentTerm.termNumber}</HeroChip>
-            <HeroChip>
-              {currentTerm.startDate} – {currentTerm.endDate}
-            </HeroChip>
-          </>
+      <CurriculumLayout
+        attached
+        subjectName={subject.name}
+        flushTabTop
+        rail={
+          <CurriculumRail
+            basePath={`/admin/subjects/${subjectId}/curriculum`}
+            currentTermId={currentTerm.id}
+            terms={allTerms.map((t) => ({
+              id: t.id,
+              label: `${t.year} · Term ${t.termNumber}`,
+            }))}
+            weeks={railWeeks}
+            selectedWeekId={selectedWeek?.id ?? null}
+            footer={
+              <Link
+                href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
+                className="mt-1.5 block rounded-[12px] border border-dashed border-brand-300 bg-brand-50/40 px-3 py-2.5 text-center text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-400 hover:bg-brand-100"
+              >
+                + Add week
+              </Link>
+            }
+          />
         }
-      />
-
-      <Card>
-        <div className="p-6 pb-0">
-          <TopicsPanel subjectId={subjectId} topics={topics} weekCounts={weekCounts} />
-        </div>
-        <CurriculumLayout
-          rail={
-            <CurriculumRail
-              basePath={`/admin/subjects/${subjectId}/curriculum`}
-              currentTermId={currentTerm.id}
-              terms={allTerms.map((t) => ({
-                id: t.id,
-                label: `${t.year} · Term ${t.termNumber}`,
-              }))}
-              weeks={railWeeks}
-              selectedWeekId={selectedWeek?.id ?? null}
-              footer={
-                <Link
-                  href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
-                  className="mt-1.5 block rounded-[12px] border border-dashed border-brand-300 bg-brand-50/40 px-3 py-2.5 text-center text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-400 hover:bg-brand-100"
-                >
-                  + Add week
-                </Link>
-              }
-            />
-          }
-        >
-          {isNew || !selectedWeek ? (
-            <WeekEditor subjectId={subjectId} termId={currentTerm.id} topics={topics} />
-          ) : (
-            <WeekEditor
-              existing={selectedWeek}
-              subjectId={subjectId}
-              termId={currentTerm.id}
-              topics={topics}
-            />
-          )}
-        </CurriculumLayout>
-      </Card>
+      >
+        {isNew || !selectedWeek ? (
+          <WeekEditor
+            subjectId={subjectId}
+            termId={currentTerm.id}
+            topics={topics}
+            subjectName={subject.name}
+            weekCounts={weekCounts}
+          />
+        ) : (
+          <WeekEditor
+            existing={selectedWeek}
+            subjectId={subjectId}
+            termId={currentTerm.id}
+            topics={topics}
+            subjectName={subject.name}
+            weekCounts={weekCounts}
+          />
+        )}
+      </CurriculumLayout>
     </div>
   );
 }

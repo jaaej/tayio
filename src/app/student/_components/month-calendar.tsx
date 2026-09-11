@@ -34,6 +34,7 @@ export type MonthLesson = {
     | "missed";
   subjectName: string;
   className: string;
+  location?: string | null;
   /** Per-student reschedule overlay (optional; defaults to a normal lesson). */
   studentState?:
     | "normal"
@@ -191,20 +192,31 @@ function lessonToMonthChip(lesson: MonthLesson): MonthChip {
     moved || makeup || pending
       ? { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" }
       : lessonTone(lesson.status, lesson.date, lesson.subjectName);
+  const subjectAndMove = lesson.moveLabel
+    ? `${lesson.subjectName} · ${lesson.moveLabel}`
+    : lesson.subjectName;
 
   return {
     id: `lesson-${lesson.id}`,
     date: lesson.date,
     label: formatTime(lesson.startTime),
-    sublabel: lesson.moveLabel
-      ? `${lesson.subjectName} · ${lesson.moveLabel}`
-      : lesson.subjectName,
+    sublabel: lesson.location
+      ? `Location: ${lesson.location} · ${subjectAndMove}`
+      : subjectAndMove,
     sortKey: `0-${lesson.startTime}`,
     tone: moved ? "line-through" : "",
     href: lesson.rescheduleHref,
     style: { backgroundColor: tone.bg, color: tone.text },
     barStyle: { backgroundColor: tone.bar },
-    title: lesson.rescheduleHref ? "Reschedule this lesson" : undefined,
+    title: [
+      lesson.rescheduleHref ? "Reschedule this lesson" : null,
+      lesson.location ? `Location: ${lesson.location}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined,
+    ariaLabel: lesson.location
+      ? `${lesson.subjectName}, ${formatTime(lesson.startTime)}, location ${lesson.location}`
+      : undefined,
   };
 }
 

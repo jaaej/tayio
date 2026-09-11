@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { CalendarCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,10 +19,12 @@ import {
   enrollments,
   lessons,
   profiles,
+  studentTrials,
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
+import { classNameDetail } from "@/lib/class-display";
 import { getLessonReschedules } from "@/lib/reschedule";
 import { adminSaveAttendance } from "@/app/admin/_lib/actions-attendance";
 
@@ -61,6 +63,8 @@ export default async function AdminLessonAttendancePage({
     .where(eq(lessons.id, lessonId))
     .limit(1);
   if (!lesson) notFound();
+  const classDetail = classNameDetail(lesson.subjectName, lesson.className);
+  const lessonTitle = classDetail || lesson.subjectName;
 
   // Roster - enrolled students for the class, with current attendance status if any.
   const roster = await db
@@ -91,6 +95,25 @@ export default async function AdminLessonAttendancePage({
   // Reschedules - who left this lesson (and where to) and who's here as a make-up.
   const { movedOut, movedIn } = await getLessonReschedules(lessonId);
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
+  const attendanceStudentIds = Array.from(
+    new Set([
+      ...roster.map((student) => student.id),
+      ...movedIn.map((student) => student.studentId),
+    ]),
+  );
+  const trialRows = attendanceStudentIds.length
+    ? await db
+        .select({ studentId: studentTrials.studentId })
+        .from(studentTrials)
+        .where(
+          and(
+            inArray(studentTrials.studentId, attendanceStudentIds),
+            sql`${studentTrials.startDate} <= ${lesson.date}`,
+            sql`${studentTrials.endDate} >= ${lesson.date}`,
+          ),
+        )
+    : [];
+  const onTrialIds = new Set(trialRows.map((row) => row.studentId));
 
   return (
     <div className="space-y-6">
@@ -100,14 +123,14 @@ export default async function AdminLessonAttendancePage({
         className="rise"
         eyebrow="Attendance"
         icon={<CalendarCheck className="h-7 w-7" />}
-        title={lesson.className}
+        title={lessonTitle}
         chips={
           <>
             <HeroChip>{formatDateLong(lesson.date)}</HeroChip>
             <HeroChip>
               {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
             </HeroChip>
-            <HeroChip>{lesson.subjectName}</HeroChip>
+            {classDetail && <HeroChip>{lesson.subjectName}</HeroChip>}
             <HeroChip>
               Tutor: {lesson.tutorFirst} {lesson.tutorLast}
             </HeroChip>
@@ -131,8 +154,13 @@ export default async function AdminLessonAttendancePage({
                 return (
                   <li key={s.id} className="px-5 py-4 space-y-3">
                     <div className="flex items-baseline justify-between gap-3">
-                      <div className="text-[14px] font-bold text-ink">
-                        {s.firstName} {s.lastName}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[14px] font-bold text-ink">
+                          {s.firstName} {s.lastName}
+                        </span>
+                        {onTrialIds.has(s.id) && (
+                          <Pill tone="info">Free trial</Pill>
+                        )}
                       </div>
                       {movedOutById.has(s.id) && (
                         <Pill tone="warn">
@@ -184,8 +212,13 @@ export default async function AdminLessonAttendancePage({
                   key={m.studentId}
                   className="px-5 py-4 flex items-baseline justify-between gap-3"
                 >
-                  <div className="text-[14px] font-bold text-ink">
-                    {m.studentName}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14px] font-bold text-ink">
+                      {m.studentName}
+                    </span>
+                    {onTrialIds.has(m.studentId) && (
+                      <Pill tone="info">Free trial</Pill>
+                    )}
                   </div>
                   <Pill tone="mint">Make-up ← {m.fromLabel}</Pill>
                 </li>

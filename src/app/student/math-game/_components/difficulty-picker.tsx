@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Rabbit,
   Sparkles,
   Flame,
@@ -57,6 +58,15 @@ export function DifficultyPicker({ myBests }: { myBests: MyBests }) {
           className="absolute inset-x-0 top-0 h-1.5"
           style={{ backgroundColor: tier.accent }}
         />
+        <button
+          type="button"
+          onClick={() => setActive(null)}
+          aria-label="Back to Taiyo Blitz levels"
+          className="absolute left-4 top-4 z-10 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-600 px-4 text-[13px] font-extrabold text-white shadow-[0_10px_24px_-12px_rgba(73,58,190,0.85)] transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-[0_14px_28px_-12px_rgba(73,58,190,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 motion-reduce:transition-colors motion-reduce:hover:translate-y-0"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Back to levels
+        </button>
         <GameClient
           difficulty={active}
           sound={sound}

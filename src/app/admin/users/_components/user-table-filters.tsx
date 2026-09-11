@@ -67,6 +67,10 @@ export function UserTableHeaderRow({ schools }: { schools: string[] }) {
       </th>
 
       <th scope="col" className={TH}>
+        Classes / delivery
+      </th>
+
+      <th scope="col" className={TH}>
         <span className="inline-flex items-center gap-2">
           Status
           <ColumnFilter

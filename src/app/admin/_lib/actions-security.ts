@@ -12,6 +12,7 @@ import {
   getAdminSecurityRow,
   setUnlockState,
 } from "@/lib/admin-lock";
+import { requireUnrestrictedAdmin } from "@/lib/auth";
 
 const pinSchema = z.string().regex(/^\d{6,8}$/, "PIN must be 6–8 digits");
 
@@ -23,7 +24,7 @@ const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
  * once set, the current PIN must be supplied and verified.
  */
 export async function setAdminPin(input: { current?: string; next: string }) {
-  await requireAdmin();
+  await requireUnrestrictedAdmin();
   const next = pinSchema.safeParse(input.next);
   if (!next.success) return { ok: false as const, error: next.error.issues[0].message };
 
