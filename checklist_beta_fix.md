@@ -447,8 +447,7 @@ Last audited: 11 September 2026
 - [x] Apply `supabase/migrations/0044_notification_dedupe.sql`.
 - [x] Add `CRON_SECRET` to the Vercel Production environment.
 - [x] Deploy the current code.
-  - Production deployment `dpl_D3pgYGZjpSq4dQJFs9GG3CfjEXQL` is live at
-    `https://portal.taiyotuition.com`.
+  - Production is live at `https://portal.taiyotuition.com`.
 - [ ] Run authenticated acceptance tests for tutor availability, leave and
   cover, free-trial notifications, homework bump messages, reception account
   restrictions, reschedule allowance/target rules, and Taiyo Blitz feedback.
