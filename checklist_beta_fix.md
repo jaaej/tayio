@@ -367,7 +367,7 @@ Last audited: 11 September 2026
 
 - [x] Remove the public role/marketing landing page and redirect `/` directly
   to `/login`.
-- [ ] **Manual QA:** Open the production root URL while signed out and confirm it
+- [x] **Manual QA:** Open the production root URL while signed out and confirm it
   reaches `/login` without flashing the old landing page.
 
 ## Announcements and email delivery
@@ -441,12 +441,14 @@ Last audited: 11 September 2026
 - [x] Add clear colour-coded effort levels to Student Progress, with accessible
   text labels as well as colour.
 
-## Deployment still required for recently implemented work
+## Production deployment and acceptance
 
-- [ ] Apply `supabase/migrations/0043_tutor_cover_workflow.sql`.
-- [ ] Apply `supabase/migrations/0044_notification_dedupe.sql`.
-- [ ] Add `CRON_SECRET` to the Vercel Production environment.
-- [ ] Deploy the current code.
+- [x] Apply `supabase/migrations/0043_tutor_cover_workflow.sql`.
+- [x] Apply `supabase/migrations/0044_notification_dedupe.sql`.
+- [x] Add `CRON_SECRET` to the Vercel Production environment.
+- [x] Deploy the current code.
+  - Production deployment `dpl_D3pgYGZjpSq4dQJFs9GG3CfjEXQL` is live at
+    `https://portal.taiyotuition.com`.
 - [ ] Run authenticated acceptance tests for tutor availability, leave and
   cover, free-trial notifications, homework bump messages, reception account
   restrictions, reschedule allowance/target rules, and Taiyo Blitz feedback.
