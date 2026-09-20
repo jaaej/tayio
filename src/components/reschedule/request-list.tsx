@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { approveReschedule, rejectReschedule } from "@/app/_actions/reschedule";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 export type PendingRow = {
   id: string;
@@ -15,14 +16,13 @@ export type PendingRow = {
 /** Approver queue (tutor + admin). First to act wins; decided rows drop out. */
 export function RescheduleRequestList({ requests }: { requests: PendingRow[] }) {
   const [rows, setRows] = useState(requests);
-  const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function act(id: string, kind: "approve" | "reject") {
+  async function act(id: string, kind: "approve" | "reject") {
     setBusyId(id);
     setError(null);
-    start(async () => {
+    try {
       const res =
         kind === "approve"
           ? await approveReschedule(id)
@@ -31,9 +31,11 @@ export function RescheduleRequestList({ requests }: { requests: PendingRow[] }) 
         setRows((r) => r.filter((x) => x.id !== id));
       } else {
         setError(res.error);
+        throw new Error(res.error);
       }
+    } finally {
       setBusyId(null);
-    });
+    }
   }
 
   if (rows.length === 0) {
@@ -70,22 +72,27 @@ export function RescheduleRequestList({ requests }: { requests: PendingRow[] }) 
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => act(r.id, "reject")}
-                disabled={pending && busyId === r.id}
-                className="rounded-[10px] border border-line px-3 py-1.5 text-[13px] font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-50"
+              <LoadingButton
+                onAction={() => act(r.id, "reject")}
+                disabled={busyId !== null}
+                size="sm"
+                pendingLabel="Declining…"
+                successLabel="Declined"
+                errorLabel="Try again"
               >
                 Decline
-              </button>
-              <button
-                type="button"
-                onClick={() => act(r.id, "approve")}
-                disabled={pending && busyId === r.id}
-                className="rounded-full bg-brand-500 px-3.5 py-1.5 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+              </LoadingButton>
+              <LoadingButton
+                onAction={() => act(r.id, "approve")}
+                disabled={busyId !== null}
+                size="sm"
+                variant="brand"
+                pendingLabel="Approving…"
+                successLabel="Approved"
+                errorLabel="Try again"
               >
-                {pending && busyId === r.id ? "…" : "Approve"}
-              </button>
+                Approve
+              </LoadingButton>
             </div>
           </div>
         </div>

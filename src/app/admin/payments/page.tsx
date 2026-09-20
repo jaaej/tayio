@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { STUDENT_TIERS } from "@/lib/roles";
 import { Wallet, AlertTriangle, FileText } from "lucide-react";
 import { db } from "@/db/client";
-import { invoices, profiles } from "@/db/schema";
+import { familyLinks, invoices, profiles } from "@/db/schema";
 import {
   Card,
   CardHead,
@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/ui";
 import { CreateInvoiceForm } from "./_components/create-invoice-form";
 import { InvoiceActions } from "./_components/invoice-actions";
+import { EditInvoicePanel } from "./_components/edit-invoice-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,8 @@ export default async function PaymentsPage() {
   const rows = await db
     .select({
       id: invoices.id,
+      parentId: invoices.parentId,
+      studentId: invoices.studentId,
       amount: invoices.amount,
       currency: invoices.currency,
       status: invoices.status,
@@ -89,6 +92,22 @@ export default async function PaymentsPage() {
     .from(profiles)
     .where(inArray(profiles.role, STUDENT_TIERS))
     .orderBy(profiles.firstName);
+
+  const familyRows = await db
+    .select({ parentId: familyLinks.parentId, studentId: familyLinks.studentId })
+    .from(familyLinks);
+  const parentOptions = parents.map((parent) => ({
+    id: parent.id,
+    name: `${parent.firstName} ${parent.lastName ?? ""}`.trim(),
+    email: parent.email,
+  }));
+  const studentOptions = students.map((student) => ({
+    id: student.id,
+    name: `${student.firstName} ${student.lastName ?? ""}`.trim(),
+    parentIds: familyRows
+      .filter((link) => link.studentId === student.id)
+      .map((link) => link.parentId),
+  }));
 
   const totals = rows.reduce(
     (acc, r) => {
@@ -213,7 +232,25 @@ export default async function PaymentsPage() {
                         </Pill>
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <InvoiceActions id={r.id} status={r.status as Status} />
+                        <div className="flex items-center justify-end gap-2">
+                          <EditInvoicePanel
+                            key={`${r.id}:${r.status}:${r.amount}:${r.dueDate}:${r.parentId}:${r.studentId ?? ""}`}
+                            invoice={{
+                              id: r.id,
+                              parentId: r.parentId,
+                              studentId: r.studentId,
+                              amount: r.amount,
+                              currency: r.currency,
+                              dueDate: r.dueDate,
+                              description: r.description,
+                              status: r.status as Status,
+                              paidAt: r.paidAt,
+                            }}
+                            parents={parentOptions}
+                            students={studentOptions}
+                          />
+                          <InvoiceActions id={r.id} status={r.status as Status} />
+                        </div>
                       </td>
                     </tr>
                   ))}

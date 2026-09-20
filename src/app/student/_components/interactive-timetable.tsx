@@ -17,6 +17,7 @@ import {
   redeemCredit,
 } from "@/app/_actions/credits";
 import type { PanelCredit } from "@/components/reschedule/credit-panel";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -397,7 +398,9 @@ export function InteractiveTimetable({
                 FOCUS_RING,
               )}
             >
-              {submitting ? "Working…" : "Get a class credit instead"}
+              <ActionButtonLabel pending={submitting} pendingLabel="Working…">
+                Get a class credit instead
+              </ActionButtonLabel>
             </button>
             {adminId && (
               <Link

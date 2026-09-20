@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="hidden lg:flex flex-col items-center text-center px-6">
           <LogoCard width={340} />
           <p className="mt-12 text-3xl text-ink leading-snug">
-            "A quiet centre for the work that matters."
+            "Be That Cousin"
           </p>
           <p className="mt-6 text-[11px] uppercase tracking-[0.22em] text-ink-soft">
             taiyo · 太陽 · sun

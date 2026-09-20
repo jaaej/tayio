@@ -17,6 +17,7 @@ import {
   attendance,
   classes,
   enrollments,
+  lessonNotes,
   lessons,
   profiles,
   studentTrials,
@@ -114,6 +115,25 @@ export default async function AdminLessonAttendancePage({
         )
     : [];
   const onTrialIds = new Set(trialRows.map((row) => row.studentId));
+  const noteRows = await db
+    .select({
+      id: lessonNotes.id,
+      studentId: lessonNotes.studentId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      topicCovered: lessonNotes.topicCovered,
+      keyConcepts: lessonNotes.keyConcepts,
+      performance: lessonNotes.performance,
+      strengths: lessonNotes.strengths,
+      struggles: lessonNotes.struggles,
+      nextLessonFocus: lessonNotes.nextLessonFocus,
+      parentVisibleComment: lessonNotes.parentVisibleComment,
+      internalNote: lessonNotes.internalNote,
+    })
+    .from(lessonNotes)
+    .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
+    .where(eq(lessonNotes.lessonId, lessonId))
+    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
   return (
     <div className="space-y-6">
@@ -202,7 +222,8 @@ export default async function AdminLessonAttendancePage({
           </form>
         )}
         {movedIn.length > 0 && (
-          <div className="border-t border-line">
+          <form action={adminSaveAttendance} className="border-t border-line">
+            <input type="hidden" name="lessonId" value={lesson.id} />
             <div className="px-5 pt-4 pb-2 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-soft">
               Make-up attendees
             </div>
@@ -210,20 +231,103 @@ export default async function AdminLessonAttendancePage({
               {movedIn.map((m) => (
                 <li
                   key={m.studentId}
-                  className="px-5 py-4 flex items-baseline justify-between gap-3"
+                  className="space-y-3 px-5 py-4"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[14px] font-bold text-ink">
-                      {m.studentName}
-                    </span>
-                    {onTrialIds.has(m.studentId) && (
-                      <Pill tone="info">Free trial</Pill>
-                    )}
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-bold text-ink">
+                        {m.studentName}
+                      </span>
+                      {onTrialIds.has(m.studentId) && (
+                        <Pill tone="info">Free trial</Pill>
+                      )}
+                    </div>
+                    <Pill tone="mint">Make-up ← {m.fromLabel}</Pill>
                   </div>
-                  <Pill tone="mint">Make-up ← {m.fromLabel}</Pill>
+                  <div className="flex flex-wrap gap-2">
+                    {ATTENDANCE_OPTIONS.map((opt) => (
+                      <label key={opt.value} className="cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`status[${m.studentId}]`}
+                          value={opt.value}
+                          defaultChecked={
+                            (m.attendanceStatus ?? "makeup_attended") ===
+                            opt.value
+                          }
+                          className="peer sr-only"
+                        />
+                        <span className="inline-flex items-center rounded-full border border-line px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-400 peer-checked:border-brand-500 peer-checked:bg-brand-500 peer-checked:text-white">
+                          {opt.label}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <Input
+                    name={`note[${m.studentId}]`}
+                    placeholder="Optional note (e.g. attended a make-up lesson)"
+                    defaultValue={m.attendanceNote ?? ""}
+                    className="h-9 text-sm"
+                  />
                 </li>
               ))}
             </ul>
+            <div className="flex justify-end border-t border-line bg-surface-2 px-5 py-4">
+              <Button type="submit" size="sm" variant="primary">
+                Save make-up attendance
+              </Button>
+            </div>
+          </form>
+        )}
+      </Card>
+
+      <Card className="rise">
+        <CardHead title="Lesson notes" />
+        {noteRows.length === 0 ? (
+          <Empty>No tutor notes have been saved for this lesson.</Empty>
+        ) : (
+          <div className="divide-y divide-line">
+            {noteRows.map((note) => {
+              const details = [
+                ["Topic covered", note.topicCovered],
+                ["Key concepts", note.keyConcepts],
+                ["Performance", note.performance],
+                ["Strengths", note.strengths],
+                ["Struggled with", note.struggles],
+                ["Next lesson focus", note.nextLessonFocus],
+                ["Parent-visible comment", note.parentVisibleComment],
+                ["Internal note", note.internalNote],
+              ].filter((entry): entry is [string, string] => Boolean(entry[1]));
+
+              return (
+                <section key={note.id} className="px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[14px] font-bold text-ink">
+                      {note.firstName} {note.lastName}
+                    </h3>
+                    {movedIn.some((student) => student.studentId === note.studentId) && (
+                      <Pill tone="mint">Make-up attendee</Pill>
+                    )}
+                  </div>
+                  {details.length === 0 ? (
+                    <p className="mt-2 text-[12px] text-muted">Empty note.</p>
+                  ) : (
+                    <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {details.map(([label, value]) => (
+                        <div key={label} className="rounded-[10px] bg-surface-2 p-3">
+                          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                            {label}
+                          </dt>
+                          <dd className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-ink-soft">
+                            {value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </section>
+              );
+            })}
           </div>
         )}
       </Card>

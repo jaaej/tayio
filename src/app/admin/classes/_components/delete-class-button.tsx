@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { deleteClass } from "@/app/admin/_lib/actions-classes";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export function DeleteClassButton({ id, name }: { id: string; name: string }) {
   const [pending, start] = useTransition();
@@ -28,7 +29,9 @@ export function DeleteClassButton({ id, name }: { id: string; name: string }) {
         }}
         className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
       >
-        Delete
+        <ActionButtonLabel pending={pending} pendingLabel="Deleting…">
+          Delete
+        </ActionButtonLabel>
       </button>
       {confirmDialog}
     </>

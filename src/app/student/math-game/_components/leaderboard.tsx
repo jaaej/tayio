@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Trophy } from "lucide-react";
 import type { Difficulty } from "./question-generator";
-import type { LeaderboardRow } from "../_queries";
+import type { LeaderboardBoards, LeaderboardRow } from "../_queries";
 
 const TABS: { key: Difficulty; label: string }[] = [
   { key: "sprint", label: "Sprint" },
@@ -12,11 +12,6 @@ const TABS: { key: Difficulty; label: string }[] = [
   { key: "hard", label: "Hard" },
   { key: "genius", label: "Genius" },
 ];
-
-export type Boards = Record<
-  Difficulty,
-  { top: LeaderboardRow[]; me: LeaderboardRow | null }
->;
 
 const MEDAL: Record<number, string> = {
   1: "#f5b301",
@@ -49,17 +44,60 @@ function Row({ row }: { row: LeaderboardRow }) {
   );
 }
 
-export function Leaderboard({ boards }: { boards: Boards }) {
+export function Leaderboard({
+  allBoards,
+  yearBoards,
+  yearLevel,
+}: {
+  allBoards: LeaderboardBoards;
+  yearBoards: LeaderboardBoards | null;
+  yearLevel: string | null;
+}) {
   const [tab, setTab] = useState<Difficulty>("sprint");
-  const board = boards[tab];
+  const [scope, setScope] = useState<"year" | "all">(
+    yearBoards ? "year" : "all",
+  );
+  const board = (scope === "year" && yearBoards ? yearBoards : allBoards)[tab];
 
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
         <Trophy className="h-[18px] w-[18px] text-brand-500" />
         <h2 className="text-[16px] font-extrabold text-ink tracking-tight">
           Leaderboard
         </h2>
+        </div>
+        <div
+          className="inline-flex rounded-full border border-line bg-surface-2 p-1"
+          role="group"
+          aria-label="Leaderboard group"
+        >
+          {yearBoards ? (
+            <button
+              type="button"
+              onClick={() => setScope("year")}
+              className={`min-h-8 rounded-full px-3 text-[12px] font-bold transition-colors ${
+                scope === "year"
+                  ? "bg-brand-500 text-white"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              {formatYear(yearLevel)}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setScope("all")}
+            className={`min-h-8 rounded-full px-3 text-[12px] font-bold transition-colors ${
+              scope === "all"
+                ? "bg-brand-500 text-white"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            All Taiyo
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1.5 mb-3 flex-wrap">
@@ -103,4 +141,9 @@ export function Leaderboard({ boards }: { boards: Boards }) {
       )}
     </div>
   );
+}
+
+function formatYear(yearLevel: string | null) {
+  if (!yearLevel) return "My year";
+  return /^year\s/i.test(yearLevel) ? yearLevel : `Year ${yearLevel}`;
 }

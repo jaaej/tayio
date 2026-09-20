@@ -15,6 +15,8 @@ import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switche
 import { parseMonthParam } from "../_components/month-param";
 import { SectionHeader } from "../_components/section-header";
 import { StatusPill } from "../_components/status-pill";
+import { getClassMoveData } from "@/lib/class-moves";
+import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
 
 type SearchParams = Promise<{
   child?: string;
@@ -55,12 +57,13 @@ export default async function ParentClassesPage({
   const from = new Date(year, month - 1, 1);
   const to = new Date(year, month + 3, 1);
 
-  const [chips, homeworkRows, attendanceRows, credits, admin] = await Promise.all([
+  const [chips, homeworkRows, attendanceRows, credits, admin, classMoves] = await Promise.all([
     buildTimetableChips(selected.id, from, to),
     getStudentHomework(selected.id),
     getAttendance(selected.id),
     listRedeemableCredits(selected.id),
     getAdminContact(),
+    getClassMoveData(selected.id),
   ]);
 
   const fromIso = isoLocal(from);
@@ -101,6 +104,15 @@ export default async function ParentClassesPage({
           />
         </div>
       )}
+
+      <div className="rise" style={{ animationDelay: "30ms" }}>
+        <ClassMoveRequestPanel
+          studentId={selected.id}
+          studentName={selected.firstName}
+          classes={classMoves.classes}
+          requests={classMoves.requests}
+        />
+      </div>
 
       <div className="rise" style={{ animationDelay: "40ms" }}>
         <Card>

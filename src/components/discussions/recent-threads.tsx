@@ -8,6 +8,7 @@ import { boardSegment } from "@/lib/discussions";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { AttachmentPicker } from "@/components/discussions/attachments";
 import { ThreadCard } from "@/components/discussions/thread-card";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { initialOf, type DiscussionRole } from "./role-tone";
 
 const SEARCH_THRESHOLD = 5;
@@ -223,8 +224,12 @@ function NewThreadForm({
           disabled={pending}
           className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-600 px-5 text-[13px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(31,40,90,0.5)] disabled:opacity-50 transition-transform hover:-translate-y-[1px] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
         >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          {pending ? "Posting…" : "Post question"}
+          <ActionButtonLabel pending={pending} pendingLabel="Posting…">
+            <>
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              Post question
+            </>
+          </ActionButtonLabel>
         </button>
         <button
           type="button"

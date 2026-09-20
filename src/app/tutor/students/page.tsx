@@ -4,6 +4,7 @@ import { PageHead } from "@/components/student/page-head";
 import { FilterToolbar, type FilterPill } from "@/components/ui/filter-toolbar";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { classDisplayName } from "@/lib/class-display";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { getTutorStudentsByClass, requireTutor } from "../_data";
 
 type RosterEntry = {
@@ -12,6 +13,7 @@ type RosterEntry = {
   lastName: string;
   email: string;
   yearLevel: string | null;
+  profileAvatarKey: string | null;
   classes: Array<{ id: string; name: string; subjectName: string }>;
 };
 
@@ -133,9 +135,11 @@ export default async function TutorStudentsPage({
                   >
                     <Td>
                       <span className="flex items-center gap-3">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-500 text-[12px] font-bold text-white">
-                          {initials(s)}
-                        </span>
+                        <ProfileAvatar
+                          avatarKey={s.profileAvatarKey}
+                          fallback={initials(s)}
+                          className="h-9 w-9 shrink-0 text-[12px]"
+                        />
                         <Link
                           href={`/tutor/students/${s.id}`}
                           className="inline-flex min-h-9 items-center rounded-[6px] font-bold text-ink transition-colors hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"

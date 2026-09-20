@@ -99,7 +99,9 @@ export async function ParentShell({
     ...s,
     items: s.items.map((item) => {
       if (item.href === "/parent/messages") return { ...item, badge: unread };
-      if (item.href === "/parent/notifications") return { ...item, badge: notifUnread };
+      if (item.href === "/parent/notifications") {
+        return { ...item, badge: notifUnread, badgeTone: "danger" as const };
+      }
       return item;
     }),
   }));
@@ -116,12 +118,18 @@ export async function ParentShell({
         <div className="ml-auto flex items-center gap-2.5">
           <Link
             href="/parent/notifications"
-            className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            aria-label="Notifications"
+            className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
+            aria-label={
+              notifUnread > 0
+                ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
+                : "Notifications"
+            }
           >
             <Bell className="h-[18px] w-[18px]" />
             {notifUnread > 0 && (
-              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
+              <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
+                {notifUnread > 99 ? "99+" : notifUnread}
+              </span>
             )}
           </Link>
           <Link

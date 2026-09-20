@@ -46,10 +46,14 @@ const savedFmt = new Intl.DateTimeFormat("en-AU", {
 
 export default async function LessonDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
+  const { from } = await searchParams;
+  const cameFromSchedule = from === "schedule";
   const tutor = await requireTutor();
   const { lesson, roster, notes } = await getLessonForTutor(tutor.id, id);
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
@@ -64,15 +68,26 @@ export default async function LessonDetailPage({
   const movedInTrialsByStudent = new Map(
     movedInTrials.map((trial) => [trial.studentId, trial]),
   );
+  const rosterIds = new Set(roster.map((student) => student.id));
+  const noteStudents = [
+    ...roster,
+    ...movedIn
+      .filter((student) => !rosterIds.has(student.studentId))
+      .map((student) => ({
+        id: student.studentId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+      })),
+  ];
   const classDetail = classNameDetail(lesson.subjectName, lesson.className);
 
   return (
     <div className="space-y-5">
       <Link
-        href="/tutor"
+        href={cameFromSchedule ? "/tutor/timetable" : "/tutor"}
         className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-ink hover:text-ink"
       >
-        ← Today
+        ← {cameFromSchedule ? "Schedule & availability" : "Today"}
       </Link>
 
       <PageHead
@@ -184,7 +199,8 @@ export default async function LessonDetailPage({
           </form>
         )}
         {movedIn.length > 0 && (
-          <div className="border-t border-line">
+          <form action={saveAttendance} className="border-t border-line">
+            <input type="hidden" name="lessonId" value={lesson.id} />
             <div className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-[0.12em] font-bold text-muted">
               Make-up attendees
             </div>
@@ -211,11 +227,44 @@ export default async function LessonDetailPage({
                         {trialNote}
                       </div>
                     )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {ATTENDANCE_OPTIONS.map((opt) => (
+                        <label key={opt.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`status[${m.studentId}]`}
+                            value={opt.value}
+                            defaultChecked={
+                              (m.attendanceStatus ?? "makeup_attended") ===
+                              opt.value
+                            }
+                            className="peer sr-only"
+                          />
+                          <span className="inline-flex items-center rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-bold text-ink-soft transition-colors hover:border-brand-300 peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-checked:text-white">
+                            {opt.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <input
+                      name={`note[${m.studentId}]`}
+                      placeholder="Optional note (e.g. attended a make-up lesson)"
+                      defaultValue={m.attendanceNote ?? ""}
+                      className={INPUT_CLS}
+                    />
                   </li>
                 );
               })}
             </ul>
-          </div>
+            <div className="flex justify-end border-t border-line bg-surface-2 px-4 py-3">
+              <button
+                type="submit"
+                className="rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
+              >
+                Save make-up attendance
+              </button>
+            </div>
+          </form>
         )}
       </Card>
 
@@ -286,14 +335,19 @@ export default async function LessonDetailPage({
 
       <div>
         <SectionHead title="Lesson notes" />
-        {roster.length > 0 && (
+        {noteStudents.length > 0 && (
           <div className="space-y-3.5">
-            {roster.map((s) => {
+            {noteStudents.map((s) => {
               const existing = notesByStudent.get(s.id);
+              const isMakeup = movedIn.some(
+                (student) => student.studentId === s.id,
+              );
               return (
                 <Card key={s.id} className="overflow-hidden">
                   <CardHead
-                    title={`${s.firstName} ${s.lastName}`}
+                    title={`${s.firstName} ${s.lastName}${
+                      isMakeup ? " · Make-up attendee" : ""
+                    }`}
                     action={
                       existing
                         ? `Last saved ${savedFmt.format(existing.createdAt)}`

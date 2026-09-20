@@ -4,11 +4,11 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  HelpCircle,
   ClipboardCheck,
   CreditCard,
   CalendarClock,
   CalendarRange,
+  CalendarCheck2,
   Megaphone,
   MessagesSquare,
   MessageCircle,
@@ -34,7 +34,7 @@ import { CoverAlertPoller } from "./cover-alert-poller";
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
 // Revenue is NOT here: reception can open it and enter the PIN to view figures.
-const OWNER_ONLY_HREFS = new Set(["/admin/settings"]);
+const OWNER_ONLY_HREFS = new Set(["/admin/settings", "/admin/tutor-checkins"]);
 
 const IC = "h-[18px] w-[18px]";
 
@@ -45,7 +45,6 @@ const SECTIONS: NavSection[] = [
       { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className={IC} /> },
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
       { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
-      { label: "Quizzes", href: "/admin/quizzes", icon: <HelpCircle className={IC} /> },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
     ],
@@ -57,6 +56,11 @@ const SECTIONS: NavSection[] = [
         label: "Tutor availability",
         href: "/admin/tutors/availability",
         icon: <CalendarRange className={IC} />,
+      },
+      {
+        label: "Tutor check-ins",
+        href: "/admin/tutor-checkins",
+        icon: <CalendarCheck2 className={IC} />,
       },
       { label: "Payments", href: "/admin/payments", icon: <CreditCard className={IC} /> },
     ],
@@ -154,7 +158,9 @@ export async function AdminShell({
       .filter((item) => canSeeOwnerNav || !OWNER_ONLY_HREFS.has(item.href))
       .map((item) => {
         if (item.href === "/admin/messages") return { ...item, badge: unread };
-        if (item.href === "/admin/notifications") return { ...item, badge: notifUnread };
+        if (item.href === "/admin/notifications") {
+          return { ...item, badge: notifUnread, badgeTone: "danger" as const };
+        }
         return item;
       }),
   })).filter((s) => s.items.length > 0);

@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   BookOpen,
   FileText,
+  HelpCircle,
   Pencil,
   PlayCircle,
   Settings2,
 } from "lucide-react";
-import { Button } from "@/components/admin/ui";
+import { Button, Pill, type PillTone } from "@/components/admin/ui";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { SidePanel } from "@/components/ui/side-panel";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -25,6 +27,10 @@ import {
   uploadAdminBooklet,
 } from "@/app/admin/_lib/actions-curriculum";
 import type { SubjectWeek } from "@/db/schema";
+import type { QuizTargetWeek } from "@/lib/quiz-queries";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
+import { NewQuizPanel } from "@/app/admin/quizzes/_components/new-quiz-panel";
+import { ApproveQuizButton } from "@/app/admin/quizzes/_components/approve-quiz-button";
 import { TopicsPanel } from "./topics-panel";
 
 export function WeekEditor({
@@ -34,6 +40,9 @@ export function WeekEditor({
   topics,
   subjectName,
   weekCounts,
+  quiz,
+  quizTutors,
+  quizTarget,
 }: {
   existing?: SubjectWeek;
   subjectId: string;
@@ -41,6 +50,14 @@ export function WeekEditor({
   topics: { id: string; name: string; position: number }[];
   subjectName: string;
   weekCounts: Record<string, number>;
+  quiz?: {
+    id: string;
+    title: string;
+    status: string;
+    questionCount: number;
+  } | null;
+  quizTutors?: { id: string; name: string }[];
+  quizTarget?: QuizTargetWeek;
 }) {
   const router = useRouter();
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
@@ -311,6 +328,66 @@ export function WeekEditor({
                 </p>
               )}
             </section>
+
+            <section className="space-y-4 p-4 lg:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-50 text-brand-700">
+                      <HelpCircle className="h-4 w-4" aria-hidden />
+                    </span>
+                    <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+                      Weekly quiz
+                    </h3>
+                  </div>
+                  <p className="mt-1 text-[12px] text-muted">
+                    Create the quiz here yourself or ask a tutor to prepare it.
+                  </p>
+                </div>
+                {!quiz && quizTarget ? (
+                  <div className="flex flex-wrap gap-2">
+                    <NewQuizPanel
+                      tutors={quizTutors ?? []}
+                      weeks={[quizTarget]}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {quiz ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-extrabold text-ink">
+                        {quiz.title}
+                      </span>
+                      <Pill
+                        tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone}
+                        dot
+                      >
+                        {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
+                      </Pill>
+                    </div>
+                    <p className="mt-1 text-[12px] text-muted">
+                      {quiz.questionCount} answerable question{quiz.questionCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  {quiz.status === "pending_review" ? (
+                    <ApproveQuizButton quizId={quiz.id} size="sm" />
+                  ) : null}
+                  <a
+                    href={`/admin/quizzes/${quiz.id}`}
+                    className="inline-flex min-h-9 items-center rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink transition-colors hover:border-brand-400 hover:text-brand-700"
+                  >
+                    {quiz.status === "approved" ? "Preview quiz" : "Open quiz builder"}
+                  </a>
+                </div>
+              ) : quizTarget ? (
+                <p className="rounded-[12px] border border-dashed border-line-strong bg-surface-2 px-4 py-3 text-[12px] text-muted">
+                  No quiz has been attached to this week yet.
+                </p>
+              ) : null}
+            </section>
           </>
         ) : (
           <section className="p-4 lg:p-5">
@@ -432,7 +509,9 @@ function FileSlot({
           htmlFor={inputId}
           className="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-surface px-3.5 text-[12px] font-bold text-ink ring-1 ring-inset ring-line transition-colors hover:ring-line-strong"
         >
-          {pending ? "Uploading…" : currentPath ? "Replace file" : "Upload file"}
+          <ActionButtonLabel pending={pending} pendingLabel="Uploading…">
+            {currentPath ? "Replace file" : "Upload file"}
+          </ActionButtonLabel>
         </label>
         <input
           id={inputId}

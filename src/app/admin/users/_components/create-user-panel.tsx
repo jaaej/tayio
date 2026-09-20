@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Copy, Plus } from "lucide-react";
+import { Check, Copy, MailCheck, Plus, TriangleAlert } from "lucide-react";
 import { Button, SidePanel } from "@/components/admin/ui";
 import { createUser } from "@/app/admin/_lib/actions-users";
 import { CreateUserForm, type CreateUserValues } from "./create-user-form";
@@ -16,6 +16,7 @@ type CreatedAccount = {
   name: string;
   email: string;
   tempPassword?: string;
+  passwordSetupEmail: { sent: true } | { sent: false; error: string };
 };
 
 type Created = {
@@ -56,6 +57,7 @@ export function CreateUserPanel({
           name: `${values.firstName} ${values.lastName}`,
           email: values.email,
           tempPassword: res.tempPassword,
+          passwordSetupEmail: res.passwordSetupEmail,
         },
         linkedParent: values.linkedParent
           ? {
@@ -63,6 +65,10 @@ export function CreateUserPanel({
               name: `${values.linkedParent.firstName} ${values.linkedParent.lastName}`,
               email: values.linkedParent.email,
               tempPassword: res.linkedParent?.tempPassword,
+              passwordSetupEmail: res.linkedParent?.passwordSetupEmail ?? {
+                sent: false,
+                error: "Email delivery status was unavailable.",
+              },
             }
           : undefined,
       });
@@ -196,6 +202,25 @@ function CreatedAccountCard({ account }: { account: CreatedAccount }) {
       </p>
       <p className="mt-1 text-[13px] font-bold text-ink">{account.name}</p>
       <p className="text-[12px] text-ink-soft">{account.email}</p>
+
+      {account.passwordSetupEmail.sent ? (
+        <div className="mt-3 flex items-start gap-2 rounded-[9px] border border-good/20 bg-good-bg px-3 py-2.5 text-[12px] text-good">
+          <MailCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            Password-setup email sent. The link lets this user choose their own
+            password securely.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-start gap-2 rounded-[9px] border border-bad/20 bg-bad-bg px-3 py-2.5 text-[12px] text-bad">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            Account created, but the setup email could not be sent: {" "}
+            {account.passwordSetupEmail.error}. Use the temporary password
+            below or retry Reset from this user&apos;s gear menu.
+          </p>
+        </div>
+      )}
 
       {account.tempPassword && (
         <div className="mt-4 border-t border-line pt-3">

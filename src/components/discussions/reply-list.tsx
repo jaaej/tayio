@@ -9,6 +9,7 @@ import {
   AttachmentList,
   AttachmentPicker,
 } from "@/components/discussions/attachments";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import {
   initialOf,
   isStaffRole,
@@ -196,8 +197,12 @@ function ReplyRow({
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50 transition-transform hover:-translate-y-[1px]"
               style={{ background: tokens.arrow }}
             >
-              <Send className="h-3 w-3" aria-hidden />
-              {pending ? "Posting…" : "Post reply"}
+              <ActionButtonLabel pending={pending} pendingLabel="Posting…">
+                <>
+                  <Send className="h-3 w-3" aria-hidden />
+                  Post reply
+                </>
+              </ActionButtonLabel>
             </button>
             <button
               type="button"

@@ -47,7 +47,7 @@ export default async function AdminQuizDetailPage({
         canApprove={
           quiz.status === "draft" || quiz.status === "pending_review"
         }
-        hrefBack="/admin/quizzes"
+        hrefBack={`/admin/subjects/${quiz.subjectId}/curriculum?term=${quiz.termId}&week=${quiz.subjectWeekId}`}
       />
 
       {quiz.note && <QuizInstructionStrip label="Note" note={quiz.note} />}

@@ -20,7 +20,9 @@ import {
   lessons,
   notifications,
   profiles,
+  rescheduleRequests,
   resources,
+  subjects,
   subjectWeeks,
   tutorAvailability,
   tutorWeekAttachments,
@@ -47,6 +49,7 @@ import { getOrCreateThread } from "@/lib/dm-queries";
 import { coarseRole } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
 import { buildHomeworkBumpMessage } from "@/lib/homework-bump";
+import { classDisplayName } from "@/lib/class-display";
 import type { UserRole } from "@/db/schema";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
@@ -116,6 +119,54 @@ async function assertTeachesStudent(tutorId: string, studentId: string) {
     )
     .limit(1);
   if (!row) throw new Error("Not authorised");
+}
+
+/**
+ * Lesson-scoped permission for attendance and notes. A temporary make-up
+ * attendee may not be enrolled in any class normally taught by this tutor,
+ * but an approved reschedule into this exact lesson still puts them on this
+ * tutor's roll for this lesson only.
+ */
+async function assertCanManageLessonStudent(
+  tutorId: string,
+  lessonId: string,
+  studentId: string,
+) {
+  const [regular, makeup] = await Promise.all([
+    db
+      .select({ id: enrollments.studentId })
+      .from(lessons)
+      .innerJoin(
+        enrollments,
+        and(
+          eq(enrollments.classId, lessons.classId),
+          isNull(enrollments.withdrawnAt),
+        ),
+      )
+      .where(
+        and(
+          eq(lessons.id, lessonId),
+          eq(lessons.tutorId, tutorId),
+          eq(enrollments.studentId, studentId),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ id: rescheduleRequests.id })
+      .from(rescheduleRequests)
+      .innerJoin(lessons, eq(lessons.id, rescheduleRequests.targetLessonId))
+      .where(
+        and(
+          eq(lessons.id, lessonId),
+          eq(lessons.tutorId, tutorId),
+          eq(rescheduleRequests.studentId, studentId),
+          eq(rescheduleRequests.status, "approved"),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  if (!regular[0] && !makeup[0]) throw new Error("Not authorised");
 }
 
 /** Send a task-specific reminder from the dashboard's Students to bump card.
@@ -256,7 +307,7 @@ export async function saveAttendance(formData: FormData) {
   for (const entry of entries) {
     const parsed = attendanceStatusSchema.safeParse(entry.status);
     if (!parsed.success) continue;
-    await assertTeachesStudent(tutor.id, entry.studentId);
+    await assertCanManageLessonStudent(tutor.id, lessonId, entry.studentId);
     await db
       .insert(attendance)
       .values({
@@ -287,7 +338,7 @@ export async function saveLessonNote(formData: FormData) {
   const studentId = String(formData.get("studentId") ?? "");
   if (!lessonId || !studentId) throw new Error("Missing lessonId or studentId");
   await assertOwnsLesson(tutor.id, lessonId);
-  await assertTeachesStudent(tutor.id, studentId);
+  await assertCanManageLessonStudent(tutor.id, lessonId, studentId);
 
   const data = {
     topicCovered: optionalText(formData.get("topicCovered"), 5000),
@@ -382,59 +433,82 @@ export async function updateLessonPlan(input: {
   return { ok: true as const };
 }
 
-/**
- * Post a class announcement (tutor -> the students in one of their classes).
- * Reuses the shared `announcements` table with a class audience - students
- * already surface class-audience announcements on their dashboard - and, per
- * the notification non-negotiables, drops an in-app notification to every
- * enrolled (non-withdrawn) student. The title carries the word "announcement"
- * so it lands in the shared inbox's Announcements group
- * (see src/lib/notification-groups.ts).
- */
+/** Submit a class announcement for admin review. Nothing is delivered to the
+ * class until an admin approves it from the notification inbox/announcement
+ * page, so tutor-to-family communication always has the required checkpoint. */
 export async function createClassAnnouncement(formData: FormData) {
   const tutor = await requireTutor();
   const classId = String(formData.get("classId") ?? "");
   if (!classId) throw new Error("Class required");
 
   const [cls] = await db
-    .select({ id: classes.id, name: classes.name })
+    .select({
+      id: classes.id,
+      name: classes.name,
+      subjectName: subjects.name,
+      tutorFirst: profiles.firstName,
+      tutorLast: profiles.lastName,
+    })
     .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, classes.tutorId))
     .where(and(eq(classes.id, classId), eq(classes.tutorId, tutor.id)))
     .limit(1);
   if (!cls) throw new Error("Class not found");
 
   const title = requiredText(formData.get("title"), 200, "Title");
   const body = requiredText(formData.get("body"), 10000, "Message");
+  const includeLinkedParents = formData.get("includeLinkedParents") === "on";
+  const isUrgent = formData.get("isUrgent") === "on";
 
-  const students = await db
-    .select({ studentId: enrollments.studentId })
-    .from(enrollments)
+  const admins = await db
+    .select({ id: profiles.id })
+    .from(profiles)
     .where(
-      and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)),
+      and(
+        inArray(profiles.role, [
+          "admin",
+          "admin_restricted",
+          "admin_unrestricted",
+        ]),
+        eq(profiles.isActive, true),
+      ),
     );
 
   await withActor({ id: tutor.id, role: "tutor" }, async (tx) => {
-    await tx.insert(announcements).values({
-      authorId: tutor.id,
-      title,
-      body,
-      audienceClassId: classId,
-    });
-    if (students.length) {
+    const [announcement] = await tx
+      .insert(announcements)
+      .values({
+        authorId: tutor.id,
+        title,
+        body,
+        audienceClassId: classId,
+        status: "pending",
+        isUrgent,
+        targetRoles: ["student"],
+        targetClassIds: [classId],
+        includeLinkedParents,
+      })
+      .returning({ id: announcements.id });
+    if (admins.length) {
+      const classLabel = classDisplayName(cls.subjectName, cls.name);
       await tx.insert(notifications).values(
-        students.map((s) => ({
-          userId: s.studentId,
+        admins.map((admin) => ({
+          userId: admin.id,
           channel: "in_app" as const,
-          title: `New announcement in ${cls.name}`,
-          body: title,
-          href: "/student",
+          title: "Tutor announcement approval required",
+          body: `${cls.tutorFirst} ${cls.tutorLast} submitted “${title}” for ${classLabel}${includeLinkedParents ? " and linked parents" : ""}${isUrgent ? " as urgent" : ""}.`,
+          href: `/admin/announcements#announcement-${announcement.id}`,
+          dedupeKey: `announcement-approval:${announcement.id}`,
         })),
       );
     }
   });
 
   revalidatePath(`/tutor/classes/${classId}`);
-  revalidatePath("/student");
+  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  revalidatePath("/admin/announcements");
+  revalidatePath("/admin/notifications");
 }
 
 /**

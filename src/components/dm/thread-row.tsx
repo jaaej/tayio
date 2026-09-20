@@ -10,7 +10,13 @@ export function ThreadRow({
   thread: ThreadInboxRow;
   hrefPrefix: string;
 }) {
-  const stamp = thread.lastActivityAt.toLocaleDateString("en-AU", {
+  // React Server Components serialize Date values before this client-side row
+  // receives them. Normalise both the server Date and browser ISO-string forms.
+  const lastActivityAt =
+    thread.lastActivityAt instanceof Date
+      ? thread.lastActivityAt
+      : new Date(thread.lastActivityAt);
+  const stamp = lastActivityAt.toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",
   });

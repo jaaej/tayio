@@ -54,6 +54,15 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("routes permanent class relocation requests to action needed", () => {
+    expect(
+      notificationGroupFor({
+        title: "Relocate class time for Sarah Student",
+        href: "/admin/users/student-id?tab=lessons#class-moves",
+      }),
+    ).toBe("action");
+  });
+
   it("keeps a submitted quiz in the admin action section", () => {
     expect(
       notificationGroupFor({

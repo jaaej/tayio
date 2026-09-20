@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { gradePracticeQuiz } from "@/app/_actions/quizzes";
 import type { StudentQuiz } from "@/lib/quiz-queries";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 type Grade = Extract<
   Awaited<ReturnType<typeof gradePracticeQuiz>>,
@@ -332,7 +333,9 @@ export function StudentPracticeQuiz({
               onClick={checkAnswers}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand-600 px-6 text-[13px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pending ? "Checking..." : "Check answers"}
+              <ActionButtonLabel pending={pending} pendingLabel="Checking…">
+                Check answers
+              </ActionButtonLabel>
             </button>
           )}
         </div>

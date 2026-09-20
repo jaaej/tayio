@@ -335,7 +335,7 @@ function DayCell({ day }: { day: DayShape }) {
             return (
               <Link
                 key={lesson.id}
-                href={`/tutor/lessons/${lesson.id}`}
+                href={`/tutor/lessons/${lesson.id}?from=schedule`}
                 className="relative block overflow-hidden rounded-md py-1 pl-2 pr-1.5 text-[10px] leading-tight transition-transform hover:-translate-y-[1px]"
                 style={{
                   backgroundColor: tokens.pillBg,

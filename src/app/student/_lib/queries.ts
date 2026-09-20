@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import {
   announcements,
+  announcementRecipients,
   attendance,
   classCredits,
   classes,
@@ -121,7 +122,6 @@ export async function getRelevantAnnouncements(
   studentId: string,
   limit = 4,
 ): Promise<StudentAnnouncement[]> {
-  const enrolledClassIds = await getEnrolledClassIds(studentId);
   return db
     .select({
       id: announcements.id,
@@ -131,13 +131,14 @@ export async function getRelevantAnnouncements(
       audienceRole: announcements.audienceRole,
     })
     .from(announcements)
+    .innerJoin(
+      announcementRecipients,
+      eq(announcementRecipients.announcementId, announcements.id),
+    )
     .where(
-      or(
-        isNull(announcements.audienceRole),
-        eq(announcements.audienceRole, "student"),
-        enrolledClassIds.length > 0
-          ? inArray(announcements.audienceClassId, enrolledClassIds)
-          : undefined,
+      and(
+        eq(announcementRecipients.userId, studentId),
+        eq(announcements.status, "published"),
       ),
     )
     .orderBy(desc(announcements.publishedAt))

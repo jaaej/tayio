@@ -87,14 +87,14 @@ export default async function TutorClassCurriculumPage({
             title="Announcements"
             action={
               <span className="text-[12px] text-muted">
-                Sent to {rosterCount} student{rosterCount === 1 ? "" : "s"}
+                {rosterCount} enrolled student{rosterCount === 1 ? "" : "s"}
               </span>
             }
           />
           <CardBody className="space-y-4">
             <details className="group rounded-[12px] border border-line bg-surface-2">
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] font-bold text-ink [&::-webkit-details-marker]:hidden">
-                Post an announcement
+                Submit an announcement
                 <span className="text-[11px] font-semibold text-brand-600 group-open:hidden">
                   New ↓
                 </span>
@@ -123,15 +123,33 @@ export default async function TutorClassCurriculumPage({
                   className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25"
                 />
                 <p className="text-[12px] text-muted">
-                  Every enrolled student gets an in-app notification and sees
-                  this on their dashboard.
+                  Admin approval is required before anyone receives this
+                  announcement.
                 </p>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-[10px] border border-line bg-surface px-3 py-2.5">
+                  <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-ink-soft">
+                    <input
+                      type="checkbox"
+                      name="includeLinkedParents"
+                      className="h-4 w-4 accent-brand-600"
+                    />
+                    Also send to linked parents
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-ink-soft">
+                    <input
+                      type="checkbox"
+                      name="isUrgent"
+                      className="h-4 w-4 accent-brand-600"
+                    />
+                    Mark urgent and email recipients
+                  </label>
+                </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     className="h-9 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
                   >
-                    Post announcement
+                    Submit for approval
                   </button>
                 </div>
               </form>
@@ -153,6 +171,33 @@ export default async function TutorClassCurriculumPage({
                         <div className="text-[14px] font-bold text-ink">
                           {a.title}
                         </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              a.status === "published"
+                                ? "bg-good-bg text-good"
+                                : a.status === "rejected"
+                                  ? "bg-bad-bg text-bad"
+                                  : "bg-warn-bg text-warn"
+                            }`}
+                          >
+                            {a.status === "published"
+                              ? "Published"
+                              : a.status === "rejected"
+                                ? "Changes requested"
+                                : "Awaiting admin approval"}
+                          </span>
+                          {a.isUrgent ? (
+                            <span className="rounded-full bg-bad-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-bad">
+                              Urgent
+                            </span>
+                          ) : null}
+                          {a.includeLinkedParents ? (
+                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                              Includes parents
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="text-[11px] text-muted tabular-nums mt-0.5">
                           {relativeTime(new Date(a.publishedAt))}
                         </div>
@@ -171,6 +216,11 @@ export default async function TutorClassCurriculumPage({
                     <p className="mt-2 text-[13px] text-ink-soft whitespace-pre-wrap leading-snug">
                       {a.body}
                     </p>
+                    {a.rejectedReason ? (
+                      <p className="mt-2 rounded-[10px] bg-bad-bg px-3 py-2 text-[12px] text-bad">
+                        Admin feedback: {a.rejectedReason}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ul>

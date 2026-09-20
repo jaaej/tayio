@@ -11,6 +11,7 @@ export type NavItem = {
   href: string;
   icon: ReactNode;
   badge?: number;
+  badgeTone?: "brand" | "danger";
 };
 
 export type NavSection = {
@@ -45,7 +46,12 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       </span>
       <span className="truncate">{item.label}</span>
       {item.badge && item.badge > 0 ? (
-        <span className="ml-auto inline-flex items-center justify-center rounded-full bg-brand-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums">
+        <span
+          className={cn(
+            "ml-auto inline-flex items-center justify-center rounded-full text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums",
+            item.badgeTone === "danger" ? "bg-bad" : "bg-brand-500",
+          )}
+        >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
       ) : null}
@@ -77,7 +83,13 @@ export function StudentNavLinks({ sections }: { sections: NavSection[] }) {
   );
 }
 
-export function StudentNavLinksMobile({ sections }: { sections: NavSection[] }) {
+export function StudentNavLinksMobile({
+  sections,
+  blitzRank,
+}: {
+  sections: NavSection[];
+  blitzRank?: number | null;
+}) {
   const pathname = usePathname();
   const items = sections.flatMap((s) => s.items);
   return (
@@ -92,6 +104,11 @@ export function StudentNavLinksMobile({ sections }: { sections: NavSection[] }) 
       >
         <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
         Taiyo Blitz
+        {blitzRank ? (
+          <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-extrabold tabular-nums text-[#5A21B0]">
+            #{blitzRank}
+          </span>
+        ) : null}
       </Link>
       {items.map((item) => {
         const active = isActive(pathname, item.href);

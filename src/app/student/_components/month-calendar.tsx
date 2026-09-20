@@ -22,6 +22,7 @@ const MONTH_NAMES = [
 
 export type MonthLesson = {
   id: string;
+  subjectId: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -195,6 +196,8 @@ function lessonToMonthChip(lesson: MonthLesson): MonthChip {
   const subjectAndMove = lesson.moveLabel
     ? `${lesson.subjectName} · ${lesson.moveLabel}`
     : lesson.subjectName;
+  const href =
+    lesson.rescheduleHref ?? `/student/subjects/${lesson.subjectId}`;
 
   return {
     id: `lesson-${lesson.id}`,
@@ -205,11 +208,11 @@ function lessonToMonthChip(lesson: MonthLesson): MonthChip {
       : subjectAndMove,
     sortKey: `0-${lesson.startTime}`,
     tone: moved ? "line-through" : "",
-    href: lesson.rescheduleHref,
+    href,
     style: { backgroundColor: tone.bg, color: tone.text },
     barStyle: { backgroundColor: tone.bar },
     title: [
-      lesson.rescheduleHref ? "Reschedule this lesson" : null,
+      lesson.rescheduleHref ? "Reschedule this lesson" : "Open subject",
       lesson.location ? `Location: ${lesson.location}` : null,
     ]
       .filter(Boolean)
@@ -548,13 +551,15 @@ function LessonChip({
   );
   const style = { backgroundColor: tone.bg, color: tone.text };
 
-  if (lesson.rescheduleHref) {
+  const href =
+    lesson.rescheduleHref ?? `/student/subjects/${lesson.subjectId}`;
+  if (href) {
     return (
       <Link
-        href={lesson.rescheduleHref}
+        href={href}
         className={cn(base, "transition-transform hover:-translate-y-[1px]")}
         style={style}
-        title="Reschedule this lesson"
+        title={lesson.rescheduleHref ? "Reschedule this lesson" : "Open subject"}
       >
         {inner}
       </Link>

@@ -2,11 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, subjects } from "@/db/schema";
+import { classes, notifications, profiles, subjects } from "@/db/schema";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
+import { ensureRecurringLessons } from "@/lib/recurring-lessons";
+import { ADMIN_TIERS } from "@/lib/roles";
+import { classDisplayName } from "@/lib/class-display";
+import { formatTime } from "@/lib/format";
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
@@ -49,6 +53,33 @@ export async function createClass(input: z.infer<typeof classSchema>) {
   const user = await requireAdmin();
   const data = classSchema.parse(input);
   const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    const [[context], adminRows] = await Promise.all([
+      tx
+        .select({
+          subjectName: subjects.name,
+          tutorFirstName: profiles.firstName,
+          tutorLastName: profiles.lastName,
+        })
+        .from(subjects)
+        .innerJoin(profiles, eq(profiles.id, data.tutorId))
+        .where(
+          and(
+            eq(subjects.id, data.subjectId),
+            eq(profiles.id, data.tutorId),
+          ),
+        )
+        .limit(1),
+      tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(
+          and(
+            inArray(profiles.role, ADMIN_TIERS),
+            eq(profiles.isActive, true),
+          ),
+        ),
+    ]);
+
     const [r] = await tx
       .insert(classes)
       .values({
@@ -65,10 +96,56 @@ export async function createClass(input: z.infer<typeof classSchema>) {
         endTime: data.endTime || null,
       })
       .returning({ id: classes.id });
+
+    const subjectName = context?.subjectName ?? "Class";
+    const displayName = classDisplayName(subjectName, data.name);
+    const schedule =
+      data.isRecurring &&
+      data.weekday !== null &&
+      data.weekday !== undefined &&
+      data.startTime &&
+      data.endTime
+        ? `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][data.weekday]} · ${formatTime(data.startTime)}–${formatTime(data.endTime)}`
+        : "No recurring weekly time";
+    const tutorName = context
+      ? `${context.tutorFirstName} ${context.tutorLastName}`.trim()
+      : "the assigned tutor";
+
+    await tx.insert(notifications).values([
+      {
+        userId: data.tutorId,
+        channel: "in_app" as const,
+        title: "New class assigned",
+        body: `${displayName} · ${schedule}`,
+        href: "/tutor/timetable",
+        dedupeKey: `class-created:${r.id}:tutor`,
+      },
+      ...adminRows.map((admin) => ({
+        userId: admin.id,
+        channel: "in_app" as const,
+        title: "Class created",
+        body: `${displayName} · ${schedule} · Assigned to ${tutorName}`,
+        href: `/admin/classes/${r.id}`,
+        dedupeKey: `class-created:${r.id}:admin`,
+      })),
+    ]);
     return r;
   });
+  if (data.isRecurring) {
+    try {
+      await ensureRecurringLessons({ classIds: [row.id] });
+    } catch (error) {
+      // The class itself is valid and the daily sweep will safely retry its
+      // timetable. Do not encourage an admin to create the same class twice.
+      console.error("[classes] initial recurring lesson generation failed:", error);
+    }
+  }
   revalidatePath("/admin/classes");
   revalidatePath("/admin");
+  revalidatePath("/admin/notifications");
+  revalidatePath("/tutor/classes");
+  revalidatePath("/tutor/timetable");
+  revalidatePath("/tutor/notifications");
   return { ok: true as const, id: row.id };
 }
 
@@ -95,6 +172,13 @@ export async function updateClass(input: z.infer<typeof updateClassSchema>) {
       })
       .where(eq(classes.id, data.id)),
   );
+  if (data.isRecurring) {
+    try {
+      await ensureRecurringLessons({ classIds: [data.id] });
+    } catch (error) {
+      console.error("[classes] recurring lesson extension failed:", error);
+    }
+  }
   revalidatePath("/admin/classes");
   return { ok: true as const };
 }

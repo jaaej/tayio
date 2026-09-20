@@ -10,6 +10,7 @@ export type NavItem = {
   href: string;
   icon: ReactNode;
   badge?: number;
+  badgeTone?: "brand" | "danger";
 };
 
 export type NavSection = {
@@ -44,7 +45,12 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       </span>
       <span className="truncate">{item.label}</span>
       {item.badge && item.badge > 0 ? (
-        <span className="ml-auto inline-flex items-center justify-center rounded-full bg-brand-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums">
+        <span
+          className={cn(
+            "ml-auto inline-flex items-center justify-center rounded-full text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums",
+            item.badgeTone === "danger" ? "bg-bad" : "bg-brand-500",
+          )}
+        >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
       ) : null}

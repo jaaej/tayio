@@ -19,6 +19,8 @@ import {
 } from "../_lib/queries";
 import { listRedeemableCredits } from "@/lib/credits";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { getClassMoveData } from "@/lib/class-moves";
+import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -55,11 +57,12 @@ export default async function TimetablePage({
   if (isUnrestricted) {
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month + 3, 1);
-    const [chips, homeworkRows, adminContact, credits] = await Promise.all([
+    const [chips, homeworkRows, adminContact, credits, classMoves] = await Promise.all([
       buildTimetableChips(user.id, from, to),
       getStudentHomework(user.id),
       getAdminContactForStudent(),
       listRedeemableCredits(user.id),
+      getClassMoveData(user.id),
     ]);
 
     const fromIso = isoLocal(from);
@@ -79,6 +82,11 @@ export default async function TimetablePage({
         <PageHead
           eyebrow="Timetable"
           title="Your schedule"
+        />
+        <ClassMoveRequestPanel
+          studentId={user.id}
+          classes={classMoves.classes}
+          requests={classMoves.requests}
         />
         <Card>
           <div className="p-4 lg:p-5">
@@ -100,13 +108,15 @@ export default async function TimetablePage({
   const { fromIso, toIso } = monthBounds(year, month);
   const from = new Date(`${fromIso}T00:00:00`);
   const to = new Date(`${toIso}T00:00:00`);
-  const [lessonRows, homeworkRows] = await Promise.all([
+  const [lessonRows, homeworkRows, classMoves] = await Promise.all([
     getStudentTimetableLessons(user.id, { from, to }),
     getStudentHomework(user.id),
+    getClassMoveData(user.id),
   ]);
 
   const lessons: MonthLesson[] = lessonRows.map((l) => ({
     id: l.id,
+    subjectId: l.subjectId,
     date: l.date,
     startTime: l.startTime,
     endTime: l.endTime,
@@ -136,6 +146,11 @@ export default async function TimetablePage({
       <PageHead
         eyebrow="Timetable"
         title={isCurrentMonth ? "Your schedule" : `${MONTH_NAMES[month]} ${year}`}
+      />
+      <ClassMoveRequestPanel
+        studentId={user.id}
+        classes={classMoves.classes}
+        requests={classMoves.requests}
       />
       <Card className="overflow-hidden">
         <div className="p-4 lg:p-5">

@@ -38,6 +38,7 @@ export function notificationGroupFor(
     title.startsWith("urgent:") ||
     title.includes("cover needed") ||
     title.includes("cover request") ||
+    title.includes("relocate class time") ||
     title.includes("requested") ||
     title.includes("request") ||
     title.includes("ready for review") ||

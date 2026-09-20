@@ -230,6 +230,17 @@ body {
   border-color: var(--hairline);
 }
 
+/* Navigation feedback replaces the pointer without adding anything to layout. */
+html.taiyo-navigation-loading,
+html.taiyo-navigation-loading * {
+  cursor: none !important;
+}
+
+/* Both the click tracker and Next loading boundary can briefly be active. */
+.taiyo-navigation-cursor-layer ~ .taiyo-navigation-cursor-layer {
+  display: none;
+}
+
 /* Signature periwinkle gradient - matches the logo backdrop */
 .brand-field {
   background: linear-gradient(

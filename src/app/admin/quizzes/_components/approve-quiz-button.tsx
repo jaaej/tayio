@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Button } from "@/components/admin/ui";
+import { useState } from "react";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { approveQuiz } from "@/app/_actions/quizzes";
 
 /**
@@ -17,26 +17,27 @@ export function ApproveQuizButton({
   quizId: string;
   size?: "sm" | "md";
 }) {
-  const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   return (
     <span className="inline-flex flex-col items-end gap-1">
-      <Button
-        type="button"
+      <LoadingButton
         variant="brand"
         size={size}
-        disabled={pending}
-        onClick={() => {
+        pendingLabel="Approving…"
+        successLabel="Approved"
+        errorLabel="Try again"
+        onAction={async () => {
           setError(null);
-          start(async () => {
-            const res = await approveQuiz({ quizId });
-            if (!res.ok) setError(res.error);
-          });
+          const res = await approveQuiz({ quizId });
+          if (!res.ok) {
+            setError(res.error);
+            throw new Error(res.error);
+          }
         }}
       >
-        {pending ? "Approving…" : "Approve"}
-      </Button>
+        Approve
+      </LoadingButton>
       {error && (
         <span
           role="alert"

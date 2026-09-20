@@ -17,7 +17,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { requireAdmin } from "@/app/admin/_lib/guard";
-import { coarseRole } from "@/lib/roles";
+import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import {
   gradeQuizAnswers,
   validateQuizForSubmit,
@@ -96,6 +96,19 @@ async function quizAlreadyExists(subjectWeekId: string): Promise<boolean> {
     .where(eq(quizzes.subjectWeekId, subjectWeekId))
     .limit(1);
   return Boolean(row);
+}
+
+async function activeAdminIds(): Promise<string[]> {
+  const rows = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(
+      and(
+        inArray(profiles.role, ["admin", ...ADMIN_TIERS]),
+        eq(profiles.isActive, true),
+      ),
+    );
+  return rows.map((row) => row.id);
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -731,20 +744,34 @@ export async function submitQuiz(input: { quizId: string }): Promise<Result> {
   const problems = validateQuizForSubmit(content.quiz.title, toValidationInput(content));
   if (problems.length > 0) return { ok: false, error: problems.join(" ") };
 
-  await db
-    .update(quizzes)
-    .set({ status: "pending_review", updatedAt: new Date() })
-    .where(eq(quizzes.id, quizId));
+  const admins = await activeAdminIds();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(quizzes)
+      .set({ status: "pending_review", updatedAt: new Date() })
+      .where(eq(quizzes.id, quizId));
 
-  await db.insert(notifications).values({
-    userId: content.quiz.createdBy,
-    channel: "in_app" as const,
-    title: "Quiz ready for review",
-    body: `"${content.quiz.title}" is ready for review.`,
-    href: `/admin/quizzes/${quizId}`,
+    if (admins.length > 0) {
+      await tx
+        .insert(notifications)
+        .values(
+          admins.map((userId) => ({
+            userId,
+            channel: "in_app" as const,
+            title: "Quiz ready for review",
+            body: `"${content.quiz.title}" is ready for review.`,
+            href: `/admin/quizzes/${quizId}`,
+            // updatedAt changes when admin requests another revision, yielding
+            // one notification per review cycle while retries remain idempotent.
+            dedupeKey: `quiz-review:${quizId}:${editable.row.updatedAt.getTime()}`,
+          })),
+        )
+        .onConflictDoNothing();
+    }
   });
 
   revalidate(quizId);
+  revalidatePath("/admin/notifications");
   return { ok: true };
 }
 

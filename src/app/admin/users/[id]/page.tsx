@@ -13,6 +13,12 @@ import {
 } from "@/lib/roles";
 import { getCurrentUser } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
+import { formatDateLong } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import {
+  accountScheduleStatusLabel,
+  freeTrialDirectoryState,
+} from "@/lib/account-schedule-status";
 import { alias } from "drizzle-orm/pg-core";
 import {
   Card,
@@ -27,6 +33,7 @@ import {
   getStudentLessonsInRange,
   getTutorRecord,
   getTutorAvailabilityForTutor,
+  getUserSchedulePeriod,
 } from "@/app/admin/_lib/queries";
 import {
   getStudentActivity,
@@ -50,6 +57,8 @@ import {
   monthBounds,
   parseMonthParam,
 } from "@/app/student/_components/month-calendar";
+import { getClassMoveData } from "@/lib/class-moves";
+import { ClassMoveManager } from "./_components/class-move-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +91,7 @@ export default async function UserDetailPage({
   );
 
   const isStudent = coarseRole(user.role) === "student";
+  const today = melbourneDate(new Date());
   const { year: calendarYear, month: calendarMonth } = parseMonthParam(month);
   const { fromIso } = monthBounds(calendarYear, calendarMonth);
   const calendarEnd = new Date(calendarYear, calendarMonth + 1, 0);
@@ -94,6 +104,7 @@ export default async function UserDetailPage({
     reportTerms,
     trial,
     calendarLessons,
+    classMoveData,
   ] = isStudent
     ? await Promise.all([
         activeTab === "credits" ? getStudentActivity(id) : Promise.resolve(null),
@@ -109,8 +120,11 @@ export default async function UserDetailPage({
         activeTab === "lessons"
           ? getStudentLessonsInRange(id, fromIso, toIso)
           : Promise.resolve([]),
+        activeTab === "lessons"
+          ? getClassMoveData(id)
+          : Promise.resolve(null),
       ])
-    : [null, null, null, null, [], null, []];
+    : [null, null, null, null, [], null, [], null];
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
@@ -121,6 +135,11 @@ export default async function UserDetailPage({
         getTutorAvailabilityForTutor(id),
       ])
     : [null, null];
+  const schedulePeriod =
+    isStudent || isTutor
+      ? await getUserSchedulePeriod(id, user.role)
+      : null;
+  const trialState = freeTrialDirectoryState(trial, today);
 
   const [allStudents, allParents] = await Promise.all([
     user.role === "parent"
@@ -201,6 +220,11 @@ export default async function UserDetailPage({
             lastName={user.lastName}
             email={user.email}
             phone={user.phone ?? ""}
+            addressLine1={user.addressLine1 ?? ""}
+            addressLine2={user.addressLine2 ?? ""}
+            suburb={user.suburb ?? ""}
+            state={user.state ?? ""}
+            postcode={user.postcode ?? ""}
             yearLevel={user.yearLevel ?? ""}
             school={user.school ?? ""}
             role={user.role}
@@ -226,6 +250,16 @@ export default async function UserDetailPage({
           />
         </CardBody>
       </Card>
+    </section>
+  );
+
+  const classMoveCard = isStudent && classMoveData && (
+    <section className="rise" style={{ animationDelay: "90ms" }}>
+      <ClassMoveManager
+        studentId={user.id}
+        studentName={`${user.firstName} ${user.lastName}`.trim()}
+        data={classMoveData}
+      />
     </section>
   );
 
@@ -415,6 +449,7 @@ export default async function UserDetailPage({
     ),
     lessons: (
       <>
+        {classMoveCard}
         {lessonCalendar}
         {leaveCard}
       </>
@@ -461,6 +496,16 @@ export default async function UserDetailPage({
           <AtAGlance
             rows={[
               { label: "Status", value: user.isActive ? "Active" : "Inactive" },
+              ...(schedulePeriod
+                ? [
+                    {
+                      label: "Schedule status",
+                      value:
+                        `${accountScheduleStatusLabel(schedulePeriod, today)} · ` +
+                        `${formatDateLong(schedulePeriod.startDate)}–${formatDateLong(schedulePeriod.endDate)}`,
+                    },
+                  ]
+                : []),
               { label: "Role", value: roleLabel(user.role) },
               ...(isStudent
                 ? [
@@ -469,11 +514,31 @@ export default async function UserDetailPage({
                   ]
                 : []),
               { label: "Phone", value: user.phone ?? "Not provided" },
+              {
+                label: "Postal address",
+                value:
+                  [
+                    user.addressLine1,
+                    user.addressLine2,
+                    [user.suburb, user.state, user.postcode]
+                      .filter(Boolean)
+                      .join(" "),
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "Not provided",
+              },
               ...(isStudent
                 ? [
                     {
                       label: "Free trial",
-                      value: trial ? "On trial" : "Not on trial",
+                      value:
+                        trialState === "current"
+                          ? `On trial · ${formatDateLong(trial!.startDate)}–${formatDateLong(trial!.endDate)}`
+                          : trialState === "scheduled"
+                            ? `Scheduled · ${formatDateLong(trial!.startDate)}–${formatDateLong(trial!.endDate)}`
+                            : trialState === "ended"
+                              ? `Ended · ${formatDateLong(trial!.endDate)}`
+                              : "Not on trial",
                     },
                   ]
                 : []),

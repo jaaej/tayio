@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { GlobalNavigationIndicator } from "@/components/ui/navigation-loading-indicator";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -26,6 +28,9 @@ export default function RootLayout({
       className={`${jakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-ink">
+        <Suspense fallback={null}>
+          <GlobalNavigationIndicator />
+        </Suspense>
         {children}
       </body>
     </html>

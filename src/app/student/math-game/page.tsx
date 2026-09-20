@@ -1,24 +1,24 @@
 import { Zap } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getLeaderboard, getMyBests } from "./_queries";
+import {
+  getLeaderboardBoards,
+  getMyBests,
+  getOverallBlitzRank,
+  getStudentYearLevel,
+} from "./_queries";
 import { DifficultyPicker } from "./_components/difficulty-picker";
-import { Leaderboard, type Boards } from "./_components/leaderboard";
+import { Leaderboard } from "./_components/leaderboard";
 import { BlitzBackdrop } from "./_components/blitz-backdrop";
-import type { Difficulty } from "./_components/question-generator";
-
-const DIFFICULTIES: Difficulty[] = ["sprint", "easy", "medium", "hard", "genius"];
 
 export default async function MathGamePage() {
   const user = await requireRole("student");
-
-  const [myBests, ...boardList] = await Promise.all([
+  const yearLevel = await getStudentYearLevel(user.id);
+  const [myBests, allBoards, yearBoards, overallRank] = await Promise.all([
     getMyBests(user.id),
-    ...DIFFICULTIES.map((d) => getLeaderboard(d, user.id)),
+    getLeaderboardBoards(user.id),
+    yearLevel ? getLeaderboardBoards(user.id, yearLevel) : Promise.resolve(null),
+    getOverallBlitzRank(user.id),
   ]);
-
-  const boards = Object.fromEntries(
-    DIFFICULTIES.map((d, i) => [d, boardList[i]]),
-  ) as Boards;
 
   return (
     <div className="relative">
@@ -52,13 +52,22 @@ export default async function MathGamePage() {
               <span className="rounded-full bg-white/15 px-3 py-1.5">5 levels</span>
               <span className="rounded-full bg-white/15 px-3 py-1.5">60 seconds</span>
               <span className="rounded-full bg-white/15 px-3 py-1.5">Live leaderboard</span>
+              <span className="rounded-full bg-white px-3 py-1.5 font-extrabold text-[#5A21B0]">
+                {overallRank
+                  ? `Your Taiyo rank #${overallRank.rank} of ${overallRank.totalPlayers}`
+                  : "Play once to earn your rank"}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <DifficultyPicker myBests={myBests} />
-      <Leaderboard boards={boards} />
+      <Leaderboard
+        allBoards={allBoards}
+        yearBoards={yearBoards}
+        yearLevel={yearLevel}
+      />
       </div>
     </div>
   );

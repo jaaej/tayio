@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, lessons, profiles, tutorAvailability } from "@/db/schema";
 
@@ -263,6 +263,7 @@ export async function markTakenSlots(
         inArray(lessons.tutorId, tutorIds),
         gte(lessons.date, minDate),
         lte(lessons.date, maxDate),
+        notInArray(lessons.status, ["cancelled", "rescheduled"]),
       ),
     );
   const byKey = new Map<string, { startTime: string; endTime: string }[]>();

@@ -6,6 +6,7 @@ import {
   markInvoicePaid,
   setInvoiceStatus,
 } from "@/app/admin/_lib/actions-invoices";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 type Status =
   | "unpaid"
@@ -41,7 +42,9 @@ export function InvoiceActions({ id, status }: { id: string; status: Status }) {
           }}
           className="text-[11px] font-bold uppercase tracking-[0.14em] text-good hover:brightness-90 disabled:opacity-50"
         >
-          Mark paid
+          <ActionButtonLabel pending={pending} pendingLabel="Updating…">
+            Mark paid
+          </ActionButtonLabel>
         </button>
       )}
       <Select

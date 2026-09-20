@@ -15,6 +15,7 @@ import {
   isUnrestrictedAdmin,
 } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
+import { passwordSetupRedirect } from "@/lib/site-url";
 
 /** The signed-in admin's tiered role (from server-only app_metadata). */
 function currentAdminRole(
@@ -38,6 +39,16 @@ const roleEnum = z.enum([
   "admin",
 ]);
 
+const postalAddressShape = {
+  addressLine1: z.string().min(1, "Enter the street address.").max(200),
+  addressLine2: z.string().max(200).optional(),
+  suburb: z.string().min(1, "Enter the suburb or locality.").max(100),
+  state: z.string().min(1, "Select the state or territory.").max(40),
+  postcode: z
+    .string()
+    .regex(/^\d{4}$/, "Enter a four-digit Australian postcode."),
+};
+
 const linkedParentSchema = z.object({
   email: z.string().email("Enter a valid parent email.").max(320),
   /** Absent means "generate one" - see `generateTempPassword`. */
@@ -46,6 +57,7 @@ const linkedParentSchema = z.object({
   lastName: z.string().min(1, "Enter the parent's last name.").max(100),
   phone: z.string().max(40).optional(),
   relationship: z.string().min(1).max(60).optional(),
+  ...postalAddressShape,
 });
 
 const createUserSchema = z
@@ -57,6 +69,7 @@ const createUserSchema = z
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
     phone: z.string().max(40).optional(),
+    ...postalAddressShape,
     yearLevel: z.string().max(40).optional(),
     school: z.string().max(200).optional(),
     linkedParent: linkedParentSchema.optional(),
@@ -90,6 +103,39 @@ function generateTempPassword(): string {
   return `${randomBytes(12).toString("base64url")}7!`;
 }
 
+type PasswordSetupDelivery =
+  | { sent: true }
+  | { sent: false; error: string };
+
+/**
+ * A newly created account is already confirmed and has a fallback temporary
+ * password. A recovery email is therefore the safest setup link: it lands on
+ * the existing set-password page without putting credentials in email.
+ * Delivery failure must not roll back an otherwise valid account; the admin
+ * can still hand over the one-time password and retry from the user menu.
+ */
+async function sendPasswordSetupEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+): Promise<PasswordSetupDelivery> {
+  try {
+    const { error } = await admin.auth.resetPasswordForEmail(email, {
+      redirectTo: passwordSetupRedirect(),
+    });
+    return error
+      ? { sent: false, error: error.message }
+      : { sent: true };
+  } catch (error) {
+    return {
+      sent: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "The email provider could not be reached.",
+    };
+  }
+}
+
 export async function createUser(input: z.infer<typeof createUserSchema>) {
   const user = await requireAdmin();
   // An empty box means "generate one", so normalise it away before validation:
@@ -100,6 +146,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     phone: input.phone?.trim() || undefined,
+    addressLine1: input.addressLine1?.trim(),
+    addressLine2: input.addressLine2?.trim() || undefined,
+    suburb: input.suburb?.trim(),
+    state: input.state?.trim(),
+    postcode: input.postcode?.trim(),
     yearLevel: input.yearLevel?.trim() || undefined,
     school: input.school?.trim() || undefined,
     password: input.password?.trim() || undefined,
@@ -111,6 +162,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
           lastName: input.linkedParent.lastName.trim(),
           phone: input.linkedParent.phone?.trim() || undefined,
           relationship: input.linkedParent.relationship?.trim() || undefined,
+          addressLine1: input.linkedParent.addressLine1?.trim(),
+          addressLine2: input.linkedParent.addressLine2?.trim() || undefined,
+          suburb: input.linkedParent.suburb?.trim(),
+          state: input.linkedParent.state?.trim(),
+          postcode: input.linkedParent.postcode?.trim(),
           password: input.linkedParent.password?.trim() || undefined,
         }
       : undefined,
@@ -194,6 +250,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone ?? null,
+            addressLine1: data.addressLine1,
+            addressLine2: data.addressLine2 ?? null,
+            suburb: data.suburb,
+            state: data.state,
+            postcode: data.postcode,
             yearLevel: data.yearLevel ?? null,
             school: data.school ?? null,
           })
@@ -205,6 +266,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
               firstName: data.firstName,
               lastName: data.lastName,
               phone: data.phone ?? null,
+              addressLine1: data.addressLine1,
+              addressLine2: data.addressLine2 ?? null,
+              suburb: data.suburb,
+              state: data.state,
+              postcode: data.postcode,
               yearLevel: data.yearLevel ?? null,
               school: data.school ?? null,
               updatedAt: new Date(),
@@ -221,6 +287,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
               firstName: data.linkedParent.firstName,
               lastName: data.linkedParent.lastName,
               phone: data.linkedParent.phone ?? null,
+              addressLine1: data.linkedParent.addressLine1,
+              addressLine2: data.linkedParent.addressLine2 ?? null,
+              suburb: data.linkedParent.suburb,
+              state: data.linkedParent.state,
+              postcode: data.linkedParent.postcode,
             })
             .onConflictDoUpdate({
               target: profiles.id,
@@ -230,6 +301,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
                 firstName: data.linkedParent.firstName,
                 lastName: data.linkedParent.lastName,
                 phone: data.linkedParent.phone ?? null,
+                addressLine1: data.linkedParent.addressLine1,
+                addressLine2: data.linkedParent.addressLine2 ?? null,
+                suburb: data.linkedParent.suburb,
+                state: data.linkedParent.state,
+                postcode: data.linkedParent.postcode,
                 updatedAt: new Date(),
               },
             });
@@ -263,17 +339,26 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     };
   }
 
+  const [passwordSetupEmail, parentPasswordSetupEmail] = await Promise.all([
+    sendPasswordSetupEmail(admin, data.email),
+    data.linkedParent
+      ? sendPasswordSetupEmail(admin, data.linkedParent.email)
+      : Promise.resolve(undefined),
+  ]);
+
   revalidatePath("/admin/users");
   revalidatePath("/admin");
   return {
     ok: true as const,
     id: created.user.id,
+    passwordSetupEmail,
     // Only handed back when we generated it - there is nothing to reveal about
     // a password the admin typed themselves.
     tempPassword: data.password ? undefined : password,
     linkedParent: data.linkedParent
       ? {
           id: createdParentId as string,
+          passwordSetupEmail: parentPasswordSetupEmail as PasswordSetupDelivery,
           tempPassword: data.linkedParent.password
             ? undefined
             : parentPassword,
@@ -288,6 +373,16 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1).max(100),
   email: z.string().email().max(320),
   phone: z.string().max(40).optional().nullable(),
+  addressLine1: z.string().max(200).optional().nullable(),
+  addressLine2: z.string().max(200).optional().nullable(),
+  suburb: z.string().max(100).optional().nullable(),
+  state: z.string().max(40).optional().nullable(),
+  postcode: z
+    .string()
+    .regex(/^\d{4}$/, "Enter a four-digit Australian postcode.")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   yearLevel: z.string().max(40).optional().nullable(),
   school: z.string().max(200).optional().nullable(),
   role: roleEnum,
@@ -298,8 +393,15 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   const data = updateUserSchema.parse({
     ...input,
     email: input.email.trim().toLowerCase(),
+    phone: input.phone?.trim() || null,
+    addressLine1: input.addressLine1?.trim() || null,
+    addressLine2: input.addressLine2?.trim() || null,
+    suburb: input.suburb?.trim() || null,
+    state: input.state?.trim() || null,
+    postcode: input.postcode?.trim() || null,
+    yearLevel: input.yearLevel?.trim() || null,
+    school: input.school?.trim() || null,
   });
-
   // Changing a user's role is owner-only and behind the PIN step-up. Editing
   // the other profile fields (name/phone/school) stays open to reception.
   const [existing] = await db
@@ -362,6 +464,11 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
           lastName: data.lastName,
           email: data.email,
           phone: data.phone || null,
+          addressLine1: data.addressLine1 || null,
+          addressLine2: data.addressLine2 || null,
+          suburb: data.suburb || null,
+          state: data.state || null,
+          postcode: data.postcode || null,
           yearLevel: data.yearLevel || null,
           school: data.school || null,
           role: data.role,
@@ -438,9 +545,21 @@ export async function sendPasswordReset(email: string) {
     };
   }
   const admin = createAdminClient();
-  const { error } = await admin.auth.resetPasswordForEmail(parsedEmail);
-  if (error) return { ok: false as const, error: error.message };
-  return { ok: true as const };
+  try {
+    const { error } = await admin.auth.resetPasswordForEmail(parsedEmail, {
+      redirectTo: passwordSetupRedirect(),
+    });
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "The email provider could not be reached.",
+    };
+  }
 }
 
 const familyLinkSchema = z.object({

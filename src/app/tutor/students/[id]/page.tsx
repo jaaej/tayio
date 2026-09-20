@@ -10,6 +10,7 @@ import {
   HOMEWORK_STATUS_LABEL,
 } from "@/lib/status";
 import { getStudentProfile, requireTutor } from "../../_data";
+import { ProfileAvatar } from "@/components/profile-avatar";
 
 const ATTENDANCE_TONE: Record<string, "good" | "warn" | "bad" | "info" | "neutral"> = {
   present: "good",
@@ -73,6 +74,26 @@ export default async function StudentProfilePage({
           </a>
         }
       />
+
+      <Card>
+        <CardBody>
+          <div className="flex items-center gap-4">
+            <ProfileAvatar
+              avatarKey={student.profileAvatarKey}
+              fallback={`${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase()}
+              className="h-16 w-16 shrink-0 text-[18px]"
+            />
+            <div>
+              <div className="text-[15px] font-extrabold text-ink">
+                {student.firstName} {student.lastName}
+              </div>
+              <div className="mt-0.5 text-[12px] text-muted">
+                Student profile icon
+              </div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <StatChip

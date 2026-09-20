@@ -44,5 +44,9 @@ yarn-error.log*
 next-env.d.ts
 .claude/
 
+# local Codex skill/plugin cache (not application runtime)
+.agents/
+skills-lock.json
+
 # ...but the example file has no secrets and must be committed
 !.env.example

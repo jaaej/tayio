@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Download, Send } from "lucide-react";
 import { issueStudentReport } from "@/app/admin/_lib/actions-reports";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 type Term = { id: string; label: string };
 
@@ -82,8 +83,12 @@ export function StudentReportControls({
           disabled={pending}
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          <Send className="h-4 w-4" aria-hidden />
-          {pending ? "Issuing…" : "Issue to family"}
+          <ActionButtonLabel pending={pending} pendingLabel="Issuing…">
+            <>
+              <Send className="h-4 w-4" aria-hidden />
+              Issue to family
+            </>
+          </ActionButtonLabel>
         </button>
       </div>
       {msg && <p className="text-[12px] font-semibold text-ink-soft">{msg}</p>}

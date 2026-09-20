@@ -10,6 +10,7 @@ import {
   submitTutorLeaveRequest,
 } from "@/app/_actions/tutor-cover";
 import { SidePanel } from "@/components/ui/side-panel";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 type EligibleLesson = {
   id: string;
@@ -237,13 +238,12 @@ export function CoverActionButton({
             : "min-h-9 rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink hover:border-bad hover:text-bad disabled:opacity-50"
         }
       >
-        {pending
-          ? mode === "claim"
-            ? "Claiming…"
-            : "Releasing…"
-          : mode === "claim"
-            ? "Take this class"
-            : "Release cover"}
+        <ActionButtonLabel
+          pending={pending}
+          pendingLabel={mode === "claim" ? "Claiming…" : "Releasing…"}
+        >
+          {mode === "claim" ? "Take this class" : "Release cover"}
+        </ActionButtonLabel>
       </button>
       {error && <p className="mt-1 max-w-52 text-[11px] text-bad">{error}</p>}
     </div>

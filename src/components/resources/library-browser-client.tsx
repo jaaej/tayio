@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
 import type { AccentTokens } from "@/lib/subject-colors";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export type LibraryResourceItem = {
   id: string;
@@ -236,7 +237,9 @@ function ResourceRow({
           </div>
         </div>
         <span className="shrink-0 text-xs font-semibold text-brand-600">
-          {state === "loading" ? "Opening…" : state === "error" ? "Try again" : "Open →"}
+          <ActionButtonLabel pending={state === "loading"} pendingLabel="Opening…">
+            {state === "error" ? "Try again" : "Open →"}
+          </ActionButtonLabel>
         </span>
       </button>
       {state === "error" && (

@@ -19,7 +19,19 @@ const globalForDb = globalThis as GlobalWithDb;
 
 const client =
   globalForDb.__pgClient ??
-  postgres(connectionString, { prepare: false, max: 10 });
+  postgres(connectionString, {
+    prepare: false,
+    max: 10,
+    // Supabase's transaction pooler can discard an upstream connection while
+    // a laptop/dev server remains alive. Keeping that socket forever makes the
+    // next refresh wait for the operating system's dead-connection timeout
+    // (observed at almost two minutes). Recycle quiet sockets and probe live
+    // ones so a request reconnects promptly instead.
+    idle_timeout: 20,
+    connect_timeout: 10,
+    max_lifetime: 60 * 10,
+    keep_alive: 30,
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.__pgClient = client;

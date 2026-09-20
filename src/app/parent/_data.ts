@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import {
   announcements,
+  announcementRecipients,
   attendance,
   classes,
   enrollments,
@@ -967,31 +968,6 @@ export async function getParentAnnouncements(
   parentId: string,
   limit = 4,
 ): Promise<ParentAnnouncement[]> {
-  const childRows = await db
-    .select({ studentId: familyLinks.studentId })
-    .from(familyLinks)
-    .where(eq(familyLinks.parentId, parentId));
-  const childIds = childRows.map((r) => r.studentId);
-
-  let classIds: string[] = [];
-  if (childIds.length > 0) {
-    const enrolled = await db
-      .select({ classId: enrollments.classId })
-      .from(enrollments)
-      .where(
-        and(inArray(enrollments.studentId, childIds), isNull(enrollments.withdrawnAt)),
-      );
-    classIds = Array.from(new Set(enrolled.map((r) => r.classId)));
-  }
-
-  const conditions = [
-    isNull(announcements.audienceRole),
-    eq(announcements.audienceRole, "parent"),
-  ];
-  if (classIds.length > 0) {
-    conditions.push(inArray(announcements.audienceClassId, classIds));
-  }
-
   return db
     .select({
       id: announcements.id,
@@ -1000,7 +976,16 @@ export async function getParentAnnouncements(
       publishedAt: announcements.publishedAt,
     })
     .from(announcements)
-    .where(or(...conditions))
+    .innerJoin(
+      announcementRecipients,
+      eq(announcementRecipients.announcementId, announcements.id),
+    )
+    .where(
+      and(
+        eq(announcementRecipients.userId, parentId),
+        eq(announcements.status, "published"),
+      ),
+    )
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
 }

@@ -14,8 +14,13 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
+import { ADMIN_TIERS, STUDENT_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import {
+  chooseAccountSchedulePeriod,
+  type AccountSchedulePeriod,
+} from "@/lib/account-schedule-status";
 import {
   getAllowanceBonus,
   getCancellationsUsed,
@@ -49,6 +54,7 @@ import {
   terms,
   tutorAvailability,
   tutorBankDetails,
+  tutorLeaveRequests,
   type UserRole,
 } from "@/db/schema";
 
@@ -426,6 +432,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
 
@@ -538,6 +545,7 @@ export async function getRecentAnnouncements(
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
 }
@@ -728,6 +736,13 @@ export type DirectoryUser = {
   yearLevel: string | null;
   school: string | null;
   isActive: boolean;
+  pauseStatus: "none" | "on_break" | "paused";
+  /** Free-trial history is retained so admin can distinguish current, future
+   *  and completed trial periods directly in the directory. */
+  trialPeriod: { startDate: string; endDate: string } | null;
+  /** Dated student break or tutor leave; replaces the ambiguous undated
+   *  profile toggle in user-facing status displays. */
+  schedulePeriod: AccountSchedulePeriod | null;
   /** Enrolments still live. Always 0 for non-students. */
   activeClasses: number;
   /** Enrolments the student has been withdrawn from. Always 0 for non-students. */
@@ -737,7 +752,12 @@ export type DirectoryUser = {
   /** Parent/child accounts linked through the family relationship table. */
   linkedFamily: Array<{ id: string; name: string }>;
   /** Current class and subject context for student and tutor directory rows. */
-  classInfo: Array<{ id: string; name: string; subjectName: string }>;
+  classInfo: Array<{
+    id: string;
+    name: string;
+    subjectId: string;
+    subjectName: string;
+  }>;
   /** Short internal notes attached to the student's current enrolments. */
   adminNotes: Array<{ classId: string; className: string; note: string }>;
   /** Delivery modes used across the user's current classes. */
@@ -758,6 +778,9 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
     linkedRows,
     studentClassRows,
     tutorClassRows,
+    trialRows,
+    studentBreakRows,
+    tutorLeaveRows,
   ] = await Promise.all([
     db
       .select({
@@ -769,6 +792,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         yearLevel: profiles.yearLevel,
         school: profiles.school,
         isActive: profiles.isActive,
+        pauseStatus: profiles.pauseStatus,
       })
       .from(profiles),
     db
@@ -797,6 +821,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         userId: enrollments.studentId,
         classId: classes.id,
         className: classes.name,
+        subjectId: subjects.id,
         subjectName: subjects.name,
         deliveryMode: enrollments.deliveryMode,
         location: classes.location,
@@ -812,12 +837,42 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         userId: classes.tutorId,
         classId: classes.id,
         className: classes.name,
+        subjectId: subjects.id,
         subjectName: subjects.name,
         location: classes.location,
         onlineLink: classes.onlineLink,
       })
       .from(classes)
       .innerJoin(subjects, eq(subjects.id, classes.subjectId)),
+    db
+      .select({
+        studentId: studentTrials.studentId,
+        startDate: studentTrials.startDate,
+        endDate: studentTrials.endDate,
+      })
+      .from(studentTrials),
+    db
+      .select({
+        studentId: studentLeave.studentId,
+        startDate: studentLeave.startDate,
+        endDate: studentLeave.endDate,
+      })
+      .from(studentLeave)
+      .where(gte(studentLeave.endDate, melbourneDate(new Date()))),
+    db
+      .select({
+        tutorId: tutorLeaveRequests.tutorId,
+        startDate: tutorLeaveRequests.startDate,
+        endDate: tutorLeaveRequests.endDate,
+        status: tutorLeaveRequests.status,
+      })
+      .from(tutorLeaveRequests)
+      .where(
+        and(
+          inArray(tutorLeaveRequests.status, ["pending", "approved"]),
+          gte(tutorLeaveRequests.endDate, melbourneDate(new Date())),
+        ),
+      ),
   ]);
 
   const totals = new Map(enrolmentTotals.map((t) => [t.studentId, t]));
@@ -844,6 +899,34 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
   const classesByUser = new Map<string, Map<string, ClassInfo>>();
   const notesByUser = new Map<string, AdminNote[]>();
   const modesByUser = new Map<string, Set<DeliveryMode>>();
+  const trialsByStudent = new Map(
+    trialRows.map((row) => [
+      row.studentId,
+      { startDate: row.startDate, endDate: row.endDate },
+    ]),
+  );
+  const schedulePeriodsByUser = new Map<string, AccountSchedulePeriod[]>();
+  const addSchedulePeriod = (userId: string, period: AccountSchedulePeriod) => {
+    const periods = schedulePeriodsByUser.get(userId) ?? [];
+    periods.push(period);
+    schedulePeriodsByUser.set(userId, periods);
+  };
+  for (const row of studentBreakRows) {
+    addSchedulePeriod(row.studentId, {
+      kind: "student_break",
+      approval: "approved",
+      startDate: row.startDate,
+      endDate: row.endDate,
+    });
+  }
+  for (const row of tutorLeaveRows) {
+    addSchedulePeriod(row.tutorId, {
+      kind: "tutor_leave",
+      approval: row.status === "approved" ? "approved" : "pending",
+      startDate: row.startDate,
+      endDate: row.endDate,
+    });
+  }
 
   const addClass = (userId: string, item: ClassInfo) => {
     const items = classesByUser.get(userId) ?? new Map<string, ClassInfo>();
@@ -868,6 +951,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
     addClass(row.userId, {
       id: row.classId,
       name: row.className,
+      subjectId: row.subjectId,
       subjectName: row.subjectName,
     });
     if (row.deliveryMode) {
@@ -892,6 +976,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
     addClass(row.userId, {
       id: row.classId,
       name: row.className,
+      subjectId: row.subjectId,
       subjectName: row.subjectName,
     });
     addClassDefaultModes(row.userId, row.location, row.onlineLink);
@@ -904,8 +989,16 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         a.subjectName.localeCompare(b.subjectName) || a.name.localeCompare(b.name),
     );
     const deliveryModeSet = modesByUser.get(p.id);
+    const role = coarseRole(p.role);
+    const today = melbourneDate(new Date());
     return {
       ...p,
+      trialPeriod: trialsByStudent.get(p.id) ?? null,
+      schedulePeriod: chooseAccountSchedulePeriod(
+        role,
+        today,
+        schedulePeriodsByUser.get(p.id) ?? [],
+      ),
       activeClasses: Number(t?.activeClasses ?? 0),
       withdrawnClasses: Number(t?.withdrawnClasses ?? 0),
       lastWithdrawnAt: t?.lastWithdrawnAt ? new Date(t.lastWithdrawnAt) : null,
@@ -921,6 +1014,68 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       ),
     };
   });
+}
+
+/** Current or next dated break/leave for a profile summary. */
+export async function getUserSchedulePeriod(
+  userId: string,
+  role: UserRole,
+): Promise<AccountSchedulePeriod | null> {
+  const today = melbourneDate(new Date());
+  const coarse = coarseRole(role);
+
+  if (coarse === "student") {
+    const rows = await db
+      .select({
+        startDate: studentLeave.startDate,
+        endDate: studentLeave.endDate,
+      })
+      .from(studentLeave)
+      .where(
+        and(
+          eq(studentLeave.studentId, userId),
+          gte(studentLeave.endDate, today),
+        ),
+      );
+    return chooseAccountSchedulePeriod(
+      coarse,
+      today,
+      rows.map((row) => ({
+        kind: "student_break" as const,
+        approval: "approved" as const,
+        ...row,
+      })),
+    );
+  }
+
+  if (coarse === "tutor") {
+    const rows = await db
+      .select({
+        startDate: tutorLeaveRequests.startDate,
+        endDate: tutorLeaveRequests.endDate,
+        status: tutorLeaveRequests.status,
+      })
+      .from(tutorLeaveRequests)
+      .where(
+        and(
+          eq(tutorLeaveRequests.tutorId, userId),
+          inArray(tutorLeaveRequests.status, ["pending", "approved"]),
+          gte(tutorLeaveRequests.endDate, today),
+        ),
+      );
+    return chooseAccountSchedulePeriod(
+      coarse,
+      today,
+      rows.map((row) => ({
+        kind: "tutor_leave" as const,
+        approval: row.status === "approved" ? "approved" as const : "pending" as const,
+        startDate: row.startDate,
+        endDate: row.endDate,
+      })),
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -1289,6 +1444,7 @@ export type TutorDirectoryEntry = {
     accountName: string | null;
     bsb: string | null;
     accountNumber: string | null;
+    hourlyRate: string | null;
     note: string | null;
   } | null;
 };
@@ -1367,6 +1523,7 @@ export async function getTutorDirectory(): Promise<TutorDirectoryEntry[]> {
             accountName: bank.accountName,
             bsb: bank.bsb,
             accountNumber: bank.accountNumber,
+            hourlyRate: bank.hourlyRate,
             note: bank.note,
           }
         : null,
@@ -1385,6 +1542,7 @@ export type TutorRecord = {
     accountName: string | null;
     bsb: string | null;
     accountNumber: string | null;
+    hourlyRate: string | null;
     note: string | null;
   } | null;
 };
@@ -1436,6 +1594,7 @@ export async function getTutorRecord(
           accountName: bank.accountName,
           bsb: bank.bsb,
           accountNumber: bank.accountNumber,
+          hourlyRate: bank.hourlyRate,
           note: bank.note,
         }
       : null,

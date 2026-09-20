@@ -13,12 +13,18 @@ import {
   LogOut,
   Gamepad2,
   Library,
+  CircleUserRound,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
+import { getOverallBlitzRank } from "@/app/student/math-game/_queries";
+import { db } from "@/db/client";
+import { profiles } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { StudentNavLinks, StudentNavLinksMobile, type NavSection } from "./nav-links";
 
 const IC = "h-[18px] w-[18px]";
@@ -32,6 +38,7 @@ const SECTIONS: NavSection[] = [
       { label: "Homework",    href: "/student/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Timetable",   href: "/student/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Progress",    href: "/student/progress",   icon: <TrendingUp className={IC} /> },
+      { label: "Profile icon", href: "/student/profile", icon: <CircleUserRound className={IC} /> },
       { label: "Resources",   href: "/student/resources",  icon: <Library className={IC} /> },
       { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={IC} /> },
     ],
@@ -73,16 +80,36 @@ export async function StudentShell({
   const user = await getCurrentUser();
   let unread = 0;
   let notifUnread = 0;
+  let blitzRank: number | null = null;
+  let profileAvatarKey: string | null = null;
   if (user) {
-    try {
-      [unread, notifUnread] = await Promise.all([
+    const [threadResult, notificationResult, rankResult, avatarResult] =
+      await Promise.allSettled([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
+        getOverallBlitzRank(user.id),
+        db
+          .select({ profileAvatarKey: profiles.profileAvatarKey })
+          .from(profiles)
+          .where(eq(profiles.id, user.id))
+          .limit(1),
       ]);
-    } catch (err) {
-      console.error("[student-shell] badge counts failed:", err);
-      unread = 0;
-      notifUnread = 0;
+    if (threadResult.status === "fulfilled") unread = threadResult.value;
+    else console.error("[student-shell] message count failed:", threadResult.reason);
+    if (notificationResult.status === "fulfilled") {
+      notifUnread = notificationResult.value;
+    } else {
+      console.error(
+        "[student-shell] notification count failed:",
+        notificationResult.reason,
+      );
+    }
+    if (rankResult.status === "fulfilled") blitzRank = rankResult.value?.rank ?? null;
+    else console.error("[student-shell] Taiyo Blitz rank failed:", rankResult.reason);
+    if (avatarResult.status === "fulfilled") {
+      profileAvatarKey = avatarResult.value[0]?.profileAvatarKey ?? null;
+    } else {
+      console.error("[student-shell] profile icon failed:", avatarResult.reason);
     }
   }
   // Unrestricted students self-manage billing, so they get a Payments link.
@@ -109,7 +136,9 @@ export async function StudentShell({
     ...s,
     items: s.items.map((item) => {
       if (item.href === "/student/messages") return { ...item, badge: unread };
-      if (item.href === "/student/notifications") return { ...item, badge: notifUnread };
+      if (item.href === "/student/notifications") {
+        return { ...item, badge: notifUnread, badgeTone: "danger" as const };
+      }
       return item;
     }),
   }));
@@ -126,12 +155,18 @@ export async function StudentShell({
         <div className="ml-auto flex items-center gap-2.5">
           <Link
             href="/student/notifications"
-            className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            aria-label="Notifications"
+            className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
+            aria-label={
+              notifUnread > 0
+                ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
+                : "Notifications"
+            }
           >
             <Bell className="h-[18px] w-[18px]" />
             {notifUnread > 0 && (
-              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
+              <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
+                {notifUnread > 99 ? "99+" : notifUnread}
+              </span>
             )}
           </Link>
           <Link
@@ -144,17 +179,23 @@ export async function StudentShell({
               <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
             )}
           </Link>
-          <div className="flex items-center gap-2.5 pr-2.5 pl-1 py-1 rounded-full border border-line bg-surface">
-            <div className="h-7 w-7 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold">
-              {initial}
-            </div>
+          <Link
+            href="/student/profile"
+            className="flex items-center gap-2.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 transition-colors hover:border-brand-300 hover:bg-surface-2"
+            aria-label="Choose profile icon"
+          >
+            <ProfileAvatar
+              avatarKey={profileAvatarKey}
+              fallback={initial}
+              className="h-7 w-7 text-[12px]"
+            />
             <div className="leading-tight">
               <div className="text-[13px] font-bold text-ink whitespace-nowrap">
                 {userName}
               </div>
               <div className="text-[11px] text-muted capitalize">Student</div>
             </div>
-          </div>
+          </Link>
           <form action={signOutAction}>
             <button
               type="submit"
@@ -178,8 +219,13 @@ export async function StudentShell({
           }}
         >
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 grid place-items-center rounded-[12px] bg-white/20">
+            <div className="relative h-9 w-9 grid place-items-center rounded-[12px] bg-white/20">
               <Gamepad2 className="h-5 w-5" />
+              {blitzRank ? (
+                <span className="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[9px] font-extrabold tabular-nums text-[#5A21B0] shadow-sm">
+                  #{blitzRank}
+                </span>
+              ) : null}
             </div>
             <div className="leading-tight">
               <div className="text-[13px] font-extrabold">Taiyo Blitz</div>
@@ -210,7 +256,7 @@ export async function StudentShell({
             </button>
           </form>
         </div>
-        <StudentNavLinksMobile sections={sections} />
+        <StudentNavLinksMobile sections={sections} blitzRank={blitzRank} />
       </header>
 
       {/* Main */}

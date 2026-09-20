@@ -52,7 +52,7 @@ export function StudentTrialManager({
       {trial ? (
         <div className="flex items-center gap-2 text-[13px]">
           <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-[12px] font-bold text-brand-700">
-            On trial
+            Trial period
           </span>
           <span className="text-ink-soft">
             {formatDateLong(trial.startDate)} – {formatDateLong(trial.endDate)}

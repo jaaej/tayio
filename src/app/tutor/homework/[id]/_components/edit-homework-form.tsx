@@ -7,6 +7,7 @@ import {
   updateHomework,
 } from "@/app/tutor/_actions";
 import { Label } from "@/components/ui/input";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { createClient } from "@/lib/supabase/client";
 
 const INPUT_CLS =
@@ -202,7 +203,9 @@ export function EditHomeworkForm({
             disabled={pending}
             className="h-10 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? "Saving…" : "Save changes"}
+            <ActionButtonLabel pending={pending} pendingLabel="Saving…">
+              Save changes
+            </ActionButtonLabel>
           </button>
         </div>
       </form>

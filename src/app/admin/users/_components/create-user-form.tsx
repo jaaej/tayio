@@ -2,6 +2,7 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { Input, Label } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type { UserRole } from "@/db/schema";
 import { coarseRole, createUserRoleOptions } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,11 @@ export type LinkedParentValues = {
   phone?: string;
   relationship?: string;
   password?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  suburb: string;
+  state: string;
+  postcode: string;
 };
 
 export type CreateUserValues = {
@@ -24,6 +30,11 @@ export type CreateUserValues = {
   school?: string;
   phone?: string;
   password?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  suburb: string;
+  state: string;
+  postcode: string;
   linkedParent?: LinkedParentValues;
 };
 
@@ -70,6 +81,11 @@ export function CreateUserForm({
                 phone: text("parentPhone") || undefined,
                 relationship: text("parentRelationship") || "Parent",
                 password: text("parentPassword") || undefined,
+                addressLine1: text("parentAddressLine1"),
+                addressLine2: text("parentAddressLine2") || undefined,
+                suburb: text("parentSuburb"),
+                state: text("parentState"),
+                postcode: text("parentPostcode"),
               }
             : undefined;
         onSubmit({
@@ -81,6 +97,11 @@ export function CreateUserForm({
           school: text("school") || undefined,
           phone: text("phone") || undefined,
           password: text("password") || undefined,
+          addressLine1: text("addressLine1"),
+          addressLine2: text("addressLine2") || undefined,
+          suburb: text("suburb"),
+          state: text("state"),
+          postcode: text("postcode"),
           linkedParent,
         });
       }}
@@ -114,6 +135,8 @@ export function CreateUserForm({
             autoComplete="tel"
           />
         </Field>
+
+        <PostalAddressFields />
 
         <RoleRadioGroup
           options={roleOptions}
@@ -233,6 +256,8 @@ export function CreateUserForm({
                   </Field>
                 </div>
 
+                <PostalAddressFields prefix="parent" />
+
                 <Field
                   id="parentPassword"
                   label="Parent temporary password"
@@ -258,6 +283,96 @@ export function CreateUserForm({
         </p>
       )}
     </form>
+  );
+}
+
+const AUSTRALIAN_STATES = [
+  "ACT",
+  "NSW",
+  "NT",
+  "QLD",
+  "SA",
+  "TAS",
+  "VIC",
+  "WA",
+] as const;
+
+function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
+  const name = (field: string) =>
+    prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field;
+  const labelPrefix = prefix ? "Parent " : "";
+
+  return (
+    <section className="space-y-3 rounded-[12px] border border-line bg-surface-2 p-4">
+      <div>
+        <h3 className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink">
+          {labelPrefix}postal address
+        </h3>
+        <p className="mt-1 text-[11px] leading-4 text-muted">
+          Used by the office for account and mailing records.
+        </p>
+      </div>
+
+      <Field id={name("addressLine1")} label="Street address">
+        <Input
+          id={name("addressLine1")}
+          name={name("addressLine1")}
+          required
+          maxLength={200}
+          autoComplete={prefix ? "off" : "street-address"}
+        />
+      </Field>
+
+      <Field id={name("addressLine2")} label="Address line 2">
+        <Input
+          id={name("addressLine2")}
+          name={name("addressLine2")}
+          maxLength={200}
+          placeholder="Apartment, unit or building (if applicable)"
+          autoComplete="off"
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field id={name("suburb")} label="Suburb / locality">
+          <Input
+            id={name("suburb")}
+            name={name("suburb")}
+            required
+            maxLength={100}
+            autoComplete={prefix ? "off" : "address-level2"}
+          />
+        </Field>
+        <Field id={name("state")} label="State / territory">
+          <Select
+            id={name("state")}
+            name={name("state")}
+            defaultValue="VIC"
+            required
+            autoComplete={prefix ? "off" : "address-level1"}
+          >
+            {AUSTRALIAN_STATES.map((state) => (
+              <option key={state} value={state}>
+                {state}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+
+      <Field id={name("postcode")} label="Postcode">
+        <Input
+          id={name("postcode")}
+          name={name("postcode")}
+          required
+          inputMode="numeric"
+          pattern="[0-9]{4}"
+          maxLength={4}
+          placeholder="3000"
+          autoComplete={prefix ? "off" : "postal-code"}
+        />
+      </Field>
+    </section>
   );
 }
 

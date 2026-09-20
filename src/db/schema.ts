@@ -15,7 +15,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Tiered roles were added in migrations 0017/0018. The four original values
 // (student/parent/tutor/admin) are retained: every ACCOUNT is migrated to a
@@ -72,6 +72,19 @@ export const tutorCoverStatusEnum = pgEnum("tutor_cover_status", [
   "expired",
 ]);
 
+export const accountPauseStatusEnum = pgEnum("account_pause_status", [
+  "none",
+  "on_break",
+  "paused",
+]);
+
+export const classMoveStatusEnum = pgEnum("class_move_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
+
 export const homeworkStatusEnum = pgEnum("homework_status", [
   "not_started",
   "viewed",
@@ -101,6 +114,18 @@ export const masteryEnum = pgEnum("mastery_level", [
 export const notificationChannelEnum = pgEnum("notification_channel", [
   "in_app",
   "email",
+]);
+
+export const announcementStatusEnum = pgEnum("announcement_status", [
+  "pending",
+  "published",
+  "rejected",
+]);
+
+export const tutorCheckinStatusEnum = pgEnum("tutor_checkin_status", [
+  "pending",
+  "approved",
+  "disputed",
 ]);
 
 export const mathGameDifficultyEnum = pgEnum("math_game_difficulty", [
@@ -133,11 +158,22 @@ export const profiles = pgTable(
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     phone: text("phone"),
+    addressLine1: text("address_line_1"),
+    addressLine2: text("address_line_2"),
+    suburb: text("suburb"),
+    state: text("state"),
+    postcode: text("postcode"),
     avatarUrl: text("avatar_url"),
+    profileAvatarKey: text("profile_avatar_key"),
     yearLevel: text("year_level"),
     school: text("school"),
     bio: text("bio"),
     isActive: boolean("is_active").notNull().default(true),
+    // Independent from login access: an enabled account can still be shown as
+    // on break/paused in the admin directory and profile.
+    pauseStatus: accountPauseStatusEnum("pause_status")
+      .notNull()
+      .default("none"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -166,6 +202,23 @@ export const subjects = pgTable("subjects", {
   yearLevel: text("year_level"),
   description: text("description"),
 });
+
+export const subjectSearchAliases = pgTable(
+  "subject_search_aliases",
+  {
+    subjectId: uuid("subject_id")
+      .primaryKey()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    alias: text("alias").notNull(),
+    updatedById: uuid("updated_by_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("subject_search_aliases_lower_unique_idx").on(sql`lower(${table.alias})`)],
+);
 
 export const classes = pgTable("classes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -313,6 +366,47 @@ export const rescheduleRequests = pgTable(
 
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type ClassType = (typeof classTypeEnum.enumValues)[number];
+export type AccountPauseStatus =
+  (typeof accountPauseStatusEnum.enumValues)[number];
+
+/** A requested permanent move between recurring classes for one subject. */
+export const classMoveRequests = pgTable(
+  "class_move_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    requestedById: uuid("requested_by_id")
+      .notNull()
+      .references(() => profiles.id),
+    fromClassId: uuid("from_class_id")
+      .notNull()
+      .references(() => classes.id),
+    toClassId: uuid("to_class_id")
+      .notNull()
+      .references(() => classes.id),
+    reason: text("reason").notNull(),
+    status: classMoveStatusEnum("status").notNull().default("pending"),
+    decidedById: uuid("decided_by_id").references(() => profiles.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("class_move_requests_student_idx").on(t.studentId, t.createdAt),
+    index("class_move_requests_status_idx").on(t.status, t.createdAt),
+    uniqueIndex("class_move_requests_one_pending_idx")
+      .on(t.studentId, t.fromClassId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+
+export type ClassMoveRequest = typeof classMoveRequests.$inferSelect;
 
 /**
  * A tutor's multi-day absence request. Admin approval is required before its
@@ -573,8 +667,87 @@ export const announcements = pgTable("announcements", {
   audienceClassId: uuid("audience_class_id").references(() => classes.id, {
     onDelete: "cascade",
   }),
+  status: announcementStatusEnum("status").notNull().default("published"),
+  isUrgent: boolean("is_urgent").notNull().default(false),
+  targetRoles: jsonb("target_roles")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  targetSubjectIds: jsonb("target_subject_ids")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  targetYearLevels: jsonb("target_year_levels")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  targetClassIds: jsonb("target_class_ids")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  targetTutorIds: jsonb("target_tutor_ids")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  includeLinkedParents: boolean("include_linked_parents")
+    .notNull()
+    .default(false),
+  approvedById: uuid("approved_by_id").references(() => profiles.id, {
+    onDelete: "set null",
+  }),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  rejectedReason: text("rejected_reason"),
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const announcementRecipients = pgTable(
+  "announcement_recipients",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.userId] }),
+    index("announcement_recipients_user_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const announcementEmailDeliveries = pgTable(
+  "announcement_email_deliveries",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.userId] }),
+    index("announcement_email_pending_idx").on(
+      table.status,
+      table.attempts,
+      table.updatedAt,
+    ),
+  ],
+);
 
 // Per-student free-trial period (1:1), migration 0037. Admin-set; tutors see a
 // "Free trial" pill on lessons in range. Server-written only (deny-all RLS).
@@ -611,12 +784,89 @@ export const tutorBankDetails = pgTable("tutor_bank_details", {
   accountName: text("account_name"),
   bsb: text("bsb"),
   accountNumber: text("account_number"),
+  hourlyRate: numeric("hourly_rate", { precision: 10, scale: 2 }),
   note: text("note"),
   updatedById: uuid("updated_by_id").references(() => profiles.id),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+export const tutorWeeklyCheckins = pgTable(
+  "tutor_weekly_checkins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tutorId: uuid("tutor_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    weekStart: date("week_start").notNull(),
+    status: tutorCheckinStatusEnum("status").notNull().default("pending"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    disputeMessage: text("dispute_message"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("tutor_weekly_checkins_tutor_week_unique_idx").on(
+      table.tutorId,
+      table.weekStart,
+    ),
+    index("tutor_weekly_checkins_week_status_idx").on(
+      table.weekStart,
+      table.status,
+    ),
+  ],
+);
+
+export const tutorCheckinEntries = pgTable(
+  "tutor_checkin_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    checkinId: uuid("checkin_id")
+      .notNull()
+      .references(() => tutorWeeklyCheckins.id, { onDelete: "cascade" }),
+    lessonId: uuid("lesson_id").references(() => lessons.id, {
+      onDelete: "set null",
+    }),
+    classId: uuid("class_id").references(() => classes.id, {
+      onDelete: "set null",
+    }),
+    subjectName: text("subject_name").notNull(),
+    className: text("class_name").notNull(),
+    workDate: date("work_date").notNull(),
+    startTime: time("start_time").notNull(),
+    endTime: time("end_time").notNull(),
+    minutes: integer("minutes").notNull(),
+    hourlyRate: numeric("hourly_rate", { precision: 10, scale: 2 })
+      .notNull()
+      .default("0"),
+    note: text("note"),
+    isManualOverride: boolean("is_manual_override").notNull().default(false),
+    isRemoved: boolean("is_removed").notNull().default(false),
+    updatedById: uuid("updated_by_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("tutor_checkin_entries_checkin_lesson_unique_idx")
+      .on(table.checkinId, table.lessonId)
+      .where(sql`${table.lessonId} is not null`),
+    index("tutor_checkin_entries_checkin_date_idx").on(
+      table.checkinId,
+      table.workDate,
+    ),
+  ],
+);
 
 export const notifications = pgTable(
   "notifications",

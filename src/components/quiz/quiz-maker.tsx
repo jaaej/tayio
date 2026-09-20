@@ -19,6 +19,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import {
   addOption,
   addQuestion,
@@ -225,12 +226,14 @@ export function QuizMaker({
 
   const primaryAction = canApprove
     ? {
-        label: actionPending ? "Approving..." : "Approve quiz",
+        label: "Approve quiz",
+        pendingLabel: "Approving…",
         run: () => approveQuiz({ quizId: quiz.id }),
       }
     : canSubmit
       ? {
-          label: actionPending ? "Submitting..." : "Submit for review",
+          label: "Submit for review",
+          pendingLabel: "Submitting…",
           run: () => submitQuiz({ quizId: quiz.id }),
         }
       : null;
@@ -409,8 +412,15 @@ export function QuizMaker({
                 onClick={() => run(primaryAction.run)}
                 className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-600 px-5 text-[13px] font-bold text-white shadow-[0_12px_24px_-16px_rgba(79,91,213,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-[0_16px_28px_-16px_rgba(79,91,213,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
-                <Check className="h-4 w-4" />
-                {primaryAction.label}
+                <ActionButtonLabel
+                  pending={actionPending}
+                  pendingLabel={primaryAction.pendingLabel}
+                >
+                  <>
+                    <Check className="h-4 w-4" />
+                    {primaryAction.label}
+                  </>
+                </ActionButtonLabel>
               </button>
             ) : (
               <div className="mt-4 rounded-[12px] bg-surface-2 px-3 py-2.5 text-center text-[12px] font-bold text-muted">
@@ -748,7 +758,9 @@ function AttachmentManager({
                 disabled={pending}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
               >
-                {pending ? "Uploading..." : "Upload selected"}
+                <ActionButtonLabel pending={pending} pendingLabel="Uploading…">
+                  Upload selected
+                </ActionButtonLabel>
               </button>
             </div>
           )}

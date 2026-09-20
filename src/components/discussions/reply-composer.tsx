@@ -5,6 +5,7 @@ import { Send, X } from "lucide-react";
 import type { AccentTokens } from "@/lib/subject-colors";
 import { postReply } from "@/app/_actions/discussions";
 import { AttachmentPicker } from "@/components/discussions/attachments";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { initialOf, type DiscussionRole } from "./role-tone";
 
 export function ReplyComposer({
@@ -106,8 +107,12 @@ export function ReplyComposer({
             background: `linear-gradient(135deg, ${tokens.arrow}, ${tokens.title})`,
           }}
         >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          {pending ? "Posting…" : "Post reply"}
+          <ActionButtonLabel pending={pending} pendingLabel="Posting…">
+            <>
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              Post reply
+            </>
+          </ActionButtonLabel>
         </button>
         <button
           type="button"

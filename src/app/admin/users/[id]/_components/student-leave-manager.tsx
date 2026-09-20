@@ -57,6 +57,12 @@ export function StudentLeaveManager({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-[12px] border border-info/20 bg-info-bg px-4 py-3 text-[12px] leading-relaxed text-ink-soft">
+        A student break never cancels the class or affects other students. The
+        student remains enrolled, assigned tutors see them as away on affected
+        rolls, and tutors/admins are notified when the period is added or
+        removed.
+      </div>
       {periods.length === 0 ? (
         <div className="text-[13px] text-muted italic">
           No leave or holidays recorded.

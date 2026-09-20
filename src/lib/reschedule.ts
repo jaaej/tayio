@@ -246,37 +246,119 @@ export async function executeMakeupReschedule(p: {
   endTime: string;
   reason: string;
   actorId: string;
+  pendingRequestId?: string;
 }): Promise<MakeupResult> {
   const original = await getReschedulableLesson(p.originalLessonId);
   if (!original) return { ok: false, error: "Lesson not found" };
   if (p.tutorId !== original.tutorId) {
     return { ok: false, error: "The make-up must stay with the assigned tutor." };
   }
-
-  // Double-booking guard: any lesson for this tutor overlapping the slot?
-  const clash = await db
-    .select({ id: lessons.id })
-    .from(lessons)
-    .where(
-      and(
-        eq(lessons.tutorId, p.tutorId),
-        eq(lessons.date, p.date),
-        lt(lessons.startTime, p.endTime),
-        gt(lessons.endTime, p.startTime),
-      ),
-    )
-    .limit(1);
-  if (clash.length) {
-    return { ok: false, error: "That slot was just taken - pick another." };
+  if (p.startTime >= p.endTime ||
+      new Date(`${p.date}T${p.startTime}`) <= new Date()) {
+    return { ok: false, error: "Pick a future make-up time." };
   }
 
-  // Re-reschedule: undo the student's previous move of this lesson before
-  // creating the new one, so they aren't attending two makeups.
-  await supersedePriorReschedule(p.studentId, p.originalLessonId);
+  return db.transaction(async (tx): Promise<MakeupResult> => {
+    // Admin and self-serve moves use the same locks, so their updates to a
+    // student's source lesson and to a tutor's diary cannot race each other.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`makeup:${p.studentId}:${p.originalLessonId}`}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`makeup-tutor:${p.tutorId}:${p.date}`}))`);
 
-  const [newLesson] = await db
-    .insert(lessons)
-    .values({
+    const [live] = await tx.select({
+      status: lessons.status,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      rescheduledFrom: lessons.rescheduledFrom,
+    }).from(lessons).where(eq(lessons.id, original.id)).limit(1);
+    const [enrolled] = await tx.select({ id: enrollments.studentId })
+      .from(enrollments).where(and(
+        eq(enrollments.classId, original.classId),
+        eq(enrollments.studentId, p.studentId),
+        isNull(enrollments.withdrawnAt),
+      )).limit(1);
+    if (!live || !enrolled || live.status !== "upcoming" ||
+        live.rescheduledFrom ||
+        new Date(`${live.date}T${live.startTime}`) <= new Date()) {
+      return { ok: false, error: "That original lesson can no longer be moved." };
+    }
+
+    if (p.pendingRequestId) {
+      const [pending] = await tx.select({ id: rescheduleRequests.id })
+        .from(rescheduleRequests).where(and(
+          eq(rescheduleRequests.id, p.pendingRequestId),
+          eq(rescheduleRequests.studentId, p.studentId),
+          eq(rescheduleRequests.originalLessonId, original.id),
+          eq(rescheduleRequests.status, "pending"),
+        )).limit(1);
+      if (!pending) return { ok: false, error: "Request already decided." };
+    }
+
+    const prior = await tx.select({
+      id: rescheduleRequests.id,
+      targetLessonId: rescheduleRequests.targetLessonId,
+    }).from(rescheduleRequests).where(and(
+      eq(rescheduleRequests.studentId, p.studentId),
+      eq(rescheduleRequests.originalLessonId, original.id),
+      eq(rescheduleRequests.status, "approved"),
+    ));
+    const priorLessonIds = prior
+      .map((move) => move.targetLessonId)
+      .filter((id): id is string => !!id);
+    const clash = await tx.select({ id: lessons.id }).from(lessons).where(and(
+      eq(lessons.tutorId, p.tutorId),
+      eq(lessons.date, p.date),
+      lt(lessons.startTime, p.endTime),
+      gt(lessons.endTime, p.startTime),
+      ne(lessons.status, "cancelled"),
+      ne(lessons.status, "rescheduled"),
+    ));
+    if (clash.length) {
+      // An identical retry should not create another booking or consume a
+      // second token. Different overlapping slots remain unavailable.
+      if (!p.pendingRequestId && clash.length === 1 &&
+          priorLessonIds.includes(clash[0].id)) {
+        const [same] = await tx.select({ id: lessons.id }).from(lessons)
+          .where(and(
+            eq(lessons.id, clash[0].id),
+            eq(lessons.date, p.date),
+            eq(lessons.startTime, p.startTime),
+            eq(lessons.endTime, p.endTime),
+            eq(lessons.tutorId, p.tutorId),
+          )).limit(1);
+        if (same) return { ok: true, lessonId: same.id };
+      }
+      return { ok: false, error: "That slot was just taken - pick another." };
+    }
+
+    for (const move of prior) {
+      if (!move.targetLessonId) continue;
+      await tx.delete(attendance).where(and(
+        eq(attendance.lessonId, move.targetLessonId),
+        eq(attendance.studentId, p.studentId),
+      ));
+      const [remaining] = await tx.select({ studentId: attendance.studentId })
+        .from(attendance).where(eq(attendance.lessonId, move.targetLessonId))
+        .limit(1);
+      if (!remaining) {
+        await tx.update(lessons).set({ status: "cancelled" }).where(and(
+          eq(lessons.id, move.targetLessonId),
+          eq(lessons.status, "makeup"),
+          eq(lessons.rescheduledFrom, original.id),
+        ));
+      }
+    }
+    await tx.update(rescheduleRequests).set({ status: "cancelled" }).where(and(
+      eq(rescheduleRequests.studentId, p.studentId),
+      eq(rescheduleRequests.originalLessonId, original.id),
+      inArray(rescheduleRequests.status, ["approved", "pending"]),
+      p.pendingRequestId ? ne(rescheduleRequests.id, p.pendingRequestId) : undefined,
+    ));
+    await tx.delete(notifications).where(and(
+      eq(notifications.href, `/admin/reschedules?r=${p.studentId}:${original.id}`),
+      eq(notifications.title, "Reschedule request"),
+    ));
+
+    const [newLesson] = await tx.insert(lessons).values({
       classId: original.classId,
       tutorId: p.tutorId,
       date: p.date,
@@ -284,28 +366,71 @@ export async function executeMakeupReschedule(p: {
       endTime: p.endTime,
       status: "makeup",
       rescheduledFrom: original.id,
-    })
-    .returning({ id: lessons.id });
+    }).returning({ id: lessons.id });
+    await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId, tx);
+    await tx.insert(attendance).values({
+      lessonId: newLesson.id,
+      studentId: p.studentId,
+      status: "makeup_attended",
+      note: rescheduleNote(p.reason),
+      markedBy: p.actorId,
+    });
+    if (p.pendingRequestId) {
+      await tx.update(rescheduleRequests).set({
+        status: "approved",
+        targetLessonId: newLesson.id,
+        decidedById: p.actorId,
+        decidedAt: new Date(),
+      }).where(eq(rescheduleRequests.id, p.pendingRequestId));
+    } else {
+      await tx.insert(rescheduleRequests).values({
+        originalLessonId: original.id,
+        studentId: p.studentId,
+        requestedById: p.actorId,
+        reason: p.reason || null,
+        status: "approved",
+        targetTutorId: p.tutorId,
+        targetDate: p.date,
+        targetStartTime: p.startTime,
+        targetEndTime: p.endTime,
+        targetLessonId: newLesson.id,
+        decidedById: p.actorId,
+        decidedAt: new Date(),
+      });
+    }
 
-  await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
-  await db.insert(attendance).values({
-    lessonId: newLesson.id,
-    studentId: p.studentId,
-    status: "makeup_attended",
-    note: rescheduleNote(p.reason),
-    markedBy: p.actorId,
+    const [student] = await tx.select({
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+    }).from(profiles).where(eq(profiles.id, p.studentId)).limit(1);
+    const parentIds = await tx.select({ id: familyLinks.parentId })
+      .from(familyLinks).where(eq(familyLinks.studentId, p.studentId));
+    const adminIds = await tx.select({ id: profiles.id }).from(profiles)
+      .where(and(inArray(profiles.role, ADMIN_TIERS), eq(profiles.isActive, true)));
+    const recipients = new Map<string, string>([
+      [p.studentId, "/student/timetable"],
+      [original.tutorId, `/tutor/lessons/${newLesson.id}`],
+    ]);
+    for (const parent of parentIds) recipients.set(parent.id, "/parent/classes");
+    for (const admin of adminIds) recipients.set(admin.id, `/admin/users/${p.studentId}`);
+    const studentName = student
+      ? `${student.firstName} ${student.lastName}`.trim()
+      : "A student";
+    const body =
+      `${studentName}'s ${original.subjectName} lesson on ` +
+      `${formatDateLong(original.date)} at ${formatTime(original.startTime)} ` +
+      `→ moved to ${formatDateLong(p.date)} ` +
+      `${formatTime(p.startTime)}–${formatTime(p.endTime)}.` +
+      (p.reason ? ` Reason: ${p.reason}` : "");
+    await tx.insert(notifications).values(Array.from(recipients, ([userId, href]) => ({
+      userId,
+      channel: "in_app" as const,
+      title: "Lesson rescheduled",
+      body,
+      href,
+    })));
+    return { ok: true, lessonId: newLesson.id };
   });
-
-  await notifyReschedule({
-    studentId: p.studentId,
-    original,
-    newTutorId: p.tutorId,
-    newDate: p.date,
-    newStart: p.startTime,
-    newEnd: p.endTime,
-    reason: p.reason,
-  });
-  return { ok: true, lessonId: newLesson.id };
 }
 
 /** Group: move the student's attendance onto an existing target lesson.
@@ -387,56 +512,6 @@ export async function hasPriorReschedule(
     )
     .limit(1);
   return rows.length > 0;
-}
-
-/** Undo a student's prior approved move of this lesson: drop their make-up
- *  attendance, delete the now-empty make-up lesson, and cancel the old record. */
-async function supersedePriorReschedule(
-  studentId: string,
-  originalLessonId: string,
-) {
-  const prior = await db
-    .select({
-      id: rescheduleRequests.id,
-      targetLessonId: rescheduleRequests.targetLessonId,
-    })
-    .from(rescheduleRequests)
-    .where(
-      and(
-        eq(rescheduleRequests.originalLessonId, originalLessonId),
-        eq(rescheduleRequests.studentId, studentId),
-        eq(rescheduleRequests.status, "approved"),
-      ),
-    );
-  for (const pr of prior) {
-    if (pr.targetLessonId) {
-      await db
-        .delete(attendance)
-        .where(
-          and(
-            eq(attendance.lessonId, pr.targetLessonId),
-            eq(attendance.studentId, studentId),
-          ),
-        );
-      const remaining = await db
-        .select({ s: attendance.studentId })
-        .from(attendance)
-        .where(eq(attendance.lessonId, pr.targetLessonId))
-        .limit(1);
-      const [tl] = await db
-        .select({ status: lessons.status })
-        .from(lessons)
-        .where(eq(lessons.id, pr.targetLessonId))
-        .limit(1);
-      if (remaining.length === 0 && tl?.status === "makeup") {
-        await db.delete(lessons).where(eq(lessons.id, pr.targetLessonId));
-      }
-    }
-    await db
-      .update(rescheduleRequests)
-      .set({ status: "cancelled" })
-      .where(eq(rescheduleRequests.id, pr.id));
-  }
 }
 
 export async function markStudentAbsent(
@@ -611,38 +686,23 @@ export async function recordDirectSwitch(p: {
   });
 }
 
-/** Durable record for a direct (no-approval) makeup reschedule. `targetLessonId`
- *  is the newly-created makeup lesson, so timetables/attendance can link it. */
-export async function recordDirectMakeup(p: {
-  studentId: string;
-  requestedById: string;
-  originalLessonId: string;
-  makeupLessonId: string;
-  tutorId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  reason: string;
-}) {
-  await db.insert(rescheduleRequests).values({
-    originalLessonId: p.originalLessonId,
-    studentId: p.studentId,
-    requestedById: p.requestedById,
-    reason: p.reason || null,
-    status: "approved",
-    targetTutorId: p.tutorId,
-    targetDate: p.date,
-    targetStartTime: p.startTime,
-    targetEndTime: p.endTime,
-    targetLessonId: p.makeupLessonId,
-    decidedById: p.requestedById,
-    decidedAt: new Date(),
-  });
-}
-
 export type LessonRescheduleInfo = {
   movedOut: { studentId: string; studentName: string; toLabel: string }[];
-  movedIn: { studentId: string; studentName: string; fromLabel: string }[];
+  movedIn: {
+    studentId: string;
+    studentName: string;
+    firstName: string;
+    lastName: string;
+    fromLabel: string;
+    attendanceStatus:
+      | "present"
+      | "absent"
+      | "late"
+      | "left_early"
+      | "makeup_attended"
+      | null;
+    attendanceNote: string | null;
+  }[];
 };
 
 /** For an attendance/lesson view: who rescheduled OUT of this lesson (and to
@@ -691,9 +751,18 @@ export async function getLessonReschedules(
       sf: profiles.firstName,
       sl: profiles.lastName,
       originalLessonId: rescheduleRequests.originalLessonId,
+      attendanceStatus: attendance.status,
+      attendanceNote: attendance.note,
     })
     .from(rescheduleRequests)
     .innerJoin(profiles, eq(profiles.id, rescheduleRequests.studentId))
+    .leftJoin(
+      attendance,
+      and(
+        eq(attendance.lessonId, lessonId),
+        eq(attendance.studentId, rescheduleRequests.studentId),
+      ),
+    )
     .where(
       and(
         eq(rescheduleRequests.targetLessonId, lessonId),
@@ -706,9 +775,13 @@ export async function getLessonReschedules(
     movedIn.push({
       studentId: r.studentId,
       studentName: `${r.sf} ${r.sl}`.trim(),
+      firstName: r.sf,
+      lastName: r.sl,
       fromLabel: o
         ? `${o.className} · ${formatDateLong(o.date)} ${formatTime(o.startTime)}`
         : "another session",
+      attendanceStatus: r.attendanceStatus,
+      attendanceNote: r.attendanceNote,
     });
   }
   return { movedOut, movedIn };
@@ -743,12 +816,10 @@ export async function approveRescheduleRequest(
       endTime: req.targetEndTime,
       reason: req.reason ?? "",
       actorId: deciderId,
+      pendingRequestId: id,
     });
     if (!res.ok) return res;
-    await db
-      .update(rescheduleRequests)
-      .set({ targetLessonId: res.lessonId })
-      .where(eq(rescheduleRequests.id, id));
+    return { ok: true };
   } else if (req.targetLessonId) {
     const res = await executeSessionSwitch({
       studentId: req.studentId,

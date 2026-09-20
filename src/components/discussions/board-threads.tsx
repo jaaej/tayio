@@ -7,6 +7,7 @@ import type { ThreadSummary } from "@/lib/discussions-queries";
 import { createThread } from "@/app/_actions/discussions";
 import { AttachmentPicker } from "@/components/discussions/attachments";
 import { ThreadCard } from "@/components/discussions/thread-card";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { initialOf, type DiscussionRole } from "./role-tone";
 
 export function BoardThreads({
@@ -205,8 +206,12 @@ function AskPrompt({
           className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(31,40,90,0.5)] disabled:opacity-50 transition-transform hover:-translate-y-[1px]"
           style={{ background: tokens.arrow }}
         >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          {pending ? "Posting…" : "Post question"}
+          <ActionButtonLabel pending={pending} pendingLabel="Posting…">
+            <>
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              Post question
+            </>
+          </ActionButtonLabel>
         </button>
         <button
           type="button"
@@ -220,4 +225,3 @@ function AskPrompt({
     </form>
   );
 }
-

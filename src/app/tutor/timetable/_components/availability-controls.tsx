@@ -8,6 +8,7 @@ import {
   removeRecurringAvailability,
 } from "@/app/tutor/_actions";
 import { SidePanel } from "@/components/ui/side-panel";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export type WeeklyAvailabilityWindow = {
   weekday: number;
@@ -115,7 +116,9 @@ export function AvailabilityControls({
             <TimeField label="Available from" name="startTime" defaultValue="15:00" disabled={pending} />
             <TimeField label="Available until" name="endTime" defaultValue="18:00" disabled={pending} />
             <button type="submit" disabled={pending} className={`${PRIMARY} sm:col-span-2 sm:justify-self-start`}>
-              {pending ? "Saving…" : "Add recurring hours"}
+              <ActionButtonLabel pending={pending} pendingLabel="Saving…">
+                Add recurring hours
+              </ActionButtonLabel>
             </button>
           </form>
 

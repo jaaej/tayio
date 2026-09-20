@@ -23,7 +23,7 @@ export function AtAGlance({
               className="flex items-baseline justify-between gap-4"
             >
               <dt className="text-[13px] text-ink-soft">{row.label}</dt>
-              <dd className="min-w-0 truncate text-right text-[13px] font-bold text-ink">
+              <dd className="min-w-0 break-words text-right text-[13px] font-bold text-ink">
                 {row.value}
               </dd>
             </div>

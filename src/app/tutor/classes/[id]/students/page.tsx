@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
@@ -62,7 +62,7 @@ export default async function TutorClassStudentsPage({
       status: lessons.status,
     })
     .from(lessons)
-    .where(eq(lessons.classId, classId))
+    .where(and(eq(lessons.classId, classId), ne(lessons.status, "makeup")))
     .orderBy(asc(lessons.date));
 
   const today = isoDate(new Date());

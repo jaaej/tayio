@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last audited: 11 September 2026
+Last updated: 20 September 2026
 
 ## Status key
 
@@ -42,6 +42,9 @@ Last audited: 11 September 2026
 - [x] Check both student timetable types with classes that have and do not have
   a room/location; locations should be clear and missing values should not
   leave empty labels.
+- [x] As a Student – parental access account, click lesson chips in the month
+  timetable and confirm each opens its subject/curriculum page. Confirm an
+  unrestricted student's lesson chip still opens its reschedule/cancel menu.
 - [x] Admin user creation, editing, directory, user details, and messages show
   `Student` and `Student – parental access` without exposing internal role
   values; permissions for both roles remain unchanged.
@@ -57,17 +60,26 @@ Last audited: 11 September 2026
   every row is clickable; linked items open their destination, older items
   without a link expand in place, the unread count decreases by one, and the
   blue unread dot disappears immediately.
+- [x] Leave a notification inbox open across a minute boundary and confirm its
+  timestamp advances from `5m ago` to `6m ago` without refreshing. Confirm the
+  label changes to `1h ago` at 60 minutes and then advances hourly.
+- [x] Open Messages as admin, tutor, parent, and student. Confirm thread dates
+  render without the `lastActivityAt.toLocaleDateString` runtime error.
 - [x] From the admin users list, confirm the gear menu exposes password reset
   and deactivate/reactivate, each confirmation and action works, and `Open`
   remains directly available.
-- [ ] In admin attendance, confirm `Free trial` appears only when the lesson date
+- [x] In admin attendance, confirm `Free trial` appears only when the lesson date
   falls within the student's trial dates, including for a make-up attendee.
-- [ ] In tutor attendance, confirm a saved free-trial note appears with the
+- [x] In tutor attendance, confirm a saved free-trial note appears with the
   `Free trial` badge during the configured dates for both a regular enrolment
   and a make-up attendee, and is hidden outside those dates.
+- [x] In Admin Users, confirm a trial student shows only the appropriate `Trial
+  scheduled`, `Free trial`, or `Trial ended` status badge. Confirm the exact
+  trial date range appears as an information note beneath the student's name,
+  not in the Status column.
 - [x] Confirm linked parents/children appear beneath the correct account in the
   admin users list and each name opens the correct profile on desktop and mobile.
-- [ ] In the admin users list, confirm current student/tutor badges show only
+- [x] In the admin users list, confirm current student/tutor badges show only
   the subject (no weekday or AM/PM), collapse repeated classes for the same
   subject, open the correct class, and exclude withdrawn enrolments.
 - [x] Check class labels in admin/tutor attendance, tutor dashboards and
@@ -98,11 +110,11 @@ Last audited: 11 September 2026
 - [x] In Taiyo Blitz, confirm each correct answer shows the green `+1 Correct!`
   burst and score animation, the selected sound plays, Mute is silent, wrong
   answers retain their red feedback, and reduced-motion mode removes animation.
-- [ ] For a student with a class today inside their trial dates, confirm admin
+- [x] For a student with a class today inside their trial dates, confirm admin
   and the assigned tutor each receive one `Free-trial student today` notice
   with student, class, subject, time, and tutor details. Open each deep link and
   rerun the notification sweep to confirm it does not duplicate the notice.
-- [ ] Move a trial end date into the past and confirm admin receives exactly one
+- [x] Move a trial end date into the past and confirm admin receives exactly one
   `Bump student for free-trial follow-up` notification linked to the student.
 - [x] Confirm Student Progress shows the written effort guide and matching
   red/blue/green/amber topic labels; meaning must remain clear without relying
@@ -153,17 +165,160 @@ Last audited: 11 September 2026
   updates after refresh without showing the former topics block above it.
 - [x] From admin curriculum, create a new week, upload/replace its video and
   booklet, and confirm each saved item is reflected in the reading view.
-- [ ] In Create user, select each student role and confirm the optional linked
+- [x] In Create user, select each student role and confirm the optional linked
   Parent section appears. Create a student alone, then create a student and
   parent together; confirm both accounts are listed, both generated passwords
   are shown once, and the parent is linked as the student's primary contact.
-- [ ] As Admin – reception, open Create user and confirm Tutor, Admin –
+- [x] As Admin – reception, open Create user and confirm Tutor, Admin –
   reception, and Admin – owner are not offered. Confirm a direct request to
   create any of those privileged roles is still rejected by the server.
-- [ ] Open a student profile on the default Profile tab and save a free-trial
+- [x] Open a student profile on the default Profile tab and save a free-trial
   period. Confirm unrelated credits/reschedule queries do not run, the profile
   does not crash, and the save returns promptly while notifications appear
   shortly afterwards.
+- [x] Add a dated student break from the student's Lessons tab. Confirm the
+  directory/profile automatically shows `On break` (or `Break scheduled`) with
+  the date range, the student's classes remain scheduled, affected tutor rolls
+  identify only that student as away, and assigned tutors/admins receive one
+  linked notification. Remove the break and confirm the status and roll flag
+  clear without changing enrolment or login access.
+- [x] Submit and approve a dated tutor leave request. Confirm Admin Users shows
+  `Leave pending`, then `Leave approved`/`On leave` with the date range; every
+  affected lesson is posted for cover rather than cancelled, and the status
+  disappears automatically after the final date.
+- [x] As a student, request a permanent move from Timetable. Confirm only a
+  different class for the same subject is offered, full classes are disabled,
+  the existing timetable stays unchanged while pending, and admin receives a
+  detailed `Relocate class time for [student]` notification with a working link.
+- [x] As a parent, submit a move for a linked child and confirm it appears on
+  that child's admin profile. Attempt a direct request for an unrelated child,
+  a different subject, the current class, and a full class; each must be
+  rejected by the server.
+- [x] Approve a pending permanent move from the student's `Lessons` tab. Confirm
+  the old enrolment is withdrawn, the target enrolment is active exactly once,
+  class capacity is respected, move history is recorded, and the student,
+  linked parents, old tutor, and new tutor receive working notifications.
+- [x] With unread notifications, confirm the admin, tutor, parent, and student
+  top-right bells are red and show the unread number (capped at `99+`). Confirm
+  their Notifications badges are also red in desktop and mobile navigation.
+- [x] Create a recurring class and confirm lesson instances appear immediately
+  for the next 16 weeks. Run the authenticated daily cron and confirm it adds
+  only missing weeks, extends the rolling horizon, and does not recreate a
+  cancelled lesson date or duplicate an existing lesson.
+- [ ] Create another class with an assigned tutor. Confirm the tutor receives
+  one `New class assigned` notification, every active admin receives one
+  `Class created` confirmation, the tutor notification opens Tutor → Schedule
+  & availability (the actual timetable), and the admin notification opens the
+  class record.
+- [x] From Tutor → Schedule & availability, open a lesson and use the back link.
+  Confirm it is labelled `Schedule & availability` and returns to the schedule
+  page; lessons opened from Tutor → Today must still return to Today.
+- [x] Decline a separate move request with an explanation and confirm no
+  enrolment changes. Then use `Move student` for a direct admin relocation and
+  confirm the same capacity, history, and notification behaviour.
+- [x] Create one account and one combined student/parent pair with complete
+  postal addresses. Confirm each address is stored on the correct profile,
+  remains editable, and older accounts with no address still open normally.
+- [ ] Create an account using a real test inbox. Confirm the success panel says
+  the password-setup email was sent, its link opens the portal reset-password
+  page, the new password works, and the temporary password is still available
+  as a one-time fallback. Repeat for a linked parent account.
+- [ ] Move a student into a make-up class, then mark and edit that student's
+  make-up attendance and attendance note as both tutor and admin. Save a full
+  tutor lesson note and confirm admin can read it from the lesson record.
+- [ ] As admin, move a student to an available make-up slot, then change that
+  destination. Confirm only the latest make-up remains live, the previous
+  history is cancelled, and the original roll still contains the other
+  students. Try a stale/taken slot and confirm no partial move is saved.
+- [ ] For that admin move, confirm the student, linked parent, original tutor,
+  replacement tutor, and active admins each receive one notification with a
+  link that opens in their own portal role.
+- [ ] Reschedule the same original lesson twice as a student or parent. Confirm
+  the allowance remains one, the earlier make-up is cancelled but remains in
+  history, and the student appears only on the latest make-up roll. A stale or
+  already-booked slot must fail without changing either roll.
+- [ ] Sign in as another student enrolled in the original recurring class and
+  as that student's parent. Confirm they cannot see or open the first
+  student's private make-up lesson, attendance, or lesson note.
+- [ ] After that make-up lesson, open the target class's next roll and confirm
+  the temporary student is absent unless another make-up was booked. Use Admin
+  Attendance's date picker to reopen the past lesson and inspect its tutor,
+  attendance, make-up origin, attendance note, and lesson note.
+- [ ] In Admin Settings, save `e1/2` against one subject. Confirm an exact
+  `e1/2` search in Admin Users finds its students and tutors, while the full
+  subject name and original class name still find the same accounts. Clear the
+  shortcut and confirm it stops expanding; duplicate shortcuts must be rejected.
+- [ ] As admin, publish announcements using multiple roles and combinations of
+  subject, year, class, and assigned-tutor filters. Confirm every intended user
+  receives one inbox notification and an unrelated student, parent, tutor, and
+  admin do not receive or see the announcement.
+- [ ] Submit a tutor class announcement and confirm students/parents cannot see
+  it before approval, every active admin receives a working approval-inbox
+  notification, and approving it publishes to the class students plus linked
+  parents only when selected. Confirm the tutor receives the approval result.
+- [ ] Reject a separate tutor announcement with a reason. Confirm no family
+  receives it, the tutor sees the admin feedback in both notifications and the
+  curriculum announcement card, and it remains labelled `Changes requested`.
+- [ ] Mark a narrowly targeted announcement Urgent. Confirm the same exact
+  recipients receive the red urgent in-app notification, one email job exists
+  per recipient, retries do not duplicate sent mail, and no unrelated address
+  is queued. End-to-end email delivery remains blocked until a no-extra-cost
+  sender/domain is configured in the test environment.
+- [ ] Open Admin → Classes → a subject curriculum and inspect weeks with and
+  without quizzes. From an empty week, create a draft and separately request a
+  tutor-built quiz; confirm the week is preselected, the new quiz card appears,
+  and the quiz builder's back action returns to that exact curriculum week.
+- [ ] Confirm the standalone `Quizzes` item is absent from desktop and mobile
+  admin navigation. Open an existing draft, approved quiz, and pending-review
+  quiz from its curriculum week; confirm preview/edit/approval actions and
+  student visibility still respect the existing status rules.
+- [ ] In Admin → Payments, edit an invoice's linked parent/student, amount,
+  currency, due date, description, and each status. Confirm only students linked
+  to the selected parent are offered, paid/refunded states require and preserve
+  the original payment date, dashboard totals refresh, and an `invoices` UPDATE
+  audit row records the signed-in admin as actor.
+- [ ] As students in two different year levels, submit Taiyo Blitz scores on
+  multiple difficulties. Confirm the sidebar/mobile entry badge and game hero
+  show the whole-centre overall rank, the year-level board excludes other
+  years, `All Taiyo` includes them, each difficulty ranks personal-best scores,
+  and inactive accounts are absent.
+- [ ] As a student, open Profile icon from desktop and mobile navigation and
+  select several icons. Confirm the header updates, the choice persists after
+  sign-out/sign-in, invalid free-form values are rejected, and only the signed-in
+  student's profile changes. As an assigned tutor, confirm the chosen icon
+  appears in the Students list and that student's detail page; an unrelated
+  tutor must still be unable to open the profile.
+- [ ] As a tutor, open `Weekly check-in` for the current and a past week.
+  Confirm scheduled lessons, dates, times, total hours, and estimated pay match
+  the timetable, and cancelled/rescheduled lessons are not counted.
+- [ ] Approve a tutor week and confirm its status persists after refresh. Submit
+  an incorrect-hours report for another week and confirm the owner receives one
+  notification linking to that tutor and week with the tutor's explanation.
+- [ ] As Admin – owner, open Tutor check-ins and filter by tutor and class.
+  Confirm reception has neither the navigation item nor direct page access.
+- [ ] As Admin – owner, correct a row's class, date, times, rate, and note, then
+  remove and restore it. Confirm totals update, the week returns to `Pending`,
+  the tutor receives a correction notification, and the tutor can approve the
+  corrected record again. Confirm the original lesson timetable is unchanged.
+- [ ] Set an hourly rate on a tutor's Admin Users profile. Confirm all
+  unapproved, non-manually-corrected rows immediately use that rate in Tutor
+  check-in and Admin → Tutor check-ins. Confirm an approved week contributes to
+  approved pay owed and a later rate change does not rewrite a valid approved
+  snapshot. A legacy approved `$0` week must reopen as Pending, notify the
+  tutor, and require approval again. Check the missing-rate warning and blocked
+  approval with a second tutor whose rate is blank.
+- [ ] Run the authenticated daily cron using Saturday and Sunday Melbourne test
+  times. Confirm unapproved tutors receive one Saturday reminder and one Sunday
+  reminder, owner-admin receives the Sunday overdue notice, approved/empty weeks
+  are skipped, and rerunning the same day creates no duplicates.
+- [ ] Inspect audit logs after tutor approval and an owner correction. Confirm
+  the signed-in tutor/admin actor is recorded against the weekly check-in and
+  entry changes, including before/after data. Attempt two stale edits of the
+  same row and confirm the second is rejected instead of overwriting the first.
+- [ ] Submit an assigned tutor quiz for review and confirm every active admin
+  receives exactly one inbox approval notification linking to the quiz. Submit
+  it again after an admin requests changes and confirm every admin receives
+  exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
 
@@ -259,15 +414,137 @@ Last audited: 11 September 2026
   - Free-trial notification generation runs after the save response and remains
     protected by the retry-safe daily cron.
 
+- [x] Account contact and password onboarding.
+  - New accounts collect a structured postal address: street, optional second
+    line, suburb/locality, state/territory, and postcode.
+  - The same fields are collected for an optional linked parent, stored on the
+    correct profile, shown in the admin summary, and editable later.
+  - Every newly created account receives a secure Supabase password-setup link
+    that lands on the existing reset-password page.
+  - The success screen reports email delivery separately for the student and
+    linked parent; failed delivery does not destroy the account or hide its
+    one-time temporary-password fallback.
+  - Admin-triggered password resets use the same explicit safe redirect.
+
+- [x] Make-up attendance consistency and admin inspection.
+  - Make-up attendees have editable attendance status and attendance notes in
+    both tutor and admin lesson views.
+  - The assigned tutor can create full lesson notes for an approved make-up
+    attendee on that lesson only, without gaining access to unrelated students.
+  - Admin lesson records display all saved tutor lesson-note fields and mark
+    temporary make-up attendees clearly.
+  - Server actions reject attendance or notes for a student who is neither
+    enrolled in the class nor approved into that exact make-up lesson.
+
+- [x] Admin Users subject search shortcuts.
+  - Owner Admin Settings lists every subject beside an optional unique quick
+    key such as `e1/2`.
+  - Alias matching is exact and additive: name, email, full subject, and class
+    name searches continue to work normally.
+  - Alias writes are owner-gated and the underlying table is RLS deny-by-default.
+
+- [x] Targeted announcements and tutor approval workflow.
+  - Admin announcements use independent, combinable role, subject, year, class,
+    and assigned-tutor filters instead of one audience dropdown.
+  - Publication stores an exact recipient snapshot, then creates one deduped
+    in-app notification per recipient; later enrolment changes do not broaden
+    access to an old message.
+  - Tutor announcements are restricted to a class assigned to that tutor and
+    remain pending until admin approves them from the announcement review area.
+  - Tutors can optionally include only parents linked to matching students;
+    approval and rejection results are returned to the tutor with feedback.
+  - Urgent announcements create retry-safe, auditable email jobs for the exact
+    same recipient snapshot. In-app delivery does not depend on email setup,
+    and queued mail is retried by the existing authenticated daily cron.
+  - Direct Supabase reads use the recipient snapshot and hide pending posts;
+    recipient lists and email-delivery records are RLS deny-by-default.
+
+- [x] Admin quiz creation moved into curriculum weeks.
+  - The standalone Quizzes navigation item is removed on desktop and mobile.
+  - Every saved admin curriculum week now has a dedicated Weekly quiz section
+    showing the attached quiz's title, status, and answerable-question count.
+  - Empty weeks offer `New quiz` and `Request from tutor` in place; the current
+    subject/week is preselected and the one-quiz-per-week constraint is retained.
+  - Opening the quiz builder from curriculum returns to the same subject, term,
+    and week instead of the former standalone list.
+
+- [x] Audited manual invoice editing.
+  - Every invoice row has an admin-only Edit panel for payer, linked student,
+    amount, currency, due date, description, status, and original payment date.
+  - The server restricts student choices to students actually linked to the chosen
+    parent; the server-side action enforces the same relationship and role checks.
+  - Paid and refunded records keep an explicit original payment date, while
+    quick status changes no longer erase that date when changing Paid to
+    Refunded.
+  - Saves run through the actor-aware transaction so the existing immutable
+    invoice audit trigger records the before/after row and signed-in admin.
+
+- [x] Taiyo Blitz ranks and scoped leaderboards.
+  - The Blitz entry icon shows the student's whole-centre rank on desktop and
+    mobile after their first scored run; the game hero repeats the rank clearly.
+  - Overall rank sums one personal best from each difficulty, so repeat plays
+    cannot inflate a student's standing.
+  - The leaderboard has separate year-level and `All Taiyo` views while keeping
+    the existing difficulty tabs, top-20 list, and out-of-top-20 personal row.
+  - All five boards are loaded in one query per scope and inactive accounts are
+    excluded.
+
+- [x] Controlled student profile icons.
+  - Students choose from a labelled, keyboard-accessible library of 12
+    code-rendered icons; no file upload or custom artwork is required.
+  - The selected key is allow-listed by both the server action and a database
+    constraint, and the update is restricted to the signed-in student's row.
+  - The student's portal header and assigned tutors' Students list/detail page
+    render the choice, with initials retained as the fallback.
+
+- [x] Tutor weekly check-in and payroll history.
+  - Each tutor receives a Monday–Sunday check-in populated from their scheduled
+    lessons, with week navigation, total hours, and rate-based estimated pay.
+  - Tutors can approve the record or report incorrect details; an issue sends
+    the owner a notification linked to the exact tutor/week.
+  - The owner-only dashboard filters by tutor and class, separates approved pay
+    owed from pending totals, and retains a monthly summary of generated weekly
+    snapshots.
+  - Owner corrections can change the payroll class/date/time/rate/note or
+    remove/restore a row. Every correction resets the week for tutor approval
+    and notifies that tutor, without silently changing the lesson timetable.
+  - Check-in, entry, and pay-rate changes are actor-audited. Direct browser
+    access to the payroll tables is deny-by-default under RLS.
+  - The authenticated daily cron sends deduplicated Saturday/Sunday tutor
+    reminders and a Sunday owner alert for each still-unapproved week.
+  - Payroll approval is blocked while a lesson is unfinished or any active row
+    has a missing/zero rate. Tutor and owner edits use locked, version-checked
+    transactions so a stale screen cannot overwrite newer payroll data.
+  - Updating the hourly rate on Admin Users synchronizes unresolved generated
+    rows. Valid approved snapshots remain frozen; legacy approved `$0` weeks
+    reopen, are repaired, notify the tutor, and require fresh approval.
+  - Database constraints prevent duplicate tutor/week and lesson rows, reject
+    invalid minutes/rates, prevent approved-row mutation, and reject approval
+    of empty or zero-rate weeks. Pay is rounded per visible lesson row so the
+    weekly/monthly totals equal the rows shown to the owner.
+
+- [x] Approval-inbox routing audit.
+  - Permanent class moves, tutor leave, tutor announcements, and legacy pending
+    reschedules already create admin inbox notifications with working review
+    links.
+  - Tutor-built quizzes now notify every active admin when submitted for review,
+    rather than only the admin who originally assigned the quiz, and use a
+    retry-safe event key.
+
 ## Tutor leave, breaks, and account status
 
 - [x] Extended tutor leave requires approval and posts affected classes to the
   cover notice board.
 - [x] Admin cover notifications, urgent deadline alerts, and daily uncovered
   reminders are implemented.
-- [ ] Add a separate break/pause status for tutors and students.
-- [ ] When an account remains enabled while paused, show both `Active` and
-  `On break`/`Paused` instead of replacing one status with the other.
+- [x] Replace the ambiguous undated break/pause profile toggle with the dated
+  student-break and tutor-leave workflows already used by attendance and cover.
+- [x] Derive Admin Users/profile schedule badges from those date ranges while
+  keeping account activation and login access independent.
+- [x] Student breaks keep every class running, mark only the affected student
+  as away on tutor rolls, and notify assigned tutors/admins when added/removed.
+- [x] Approved tutor leave posts affected lessons to the cover board rather
+  than cancelling them; pending/approved/current states show in Admin Users.
 
 ## Free-trial students
 
@@ -284,6 +561,30 @@ Last audited: 11 September 2026
   - [x] Show permitted admin/system trial notes to the assigned tutor in
     attendance.
   - [x] Notify admin after the trial finishes to follow up with the student.
+  - [x] Show scheduled, current, and ended trial status with dates in Admin
+    Users and the student profile summary.
+
+## Navigation feedback
+
+- [x] Replace the normal mouse pointer with a compact Taiyo-blue swirling
+  indicator while page navigation waits on server data. Render it through a
+  fixed client portal so loading feedback never occupies layout space.
+- [x] Navigate between several slow admin, tutor, parent, and student pages on
+  desktop/mobile using the sidebar, calendar arrows, and browser back/forward.
+  Confirm the small circular indicator follows the mouse without the old banner
+  or top progress bar, the page never shifts, and the normal pointer returns
+  when the destination renders or when a navigation fails. On touch devices,
+  confirm the same indicator appears centrally without changing the layout.
+- [x] Add reusable animated pending, success, and error states for async action
+  buttons. Shared buttons now add the spinner automatically for pending
+  create/save/publish actions, including New User, announcements, classes,
+  subjects, terms, invoices, user edits, settings, and authentication. Custom
+  reschedule, permanent-move, tutor-cover, curriculum, homework, check-in,
+  discussion, reporting, class-credit, resource, and quiz actions use it too.
+- [x] Trigger submit, approve, decline, assign, change-tutor, and return-to-board
+  actions. Confirm each button blocks repeat clicks, keeps a stable width,
+  displays the spinner while pending, briefly shows the correct success state,
+  and shows `Try again` plus the detailed page error when the server rejects it.
 
 ## Taiyo branding
 
@@ -304,17 +605,25 @@ Last audited: 11 September 2026
 
 ## Permanent student class moves
 
-- [ ] Let a student/parent request a permanent move to a completely different
+- [x] Let a student/parent request a permanent move to a completely different
   recurring class slot.
-- [ ] Send admin a clear `Relocate class time for [student]` notification with
+- [x] Materialize a rolling 16-week timetable for every recurring class when it
+  is created or edited, and extend that horizon in the authenticated daily cron.
+  Existing lesson dates of any status are preserved so cancelled or customised
+  weeks are not recreated, and per-class advisory locking prevents duplicates.
+- [x] Send admin a clear `Relocate class time for [student]` notification with
   the student, current class, requested schedule, reason, and contact details.
-- [ ] Add admin controls for permanent class moves under
+- [x] Add admin controls for permanent class moves under
   `/admin/users/[id]`, alongside the student's class information.
+- [x] Show unread notification counts as a red numeric bell badge for admin,
+  tutors, parents, and students, including red Notifications badges in mobile
+  navigation.
 
 ## Create new user
 
 - [x] Move Phone above Role and remove the generic `Optional` section label.
-- [ ] Add postal address fields.
+- [x] Add structured postal address fields to account creation and profile
+  editing, including an optionally created linked parent.
 - [x] For either student access type, show optional parent/contact fields:
   parent name, email, phone, and relationship.
 - [x] Allow admin to create and link the parent account in the same submission
@@ -322,32 +631,38 @@ Last audited: 11 September 2026
 - [x] Show parent/student links directly on the admin users list.
 - [x] Add a clear link from a user detail page to each linked parent/student
   account.
-- [ ] Send a new-account email containing an activation/password-setup flow.
-  - **Partial:** Admin account creation and generated temporary passwords work,
-    but account creation currently confirms the email without sending an
-    invitation email.
+- [x] Send a new-account email containing a secure password-setup flow.
+  - Account creation remains confirmed with a one-time temporary-password
+    fallback, then sends a Supabase recovery link to the portal's existing
+    set-password page. Delivery status is shown explicitly to admin.
 - [x] Forgotten-password and admin-triggered password-reset emails are wired
   through Supabase.
 - [ ] Verify password-reset delivery end-to-end with a real configured email
-  provider and real inbox.
+  provider and real inbox. The owner confirmed a received reset email and
+  successful password change on 18 September; custom-domain SMTP and delivery
+  to a non-team recipient remain unverified.
 
 ## Make-up class attendance
 
 - [ ] Complete and verify the full make-up-class relocation workflow.
-  - **Partial:** Reschedules already record students moving into and out of a
-    lesson, and tutor/admin attendance shows moved-in students under
-    `Make-up attendees` for the target lesson only.
-  - **Partial:** Reschedule notifications already include admin and relevant
-    tutors.
+  - [x] Admin and student/parent make-up moves write lesson, exact-attendee
+    attendance, approved history, and role-linked notifications together.
+    Replacing a destination cancels the previous booking without deleting its
+    history. Legacy session-switch approvals remain a separate path.
+  - [x] Tutor/admin attendance shows moved-in students under `Make-up
+    attendees` for the target lesson only; unrelated enrolled students do not
+    gain access to that private make-up lesson.
+  - [x] Student, linked parent, relevant tutors, and active admins receive
+    role-appropriate make-up notifications from current move paths.
   - [x] Confirm that the selectable destination is restricted to the same
     subject and year level in every reschedule path.
   - [x] Ensure the reschedule token is consumed exactly once per original
     lesson, including after changing its make-up destination.
-  - [ ] Allow attendance details/notes to be managed consistently for temporary
+  - [x] Allow attendance details/notes to be managed consistently for temporary
     make-up attendees.
   - [ ] End-to-end test that the student disappears from later rolls unless
     another make-up is scheduled.
-  - [ ] Ensure admin can inspect every past, current, and future class with its
+  - [x] Ensure admin can inspect every past, current, and future class with its
     students, attendance, tutor, notes, and make-up status.
 
 ## Admin users list
@@ -358,9 +673,9 @@ Last audited: 11 September 2026
 - [x] Display short admin-only preference notes beneath the relevant user row.
 - [x] Display `In person` and/or `Online` delivery status for students.
 - [x] Display both delivery modes for tutors who teach both types.
-- [ ] Add admin-configurable quick-search aliases in Settings, such as `e1/2`
+- [x] Add admin-configurable quick-search aliases in Settings, such as `e1/2`
   for `English 1/2`.
-- [ ] Search must continue matching the original subject/class name after an
+- [x] Search continues matching the original subject/class name after an
   alias is added.
 
 ## Login entry page
@@ -372,20 +687,31 @@ Last audited: 11 September 2026
 
 ## Announcements and email delivery
 
-- [ ] Replace the single audience dropdown with combinable audience filters:
+- [ ] **Deferred until client GoDaddy access is available:** Add the three
+  DNS records requested by Resend for `send.taiyotuition.com` (domain
+  verification/DKIM, SPF, and MX) in the client's GoDaddy DNS, without
+  changing the website's existing records. Refresh Resend domain verification,
+  then configure Supabase custom SMTP with the verified sender and test new
+  account setup, password reset, and urgent-announcement delivery to a
+  non-team inbox. The user will obtain GoDaddy access later; do not mark email
+  delivery complete or change production SMTP before verification.
+
+- [x] Replace the single audience dropdown with combinable audience filters:
   role, subject, year level, class, and tutor.
-- [ ] Ensure only recipients matching the selected audience receive the
+- [x] Ensure only recipients matching the selected audience receive the
   announcement.
-- [ ] Restrict tutor announcements to students in their own classes.
-- [ ] Let tutors include the linked parents of their own students, subject to
+- [x] Restrict tutor announcements to students in their own classes.
+- [x] Let tutors include the linked parents of their own students, subject to
   admin approval.
-- [ ] Send every tutor announcement approval request to the admin notification
+- [x] Send every tutor announcement approval request to the admin notification
   inbox.
-- [ ] Route all other approval workflows to the admin notification inbox.
-  - **Partial:** Reschedule and tutor-leave approvals already do this.
-- [ ] Send urgent targeted notifications/announcements by email as well as
+- [x] Route all approval workflows to the admin notification inbox.
+  - Permanent class moves, reschedules, tutor leave, tutor announcements, and
+    tutor-built quiz review requests all create linked admin inbox items.
+- [x] Send urgent targeted notifications/announcements by email as well as
   in-app, without leaking messages to unrelated roles, classes, subjects, or
-  tutors.
+  tutors. Email jobs are implemented and safely queued; actual external delivery
+  still requires configured sender credentials and end-to-end QA.
 
 ## Notifications
 
@@ -396,13 +722,13 @@ Last audited: 11 September 2026
 ## Classes and curriculum
 
 - [x] Show class location/room clearly on both student timetable variants.
-- [ ] Move admin quiz creation into `Classes → Curriculum`, attached to the
+- [x] Move admin quiz creation into `Classes → Curriculum`, attached to the
   relevant curriculum week.
 - [x] Move Terms from the main navigation into Classes as `Manage terms`, near
   `Create new class`.
 - [x] Student reschedules and cancellations generate in-app notifications for
   admin and the relevant tutor/family recipients.
-- [ ] Add manual payment editing controls with an audit trail and clear
+- [x] Add manual payment editing controls with an audit trail and clear
   permissions.
 
 ## Automations
@@ -415,27 +741,27 @@ Last audited: 11 September 2026
 
 - [x] Add a one-click action under `Students to bump` that sends an automated,
   task-specific message to the student.
-- [ ] Build a weekly tutor check-in page populated from scheduled lessons.
-- [ ] Let tutors approve the week's worked hours or message admin when the
+- [x] Build a weekly tutor check-in page populated from scheduled lessons.
+- [x] Let tutors approve the week's worked hours or message admin when the
   generated record is incorrect.
-- [ ] Send tutor reminders on Saturday and Sunday if the week is unapproved.
-- [ ] Notify admin on Sunday when a tutor still has not approved their hours.
-- [ ] Build the owner-admin check-in dashboard with tutor/class filters.
-- [ ] Let owner-admin edit, move, annotate, or remove incorrect check-in rows.
-- [ ] Keep tutor and admin check-in records synchronized and auditable.
-- [ ] Calculate total tutor pay owed from approved hours and pay rates.
-- [ ] Retain weekly and monthly check-in history for payroll records.
+- [x] Send tutor reminders on Saturday and Sunday if the week is unapproved.
+- [x] Notify admin on Sunday when a tutor still has not approved their hours.
+- [x] Build the owner-admin check-in dashboard with tutor/class filters.
+- [x] Let owner-admin edit, move, annotate, or remove incorrect check-in rows.
+- [x] Keep tutor and admin check-in records synchronized and auditable.
+- [x] Calculate total tutor pay owed from approved hours and pay rates.
+- [x] Retain weekly and monthly check-in history for payroll records.
 
 ## Student portal
 
 - [x] Remove the `Your quests` block for both student access types.
 - [x] Rename Math Blitz to `Taiyo Blitz`.
-- [ ] Display the student's rank on the Taiyo Blitz entry/logo.
-- [ ] Add year-level and whole-of-Taiyo leaderboard views.
+- [x] Display the student's rank on the Taiyo Blitz entry/logo.
+- [x] Add year-level and whole-of-Taiyo leaderboard views.
 - [x] Add stronger correct-answer feedback, optional sound, and visual effects.
 - [x] Add an in-game Close button that exits without opening another tab.
-- [ ] Let students choose a profile icon from a controlled icon library.
-- [ ] Show those profile icons to assigned tutors.
+- [x] Let students choose a profile icon from a controlled icon library.
+- [x] Show those profile icons to assigned tutors.
 - [x] Remove the `Open` and `Due this week` summary blocks from Student
   Homework.
 - [x] Add clear colour-coded effort levels to Student Progress, with accessible
@@ -443,6 +769,9 @@ Last audited: 11 September 2026
 
 ## Production deployment and acceptance
 
+- [x] Re-run `npm run typecheck`, all unit tests, and `npm run build` after
+  moving the repository out of iCloud. All completed successfully on
+  20 September; the follow-up batch now passes 161 tests across 28 files.
 - [x] Apply `supabase/migrations/0043_tutor_cover_workflow.sql`.
 - [x] Apply `supabase/migrations/0044_notification_dedupe.sql`.
 - [x] Add `CRON_SECRET` to the Vercel Production environment.
@@ -452,3 +781,24 @@ Last audited: 11 September 2026
   cover, free-trial notifications, homework bump messages, reception account
   restrictions, reschedule allowance/target rules, and Taiyo Blitz feedback.
 - [ ] Confirm production loading improvements using Vercel/Supabase timing data.
+
+## Deployment required for the next larger workflow batch
+
+- [ ] Apply `supabase/migrations/0045_account_pauses_and_class_moves.sql` to
+  Production after the new manual QA checks pass.
+- [ ] Apply `supabase/migrations/0046_profile_postal_addresses.sql` and
+  `0047_subject_search_aliases.sql` to Production after their QA checks pass.
+- [ ] Apply `supabase/migrations/0048_announcement_targeting_and_approval.sql`
+  to Production after announcement targeting/approval QA passes.
+- [ ] Apply `supabase/migrations/0049_student_profile_icons.sql` to Production
+  after student/tutor profile-icon QA passes.
+- [ ] Apply `supabase/migrations/0050_tutor_weekly_checkins.sql` to Production
+  after tutor/owner check-in and reminder QA passes.
+- [ ] Apply `supabase/migrations/0051_makeup_reschedule_history_backfill.sql`
+  to Production after make-up isolation/history QA passes; verify existing
+  make-up lessons gain one approved history row each without duplicate moves.
+- [ ] Apply `supabase/migrations/0052_tutor_payroll_integrity_guards.sql` to
+  Production together with the check-in release after payroll QA passes.
+- [ ] Commit and push the account-status and permanent-move implementation.
+- [ ] Deploy the approved batch to Vercel Production and repeat the permanent
+  move smoke test against non-client test accounts.

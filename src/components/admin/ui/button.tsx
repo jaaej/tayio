@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
+import { ActionSpinner } from "@/components/ui/loading-button";
 
 /**
  * Admin button - the reference `.btn`. Variant/size names are kept compatible
@@ -32,13 +33,35 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof button> {}
 
+function pendingText(children: React.ReactNode) {
+  const text = React.Children.toArray(children)
+    .filter((child): child is string => typeof child === "string")
+    .join(" ")
+    .trim();
+  return /(?:…|\.\.\.)$/.test(text) ? text : null;
+}
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(button({ variant, size }), className)}
-      {...props}
-    />
-  ),
+  ({ className, variant, size, children, disabled, ...props }, ref) => {
+    const loadingLabel = disabled ? pendingText(children) : null;
+    return (
+      <button
+        ref={ref}
+        className={cn(button({ variant, size }), className)}
+        disabled={disabled}
+        aria-busy={loadingLabel ? true : props["aria-busy"]}
+        {...props}
+      >
+        {loadingLabel ? (
+          <>
+            <ActionSpinner />
+            {loadingLabel}
+          </>
+        ) : (
+          children
+        )}
+      </button>
+    );
+  },
 );
 Button.displayName = "AdminButton";

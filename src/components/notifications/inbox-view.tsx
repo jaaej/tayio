@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -21,6 +21,7 @@ import {
   type NotificationTimeBucket,
 } from "@/lib/notification-groups";
 import { cn } from "@/lib/utils";
+import { relativeTime } from "@/lib/format";
 
 /**
  * One row as the server hands it over. Everything time-dependent (the bucket,
@@ -360,7 +361,10 @@ function Row({ item, expanded }: { item: InboxItem; expanded: boolean }) {
           dateTime={item.createdAtIso}
           className="text-[10px] font-bold uppercase tracking-[0.08em] tabular-nums"
         >
-          {item.timeLabel}
+          <LiveRelativeTime
+            createdAtIso={item.createdAtIso}
+            initialLabel={item.timeLabel}
+          />
         </time>
         {item.href ? (
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
@@ -376,6 +380,38 @@ function Row({ item, expanded }: { item: InboxItem; expanded: boolean }) {
       </div>
     </div>
   );
+}
+
+function LiveRelativeTime({
+  createdAtIso,
+  initialLabel,
+}: {
+  createdAtIso: string;
+  initialLabel: string;
+}) {
+  const [label, setLabel] = useState(initialLabel);
+
+  useEffect(() => {
+    const update = () => setLabel(relativeTime(new Date(createdAtIso)));
+    update();
+
+    // Align the first tick to the next wall-clock minute, then update once per
+    // minute. That makes 5m become 6m at the correct boundary rather than up
+    // to a minute late based on when the page happened to mount.
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const delay = 60_000 - (Date.now() % 60_000) + 25;
+    const timeout = setTimeout(() => {
+      update();
+      interval = setInterval(update, 60_000);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [createdAtIso]);
+
+  return label;
 }
 
 function EmptyState({

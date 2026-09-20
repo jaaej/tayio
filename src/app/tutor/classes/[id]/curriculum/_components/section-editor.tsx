@@ -37,6 +37,7 @@ import {
 } from "@/lib/subject-colors";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -389,7 +390,9 @@ export function SectionEditor({
                   disabled={pending}
                   className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
                 >
-                  {pending ? "Saving…" : "Save note"}
+                  <ActionButtonLabel pending={pending} pendingLabel="Saving…">
+                    Save note
+                  </ActionButtonLabel>
                 </button>
               </form>
 
@@ -457,7 +460,9 @@ export function SectionEditor({
                   disabled={pending}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-2 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
                 >
-                  {pending ? "Uploading…" : "Upload file"}
+                  <ActionButtonLabel pending={pending} pendingLabel="Uploading…">
+                    Upload file
+                  </ActionButtonLabel>
                 </button>
               </form>
 
@@ -622,8 +627,12 @@ export function SectionEditor({
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
               >
-                <Plus className="h-3.5 w-3.5" />
-                {pending ? "Saving…" : "Assign homework"}
+                <ActionButtonLabel pending={pending} pendingLabel="Saving…">
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    Assign homework
+                  </>
+                </ActionButtonLabel>
               </button>
             </form>
           )}
@@ -754,7 +763,9 @@ function PromoteControl({
         disabled={pending}
         className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
       >
-        {pending ? "Publishing…" : "Publish"}
+        <ActionButtonLabel pending={pending} pendingLabel="Publishing…">
+          Publish
+        </ActionButtonLabel>
       </button>
       <button
         type="button"

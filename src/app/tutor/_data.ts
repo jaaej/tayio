@@ -129,6 +129,10 @@ export async function getClassAnnouncementsForTutor(
         id: announcements.id,
         title: announcements.title,
         body: announcements.body,
+        status: announcements.status,
+        isUrgent: announcements.isUrgent,
+        includeLinkedParents: announcements.includeLinkedParents,
+        rejectedReason: announcements.rejectedReason,
         publishedAt: announcements.publishedAt,
       })
       .from(announcements)
@@ -189,6 +193,7 @@ export type TutorClassRoster = {
     lastName: string;
     email: string;
     yearLevel: string | null;
+    profileAvatarKey: string | null;
   }>;
 };
 
@@ -213,6 +218,7 @@ export async function getTutorStudentsByClass(
       lastName: profiles.lastName,
       email: profiles.email,
       yearLevel: profiles.yearLevel,
+      profileAvatarKey: profiles.profileAvatarKey,
     })
     .from(classes)
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
@@ -255,6 +261,7 @@ export async function getTutorStudentsByClass(
         lastName: r.lastName ?? "",
         email: r.email ?? "",
         yearLevel: r.yearLevel,
+        profileAvatarKey: r.profileAvatarKey,
       });
       distinctStudents.add(r.studentId);
     }

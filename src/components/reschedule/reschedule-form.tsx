@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { submitReschedule, grantRescheduleCredit } from "@/app/_actions/reschedule";
 import { cancelLesson } from "@/app/_actions/credits";
 import { CANCEL_CAP, RESCHEDULE_CAP } from "@/lib/reschedule-credits";
+import { ActionButtonLabel, LoadingButton } from "@/components/ui/loading-button";
 
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2";
@@ -199,8 +200,7 @@ export function RescheduleForm(props: {
     });
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitAction() {
     if (!picked) return;
     const fd = new FormData();
     fd.set("lessonId", props.lessonId);
@@ -209,10 +209,9 @@ export function RescheduleForm(props: {
     fd.set("reason", reason);
     if (props.mode === "switch") fd.set("targetLessonId", picked);
     else fd.set("slot", picked);
-    start(async () => {
-      const res = await submitReschedule(fd);
-      setResult(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
-    });
+    const res = await submitReschedule(fd);
+    setResult(res.ok ? { ok: true, text: res.message } : { ok: false, text: res.error });
+    if (!res.ok) throw new Error(res.error);
   }
 
   function useCreditInstead() {
@@ -283,7 +282,9 @@ export function RescheduleForm(props: {
               FOCUS_RING
             }
           >
-            {pending ? "Working…" : "Get a class credit instead"}
+            <ActionButtonLabel pending={pending} pendingLabel="Working…">
+              Get a class credit instead
+            </ActionButtonLabel>
           </button>
           {props.adminId && (
             <Link
@@ -302,7 +303,13 @@ export function RescheduleForm(props: {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submitAction().catch(() => undefined);
+      }}
+      className="space-y-5"
+    >
       {/* Calendar header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
@@ -470,16 +477,17 @@ export function RescheduleForm(props: {
         >
           Back
         </Link>
-        <button
-          type="submit"
+        <LoadingButton
+          onAction={submitAction}
           disabled={!picked || pending}
-          className={
-            "min-h-11 rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50 " +
-            FOCUS_RING
-          }
+          variant="brand"
+          pendingLabel="Submitting…"
+          successLabel="Rescheduled"
+          errorLabel="Try again"
+          className={FOCUS_RING}
         >
-          {pending ? "Submitting…" : "Confirm reschedule"}
-        </button>
+          Confirm reschedule
+        </LoadingButton>
       </div>
     </form>
   );
@@ -591,7 +599,9 @@ export function CancelLessonAction(props: {
                 FOCUS_RING
               }
             >
-              {pending ? "Cancelling…" : "Cancel lesson"}
+              <ActionButtonLabel pending={pending} pendingLabel="Cancelling…">
+                Cancel lesson
+              </ActionButtonLabel>
             </button>
           </div>
         </div>

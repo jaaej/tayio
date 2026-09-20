@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { attendance, classes, familyLinks, lessons, notifications, rescheduleRequests } from "@/db/schema";
+import { attendance, classes, familyLinks, lessons, notifications, profiles, rescheduleRequests } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { coarseRole } from "@/lib/roles";
+import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
 import {
   executeMakeupReschedule,
@@ -15,7 +15,6 @@ import {
   getReschedulableLesson,
   hasPriorReschedule,
   markStudentAbsent,
-  recordDirectMakeup,
   studentDisplayName,
   studentOwnsLesson,
   approveRescheduleRequest,
@@ -201,7 +200,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
   const matchedSlot = slots.find(
     (s) => s.tutorId === tutorId && s.date === date && s.startTime === startTime,
   );
-  if (!matchedSlot) {
+  if (!matchedSlot || matchedSlot.taken) {
     return { ok: false, error: "That time is no longer available - pick another." };
   }
 
@@ -219,7 +218,19 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
     };
   }
   const rescheduleBonus = await getAllowanceBonus(studentId, term.id);
+  const [sameLessonAlreadyUsed] = await db
+    .select({ id: rescheduleRequests.id })
+    .from(rescheduleRequests)
+    .innerJoin(profiles, eq(profiles.id, rescheduleRequests.requestedById))
+    .where(and(
+      eq(rescheduleRequests.studentId, studentId),
+      eq(rescheduleRequests.originalLessonId, lessonId),
+      eq(rescheduleRequests.status, "approved"),
+      notInArray(profiles.role, [...ADMIN_TIERS]),
+    ))
+    .limit(1);
   if (
+    !sameLessonAlreadyUsed &&
     remaining(
       RESCHEDULE_CAP + rescheduleBonus.reschedule,
       await getReschedulesUsed(studentId, term.id),
@@ -267,17 +278,6 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
     actorId: user.id,
   });
   if (!res.ok) return res;
-  await recordDirectMakeup({
-    studentId,
-    requestedById: user.id,
-    originalLessonId: lessonId,
-    makeupLessonId: res.lessonId,
-    tutorId,
-    date,
-    startTime,
-    endTime: matchedSlot.endTime,
-    reason,
-  });
   done();
   return { ok: true, message: "Lesson moved." };
 }

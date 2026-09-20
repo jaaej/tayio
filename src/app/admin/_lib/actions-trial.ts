@@ -71,6 +71,7 @@ export async function setStudentTrial(input: z.infer<typeof setSchema>) {
     }
   });
 
+  revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${data.studentId}`);
   return { ok: true as const };
 }
@@ -84,6 +85,7 @@ export async function clearStudentTrial(studentId: string) {
     tx.delete(studentTrials).where(eq(studentTrials.studentId, studentId)),
   );
 
+  revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${studentId}`);
   return { ok: true as const };
 }

@@ -14,6 +14,11 @@ import {
   type DirectoryUser,
 } from "@/app/admin/_lib/queries";
 import { formatDateLong } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import {
+  accountScheduleStatusLabel,
+  freeTrialDirectoryState,
+} from "@/lib/account-schedule-status";
 import {
   Card,
   Pill,
@@ -29,6 +34,11 @@ import { CreateUserPanel } from "./_components/create-user-panel";
 import { UserRowActions } from "./_components/user-row-actions";
 import { UserTableHeaderRow } from "./_components/user-table-filters";
 import { UserMobileFilters } from "./_components/user-mobile-filters";
+import { getSubjectSearchAliases } from "@/lib/subject-search-aliases";
+import {
+  directoryEntryMatches,
+  matchingAliasSubjectIds,
+} from "@/lib/directory-search";
 
 export const dynamic = "force-dynamic";
 
@@ -85,10 +95,17 @@ export default async function UsersPage({
   const school = sp.school || null;
   const query = (sp.q ?? "").trim().toLowerCase();
 
-  const [directory, me] = await Promise.all([
+  const [directory, me, subjectAliases] = await Promise.all([
     getUserDirectory(),
     getCurrentUser(),
+    getSubjectSearchAliases(),
   ]);
+  const aliasSubjectIds = matchingAliasSubjectIds(
+    subjectAliases.flatMap((entry) =>
+      entry.alias ? [{ subjectId: entry.subjectId, alias: entry.alias }] : [],
+    ),
+    query,
+  );
   const canManageRoles = isUnrestrictedAdmin(
     me?.app_metadata?.role as UserRole | undefined,
   );
@@ -112,14 +129,7 @@ export default async function UsersPage({
   const listed = scoped.filter(
     (u) =>
       (!roleFilter || coarseRole(u.role) === roleFilter) &&
-      (!query ||
-        `${u.firstName} ${u.lastName}`.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
-        u.classInfo.some(
-          (item) =>
-            item.name.toLowerCase().includes(query) ||
-            item.subjectName.toLowerCase().includes(query),
-        )),
+      directoryEntryMatches(u, query, aliasSubjectIds),
   );
 
   const sorted = [...listed].sort((a, b) => {
@@ -219,6 +229,11 @@ function UserRow({
   canManageAccount: boolean;
 }) {
   const status = directoryStatus(u);
+  const today = melbourneDate(new Date());
+  const scheduleStatus = u.schedulePeriod
+    ? accountScheduleStatusLabel(u.schedulePeriod, today)
+    : null;
+  const trialState = freeTrialDirectoryState(u.trialPeriod, today);
   // This directory answers "what do they teach/study?". Collapse several
   // class slots for the same subject and keep weekday/session details on the
   // linked class page itself.
@@ -251,6 +266,18 @@ function UserRow({
                 </Link>
               </span>
             ))}
+          </div>
+        )}
+        {u.trialPeriod && (
+          <div
+            title={`Free trial: ${formatDateLong(u.trialPeriod.startDate)}–${formatDateLong(u.trialPeriod.endDate)}`}
+            className="mt-2 max-w-[300px] rounded-[8px] border border-info/20 bg-info-bg px-2.5 py-1.5 text-[11px] font-medium leading-snug text-info"
+          >
+            <span className="font-bold">Free trial dates:</span>{" "}
+            <span className="tabular-nums">
+              {formatDateLong(u.trialPeriod.startDate)}–
+              {formatDateLong(u.trialPeriod.endDate)}
+            </span>
           </div>
         )}
         {u.adminNotes.length > 0 && (
@@ -323,6 +350,42 @@ function UserRow({
           <Pill tone={status === "active" ? "good" : "default"} dot>
             {status}
           </Pill>
+          {trialState && (
+            <Pill
+              tone={
+                trialState === "current"
+                  ? "info"
+                  : trialState === "scheduled"
+                    ? "brand"
+                    : "default"
+              }
+              dot={trialState === "current"}
+            >
+              {trialState === "current"
+                ? "Free trial"
+                : trialState === "scheduled"
+                  ? "Trial scheduled"
+                  : "Trial ended"}
+            </Pill>
+          )}
+          {scheduleStatus && (
+            <>
+              <Pill
+                tone={
+                  u.schedulePeriod?.approval === "pending" ? "warn" : "info"
+                }
+                dot
+              >
+                {scheduleStatus}
+              </Pill>
+              {u.schedulePeriod && (
+                <span className="text-[11px] text-muted tabular-nums">
+                  {formatDateLong(u.schedulePeriod.startDate)}–
+                  {formatDateLong(u.schedulePeriod.endDate)}
+                </span>
+              )}
+            </>
+          )}
           {u.withdrawnClasses > 0 && u.lastWithdrawnAt && (
             <span className="text-[11px] text-muted">
               Left {u.withdrawnClasses} class

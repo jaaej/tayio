@@ -21,6 +21,7 @@ export function SubjectWeekFields({
   idPrefix: string;
   weeks: QuizTargetWeek[];
 }) {
+  const fixedWeek = weeks.length === 1 ? weeks[0] : null;
   // `subjects.name` is unique in the schema, so the name is a safe key.
   const subjects = useMemo(
     () =>
@@ -30,12 +31,28 @@ export function SubjectWeekFields({
     [weeks],
   );
 
-  const [subject, setSubject] = useState("");
-  const [weekId, setWeekId] = useState("");
+  // Curriculum opens this panel for one exact week. Preselecting the sole
+  // option makes that context obvious and avoids asking admin to pick the week
+  // they just opened; the standalone multi-week form still starts unselected.
+  const onlyWeek = weeks.length === 1 ? weeks[0] : null;
+  const [subject, setSubject] = useState(onlyWeek?.subjectName ?? "");
+  const [weekId, setWeekId] = useState(onlyWeek?.id ?? "");
   const subjectWeeks = weeks.filter((w) => w.subjectName === subject);
 
   const subjectId = `${idPrefix}-subject`;
   const weekFieldId = `${idPrefix}-week`;
+
+  if (fixedWeek) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="block font-bold">Curriculum week</Label>
+        <input type="hidden" name="subjectWeekId" value={fixedWeek.id} />
+        <div className="rounded-[10px] border border-brand-200 bg-brand-50 px-4 py-3 text-[13px] font-semibold text-brand-700">
+          {fixedWeek.label}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">

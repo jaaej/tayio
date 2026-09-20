@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   adminAssignTutorCover,
   adminReopenTutorCover,
@@ -10,39 +11,48 @@ import {
 
 export function LeaveDecisionButtons({ leaveRequestId }: { leaveRequestId: string }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function decide(decision: "approve" | "reject") {
+  async function decide(decision: "approve" | "reject") {
     setError(null);
-    start(async () => {
+    setBusy(true);
+    try {
       const result = await decideTutorLeave({ leaveRequestId, decision });
       if (!result.ok) {
         setError(result.error);
-        return;
+        throw new Error(result.error);
       }
       router.refresh();
-    });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => decide("reject")}
-        className="min-h-9 rounded-full border border-line-strong bg-surface px-3.5 text-[12px] font-bold text-ink hover:border-bad hover:text-bad disabled:opacity-50"
+      <LoadingButton
+        disabled={busy}
+        onAction={() => decide("reject")}
+        size="sm"
+        variant="danger"
+        pendingLabel="Rejecting…"
+        successLabel="Rejected"
+        errorLabel="Try again"
       >
         Reject
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => decide("approve")}
-        className="min-h-9 rounded-full bg-brand-600 px-3.5 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
+      </LoadingButton>
+      <LoadingButton
+        disabled={busy}
+        onAction={() => decide("approve")}
+        size="sm"
+        variant="brand"
+        pendingLabel="Posting…"
+        successLabel="Posted"
+        errorLabel="Try again"
       >
-        {pending ? "Saving…" : "Approve & post classes"}
-      </button>
+        Approve & post classes
+      </LoadingButton>
       {error && <p className="w-full text-right text-[11px] text-bad">{error}</p>}
     </div>
   );
@@ -60,29 +70,37 @@ export function AssignCoverForm({
   tutors: Array<{ id: string; firstName: string; lastName: string }>;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [selectedTutorId, setSelectedTutorId] = useState(
+    currentReplacementTutorId ?? "",
+  );
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function submit(formData: FormData) {
+  async function submit() {
     setError(null);
-    start(async () => {
+    setBusy(true);
+    try {
+      const formData = new FormData();
+      formData.set("coverRequestId", coverRequestId);
+      formData.set("replacementTutorId", selectedTutorId);
       const result = await adminAssignTutorCover(formData);
       if (!result.ok) {
         setError(result.error);
-        return;
+        throw new Error(result.error);
       }
       router.refresh();
-    });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <form action={submit} className="flex min-w-[260px] flex-wrap justify-end gap-2">
-      <input type="hidden" name="coverRequestId" value={coverRequestId} />
+    <div className="flex min-w-[260px] flex-wrap justify-end gap-2">
       <select
-        name="replacementTutorId"
         required
-        defaultValue={currentReplacementTutorId ?? ""}
-        disabled={pending}
+        value={selectedTutorId}
+        onChange={(event) => setSelectedTutorId(event.target.value)}
+        disabled={busy}
         aria-label="Replacement tutor"
         className="min-h-9 max-w-44 rounded-[9px] border border-line bg-surface px-2.5 text-[12px] text-ink"
       >
@@ -95,21 +113,19 @@ export function AssignCoverForm({
             </option>
           ))}
       </select>
-      <button
-        type="submit"
-        disabled={pending}
-        className="min-h-9 rounded-full bg-ink px-3.5 text-[12px] font-bold text-white disabled:opacity-50"
+      <LoadingButton
+        onAction={submit}
+        disabled={busy || !selectedTutorId}
+        size="sm"
+        variant="brand"
+        pendingLabel={currentReplacementTutorId ? "Changing…" : "Assigning…"}
+        successLabel={currentReplacementTutorId ? "Changed" : "Assigned"}
+        errorLabel="Try again"
       >
-        {pending
-          ? currentReplacementTutorId
-            ? "Changing…"
-            : "Assigning…"
-          : currentReplacementTutorId
-            ? "Change tutor"
-            : "Assign"}
-      </button>
+        {currentReplacementTutorId ? "Change tutor" : "Assign"}
+      </LoadingButton>
       {error && <p className="w-full text-right text-[11px] text-bad">{error}</p>}
-    </form>
+    </div>
   );
 }
 
@@ -119,32 +135,40 @@ export function ReopenCoverButton({
   coverRequestId: string;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function reopen(formData: FormData) {
+  async function reopen() {
     setError(null);
-    start(async () => {
+    setBusy(true);
+    try {
+      const formData = new FormData();
+      formData.set("coverRequestId", coverRequestId);
       const result = await adminReopenTutorCover(formData);
       if (!result.ok) {
         setError(result.error);
-        return;
+        throw new Error(result.error);
       }
       router.refresh();
-    });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <form action={reopen} className="flex flex-col items-end gap-1">
-      <input type="hidden" name="coverRequestId" value={coverRequestId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="min-h-9 rounded-full border border-bad/40 bg-surface px-3.5 text-[12px] font-bold text-bad hover:bg-bad-bg disabled:opacity-50"
+    <div className="flex flex-col items-end gap-1">
+      <LoadingButton
+        onAction={reopen}
+        disabled={busy}
+        size="sm"
+        variant="danger"
+        pendingLabel="Returning…"
+        successLabel="Returned"
+        errorLabel="Try again"
       >
-        {pending ? "Returning…" : "Return to board"}
-      </button>
+        Return to board
+      </LoadingButton>
       {error && <p className="max-w-64 text-right text-[11px] text-bad">{error}</p>}
-    </form>
+    </div>
   );
 }

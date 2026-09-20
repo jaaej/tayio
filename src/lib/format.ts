@@ -59,11 +59,15 @@ export function formatMoney(n: number, currency = "AUD") {
   }).format(n);
 }
 
-export function relativeTime(d: Date) {
-  const diffHours = Math.round((Date.now() - d.getTime()) / 36e5);
-  if (diffHours < 1) return "just now";
+export function relativeTime(d: Date, now: Date | number = Date.now()) {
+  const nowMs = typeof now === "number" ? now : now.getTime();
+  const diffMinutes = Math.max(0, Math.floor((nowMs - d.getTime()) / 60_000));
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
-  const days = Math.round(diffHours / 24);
+  const days = Math.floor(diffHours / 24);
   if (days < 14) return `${days}d ago`;
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }

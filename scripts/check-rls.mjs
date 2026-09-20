@@ -28,10 +28,16 @@ const ALLOW_NO_RLS = new Set([
   "allowance_adjustments", // admin-only allowance top-ups, migration 0032
   "student_leave", // admin-managed leave/holiday periods, migration 0033
   "tutor_bank_details", // owner-only tutor payroll PII, migration 0035
+  "tutor_weekly_checkins", // tutor/owner weekly approvals, migration 0050
+  "tutor_checkin_entries", // owner-correctable payroll snapshots, migration 0050
   "quiz_attempts", // server-written practice quiz scores, migration 0036
   "student_trials", // admin-managed free-trial periods, migration 0037
   "tutor_leave_requests", // tutor/admin cover workflow, migration 0043
   "tutor_cover_requests", // tutor/admin cover workflow, migration 0043
+  "class_move_requests", // permanent class relocation workflow, migration 0045
+  "subject_search_aliases", // owner-managed directory quick keys, migration 0047
+  "announcement_recipients", // server-resolved audience snapshots, migration 0048
+  "announcement_email_deliveries", // auditable urgent-email queue, migration 0048
   "schema_migrations", // migration ledger, created by scripts/migration-ledger.mjs
 ]);
 

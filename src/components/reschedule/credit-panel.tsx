@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { loadCreditRedemption, redeemCredit } from "@/app/_actions/credits";
 import type { RescheduleSlot } from "@/app/_actions/reschedule";
+import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export type PanelCredit = {
   id: string;
@@ -140,7 +141,12 @@ export function CreditPanel({
                         FOCUS_RING,
                       )}
                     >
-                      {loading && pendingId === c.id ? "Loading…" : "Use credit"}
+                      <ActionButtonLabel
+                        pending={loading && pendingId === c.id}
+                        pendingLabel="Loading…"
+                      >
+                        Use credit
+                      </ActionButtonLabel>
                     </button>
                   )}
                 </div>
@@ -247,7 +253,9 @@ export function CreditPanel({
                               FOCUS_RING,
                             )}
                           >
-                            {submitting ? "Booking…" : "Book credit"}
+                            <ActionButtonLabel pending={submitting} pendingLabel="Booking…">
+                              Book credit
+                            </ActionButtonLabel>
                           </button>
                         </div>
                       </>

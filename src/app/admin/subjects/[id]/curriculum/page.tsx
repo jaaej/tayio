@@ -3,7 +3,15 @@ import Link from "next/link";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { Hero, BackLink } from "@/components/admin/ui";
 import { db } from "@/db/client";
-import { subjectWeeks, subjects, terms, subjectTopics } from "@/db/schema";
+import {
+  profiles,
+  quizzes,
+  quizQuestions,
+  subjectWeeks,
+  subjects,
+  terms,
+  subjectTopics,
+} from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
@@ -89,6 +97,35 @@ export default async function AdminSubjectCurriculumPage({
     ? weeks.find((w) => w.id === weekParam)
     : weeks[0];
 
+  const [weekQuiz, tutorRows] = await Promise.all([
+    selectedWeek
+      ? db
+          .select({
+            id: quizzes.id,
+            title: quizzes.title,
+            status: quizzes.status,
+            questionCount: sql<number>`(
+              select count(*)::int from ${quizQuestions}
+              where ${quizQuestions.quizId} = ${quizzes.id}
+                and ${quizQuestions.type} <> 'context'
+            )`,
+          })
+          .from(quizzes)
+          .where(eq(quizzes.subjectWeekId, selectedWeek.id))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+    db
+      .select({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+      })
+      .from(profiles)
+      .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
+      .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
+  ]);
+
   const topicNameById = new Map(topics.map((t) => [t.id, t.name]));
   const railWeeks: RailWeek[] = weeks.map((w) => ({
     id: w.id,
@@ -134,6 +171,11 @@ export default async function AdminSubjectCurriculumPage({
             topics={topics}
             subjectName={subject.name}
             weekCounts={weekCounts}
+            quiz={null}
+            quizTutors={tutorRows.map((tutor) => ({
+              id: tutor.id,
+              name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),
+            }))}
           />
         ) : (
           <WeekEditor
@@ -143,6 +185,17 @@ export default async function AdminSubjectCurriculumPage({
             topics={topics}
             subjectName={subject.name}
             weekCounts={weekCounts}
+            quiz={weekQuiz}
+            quizTutors={tutorRows.map((tutor) => ({
+              id: tutor.id,
+              name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),
+            }))}
+            quizTarget={{
+              id: selectedWeek.id,
+              label: `${subject.name} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${selectedWeek.weekNumber}`,
+              subjectName: subject.name,
+              weekLabel: `${currentTerm.year} Term ${currentTerm.termNumber}, Week ${selectedWeek.weekNumber}`,
+            }}
           />
         )}
       </CurriculumLayout>
