@@ -784,21 +784,21 @@ Last updated: 20 September 2026
 
 ## Deployment required for the next larger workflow batch
 
-- [ ] Apply `supabase/migrations/0045_account_pauses_and_class_moves.sql` to
-  Production after the new manual QA checks pass.
-- [ ] Apply `supabase/migrations/0046_profile_postal_addresses.sql` and
-  `0047_subject_search_aliases.sql` to Production after their QA checks pass.
-- [ ] Apply `supabase/migrations/0048_announcement_targeting_and_approval.sql`
-  to Production after announcement targeting/approval QA passes.
-- [ ] Apply `supabase/migrations/0049_student_profile_icons.sql` to Production
-  after student/tutor profile-icon QA passes.
-- [ ] Apply `supabase/migrations/0050_tutor_weekly_checkins.sql` to Production
-  after tutor/owner check-in and reminder QA passes.
-- [ ] Apply `supabase/migrations/0051_makeup_reschedule_history_backfill.sql`
-  to Production after make-up isolation/history QA passes; verify existing
-  make-up lessons gain one approved history row each without duplicate moves.
-- [ ] Apply `supabase/migrations/0052_tutor_payroll_integrity_guards.sql` to
-  Production together with the check-in release after payroll QA passes.
-- [ ] Commit and push the account-status and permanent-move implementation.
-- [ ] Deploy the approved batch to Vercel Production and repeat the permanent
-  move smoke test against non-client test accounts.
+- [x] Apply `supabase/migrations/0045_account_pauses_and_class_moves.sql` to
+  Production.
+- [x] Apply `supabase/migrations/0046_profile_postal_addresses.sql` and
+  `0047_subject_search_aliases.sql` to Production.
+- [x] Apply `supabase/migrations/0048_announcement_targeting_and_approval.sql`
+  to Production.
+- [x] Apply `supabase/migrations/0049_student_profile_icons.sql` to Production.
+- [x] Apply `supabase/migrations/0050_tutor_weekly_checkins.sql` to Production.
+- [x] Apply `supabase/migrations/0051_makeup_reschedule_history_backfill.sql`
+  to Production. The production backfill completed with no duplicate targets.
+- [x] Apply `supabase/migrations/0052_tutor_payroll_integrity_guards.sql` to
+  Production.
+- [x] Commit and push the account-status, class-move, announcement, make-up,
+  profile, curriculum, and payroll implementation (`b80c4b1`).
+- [x] Deploy the batch to Vercel Production at
+  `https://portal.taiyotuition.com`.
+- [ ] Repeat the role-specific live smoke tests against non-client test
+  accounts.
