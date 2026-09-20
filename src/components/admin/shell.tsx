@@ -30,6 +30,7 @@ import { runTutorCoverReminders } from "@/lib/tutor-cover";
 import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
 import { CoverAlertPoller } from "./cover-alert-poller";
+import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
 
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
@@ -167,15 +168,13 @@ export async function AdminShell({
   const initial = userName.charAt(0).toUpperCase();
 
   return (
-    <div className="theme-tutor min-h-screen grid lg:grid-rows-[56px_1fr] lg:grid-cols-[240px_1fr]">
+    <>
       <CoverAlertPoller />
-      {/* Top bar */}
-      <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
-        <div className="w-[222px] pr-2 flex items-center">
-          <BrandMark />
-        </div>
-
-        <div className="ml-auto flex items-center gap-2.5">
+      <CollapsiblePortalShell
+        themeClassName="theme-tutor"
+        desktopBrand={<BrandMark />}
+        desktopActions={
+          <>
           <Link
             href="/admin/notifications"
             className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
@@ -222,41 +221,39 @@ export async function AdminShell({
               <LogOut className="h-[18px] w-[18px]" />
             </button>
           </form>
-        </div>
-      </header>
-
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col bg-surface border-r border-line overflow-y-auto p-3 pb-2">
-        <div className="flex-1">
-          <AdminNavLinks sections={sections} />
-        </div>
-        <div className="mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
-          <div>Taiyo Tuition · v0.4 preview</div>
-          <div>© 2026 Taiyo Pty Ltd</div>
-        </div>
-      </aside>
-
-      {/* Mobile top bar */}
-      <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-        <div className="px-5 h-14 flex items-center justify-between gap-3">
-          <BrandMark />
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </form>
-        </div>
-        <AdminNavLinksMobile sections={sections} />
-      </header>
-
-      {/* Main */}
-      <main className="min-w-0 overflow-y-auto px-5 lg:px-7 py-6 lg:pb-16">
+          </>
+        }
+        desktopSidebar={
+          <>
+            <div className="flex-1">
+              <AdminNavLinks sections={sections} />
+            </div>
+            <div className="portal-sidebar-footer mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
+              <div>Taiyo Tuition · v0.4 preview</div>
+              <div>© 2026 Taiyo Pty Ltd</div>
+            </div>
+          </>
+        }
+        mobileHeader={
+          <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
+            <div className="px-5 h-14 flex items-center justify-between gap-3">
+              <BrandMark />
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  aria-label="Sign out"
+                  className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+                >
+                  <LogOut className="h-[18px] w-[18px]" />
+                </button>
+              </form>
+            </div>
+            <AdminNavLinksMobile sections={sections} />
+          </header>
+        }
+      >
         {children}
-      </main>
-    </div>
+      </CollapsiblePortalShell>
+    </>
   );
 }

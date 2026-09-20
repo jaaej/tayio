@@ -2,7 +2,13 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
 import { ForgotPasswordForm } from "./form";
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="min-h-screen brand-field grain flex flex-col">
       <div className="mx-auto max-w-6xl w-full px-6 lg:px-10 pt-8">
@@ -25,6 +31,12 @@ export default function ForgotPasswordPage() {
           </p>
 
           <div className="mt-10">
+            {error === "invalid_or_expired" ? (
+              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                That password-reset link is invalid, expired, or has already
+                been used. Request a new link below.
+              </div>
+            ) : null}
             <ForgotPasswordForm />
           </div>
 

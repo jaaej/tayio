@@ -18,6 +18,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
 import { ParentNavLinks, ParentNavLinksMobile, type NavSection } from "./nav-links";
+import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
 
 const IC = "h-[18px] w-[18px]";
 
@@ -108,14 +109,11 @@ export async function ParentShell({
   const initial = userName.charAt(0).toUpperCase();
 
   return (
-    <div className="theme-parent min-h-screen grid lg:grid-rows-[56px_1fr] lg:grid-cols-[240px_1fr]">
-      {/* Top bar */}
-      <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
-        <div className="w-[222px] pr-2 flex items-center">
-          <BrandMark />
-        </div>
-
-        <div className="ml-auto flex items-center gap-2.5">
+    <CollapsiblePortalShell
+      themeClassName="theme-parent"
+      desktopBrand={<BrandMark />}
+      desktopActions={
+        <>
           <Link
             href="/parent/notifications"
             className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
@@ -162,41 +160,38 @@ export async function ParentShell({
               <LogOut className="h-[18px] w-[18px]" />
             </button>
           </form>
-        </div>
-      </header>
-
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col bg-surface border-r border-line overflow-y-auto p-3 pb-2">
-        <div className="flex-1">
-          <ParentNavLinks sections={sections} />
-        </div>
-        <div className="mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
-          <div>Taiyo Tuition · v0.4 preview</div>
-          <div>© 2026 Taiyo Pty Ltd</div>
-        </div>
-      </aside>
-
-      {/* Mobile top bar */}
-      <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-        <div className="px-5 h-14 flex items-center justify-between gap-3">
-          <BrandMark />
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </form>
-        </div>
-        <ParentNavLinksMobile sections={sections} />
-      </header>
-
-      {/* Main */}
-      <main className="min-w-0 overflow-y-auto px-5 lg:px-7 py-6 lg:pb-16">
-        {children}
-      </main>
-    </div>
+        </>
+      }
+      desktopSidebar={
+        <>
+          <div className="flex-1">
+            <ParentNavLinks sections={sections} />
+          </div>
+          <div className="portal-sidebar-footer mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
+            <div>Taiyo Tuition · v0.4 preview</div>
+            <div>© 2026 Taiyo Pty Ltd</div>
+          </div>
+        </>
+      }
+      mobileHeader={
+        <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
+          <div className="px-5 h-14 flex items-center justify-between gap-3">
+            <BrandMark />
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+              </button>
+            </form>
+          </div>
+          <ParentNavLinksMobile sections={sections} />
+        </header>
+      }
+    >
+      {children}
+    </CollapsiblePortalShell>
   );
 }

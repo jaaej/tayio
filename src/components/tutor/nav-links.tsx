@@ -28,8 +28,10 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
+      aria-label={item.label}
+      title={item.label}
       className={cn(
-        "group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-[13px] font-semibold w-full text-left",
+        "portal-nav-item group relative flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-[13px] font-semibold w-full text-left",
         active
           ? "bg-brand-50 text-brand-700"
           : "text-ink-soft hover:bg-surface-2",
@@ -43,11 +45,11 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       >
         {item.icon}
       </span>
-      <span className="truncate">{item.label}</span>
+      <span className="portal-nav-label truncate">{item.label}</span>
       {item.badge && item.badge > 0 ? (
         <span
           className={cn(
-            "ml-auto inline-flex items-center justify-center rounded-full text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums",
+            "portal-nav-badge ml-auto inline-flex items-center justify-center rounded-full text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums",
             item.badgeTone === "danger" ? "bg-bad" : "bg-brand-500",
           )}
         >
@@ -64,7 +66,7 @@ export function TutorNavLinks({ sections }: { sections: NavSection[] }) {
     <nav className="space-y-5">
       {sections.map((section) => (
         <div key={section.heading}>
-          <h6 className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.12em] text-muted-2 font-bold">
+          <h6 className="portal-nav-heading px-3 mb-1.5 text-[10px] uppercase tracking-[0.12em] text-muted-2 font-bold">
             {section.heading}
           </h6>
           <div className="space-y-0.5">

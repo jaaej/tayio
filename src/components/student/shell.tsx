@@ -26,6 +26,7 @@ import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { StudentNavLinks, StudentNavLinksMobile, type NavSection } from "./nav-links";
+import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
 
 const IC = "h-[18px] w-[18px]";
 
@@ -145,14 +146,11 @@ export async function StudentShell({
   const initial = userName.charAt(0).toUpperCase();
 
   return (
-    <div className="theme-student min-h-screen grid lg:grid-rows-[56px_1fr] lg:grid-cols-[240px_1fr]">
-      {/* Top bar */}
-      <header className="hidden lg:flex lg:col-span-2 items-center gap-4 bg-surface border-b border-line px-4 sticky top-0 z-30">
-        <div className="w-[222px] pr-2 flex items-center">
-          <BrandMark />
-        </div>
-
-        <div className="ml-auto flex items-center gap-2.5">
+    <CollapsiblePortalShell
+      themeClassName="theme-student"
+      desktopBrand={<BrandMark />}
+      desktopActions={
+        <>
           <Link
             href="/student/notifications"
             className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
@@ -205,64 +203,63 @@ export async function StudentShell({
               <LogOut className="h-[18px] w-[18px]" />
             </button>
           </form>
-        </div>
-      </header>
-
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col bg-surface border-r border-line overflow-y-auto p-3 pb-2">
-        <Link
-          href="/student/math-game"
-          className="group mb-3 block rounded-[18px] p-3.5 text-white shadow-sm transition-transform hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7B6EF0]/60"
-          style={{
-            backgroundImage:
-              "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="relative h-9 w-9 grid place-items-center rounded-[12px] bg-white/20">
-              <Gamepad2 className="h-5 w-5" />
-              {blitzRank ? (
-                <span className="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[9px] font-extrabold tabular-nums text-[#5A21B0] shadow-sm">
-                  #{blitzRank}
-                </span>
-              ) : null}
+        </>
+      }
+      desktopSidebar={
+        <>
+          <Link
+            href="/student/math-game"
+            aria-label="Open Taiyo Blitz"
+            title="Taiyo Blitz"
+            className="portal-sidebar-feature group mb-3 block rounded-[18px] p-3.5 text-white shadow-sm transition-transform hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7B6EF0]/60"
+            style={{
+              backgroundImage:
+                "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
+            }}
+          >
+            <div className="portal-sidebar-feature-row flex items-center gap-2.5">
+              <div className="relative h-9 w-9 shrink-0 grid place-items-center rounded-[12px] bg-white/20">
+                <Gamepad2 className="h-5 w-5" />
+                {blitzRank ? (
+                  <span className="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[9px] font-extrabold tabular-nums text-[#5A21B0] shadow-sm">
+                    #{blitzRank}
+                  </span>
+                ) : null}
+              </div>
+              <div className="portal-sidebar-feature-copy leading-tight">
+                <div className="text-[13px] font-extrabold">Taiyo Blitz</div>
+                <div className="text-[11px] text-white/80">Play &amp; climb the board</div>
+              </div>
             </div>
-            <div className="leading-tight">
-              <div className="text-[13px] font-extrabold">Taiyo Blitz</div>
-              <div className="text-[11px] text-white/80">Play &amp; climb the board</div>
-            </div>
+          </Link>
+          <div className="flex-1">
+            <StudentNavLinks sections={sections} />
           </div>
-        </Link>
-        <div className="flex-1">
-          <StudentNavLinks sections={sections} />
-        </div>
-        <div className="mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
-          <div>Taiyo Tuition · v0.4 preview</div>
-          <div>© 2026 Taiyo Pty Ltd</div>
-        </div>
-      </aside>
-
-      {/* Mobile top bar */}
-      <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-        <div className="px-5 h-14 flex items-center justify-between gap-3">
-          <BrandMark />
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </form>
-        </div>
-        <StudentNavLinksMobile sections={sections} blitzRank={blitzRank} />
-      </header>
-
-      {/* Main */}
-      <main className="min-w-0 overflow-y-auto px-5 lg:px-7 py-6 lg:pb-16">
-        {children}
-      </main>
-    </div>
+          <div className="portal-sidebar-footer mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
+            <div>Taiyo Tuition · v0.4 preview</div>
+            <div>© 2026 Taiyo Pty Ltd</div>
+          </div>
+        </>
+      }
+      mobileHeader={
+        <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
+          <div className="px-5 h-14 flex items-center justify-between gap-3">
+            <BrandMark />
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+              </button>
+            </form>
+          </div>
+          <StudentNavLinksMobile sections={sections} blitzRank={blitzRank} />
+        </header>
+      }
+    >
+      {children}
+    </CollapsiblePortalShell>
   );
 }
