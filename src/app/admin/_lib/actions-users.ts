@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { familyLinks, profiles } from "@/db/schema";
 import { createAdminClient } from "./supabase-admin";
@@ -40,13 +40,14 @@ const roleEnum = z.enum([
 ]);
 
 const postalAddressShape = {
-  addressLine1: z.string().min(1, "Enter the street address.").max(200),
+  addressLine1: z.string().max(200).optional(),
   addressLine2: z.string().max(200).optional(),
-  suburb: z.string().min(1, "Enter the suburb or locality.").max(100),
-  state: z.string().min(1, "Select the state or territory.").max(40),
+  suburb: z.string().max(100).optional(),
+  state: z.string().max(40).optional(),
   postcode: z
     .string()
-    .regex(/^\d{4}$/, "Enter a four-digit Australian postcode."),
+    .regex(/^\d{4}$/, "Enter a four-digit Australian postcode.")
+    .optional(),
 };
 
 const linkedParentSchema = z.object({
@@ -146,11 +147,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     phone: input.phone?.trim() || undefined,
-    addressLine1: input.addressLine1?.trim(),
+    addressLine1: input.addressLine1?.trim() || undefined,
     addressLine2: input.addressLine2?.trim() || undefined,
-    suburb: input.suburb?.trim(),
-    state: input.state?.trim(),
-    postcode: input.postcode?.trim(),
+    suburb: input.suburb?.trim() || undefined,
+    state: input.state?.trim() || undefined,
+    postcode: input.postcode?.trim() || undefined,
     yearLevel: input.yearLevel?.trim() || undefined,
     school: input.school?.trim() || undefined,
     password: input.password?.trim() || undefined,
@@ -162,11 +163,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
           lastName: input.linkedParent.lastName.trim(),
           phone: input.linkedParent.phone?.trim() || undefined,
           relationship: input.linkedParent.relationship?.trim() || undefined,
-          addressLine1: input.linkedParent.addressLine1?.trim(),
+          addressLine1: input.linkedParent.addressLine1?.trim() || undefined,
           addressLine2: input.linkedParent.addressLine2?.trim() || undefined,
-          suburb: input.linkedParent.suburb?.trim(),
-          state: input.linkedParent.state?.trim(),
-          postcode: input.linkedParent.postcode?.trim(),
+          suburb: input.linkedParent.suburb?.trim() || undefined,
+          state: input.linkedParent.state?.trim() || undefined,
+          postcode: input.linkedParent.postcode?.trim() || undefined,
           password: input.linkedParent.password?.trim() || undefined,
         }
       : undefined,
@@ -190,6 +191,47 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
     return {
       ok: false as const,
       error: "Only an owner-level admin can create admin or tutor accounts.",
+    };
+  }
+
+  // Deactivation deliberately keeps the Auth user and their operational
+  // history. Catch a reused email before Supabase returns a vague duplicate
+  // error and direct the admin to the safe reactivation workflow instead.
+  const requestedEmails = [
+    data.email,
+    ...(data.linkedParent ? [data.linkedParent.email] : []),
+  ];
+  const existingAccounts = await db
+    .select({
+      email: profiles.email,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      isActive: profiles.isActive,
+    })
+    .from(profiles)
+    .where(inArray(profiles.email, requestedEmails));
+  const existing = existingAccounts.find(
+    (account) => account.email === data.email,
+  );
+  if (existing) {
+    return {
+      ok: false as const,
+      error: existing.isActive
+        ? "An active account already uses this email address."
+        : `This email belongs to the deactivated account for ${existing.firstName} ${existing.lastName}. In Admin → Users, set Status to Discontinued and reactivate that account instead.`,
+    };
+  }
+  const existingParent = data.linkedParent
+    ? existingAccounts.find(
+        (account) => account.email === data.linkedParent?.email,
+      )
+    : undefined;
+  if (existingParent) {
+    return {
+      ok: false as const,
+      error: existingParent.isActive
+        ? "An account already uses the parent email address. Create the student without a new parent, then link the existing parent from the student's profile."
+        : `The parent email belongs to the deactivated account for ${existingParent.firstName} ${existingParent.lastName}. Reactivate that account before linking it.`,
     };
   }
 
@@ -250,11 +292,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone ?? null,
-            addressLine1: data.addressLine1,
+            addressLine1: data.addressLine1 ?? null,
             addressLine2: data.addressLine2 ?? null,
-            suburb: data.suburb,
-            state: data.state,
-            postcode: data.postcode,
+            suburb: data.suburb ?? null,
+            state: data.state ?? null,
+            postcode: data.postcode ?? null,
             yearLevel: data.yearLevel ?? null,
             school: data.school ?? null,
           })
@@ -266,11 +308,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
               firstName: data.firstName,
               lastName: data.lastName,
               phone: data.phone ?? null,
-              addressLine1: data.addressLine1,
+              addressLine1: data.addressLine1 ?? null,
               addressLine2: data.addressLine2 ?? null,
-              suburb: data.suburb,
-              state: data.state,
-              postcode: data.postcode,
+              suburb: data.suburb ?? null,
+              state: data.state ?? null,
+              postcode: data.postcode ?? null,
               yearLevel: data.yearLevel ?? null,
               school: data.school ?? null,
               updatedAt: new Date(),
@@ -287,11 +329,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
               firstName: data.linkedParent.firstName,
               lastName: data.linkedParent.lastName,
               phone: data.linkedParent.phone ?? null,
-              addressLine1: data.linkedParent.addressLine1,
+              addressLine1: data.linkedParent.addressLine1 ?? null,
               addressLine2: data.linkedParent.addressLine2 ?? null,
-              suburb: data.linkedParent.suburb,
-              state: data.linkedParent.state,
-              postcode: data.linkedParent.postcode,
+              suburb: data.linkedParent.suburb ?? null,
+              state: data.linkedParent.state ?? null,
+              postcode: data.linkedParent.postcode ?? null,
             })
             .onConflictDoUpdate({
               target: profiles.id,
@@ -301,11 +343,11 @@ export async function createUser(input: z.infer<typeof createUserSchema>) {
                 firstName: data.linkedParent.firstName,
                 lastName: data.linkedParent.lastName,
                 phone: data.linkedParent.phone ?? null,
-                addressLine1: data.linkedParent.addressLine1,
+                addressLine1: data.linkedParent.addressLine1 ?? null,
                 addressLine2: data.linkedParent.addressLine2 ?? null,
-                suburb: data.linkedParent.suburb,
-                state: data.linkedParent.state,
-                postcode: data.linkedParent.postcode,
+                suburb: data.linkedParent.suburb ?? null,
+                state: data.linkedParent.state ?? null,
+                postcode: data.linkedParent.postcode ?? null,
                 updatedAt: new Date(),
               },
             });
@@ -496,6 +538,59 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
   return { ok: true as const };
 }
 
+const userAdminNoteSchema = z.object({
+  id: z.string().uuid(),
+  note: z.string().max(2000, "Keep the internal note under 2,000 characters."),
+});
+
+/**
+ * Save an account-level note for the admin directory. The note is deliberately
+ * separate from class enrolment notes: it works for every role and survives a
+ * student moving or withdrawing from a class. Empty text clears it.
+ */
+export async function setUserAdminNote(
+  input: z.infer<typeof userAdminNoteSchema>,
+) {
+  const user = await requireAdmin();
+  const parsed = userAdminNoteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Check the internal note.",
+    };
+  }
+
+  const [target] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, parsed.data.id))
+    .limit(1);
+  if (!target) {
+    return { ok: false as const, error: "User account not found." };
+  }
+  if (!canAdminManageAccount(currentAdminRole(user), target.role)) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can edit another admin account.",
+    };
+  }
+
+  const note = parsed.data.note.trim();
+  await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .update(profiles)
+      .set({
+        adminNotes: note.length > 0 ? note : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(profiles.id, parsed.data.id)),
+  );
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${parsed.data.id}`);
+  return { ok: true as const, note };
+}
+
 export async function setUserActive(id: string, isActive: boolean) {
   const user = await requireAdmin();
   z.string().uuid().parse(id);
@@ -526,6 +621,126 @@ export async function setUserActive(id: string, isActive: boolean) {
   });
 
   revalidatePath("/admin/users");
+  return { ok: true as const };
+}
+
+const hardDeleteUserSchema = z.object({
+  id: z.string().uuid(),
+  confirmationEmail: z.string().email().max(320),
+});
+
+/**
+ * Permanently remove a deactivated account from both the portal database and
+ * Supabase Auth. The profile delete runs inside a transaction so database FK
+ * safeguards can refuse accounts with protected business records before the
+ * Auth identity is removed. Cascading personal records are intentionally
+ * erased: this action is only for duplicate/test/mistaken accounts.
+ */
+export async function hardDeleteUser(
+  input: z.infer<typeof hardDeleteUserSchema>,
+) {
+  const user = await requireAdmin();
+  if (!isUnrestrictedAdmin(currentAdminRole(user))) {
+    return {
+      ok: false as const,
+      error: "Only an owner-level admin can permanently delete an account.",
+    };
+  }
+
+  const parsed = hardDeleteUserSchema.safeParse({
+    ...input,
+    confirmationEmail: input.confirmationEmail.trim().toLowerCase(),
+  });
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: "Type the account's complete email address to confirm deletion.",
+    };
+  }
+  if (parsed.data.id === user.id) {
+    return {
+      ok: false as const,
+      error: "You cannot permanently delete the account you are signed in with.",
+    };
+  }
+
+  const [target] = await db
+    .select({
+      email: profiles.email,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      isActive: profiles.isActive,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, parsed.data.id))
+    .limit(1);
+  if (!target) {
+    return { ok: false as const, error: "User account not found." };
+  }
+  if (target.isActive) {
+    return {
+      ok: false as const,
+      error: "Deactivate the account before permanently deleting it.",
+    };
+  }
+  if (target.email.toLowerCase() !== parsed.data.confirmationEmail) {
+    return {
+      ok: false as const,
+      error: "The confirmation email does not match this account.",
+    };
+  }
+
+  const admin = createAdminClient();
+  try {
+    await withActor(
+      { id: user.id, role: currentAdminRole(user) ?? "admin" },
+      async (tx) => {
+        const deleted = await tx
+          .delete(profiles)
+          .where(
+            and(
+              eq(profiles.id, parsed.data.id),
+              eq(profiles.isActive, false),
+            ),
+          )
+          .returning({ id: profiles.id });
+        if (deleted.length !== 1) {
+          throw new Error("The account changed while deletion was in progress.");
+        }
+
+        const { error } = await admin.auth.admin.deleteUser(parsed.data.id, false);
+        if (error) throw new Error(`Supabase Auth: ${error.message}`);
+      },
+    );
+  } catch (error) {
+    let current: unknown = error;
+    let code: string | null = null;
+    for (let depth = 0; depth < 4 && current; depth += 1) {
+      if (typeof current !== "object") break;
+      if ("code" in current) {
+        code = String(current.code);
+        break;
+      }
+      current = "cause" in current ? current.cause : null;
+    }
+    if (code === "23503") {
+      return {
+        ok: false as const,
+        error:
+          "This account has protected financial, teaching, or administrative records and cannot be hard-deleted safely. Keep it deactivated instead.",
+      };
+    }
+    const safeMessage =
+      error instanceof Error &&
+      (error.message.startsWith("Supabase Auth:") ||
+        error.message.startsWith("The account changed"))
+        ? error.message
+        : `Could not permanently delete ${target.firstName} ${target.lastName}.`;
+    return { ok: false as const, error: safeMessage };
+  }
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   return { ok: true as const };
 }
 

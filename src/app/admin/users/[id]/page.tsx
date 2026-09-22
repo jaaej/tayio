@@ -59,6 +59,7 @@ import {
 } from "@/app/student/_components/month-calendar";
 import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveManager } from "./_components/class-move-manager";
+import { UserAdminNoteEditor } from "../_components/user-admin-note-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -230,6 +231,28 @@ export default async function UserDetailPage({
             role={user.role}
             canManageRoles={canManageRoles}
             canEditProfile={canEditProfile}
+          />
+        </CardBody>
+      </Card>
+    </section>
+  );
+
+  const adminNoteCard = (
+    <section className="rise" style={{ animationDelay: "90ms" }}>
+      <Card>
+        <CardHead
+          title="Internal admin note"
+          eyebrow="Private · admins only"
+        />
+        <CardBody>
+          <p className="mb-3 text-[12px] leading-relaxed text-muted">
+            Keep useful account context here. This note appears on the user
+            directory and is never shown to the account holder.
+          </p>
+          <UserAdminNoteEditor
+            userId={user.id}
+            initialNote={user.adminNotes}
+            canEdit={canEditProfile}
           />
         </CardBody>
       </Card>
@@ -444,6 +467,7 @@ export default async function UserDetailPage({
     profile: (
       <>
         {profileCard}
+        {adminNoteCard}
         {trialCard}
       </>
     ),

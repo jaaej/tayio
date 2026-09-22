@@ -14,11 +14,11 @@ export type LinkedParentValues = {
   phone?: string;
   relationship?: string;
   password?: string;
-  addressLine1: string;
+  addressLine1?: string;
   addressLine2?: string;
-  suburb: string;
-  state: string;
-  postcode: string;
+  suburb?: string;
+  state?: string;
+  postcode?: string;
 };
 
 export type CreateUserValues = {
@@ -30,11 +30,11 @@ export type CreateUserValues = {
   school?: string;
   phone?: string;
   password?: string;
-  addressLine1: string;
+  addressLine1?: string;
   addressLine2?: string;
-  suburb: string;
-  state: string;
-  postcode: string;
+  suburb?: string;
+  state?: string;
+  postcode?: string;
   linkedParent?: LinkedParentValues;
 };
 
@@ -81,11 +81,11 @@ export function CreateUserForm({
                 phone: text("parentPhone") || undefined,
                 relationship: text("parentRelationship") || "Parent",
                 password: text("parentPassword") || undefined,
-                addressLine1: text("parentAddressLine1"),
+                addressLine1: text("parentAddressLine1") || undefined,
                 addressLine2: text("parentAddressLine2") || undefined,
-                suburb: text("parentSuburb"),
-                state: text("parentState"),
-                postcode: text("parentPostcode"),
+                suburb: text("parentSuburb") || undefined,
+                state: text("parentState") || undefined,
+                postcode: text("parentPostcode") || undefined,
               }
             : undefined;
         onSubmit({
@@ -97,11 +97,11 @@ export function CreateUserForm({
           school: text("school") || undefined,
           phone: text("phone") || undefined,
           password: text("password") || undefined,
-          addressLine1: text("addressLine1"),
+          addressLine1: text("addressLine1") || undefined,
           addressLine2: text("addressLine2") || undefined,
-          suburb: text("suburb"),
-          state: text("state"),
-          postcode: text("postcode"),
+          suburb: text("suburb") || undefined,
+          state: text("state") || undefined,
+          postcode: text("postcode") || undefined,
           linkedParent,
         });
       }}
@@ -131,7 +131,7 @@ export function CreateUserForm({
             id="phone"
             name="phone"
             type="tel"
-            placeholder="04xx xxx xxx"
+            placeholder="04XX XXX XXX"
             autoComplete="tel"
           />
         </Field>
@@ -241,7 +241,7 @@ export function CreateUserForm({
                       id="parentPhone"
                       name="parentPhone"
                       type="tel"
-                      placeholder="04xx xxx xxx"
+                      placeholder="04XX XXX XXX"
                       autoComplete="off"
                     />
                   </Field>
@@ -305,11 +305,17 @@ function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
   return (
     <section className="space-y-3 rounded-[12px] border border-line bg-surface-2 p-4">
       <div>
-        <h3 className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink">
-          {labelPrefix}postal address
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink">
+            {labelPrefix}postal address
+          </h3>
+          <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted">
+            Optional
+          </span>
+        </div>
         <p className="mt-1 text-[11px] leading-4 text-muted">
-          Used by the office for account and mailing records.
+          Used by the office for account and mailing records. It can be added
+          later if it is not available now.
         </p>
       </div>
 
@@ -317,7 +323,6 @@ function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
         <Input
           id={name("addressLine1")}
           name={name("addressLine1")}
-          required
           maxLength={200}
           autoComplete={prefix ? "off" : "street-address"}
         />
@@ -338,7 +343,6 @@ function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
           <Input
             id={name("suburb")}
             name={name("suburb")}
-            required
             maxLength={100}
             autoComplete={prefix ? "off" : "address-level2"}
           />
@@ -347,10 +351,10 @@ function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
           <Select
             id={name("state")}
             name={name("state")}
-            defaultValue="VIC"
-            required
+            defaultValue=""
             autoComplete={prefix ? "off" : "address-level1"}
           >
+            <option value="">Select state (optional)</option>
             {AUSTRALIAN_STATES.map((state) => (
               <option key={state} value={state}>
                 {state}
@@ -364,7 +368,6 @@ function PostalAddressFields({ prefix = "" }: { prefix?: "" | "parent" }) {
         <Input
           id={name("postcode")}
           name={name("postcode")}
-          required
           inputMode="numeric"
           pattern="[0-9]{4}"
           maxLength={4}

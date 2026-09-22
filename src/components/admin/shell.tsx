@@ -51,7 +51,7 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "Schedule & money",
+    heading: "Schedule",
     items: [
       {
         label: "Tutor availability",
@@ -63,7 +63,6 @@ const SECTIONS: NavSection[] = [
         href: "/admin/tutor-checkins",
         icon: <CalendarCheck2 className={IC} />,
       },
-      { label: "Payments", href: "/admin/payments", icon: <CreditCard className={IC} /> },
     ],
   },
   {
@@ -80,6 +79,7 @@ const SECTIONS: NavSection[] = [
     heading: "Insight",
     items: [
       { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={IC} /> },
+      { label: "Payments", href: "/admin/payments", icon: <CreditCard className={IC} /> },
       { label: "Revenue", href: "/admin/revenue", icon: <Wallet className={IC} /> },
       { label: "Settings", href: "/admin/settings", icon: <Settings className={IC} /> },
     ],

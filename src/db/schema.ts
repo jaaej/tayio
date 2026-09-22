@@ -168,6 +168,10 @@ export const profiles = pgTable(
     yearLevel: text("year_level"),
     school: text("school"),
     bio: text("bio"),
+    // Internal directory note for admin context. This is intentionally stored
+    // on the account rather than an enrolment so every role can have one and
+    // it remains available when a student changes classes.
+    adminNotes: text("admin_notes"),
     isActive: boolean("is_active").notNull().default(true),
     // Independent from login access: an enabled account can still be shown as
     // on break/paused in the admin directory and profile.

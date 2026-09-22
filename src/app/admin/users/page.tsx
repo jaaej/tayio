@@ -34,6 +34,7 @@ import { CreateUserPanel } from "./_components/create-user-panel";
 import { UserRowActions } from "./_components/user-row-actions";
 import { UserTableHeaderRow } from "./_components/user-table-filters";
 import { UserMobileFilters } from "./_components/user-mobile-filters";
+import { UserAdminNoteEditor } from "./_components/user-admin-note-editor";
 import { getSubjectSearchAliases } from "@/lib/subject-search-aliases";
 import {
   directoryEntryMatches,
@@ -206,6 +207,7 @@ export default async function UsersPage({
                     <UserRow
                       key={u.id}
                       user={u}
+                      canHardDelete={canManageRoles}
                       canManageAccount={
                         canManageRoles || coarseRole(u.role) !== "admin"
                       }
@@ -224,9 +226,11 @@ export default async function UsersPage({
 function UserRow({
   user: u,
   canManageAccount,
+  canHardDelete,
 }: {
   user: DirectoryUser;
   canManageAccount: boolean;
+  canHardDelete: boolean;
 }) {
   const status = directoryStatus(u);
   const today = melbourneDate(new Date());
@@ -280,26 +284,12 @@ function UserRow({
             </span>
           </div>
         )}
-        {u.adminNotes.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {u.adminNotes.slice(0, 2).map((item) => (
-              <div
-                key={item.classId}
-                title={`${item.className}: ${item.note}`}
-                className="max-w-[300px] rounded-[8px] border border-warn/25 bg-warn-bg px-2.5 py-1.5 text-[11px] font-medium leading-snug text-warn"
-              >
-                <span className="font-bold">Note · {item.className}:</span>{" "}
-                <span className="line-clamp-2">{item.note}</span>
-              </div>
-            ))}
-            {u.adminNotes.length > 2 && (
-              <span className="block text-[10px] font-bold text-muted">
-                +{u.adminNotes.length - 2} more note
-                {u.adminNotes.length - 2 === 1 ? "" : "s"} in profile
-              </span>
-            )}
-          </div>
-        )}
+        <UserAdminNoteEditor
+          userId={u.id}
+          initialNote={u.adminNote}
+          canEdit={canManageAccount}
+          compact
+        />
       </Td>
       <Td className="text-muted">{u.email}</Td>
       <Td>
@@ -404,6 +394,7 @@ function UserRow({
           isActive={u.isActive}
           name={`${u.firstName} ${u.lastName}`}
           canManageAccount={canManageAccount}
+          canHardDelete={canHardDelete}
         />
       </Td>
     </tr>

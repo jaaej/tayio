@@ -758,8 +758,8 @@ export type DirectoryUser = {
     subjectId: string;
     subjectName: string;
   }>;
-  /** Short internal notes attached to the student's current enrolments. */
-  adminNotes: Array<{ classId: string; className: string; note: string }>;
+  /** Internal account note visible only in the admin directory/profile. */
+  adminNote: string | null;
   /** Delivery modes used across the user's current classes. */
   deliveryModes: Array<"in_person" | "online">;
 };
@@ -791,6 +791,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         role: profiles.role,
         yearLevel: profiles.yearLevel,
         school: profiles.school,
+        adminNote: profiles.adminNotes,
         isActive: profiles.isActive,
         pauseStatus: profiles.pauseStatus,
       })
@@ -826,7 +827,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         deliveryMode: enrollments.deliveryMode,
         location: classes.location,
         onlineLink: classes.onlineLink,
-        adminNote: enrollments.adminNotes,
       })
       .from(enrollments)
       .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -894,10 +894,8 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
   }
 
   type ClassInfo = DirectoryUser["classInfo"][number];
-  type AdminNote = DirectoryUser["adminNotes"][number];
   type DeliveryMode = DirectoryUser["deliveryModes"][number];
   const classesByUser = new Map<string, Map<string, ClassInfo>>();
-  const notesByUser = new Map<string, AdminNote[]>();
   const modesByUser = new Map<string, Set<DeliveryMode>>();
   const trialsByStudent = new Map(
     trialRows.map((row) => [
@@ -959,17 +957,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
     } else {
       addClassDefaultModes(row.userId, row.location, row.onlineLink);
     }
-
-    const note = row.adminNote?.trim();
-    if (note) {
-      const notes = notesByUser.get(row.userId) ?? [];
-      notes.push({
-        classId: row.classId,
-        className: row.className,
-        note,
-      });
-      notesByUser.set(row.userId, notes);
-    }
   }
 
   for (const row of tutorClassRows) {
@@ -1006,9 +993,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         a.name.localeCompare(b.name),
       ),
       classInfo,
-      adminNotes: (notesByUser.get(p.id) ?? []).sort((a, b) =>
-        a.className.localeCompare(b.className),
-      ),
+      adminNote: p.adminNote?.trim() || null,
       deliveryModes: (["in_person", "online"] as const).filter((mode) =>
         deliveryModeSet?.has(mode),
       ),

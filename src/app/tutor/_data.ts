@@ -350,7 +350,16 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
   await assertTutorTeachesStudent(tutorId, studentId);
 
   const [student] = await db
-    .select()
+    // Keep private account fields (including the admin-only directory note)
+    // out of the tutor data boundary even if this object is reused later.
+    .select({
+      id: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      email: profiles.email,
+      yearLevel: profiles.yearLevel,
+      profileAvatarKey: profiles.profileAvatarKey,
+    })
     .from(profiles)
     .where(and(eq(profiles.id, studentId), inArray(profiles.role, STUDENT_TIERS)))
     .limit(1);
