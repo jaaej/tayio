@@ -282,6 +282,10 @@ Last updated: 23 September 2026
 - [ ] Open a curriculum booklet and tutor-added PDF as student, parent, and
   tutor, plus a booklet as admin. Confirm it opens inside the large PDF viewer
   without forcing a download, Escape/X closes it, and Open separately works.
+- [ ] Open an uploaded curriculum video as student, parent, tutor, and admin.
+  Confirm it plays inside the portal without downloading. Also test one lesson
+  recording link (YouTube, Vimeo, Google Drive, or Loom), Escape/X, and the
+  Open separately fallback.
 - [ ] In Admin → Payments, edit an invoice's linked parent/student, amount,
   currency, due date, description, and each status. Confirm only students linked
   to the selected parent are offered, paid/refunded states require and preserve
@@ -291,13 +295,14 @@ Last updated: 23 September 2026
   multiple difficulties. Confirm the sidebar/mobile entry badge and game hero
   show the whole-centre overall rank, the year-level board excludes other
   years, `All Taiyo` includes them, each difficulty ranks personal-best scores,
-  and inactive accounts are absent.
-- [ ] As a student, open Profile icon from desktop and mobile navigation and
-  select several icons. Confirm the header updates, the choice persists after
-  sign-out/sign-in, invalid free-form values are rejected, and only the signed-in
-  student's profile changes. As an assigned tutor, confirm the chosen icon
-  appears in the Students list and that student's detail page; an unrelated
-  tutor must still be unable to open the profile.
+  each player row shows their profile icon/initials, inactive accounts are
+  absent, and Sprint ends at 30 seconds while other modes end at 60 seconds.
+- [ ] As a student, press the top-right profile avatar on desktop and mobile,
+  then select several icons. Confirm the header and leaderboard update, the
+  choice persists after sign-out/sign-in, invalid free-form values are rejected,
+  and only the signed-in student's profile changes. As an assigned tutor,
+  confirm the chosen icon appears in the Students list and that student's detail
+  page; an unrelated tutor must still be unable to open the profile.
 - [ ] As a tutor, open `Weekly check-in` for the current and a past week.
   Confirm scheduled lessons, dates, times, total hours, and estimated pay match
   the timetable, and cancelled/rescheduled lessons are not counted.
@@ -746,6 +751,9 @@ Last updated: 23 September 2026
   Curriculum access so an admin can grant or revoke a specific earlier term.
 - [x] Add an in-portal PDF viewer for curriculum booklets and tutor-added PDF
   attachments across student, parent, tutor, and admin curriculum pages.
+- [x] Play uploaded curriculum videos and supported lesson-recording links
+  inside the portal, with an Open separately fallback instead of requiring a
+  download.
 - [x] Add manual payment editing controls with an audit trail and clear
   permissions.
 
@@ -786,6 +794,8 @@ Last updated: 23 September 2026
 - [x] Remove the `Your quests` block for both student access types.
 - [x] Rename Math Blitz to `Taiyo Blitz`.
 - [x] Display the student's rank on the Taiyo Blitz entry/logo.
+- [x] Show each student's selected profile icon, with initials as a fallback,
+  on both Taiyo Blitz leaderboard views.
 - [x] Add year-level and whole-of-Taiyo leaderboard views.
 - [x] Add stronger correct-answer feedback, optional sound, and visual effects.
 - [x] Add an in-game Close button that exits without opening another tab.

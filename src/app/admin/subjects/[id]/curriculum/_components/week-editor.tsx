@@ -16,6 +16,7 @@ import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { SidePanel } from "@/components/ui/side-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
+import { VideoViewerButton } from "@/components/ui/video-viewer";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -45,6 +46,7 @@ export function WeekEditor({
   quizTutors,
   quizTarget,
   bookletSignedUrl,
+  videoSignedUrl,
 }: {
   existing?: SubjectWeek;
   subjectId: string;
@@ -61,6 +63,7 @@ export function WeekEditor({
   quizTutors?: { id: string; name: string }[];
   quizTarget?: QuizTargetWeek;
   bookletSignedUrl?: string | null;
+  videoSignedUrl?: string | null;
 }) {
   const router = useRouter();
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
@@ -312,6 +315,7 @@ export function WeekEditor({
                   accept="video/*"
                   pending={pending}
                   onPick={(file) => handleUpload("video", file)}
+                  videoViewerUrl={videoSignedUrl}
                 />
                 <FileSlot
                   icon={<FileText className="h-5 w-5" />}
@@ -487,6 +491,7 @@ function FileSlot({
   pending,
   onPick,
   viewerUrl,
+  videoViewerUrl,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -495,6 +500,7 @@ function FileSlot({
   pending: boolean;
   onPick: (file: File) => void;
   viewerUrl?: string | null;
+  videoViewerUrl?: string | null;
 }) {
   const inputId = `file-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
@@ -511,6 +517,11 @@ function FileSlot({
         </div>
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+        {videoViewerUrl ? (
+          <VideoViewerButton url={videoViewerUrl} title={label}>
+            Watch video
+          </VideoViewerButton>
+        ) : null}
         {viewerUrl ? (
           <PdfViewerButton url={viewerUrl} title={label}>
             View PDF

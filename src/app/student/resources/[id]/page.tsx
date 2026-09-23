@@ -10,6 +10,7 @@ import {
   LESSON_STATUS_STYLE,
 } from "../../_lib/format";
 import { getLessonRecap } from "../../_lib/queries";
+import { VideoViewerButton } from "@/components/ui/video-viewer";
 
 /**
  * Turn a hosted video URL into an embeddable player src for the common hosts
@@ -111,14 +112,13 @@ export default async function LessonRecapPage({
             </div>
           ) : (
             <Card className="mt-3">
-              <a
-                href={lesson.recordingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+              <VideoViewerButton
+                url={lesson.recordingUrl}
+                title={`${lesson.subjectName} lesson recording`}
+                className="border-brand-600 bg-brand-600 text-white hover:bg-brand-700"
               >
-                ▶ Watch recording ↗
-              </a>
+                Watch recording
+              </VideoViewerButton>
             </Card>
           )}
         </section>

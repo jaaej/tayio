@@ -100,6 +100,9 @@ export default async function AdminSubjectCurriculumPage({
   const bookletSignedUrl = selectedWeek
     ? await signCurriculumUrl(selectedWeek.bookletUrl)
     : null;
+  const videoSignedUrl = selectedWeek
+    ? await signCurriculumUrl(selectedWeek.videoUrl)
+    : null;
 
   const [weekQuiz, tutorRows] = await Promise.all([
     selectedWeek
@@ -191,6 +194,7 @@ export default async function AdminSubjectCurriculumPage({
             weekCounts={weekCounts}
             quiz={weekQuiz}
             bookletSignedUrl={bookletSignedUrl}
+            videoSignedUrl={videoSignedUrl}
             quizTutors={tutorRows.map((tutor) => ({
               id: tutor.id,
               name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),

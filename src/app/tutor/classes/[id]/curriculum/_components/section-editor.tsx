@@ -39,6 +39,7 @@ import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
+import { VideoViewerButton } from "@/components/ui/video-viewer";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -271,6 +272,7 @@ export function SectionEditor({
               href={videoSignedUrl}
               action="Watch video"
               empty="No video uploaded yet"
+              inlineVideo
             />
             <TutorMaterialCard
               icon={<BookOpen className="h-5 w-5" />}
@@ -651,6 +653,7 @@ function TutorMaterialCard({
   action,
   empty,
   inlinePdf = false,
+  inlineVideo = false,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -658,6 +661,7 @@ function TutorMaterialCard({
   action: string;
   empty: string;
   inlinePdf?: boolean;
+  inlineVideo?: boolean;
 }) {
   return (
     <div className="flex min-h-[112px] flex-col rounded-[14px] border border-line bg-surface-2 p-4">
@@ -668,7 +672,11 @@ function TutorMaterialCard({
         <span className="text-[14px] font-extrabold text-ink">{label}</span>
       </div>
       <div className="mt-auto pt-3">
-        {href && inlinePdf ? (
+        {href && inlineVideo ? (
+          <VideoViewerButton url={href} title={label}>
+            Watch video →
+          </VideoViewerButton>
+        ) : href && inlinePdf ? (
           <PdfViewerButton url={href} title={label}>
             View PDF →
           </PdfViewerButton>

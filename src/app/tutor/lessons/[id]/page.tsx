@@ -3,6 +3,7 @@ import { Card, CardHead, CardBody } from "@/components/student/card";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import { Pill } from "@/components/student/pill";
 import { Label } from "@/components/ui/input";
+import { VideoViewerButton } from "@/components/ui/video-viewer";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { classNameDetail } from "@/lib/class-display";
 import { getLessonReschedules } from "@/lib/reschedule";
@@ -320,14 +321,12 @@ export default async function LessonDetailPage({
               lessons. Leave blank and save to remove.
             </p>
             {lesson.recordingUrl && (
-              <a
-                href={lesson.recordingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[12px] font-bold text-brand-600 hover:text-brand-700"
+              <VideoViewerButton
+                url={lesson.recordingUrl}
+                title={`${lesson.subjectName} lesson recording`}
               >
-                Open current link ↗
-              </a>
+                Preview recording
+              </VideoViewerButton>
             )}
           </form>
         </CardBody>

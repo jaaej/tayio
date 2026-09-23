@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trophy } from "lucide-react";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import type { Difficulty } from "./question-generator";
 import type { LeaderboardBoards, LeaderboardRow } from "../_queries";
 
@@ -34,6 +35,11 @@ function Row({ row }: { row: LeaderboardRow }) {
         >
           {row.rank}
         </span>
+        <ProfileAvatar
+          avatarKey={row.avatarKey}
+          fallback={row.initials}
+          className="h-9 w-9 shrink-0 text-[11px]"
+        />
         <span className={`truncate ${row.isMe ? "font-bold" : "font-medium"}`}>
           {row.name}
           {row.isMe && <span className="text-brand-500"> (you)</span>}

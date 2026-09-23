@@ -17,6 +17,8 @@ const DIFFICULTIES: Difficulty[] = [
 export type LeaderboardRow = {
   rank: number;
   name: string;
+  avatarKey: string | null;
+  initials: string;
   score: number;
   isMe: boolean;
 };
@@ -54,6 +56,7 @@ export async function getLeaderboardBoards(
       firstAt: sql<Date>`min(${mathGameScores.playedAt})`.as("first_at"),
       firstName: profiles.firstName,
       lastName: profiles.lastName,
+      profileAvatarKey: profiles.profileAvatarKey,
     })
     .from(mathGameScores)
     .innerJoin(profiles, eq(profiles.id, mathGameScores.studentId))
@@ -68,6 +71,7 @@ export async function getLeaderboardBoards(
       mathGameScores.studentId,
       profiles.firstName,
       profiles.lastName,
+      profiles.profileAvatarKey,
     );
 
   return Object.fromEntries(
@@ -88,6 +92,7 @@ function boardFromRows(
     firstAt: Date;
     firstName: string;
     lastName: string | null;
+    profileAvatarKey: string | null;
   }>,
   meId: string,
 ): LeaderboardBoard {
@@ -101,6 +106,10 @@ function boardFromRows(
     .map((row, index) => ({
       rank: index + 1,
       name: displayName(row.firstName, row.lastName),
+      avatarKey: row.profileAvatarKey,
+      initials:
+        `${row.firstName.charAt(0)}${row.lastName?.charAt(0) ?? ""}`.toUpperCase() ||
+        "S",
       score: Number(row.best),
       isMe: row.studentId === meId,
     }));
