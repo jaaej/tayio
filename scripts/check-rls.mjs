@@ -32,6 +32,7 @@ const ALLOW_NO_RLS = new Set([
   "tutor_checkin_entries", // owner-correctable payroll snapshots, migration 0050
   "quiz_attempts", // server-written practice quiz scores, migration 0036
   "student_trials", // admin-managed free-trial periods, migration 0037
+  "student_curriculum_term_grants", // admin-managed historical curriculum exceptions, migration 0055
   "tutor_leave_requests", // tutor/admin cover workflow, migration 0043
   "tutor_cover_requests", // tutor/admin cover workflow, migration 0043
   "class_move_requests", // permanent class relocation workflow, migration 0045

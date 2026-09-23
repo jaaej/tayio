@@ -25,6 +25,7 @@ import {
   quizStatusEnum,
 } from "@/db/schema";
 import { signQuizAttachment } from "@/lib/quiz-storage";
+import { canStudentAccessCurriculumWeek } from "@/lib/curriculum-access";
 import {
   formatQuizWeekLabel,
   isLiveQuizStatus,
@@ -381,7 +382,7 @@ export async function canStudentAccessApprovedQuiz(
   quizId: string,
 ): Promise<boolean> {
   const [row] = await db
-    .select({ id: quizzes.id })
+    .select({ id: quizzes.id, subjectWeekId: quizzes.subjectWeekId })
     .from(quizzes)
     .innerJoin(classes, eq(classes.subjectId, quizzes.subjectId))
     .innerJoin(
@@ -394,7 +395,8 @@ export async function canStudentAccessApprovedQuiz(
     )
     .where(and(eq(quizzes.id, quizId), inArray(quizzes.status, liveStatuses)))
     .limit(1);
-  return Boolean(row);
+  if (!row) return false;
+  return canStudentAccessCurriculumWeek(studentId, row.subjectWeekId);
 }
 
 export type StudentQuiz = {

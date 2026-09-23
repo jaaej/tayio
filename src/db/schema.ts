@@ -1251,12 +1251,42 @@ export const studentWeekProgress = pgTable(
   (t) => [primaryKey({ columns: [t.studentId, t.subjectWeekId] })],
 );
 
+// Admin-granted exceptions to the normal enrolment-term curriculum boundary.
+// Weekly release dates still apply: this only permits an otherwise historical
+// term to appear for the selected student and subject.
+export const studentCurriculumTermGrants = pgTable(
+  "student_curriculum_term_grants",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    grantedById: uuid("granted_by_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.studentId, t.subjectId, t.termId] }),
+    index("student_curriculum_term_grants_student_idx").on(t.studentId),
+  ],
+);
+
 export type Term = typeof terms.$inferSelect;
 export type SubjectTopic = typeof subjectTopics.$inferSelect;
 export type SubjectWeek = typeof subjectWeeks.$inferSelect;
 export type TutorWeekSection = typeof tutorWeekSections.$inferSelect;
 export type TutorWeekAttachment = typeof tutorWeekAttachments.$inferSelect;
 export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
+export type StudentCurriculumTermGrant =
+  typeof studentCurriculumTermGrants.$inferSelect;
 
 // ------------------------------------------------------------------------
 

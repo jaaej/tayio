@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 20 September 2026
+Last updated: 23 September 2026
 
 ## Status key
 
@@ -272,6 +272,16 @@ Last updated: 20 September 2026
   admin navigation. Open an existing draft, approved quiz, and pending-review
   quiz from its curriculum week; confirm preview/edit/approval actions and
   student visibility still respect the existing status rules.
+- [ ] During Term Week 2, open a student and linked-parent curriculum. Confirm
+  Weeks 1–2 open normally, Week 3 onward show a lock and cannot be opened, and
+  direct booklet/quiz links for a locked week are rejected.
+- [ ] Use a student first enrolled in Term 3. Confirm only started Term 3+
+  curriculum appears. In Admin → Users → student → Curriculum access, grant
+  one earlier subject term, confirm it appears for student and parent, then
+  remove the grant and confirm it disappears again.
+- [ ] Open a curriculum booklet and tutor-added PDF as student, parent, and
+  tutor, plus a booklet as admin. Confirm it opens inside the large PDF viewer
+  without forcing a download, Escape/X closes it, and Open separately works.
 - [ ] In Admin → Payments, edit an invoice's linked parent/student, amount,
   currency, due date, description, and each status. Confirm only students linked
   to the selected parent are offered, paid/refunded states require and preserve
@@ -728,6 +738,14 @@ Last updated: 20 September 2026
   `Create new class`.
 - [x] Student reschedules and cancellations generate in-app notifications for
   admin and the relevant tutor/family recipients.
+- [x] Release student curriculum one teaching week at a time. Future weeks are
+  visibly locked and the same restriction is enforced on server-side booklet,
+  progress, and quiz requests for both students and linked parents.
+- [x] Restrict curriculum history to the student's first enrolment term for
+  each subject and later started terms. Add Admin → Users → student →
+  Curriculum access so an admin can grant or revoke a specific earlier term.
+- [x] Add an in-portal PDF viewer for curriculum booklets and tutor-added PDF
+  attachments across student, parent, tutor, and admin curriculum pages.
 - [x] Add manual payment editing controls with an audit trail and clear
   permissions.
 
@@ -754,6 +772,17 @@ Last updated: 20 September 2026
 
 ## Student portal
 
+- [x] Make Taiyo Blitz Sprint a 30-second round while keeping the other
+  difficulty rounds at 60 seconds.
+- [x] Remove the duplicate Profile icon entry from the student sidebar and
+  open Profile & security from the top-right profile avatar instead.
+- [x] Add an authenticated password-change form to Student Profile & security
+  that verifies the current password, confirms the new password, and rate
+  limits password-change attempts.
+- [ ] QA: From a student account, open the top-right profile avatar, change the
+  icon, then change the password using the correct current password. Confirm an
+  incorrect current password is rejected and the new password works at the
+  next sign-in.
 - [x] Remove the `Your quests` block for both student access types.
 - [x] Rename Math Blitz to `Taiyo Blitz`.
 - [x] Display the student's rank on the Taiyo Blitz entry/logo.

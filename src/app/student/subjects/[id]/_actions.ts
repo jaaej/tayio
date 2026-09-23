@@ -1,35 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes,
-  enrollments,
   studentWeekProgress,
   subjectWeeks,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { canStudentAccessCurriculumWeek } from "@/lib/curriculum-access";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-
-async function assertStudentCanAccessWeek(
-  studentId: string,
-  subjectWeekId: string,
-) {
-  const [row] = await db
-    .select({ id: subjectWeeks.id })
-    .from(subjectWeeks)
-    .innerJoin(classes, eq(classes.subjectId, subjectWeeks.subjectId))
-    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(
-      and(
-        eq(subjectWeeks.id, subjectWeekId),
-        eq(enrollments.studentId, studentId),
-      ),
-    )
-    .limit(1);
-  return Boolean(row);
-}
 
 async function upsertProgress(
   studentId: string,
@@ -50,8 +30,8 @@ async function upsertProgress(
 
 export async function markVideoWatched(subjectWeekId: string) {
   const user = await requireRole("student");
-  if (!(await assertStudentCanAccessWeek(user.id, subjectWeekId))) {
-    return { ok: false as const, error: "Not enrolled" };
+  if (!(await canStudentAccessCurriculumWeek(user.id, subjectWeekId))) {
+    return { ok: false as const, error: "This week is not available yet" };
   }
   await upsertProgress(user.id, subjectWeekId, "videoWatchedAt");
   revalidatePath(`/student/subjects`);
@@ -60,8 +40,8 @@ export async function markVideoWatched(subjectWeekId: string) {
 
 export async function markBookletOpened(subjectWeekId: string) {
   const user = await requireRole("student");
-  if (!(await assertStudentCanAccessWeek(user.id, subjectWeekId))) {
-    return { ok: false as const, error: "Not enrolled" };
+  if (!(await canStudentAccessCurriculumWeek(user.id, subjectWeekId))) {
+    return { ok: false as const, error: "This week is not available yet" };
   }
   const [tpl] = await db
     .select({ path: subjectWeeks.bookletUrl })

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -14,12 +14,13 @@ import {
   tutorWeekAttachments,
   tutorWeekSections,
 } from "@/db/schema";
-import {
-  resolveCurrentTerm,
-  resolveMostRecentPastTerm,
-} from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
+import { accessibleCurriculumTermsForStudent } from "@/lib/curriculum-access";
+import {
+  melbourneDateKey,
+  releasedCurriculumWeek,
+} from "@/lib/curriculum-access-rules";
 
 export type StudentCurriculumWeek = {
   subjectWeekId: string;
@@ -52,6 +53,7 @@ export type StudentCurriculumWeek = {
     title: string;
     questionCount: number;
   } | null;
+  locked: boolean;
 };
 
 export type StudentCurriculumData = {
@@ -84,6 +86,7 @@ export async function getStudentCurriculum(
       subjectName: subjects.name,
       tutorId: classes.tutorId,
       lessonPlan: classes.lessonPlan,
+      enrolledAt: enrollments.enrolledAt,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -92,11 +95,26 @@ export async function getStudentCurriculum(
       and(
         eq(enrollments.studentId, userId),
         eq(classes.subjectId, subjectId),
+        isNull(enrollments.withdrawnAt),
       ),
     )
     .orderBy(asc(enrollments.enrolledAt))
     .limit(1);
   if (!enrollment) return null;
+
+  const [firstEnrollment] = await db
+    .select({ enrolledAt: enrollments.enrolledAt })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, userId),
+        eq(classes.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(enrollments.enrolledAt))
+    .limit(1);
+  if (!firstEnrollment) return null;
 
   const termRows = await db
     .selectDistinct({
@@ -112,12 +130,22 @@ export async function getStudentCurriculum(
     .orderBy(desc(terms.year), desc(terms.termNumber));
   if (termRows.length === 0) return null;
 
-  let term =
-    (selectedTermId && termRows.find((t) => t.id === selectedTermId)) ||
-    (await resolveCurrentTerm()) ||
-    (await resolveMostRecentPastTerm()) ||
-    termRows[0];
-  if (!termRows.find((t) => t.id === term.id)) term = termRows[0];
+  const accessibleTerms = await accessibleCurriculumTermsForStudent({
+    studentId: userId,
+    subjectId,
+    enrolledAt: firstEnrollment.enrolledAt,
+    termRows,
+  });
+  if (accessibleTerms.length === 0) return null;
+
+  const today = melbourneDateKey();
+  const term =
+    (selectedTermId && accessibleTerms.find((t) => t.id === selectedTermId)) ||
+    accessibleTerms.find(
+      (candidate) =>
+        candidate.startDate <= today && today <= candidate.endDate,
+    ) ||
+    accessibleTerms[0];
 
   const templateWeeks = await db
     .select()
@@ -131,7 +159,11 @@ export async function getStudentCurriculum(
     .orderBy(asc(subjectWeeks.weekNumber));
   if (templateWeeks.length === 0) return null;
 
-  const weekIds = templateWeeks.map((w) => w.id);
+  const maxWeek = Math.max(...templateWeeks.map((week) => week.weekNumber));
+  const releasedThroughWeek = releasedCurriculumWeek(term, maxWeek, today);
+  const weekIds = templateWeeks
+    .filter((week) => week.weekNumber <= releasedThroughWeek)
+    .map((week) => week.id);
   const quizRows = await listApprovedQuizSummariesForWeeks(weekIds);
   const quizByWeek = new Map(
     quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
@@ -145,15 +177,17 @@ export async function getStudentCurriculum(
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
   // Tutor sections + attachments for the enrolled class's tutor
-  const sections = await db
-    .select()
-    .from(tutorWeekSections)
-    .where(
-      and(
-        eq(tutorWeekSections.tutorId, enrollment.tutorId),
-        inArray(tutorWeekSections.subjectWeekId, weekIds),
-      ),
-    );
+  const sections = weekIds.length
+    ? await db
+        .select()
+        .from(tutorWeekSections)
+        .where(
+          and(
+            eq(tutorWeekSections.tutorId, enrollment.tutorId),
+            inArray(tutorWeekSections.subjectWeekId, weekIds),
+          ),
+        )
+    : [];
   const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
   const sectionIds = sections.map((s) => s.id);
   const attRows = sectionIds.length
@@ -169,35 +203,39 @@ export async function getStudentCurriculum(
     attsBySection.get(a.sectionId)!.push(a);
   }
 
-  const progress = await db
-    .select()
-    .from(studentWeekProgress)
-    .where(
-      and(
-        eq(studentWeekProgress.studentId, userId),
-        inArray(studentWeekProgress.subjectWeekId, weekIds),
-      ),
-    );
+  const progress = weekIds.length
+    ? await db
+        .select()
+        .from(studentWeekProgress)
+        .where(
+          and(
+            eq(studentWeekProgress.studentId, userId),
+            inArray(studentWeekProgress.subjectWeekId, weekIds),
+          ),
+        )
+    : [];
   const progressByWeek = new Map(progress.map((p) => [p.subjectWeekId, p]));
 
-  const hwRows = await db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      weekId: homework.weekId,
-      status: homeworkAssignments.status,
-      score: homeworkAssignments.score,
-    })
-    .from(homework)
-    .innerJoin(
-      homeworkAssignments,
-      and(
-        eq(homeworkAssignments.homeworkId, homework.id),
-        eq(homeworkAssignments.studentId, userId),
-      ),
-    )
-    .where(inArray(homework.weekId, weekIds));
+  const hwRows = weekIds.length
+    ? await db
+        .select({
+          homeworkId: homework.id,
+          title: homework.title,
+          dueDate: homework.dueDate,
+          weekId: homework.weekId,
+          status: homeworkAssignments.status,
+          score: homeworkAssignments.score,
+        })
+        .from(homework)
+        .innerJoin(
+          homeworkAssignments,
+          and(
+            eq(homeworkAssignments.homeworkId, homework.id),
+            eq(homeworkAssignments.studentId, userId),
+          ),
+        )
+        .where(inArray(homework.weekId, weekIds))
+    : [];
   const hwByWeek = new Map<string, typeof hwRows>();
   for (const r of hwRows) {
     if (!r.weekId) continue;
@@ -207,6 +245,27 @@ export async function getStudentCurriculum(
 
   const weeks: StudentCurriculumWeek[] = await Promise.all(
     templateWeeks.map(async (tpl) => {
+      const locked = tpl.weekNumber > releasedThroughWeek;
+      if (locked) {
+        return {
+          subjectWeekId: tpl.id,
+          weekNumber: tpl.weekNumber,
+          title: tpl.title,
+          description: null,
+          objectives: null,
+          videoUrl: null,
+          bookletUrl: null,
+          topicId: tpl.topicId,
+          topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
+          tutorNote: null,
+          tutorAttachments: [],
+          videoWatchedAt: null,
+          bookletOpenedAt: null,
+          homework: [],
+          quiz: null,
+          locked: true,
+        } satisfies StudentCurriculumWeek;
+      }
       const p = progressByWeek.get(tpl.id);
       const section = sectionByWeek.get(tpl.id);
       const sectionAtts = section
@@ -242,6 +301,7 @@ export async function getStudentCurriculum(
           score: h.score,
         })),
         quiz: quizByWeek.get(tpl.id) ?? null,
+        locked: false,
       };
     }),
   );
@@ -258,7 +318,7 @@ export async function getStudentCurriculum(
       startDate: term.startDate,
       endDate: term.endDate,
     },
-    termsAvailable: termRows.map((t) => ({
+    termsAvailable: accessibleTerms.map((t) => ({
       id: t.id,
       year: t.year,
       termNumber: t.termNumber,
@@ -266,7 +326,9 @@ export async function getStudentCurriculum(
     weeks,
     selectedWeekId:
       (selectedWeekId &&
-        weeks.find((w) => w.subjectWeekId === selectedWeekId)
+        weeks.find(
+          (w) => w.subjectWeekId === selectedWeekId && !w.locked,
+        )
           ?.subjectWeekId) ??
       null,
   };

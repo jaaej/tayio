@@ -16,6 +16,7 @@ import {
 import { ProgressRing } from "@/components/student/progress-ring";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
+import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import type { ParentCurriculumWeek } from "../_queries";
 
 export async function WeekContentParent({
@@ -205,14 +206,13 @@ export async function WeekContentParent({
                         </div>
                       </div>
                     </div>
-                    <a
-                      href={bookletSignedUrl}
-                      target="_blank"
-                      rel="noopener"
-                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-4 py-2 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
+                    <PdfViewerButton
+                      url={bookletSignedUrl}
+                      title={`${subjectName} · Week ${week.weekNumber} booklet`}
+                      className="mt-3 w-full rounded-[10px]"
                     >
-                      Open PDF →
-                    </a>
+                      View PDF →
+                    </PdfViewerButton>
                   </>
                 ) : (
                   <div className="flex-1 rounded-[12px] grid place-items-center text-center p-4 min-h-[140px] bg-surface border border-dashed border-line text-muted">
@@ -247,6 +247,22 @@ export async function WeekContentParent({
                   {week.tutorAttachments.map((att) => {
                     const Icon = att.kind === "link" ? LinkIcon : FileText;
                     const href = httpHref(att.url);
+                    if (
+                      href &&
+                      att.kind === "file" &&
+                      att.fileName.toLowerCase().endsWith(".pdf")
+                    ) {
+                      return (
+                        <PdfViewerButton
+                          key={att.id}
+                          url={href}
+                          title={att.fileName}
+                          className="rounded-[10px] bg-surface-2"
+                        >
+                          {att.fileName}
+                        </PdfViewerButton>
+                      );
+                    }
                     return href ? (
                       <a
                         key={att.id}

@@ -297,6 +297,28 @@ drop table if exists public.rate_limits;
 
 ---
 
+### 0055 - Student curriculum term grants
+
+**File:** `supabase/migrations/0055_student_curriculum_access.sql`
+**Status:** Applied to the connected Supabase project on 2026-09-23.
+**Risk:** Low. Additive table and index; no existing curriculum or enrolment data is changed.
+
+**What it does:** Adds one admin-managed exception row per student, subject and
+historical term. Normal curriculum access is derived from the student's first
+enrolment date for that subject. A grant permits an earlier term, while the
+calendar-based future-week lock continues to apply independently.
+
+**Access:** RLS is enabled with no browser policies and grants are revoked from
+`anon`/`authenticated`. Reads and writes run through role-checked server code;
+only admin actions can create or remove a grant.
+
+**Reversible by:**
+```sql
+drop table if exists public.student_curriculum_term_grants;
+```
+
+---
+
 ## Access matrix
 
 Read access. "✓" = full row visibility for own data; "limited" = subset of columns or rows; "no" = denied at RLS level.
@@ -325,6 +347,7 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `terms`                | no   | all              | all                     | all                            | all   |
 | `subject_weeks`        | no   | all              | all                     | all                            | all   |
 | `student_week_progress`| no   | own              | child's                 | no                             | all   |
+| `student_curriculum_term_grants` | no | no | no | no | no (server-only) |
 | `discussion_threads`   | no   | all              | all                     | all                            | all   |
 | `discussion_replies`   | no   | all              | all                     | all                            | all   |
 | `dm_threads`           | no   | participant      | participant             | participant                    | all (read) |
@@ -359,6 +382,7 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `terms`                | -                    | -      | -                              | all   |
 | `subject_weeks`        | -                    | -      | -                              | all   |
 | `student_week_progress`| INSERT/UPDATE own    | -      | -                              | all   |
+| `student_curriculum_term_grants` | - | - | - | server-only admin action |
 | `discussion_threads`   | author own (I/U)     | author own (I/U) | author own (I/U)     | all   |
 | `discussion_replies`   | author own (I/U)     | author own (I/U) | author own (I/U)     | all   |
 | `dm_threads`           | participant          | participant | participant               | - (read-only) |

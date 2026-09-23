@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { resolveCurrentTerm } from "@/lib/curriculum";
+import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
   CurriculumRail,
@@ -96,6 +97,9 @@ export default async function AdminSubjectCurriculumPage({
   const selectedWeek = weekParam
     ? weeks.find((w) => w.id === weekParam)
     : weeks[0];
+  const bookletSignedUrl = selectedWeek
+    ? await signCurriculumUrl(selectedWeek.bookletUrl)
+    : null;
 
   const [weekQuiz, tutorRows] = await Promise.all([
     selectedWeek
@@ -186,6 +190,7 @@ export default async function AdminSubjectCurriculumPage({
             subjectName={subject.name}
             weekCounts={weekCounts}
             quiz={weekQuiz}
+            bookletSignedUrl={bookletSignedUrl}
             quizTutors={tutorRows.map((tutor) => ({
               id: tutor.id,
               name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),

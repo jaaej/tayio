@@ -60,6 +60,8 @@ import {
 import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveManager } from "./_components/class-move-manager";
 import { UserAdminNoteEditor } from "../_components/user-admin-note-editor";
+import { getStudentCurriculumAccessOverview } from "@/app/admin/_lib/curriculum-access";
+import { CurriculumAccessManager } from "./_components/curriculum-access-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +108,7 @@ export default async function UserDetailPage({
     trial,
     calendarLessons,
     classMoveData,
+    curriculumAccess,
   ] = isStudent
     ? await Promise.all([
         activeTab === "credits" ? getStudentActivity(id) : Promise.resolve(null),
@@ -124,8 +127,11 @@ export default async function UserDetailPage({
         activeTab === "lessons"
           ? getClassMoveData(id)
           : Promise.resolve(null),
+        activeTab === "curriculum"
+          ? getStudentCurriculumAccessOverview(id)
+          : Promise.resolve([]),
       ])
-    : [null, null, null, null, [], null, [], null];
+    : [null, null, null, null, [], null, [], null, []];
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
@@ -359,6 +365,27 @@ export default async function UserDetailPage({
       />
     );
 
+  const curriculumAccessCard = isStudent && (
+    <section className="rise" style={{ animationDelay: "90ms" }}>
+      <Card>
+        <CardHead
+          title="Curriculum access"
+          action={
+            <span className="text-[12px] text-muted">
+              Earlier terms require an admin grant
+            </span>
+          }
+        />
+        <CardBody>
+          <CurriculumAccessManager
+            studentId={user.id}
+            subjects={curriculumAccess ?? []}
+          />
+        </CardBody>
+      </Card>
+    </section>
+  );
+
   // Lives in the rail, not a tab: on a student record the linked parents are
   // reference information you want beside whatever you are editing.
   const familyCard = (coarseRole(user.role) === "parent" ||
@@ -479,6 +506,7 @@ export default async function UserDetailPage({
       </>
     ),
     credits: creditsCard,
+    curriculum: curriculumAccessCard,
     reports: reportsCard,
     tutor: (
       <>

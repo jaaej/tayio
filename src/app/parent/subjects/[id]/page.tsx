@@ -55,9 +55,11 @@ export default async function ParentSubjectPage({
     )?.subjectWeekId ?? null;
 
   const selected =
-    data.weeks.find((w) => w.subjectWeekId === week) ??
-    data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
-    data.weeks[0];
+    data.weeks.find((w) => w.subjectWeekId === week && !w.locked) ??
+    data.weeks.find(
+      (w) => w.subjectWeekId === currentWeekHint && !w.locked,
+    ) ??
+    data.weeks.find((w) => !w.locked);
 
   const railWeeks: RailWeek[] = data.weeks.map((w) => {
     const homeworkTotal = w.homework.length;
@@ -78,6 +80,7 @@ export default async function ParentSubjectPage({
       title: w.title,
       topicId: w.topicId,
       topicName: w.topicName,
+      locked: w.locked,
       complete: tasksTotal > 0 && tasksDone === tasksTotal,
       pills:
         homeworkTotal > 0
@@ -153,7 +156,7 @@ export default async function ParentSubjectPage({
                 weeks={railWeeks}
                 selectedWeekId={selected.subjectWeekId}
                 currentWeekIdHint={currentWeekHint}
-                showTermSelect={false}
+                showTermSelect
               />
             }
           >

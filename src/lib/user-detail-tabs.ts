@@ -10,6 +10,7 @@ export type UserTab =
   | "profile"
   | "lessons"
   | "credits"
+  | "curriculum"
   | "reports"
   | "tutor"
   | "availability";
@@ -22,6 +23,7 @@ const STUDENT_TABS: ReadonlyArray<Tab> = [
   PROFILE,
   { key: "lessons", label: "Lessons & leave" },
   { key: "credits", label: "Credits & activity" },
+  { key: "curriculum", label: "Curriculum access" },
   { key: "reports", label: "Term reports" },
 ];
 

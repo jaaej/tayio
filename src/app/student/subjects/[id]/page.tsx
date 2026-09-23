@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Card, CardBody } from "@/components/student/card";
 import { db } from "@/db/client";
 import { classes, enrollments } from "@/db/schema";
@@ -36,7 +36,8 @@ export default async function StudentSubjectPage({
       .where(
         and(
           eq(enrollments.studentId, user.id),
-          eq(classes.subjectId, subjectId),
+        eq(classes.subjectId, subjectId),
+        isNull(enrollments.withdrawnAt),
         ),
       )
       .limit(1);
@@ -62,9 +63,13 @@ export default async function StudentSubjectPage({
     )?.subjectWeekId ?? null;
 
   const selectedWeek =
-    data.weeks.find((w) => w.subjectWeekId === data.selectedWeekId) ??
-    data.weeks.find((w) => w.subjectWeekId === currentWeekHint) ??
-    data.weeks[0];
+    data.weeks.find(
+      (w) => w.subjectWeekId === data.selectedWeekId && !w.locked,
+    ) ??
+    data.weeks.find(
+      (w) => w.subjectWeekId === currentWeekHint && !w.locked,
+    ) ??
+    data.weeks.find((w) => !w.locked);
 
   const railWeeks: RailWeek[] = data.weeks.map((w) => {
     const homeworkTotal = w.homework.length;
@@ -85,6 +90,7 @@ export default async function StudentSubjectPage({
       title: w.title,
       topicId: w.topicId,
       topicName: w.topicName,
+      locked: w.locked,
       complete: tasksTotal > 0 && tasksDone === tasksTotal,
       pills:
         homeworkTotal > 0
@@ -143,17 +149,36 @@ export default async function StudentSubjectPage({
             weeks={railWeeks}
             selectedWeekId={data.selectedWeekId}
             currentWeekIdHint={currentWeekHint}
-            showTermSelect={false}
+            showTermSelect
           />
         }
       >
-        <WeekContent
-          week={selectedWeek}
-          subjectName={data.subjectName}
-          backHref="/student/subjects"
-        />
+        {selectedWeek ? (
+          <WeekContent
+            week={selectedWeek}
+            subjectName={data.subjectName}
+            backHref="/student/subjects"
+          />
+        ) : (
+          <LockedTermMessage />
+        )}
       </CurriculumLayout>
     </div>
+  );
+}
+
+function LockedTermMessage() {
+  return (
+    <Card>
+      <CardBody>
+        <div className="py-8 text-center">
+          <div className="text-[15px] font-bold text-ink">Lessons are locked</div>
+          <p className="mt-1 text-[13px] text-muted">
+            Week 1 will open when this term begins.
+          </p>
+        </div>
+      </CardBody>
+    </Card>
   );
 }
 

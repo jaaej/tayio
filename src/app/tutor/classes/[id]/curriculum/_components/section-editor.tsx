@@ -38,6 +38,7 @@ import {
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -277,6 +278,7 @@ export function SectionEditor({
               href={bookletSignedUrl}
               action="Open booklet"
               empty="No booklet uploaded yet"
+              inlinePdf
             />
           </div>
         </section>
@@ -648,12 +650,14 @@ function TutorMaterialCard({
   href,
   action,
   empty,
+  inlinePdf = false,
 }: {
   icon: React.ReactNode;
   label: string;
   href: string | null;
   action: string;
   empty: string;
+  inlinePdf?: boolean;
 }) {
   return (
     <div className="flex min-h-[112px] flex-col rounded-[14px] border border-line bg-surface-2 p-4">
@@ -664,7 +668,11 @@ function TutorMaterialCard({
         <span className="text-[14px] font-extrabold text-ink">{label}</span>
       </div>
       <div className="mt-auto pt-3">
-        {href ? (
+        {href && inlinePdf ? (
+          <PdfViewerButton url={href} title={label}>
+            View PDF →
+          </PdfViewerButton>
+        ) : href ? (
           <a
             href={href}
             target="_blank"
@@ -784,6 +792,21 @@ function PromoteControl({
 function AttachmentChip({ att }: { att: AttachmentWithUrl }) {
   const Icon = att.kind === "link" ? LinkIcon : FileText;
   const href = httpHref(att.url);
+  if (
+    href &&
+    att.kind === "file" &&
+    att.fileName.toLowerCase().endsWith(".pdf")
+  ) {
+    return (
+      <PdfViewerButton
+        url={href}
+        title={att.fileName}
+        className="rounded-[10px] bg-surface-2"
+      >
+        {att.fileName}
+      </PdfViewerButton>
+    );
+  }
   return href ? (
     <a
       href={href}

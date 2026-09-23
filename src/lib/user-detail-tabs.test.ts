@@ -7,6 +7,7 @@ describe("tabsForRole", () => {
       "profile",
       "lessons",
       "credits",
+      "curriculum",
       "reports",
     ]);
   });
@@ -38,6 +39,9 @@ describe("parseTabParam", () => {
 
   it("accepts a tab the role actually has", () => {
     expect(parseTabParam("credits", "student_unrestricted")).toBe("credits");
+    expect(parseTabParam("curriculum", "student_unrestricted")).toBe(
+      "curriculum",
+    );
     expect(parseTabParam("availability", "tutor")).toBe("availability");
   });
 

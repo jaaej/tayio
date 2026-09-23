@@ -10,7 +10,12 @@ import {
 import { playSound, playError, type SoundName } from "./sound";
 import { submitScore } from "../_actions";
 
-const ROUND_SECONDS = 60;
+const SPRINT_SECONDS = 30;
+const STANDARD_ROUND_SECONDS = 60;
+
+function roundSeconds(difficulty: Difficulty) {
+  return difficulty === "sprint" ? SPRINT_SECONDS : STANDARD_ROUND_SECONDS;
+}
 
 type Phase = "countdown" | "playing" | "done";
 
@@ -26,9 +31,10 @@ export function GameClient({
   onExit: () => void;
 }) {
   const router = useRouter();
+  const durationSeconds = roundSeconds(difficulty);
   const [phase, setPhase] = useState<Phase>("countdown");
   const [count, setCount] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(durationSeconds);
   const [question, setQuestion] = useState<Question>(() =>
     generateQuestion(difficulty),
   );
@@ -143,7 +149,7 @@ export function GameClient({
   const restart = () => {
     submitted.current = false;
     setScore(0);
-    setTimeLeft(ROUND_SECONDS);
+    setTimeLeft(durationSeconds);
     setInput("");
     setNeg(false);
     setWrong(false);

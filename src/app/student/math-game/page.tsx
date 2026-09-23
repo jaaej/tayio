@@ -45,12 +45,13 @@ export default async function MathGamePage() {
               Taiyo Blitz
             </h1>
             <p className="text-[14px] lg:text-[16px] text-white/85 mt-2.5">
-              Solve as many as you can in 60 seconds. Pick a level and climb the
-              board.
+              Race through a 30-second Sprint or take on a full 60-second
+              round. Pick a level and climb the board.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-[12px] font-semibold">
               <span className="rounded-full bg-white/15 px-3 py-1.5">5 levels</span>
-              <span className="rounded-full bg-white/15 px-3 py-1.5">60 seconds</span>
+              <span className="rounded-full bg-white/15 px-3 py-1.5">Sprint: 30 seconds</span>
+              <span className="rounded-full bg-white/15 px-3 py-1.5">Other levels: 60 seconds</span>
               <span className="rounded-full bg-white/15 px-3 py-1.5">Live leaderboard</span>
               <span className="rounded-full bg-white px-3 py-1.5 font-extrabold text-[#5A21B0]">
                 {overallRank

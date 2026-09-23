@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -16,11 +16,12 @@ import {
   tutorWeekAttachments,
   tutorWeekSections,
 } from "@/db/schema";
-import {
-  resolveCurrentTerm,
-  resolveMostRecentPastTerm,
-} from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
+import { accessibleCurriculumTermsForStudent } from "@/lib/curriculum-access";
+import {
+  melbourneDateKey,
+  releasedCurriculumWeek,
+} from "@/lib/curriculum-access-rules";
 
 export type ParentCurriculumWeek = {
   subjectWeekId: string;
@@ -48,6 +49,7 @@ export type ParentCurriculumWeek = {
     status: string;
     score: string | null;
   }>;
+  locked: boolean;
 };
 
 export type ParentCurriculumData = {
@@ -92,16 +94,35 @@ export async function getParentCurriculum(
       subjectName: subjects.name,
       tutorId: classes.tutorId,
       lessonPlan: classes.lessonPlan,
+      enrolledAt: enrollments.enrolledAt,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(
-      and(eq(enrollments.studentId, childId), eq(classes.subjectId, subjectId)),
+      and(
+        eq(enrollments.studentId, childId),
+        eq(classes.subjectId, subjectId),
+        isNull(enrollments.withdrawnAt),
+      ),
     )
     .orderBy(asc(enrollments.enrolledAt))
     .limit(1);
   if (!enr) return null;
+
+  const [firstEnrollment] = await db
+    .select({ enrolledAt: enrollments.enrolledAt })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, childId),
+        eq(classes.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(enrollments.enrolledAt))
+    .limit(1);
+  if (!firstEnrollment) return null;
 
   const [child] = await db
     .select({ firstName: profiles.firstName })
@@ -123,12 +144,22 @@ export async function getParentCurriculum(
     .orderBy(desc(terms.year), desc(terms.termNumber));
   if (termRows.length === 0) return null;
 
-  let term =
-    (selectedTermId && termRows.find((t) => t.id === selectedTermId)) ||
-    (await resolveCurrentTerm()) ||
-    (await resolveMostRecentPastTerm()) ||
-    termRows[0];
-  if (!termRows.find((t) => t.id === term.id)) term = termRows[0];
+  const accessibleTerms = await accessibleCurriculumTermsForStudent({
+    studentId: childId,
+    subjectId,
+    enrolledAt: firstEnrollment.enrolledAt,
+    termRows,
+  });
+  if (accessibleTerms.length === 0) return null;
+
+  const today = melbourneDateKey();
+  const term =
+    (selectedTermId && accessibleTerms.find((t) => t.id === selectedTermId)) ||
+    accessibleTerms.find(
+      (candidate) =>
+        candidate.startDate <= today && today <= candidate.endDate,
+    ) ||
+    accessibleTerms[0];
 
   const templates = await db
     .select()
@@ -141,7 +172,11 @@ export async function getParentCurriculum(
     )
     .orderBy(asc(subjectWeeks.weekNumber));
   if (templates.length === 0) return null;
-  const weekIds = templates.map((w) => w.id);
+  const maxWeek = Math.max(...templates.map((week) => week.weekNumber));
+  const releasedThroughWeek = releasedCurriculumWeek(term, maxWeek, today);
+  const weekIds = templates
+    .filter((week) => week.weekNumber <= releasedThroughWeek)
+    .map((week) => week.id);
 
   // Topic names for this subject
   const topicRows = await db
@@ -151,15 +186,17 @@ export async function getParentCurriculum(
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
   // Tutor sections + attachments for the child's class tutor
-  const sections = await db
-    .select()
-    .from(tutorWeekSections)
-    .where(
-      and(
-        eq(tutorWeekSections.tutorId, enr.tutorId),
-        inArray(tutorWeekSections.subjectWeekId, weekIds),
-      ),
-    );
+  const sections = weekIds.length
+    ? await db
+        .select()
+        .from(tutorWeekSections)
+        .where(
+          and(
+            eq(tutorWeekSections.tutorId, enr.tutorId),
+            inArray(tutorWeekSections.subjectWeekId, weekIds),
+          ),
+        )
+    : [];
   const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
   const sectionIds = sections.map((s) => s.id);
   const attRows = sectionIds.length
@@ -174,35 +211,39 @@ export async function getParentCurriculum(
     attsBySection.get(a.sectionId)!.push(a);
   }
 
-  const progress = await db
-    .select()
-    .from(studentWeekProgress)
-    .where(
-      and(
-        eq(studentWeekProgress.studentId, childId),
-        inArray(studentWeekProgress.subjectWeekId, weekIds),
-      ),
-    );
+  const progress = weekIds.length
+    ? await db
+        .select()
+        .from(studentWeekProgress)
+        .where(
+          and(
+            eq(studentWeekProgress.studentId, childId),
+            inArray(studentWeekProgress.subjectWeekId, weekIds),
+          ),
+        )
+    : [];
   const progressByWeek = new Map(progress.map((p) => [p.subjectWeekId, p]));
 
-  const hwRows = await db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      weekId: homework.weekId,
-      status: homeworkAssignments.status,
-      score: homeworkAssignments.score,
-    })
-    .from(homework)
-    .innerJoin(
-      homeworkAssignments,
-      and(
-        eq(homeworkAssignments.homeworkId, homework.id),
-        eq(homeworkAssignments.studentId, childId),
-      ),
-    )
-    .where(inArray(homework.weekId, weekIds));
+  const hwRows = weekIds.length
+    ? await db
+        .select({
+          homeworkId: homework.id,
+          title: homework.title,
+          dueDate: homework.dueDate,
+          weekId: homework.weekId,
+          status: homeworkAssignments.status,
+          score: homeworkAssignments.score,
+        })
+        .from(homework)
+        .innerJoin(
+          homeworkAssignments,
+          and(
+            eq(homeworkAssignments.homeworkId, homework.id),
+            eq(homeworkAssignments.studentId, childId),
+          ),
+        )
+        .where(inArray(homework.weekId, weekIds))
+    : [];
   const hwByWeek = new Map<string, typeof hwRows>();
   for (const r of hwRows) {
     if (!r.weekId) continue;
@@ -212,6 +253,26 @@ export async function getParentCurriculum(
 
   const weeks: ParentCurriculumWeek[] = await Promise.all(
     templates.map(async (tpl) => {
+      const locked = tpl.weekNumber > releasedThroughWeek;
+      if (locked) {
+        return {
+          subjectWeekId: tpl.id,
+          weekNumber: tpl.weekNumber,
+          title: tpl.title,
+          description: null,
+          objectives: null,
+          videoUrl: null,
+          bookletUrl: null,
+          topicId: tpl.topicId,
+          topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
+          tutorNote: null,
+          tutorAttachments: [],
+          videoWatchedAt: null,
+          bookletOpenedAt: null,
+          homework: [],
+          locked: true,
+        } satisfies ParentCurriculumWeek;
+      }
       const p = progressByWeek.get(tpl.id);
       const section = sectionByWeek.get(tpl.id);
       const sectionAtts = section
@@ -246,6 +307,7 @@ export async function getParentCurriculum(
           status: h.status,
           score: h.score,
         })),
+        locked: false,
       };
     }),
   );
@@ -263,7 +325,7 @@ export async function getParentCurriculum(
       startDate: term.startDate,
       endDate: term.endDate,
     },
-    termsAvailable: termRows.map((t) => ({
+    termsAvailable: accessibleTerms.map((t) => ({
       id: t.id,
       year: t.year,
       termNumber: t.termNumber,

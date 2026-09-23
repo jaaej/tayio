@@ -13,7 +13,6 @@ import {
   LogOut,
   Gamepad2,
   Library,
-  CircleUserRound,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -39,7 +38,6 @@ const SECTIONS: NavSection[] = [
       { label: "Homework",    href: "/student/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Timetable",   href: "/student/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Progress",    href: "/student/progress",   icon: <TrendingUp className={IC} /> },
-      { label: "Profile icon", href: "/student/profile", icon: <CircleUserRound className={IC} /> },
       { label: "Resources",   href: "/student/resources",  icon: <Library className={IC} /> },
       { label: "Discussions", href: "/student/discussions", icon: <MessagesSquare className={IC} /> },
     ],
@@ -180,7 +178,7 @@ export async function StudentShell({
           <Link
             href="/student/profile"
             className="flex items-center gap-2.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 transition-colors hover:border-brand-300 hover:bg-surface-2"
-            aria-label="Choose profile icon"
+            aria-label="Open profile and account settings"
           >
             <ProfileAvatar
               avatarKey={profileAvatarKey}
@@ -245,15 +243,28 @@ export async function StudentShell({
         <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
           <div className="px-5 h-14 flex items-center justify-between gap-3">
             <BrandMark />
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                aria-label="Sign out"
-                className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/student/profile"
+                aria-label="Open profile and account settings"
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                <LogOut className="h-[18px] w-[18px]" />
-              </button>
-            </form>
+                <ProfileAvatar
+                  avatarKey={profileAvatarKey}
+                  fallback={initial}
+                  className="h-9 w-9 text-[12px]"
+                />
+              </Link>
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  aria-label="Sign out"
+                  className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+                >
+                  <LogOut className="h-[18px] w-[18px]" />
+                </button>
+              </form>
+            </div>
           </div>
           <StudentNavLinksMobile sections={sections} blitzRank={blitzRank} />
         </header>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,6 +26,8 @@ export type RailWeek = {
   complete?: boolean;
   /** small status pills (e.g. homework count, "Notes") */
   pills?: { label: string; tone?: "neutral" | "good" | "warn" }[];
+  /** Learners can see that the week exists, but cannot open it before release. */
+  locked?: boolean;
 };
 
 export function CurriculumRail({
@@ -50,7 +52,11 @@ export function CurriculumRail({
   /** Term switcher at the top of the rail. Off for learner views. */
   showTermSelect?: boolean;
 }) {
-  const active = selectedWeekId ?? currentWeekIdHint ?? weeks[0]?.id ?? null;
+  const active =
+    selectedWeekId ??
+    currentWeekIdHint ??
+    weeks.find((week) => !week.locked)?.id ??
+    null;
 
   const qs = (extra: Record<string, string>) =>
     new URLSearchParams({ ...(extraParams ?? {}), ...extra }).toString();
@@ -113,19 +119,8 @@ export function CurriculumRail({
               {g.items.map((w) => {
                 const isActive = w.id === active;
                 const isCurrent = w.id === currentWeekIdHint;
-                return (
-                  <Link
-                    key={w.id}
-                    href={`${basePath}?${qs({ term: currentTermId, week: w.id })}`}
-                    aria-current={isActive ? "true" : undefined}
-                    className={cn(
-                      "block rounded-[12px] border px-3 py-2.5 transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50",
-                      isActive
-                        ? "border-ink bg-ink text-white"
-                        : "border-line-strong bg-surface hover:border-line-field hover:bg-surface-2",
-                    )}
-                  >
+                const content = (
+                  <>
                     <div className="flex items-center justify-between gap-1.5">
                       <span
                         className={cn(
@@ -136,6 +131,11 @@ export function CurriculumRail({
                         Week {w.weekNumber}
                       </span>
                       <span className="flex items-center gap-1">
+                        {w.locked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.08em] text-muted ring-1 ring-inset ring-line">
+                            <LockKeyhole className="h-2.5 w-2.5" /> Locked
+                          </span>
+                        )}
                         {isCurrent && !isActive && (
                           <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.1em] text-white">
                             Now
@@ -178,6 +178,36 @@ export function CurriculumRail({
                         ))}
                       </div>
                     )}
+                  </>
+                );
+
+                if (w.locked) {
+                  return (
+                    <div
+                      key={w.id}
+                      aria-disabled="true"
+                      title={`Week ${w.weekNumber} unlocks when that teaching week begins`}
+                      className="block cursor-not-allowed rounded-[12px] border border-line bg-surface-2 px-3 py-2.5 opacity-65"
+                    >
+                      {content}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={w.id}
+                    href={`${basePath}?${qs({ term: currentTermId, week: w.id })}`}
+                    aria-current={isActive ? "true" : undefined}
+                    className={cn(
+                      "block rounded-[12px] border px-3 py-2.5 transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50",
+                      isActive
+                        ? "border-ink bg-ink text-white"
+                        : "border-line-strong bg-surface hover:border-line-field hover:bg-surface-2",
+                    )}
+                  >
+                    {content}
                   </Link>
                 );
               })}

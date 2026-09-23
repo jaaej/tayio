@@ -20,6 +20,7 @@ import { Pill } from "@/components/student/pill";
 import { ProgressRing } from "@/components/student/progress-ring";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
+import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import { VideoPlayer } from "./video-player";
 import { BookletLink } from "./booklet-link";
 import type { StudentCurriculumWeek } from "../_queries";
@@ -232,6 +233,22 @@ export async function WeekContent({
                   {week.tutorAttachments.map((att) => {
                     const Icon = att.kind === "link" ? LinkIcon : FileText;
                     const href = httpHref(att.url);
+                    if (
+                      href &&
+                      att.kind === "file" &&
+                      att.fileName.toLowerCase().endsWith(".pdf")
+                    ) {
+                      return (
+                        <PdfViewerButton
+                          key={att.id}
+                          url={href}
+                          title={att.fileName}
+                          className="rounded-[10px] bg-surface-2"
+                        >
+                          {att.fileName}
+                        </PdfViewerButton>
+                      );
+                    }
                     return href ? (
                       <a
                         key={att.id}

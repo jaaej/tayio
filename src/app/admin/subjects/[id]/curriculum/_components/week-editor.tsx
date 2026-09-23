@@ -15,6 +15,7 @@ import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
 import { SidePanel } from "@/components/ui/side-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -43,6 +44,7 @@ export function WeekEditor({
   quiz,
   quizTutors,
   quizTarget,
+  bookletSignedUrl,
 }: {
   existing?: SubjectWeek;
   subjectId: string;
@@ -58,6 +60,7 @@ export function WeekEditor({
   } | null;
   quizTutors?: { id: string; name: string }[];
   quizTarget?: QuizTargetWeek;
+  bookletSignedUrl?: string | null;
 }) {
   const router = useRouter();
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
@@ -317,6 +320,7 @@ export function WeekEditor({
                   accept="application/pdf"
                   pending={pending}
                   onPick={(file) => handleUpload("booklet", file)}
+                  viewerUrl={bookletSignedUrl}
                 />
               </div>
               {error && !editorOpen && (
@@ -482,6 +486,7 @@ function FileSlot({
   accept,
   pending,
   onPick,
+  viewerUrl,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -489,6 +494,7 @@ function FileSlot({
   accept: string;
   pending: boolean;
   onPick: (file: File) => void;
+  viewerUrl?: string | null;
 }) {
   const inputId = `file-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
@@ -504,7 +510,12 @@ function FileSlot({
           </div>
         </div>
       </div>
-      <div className="mt-auto pt-4">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+        {viewerUrl ? (
+          <PdfViewerButton url={viewerUrl} title={label}>
+            View PDF
+          </PdfViewerButton>
+        ) : null}
         <label
           htmlFor={inputId}
           className="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-surface px-3.5 text-[12px] font-bold text-ink ring-1 ring-inset ring-line transition-colors hover:ring-line-strong"
