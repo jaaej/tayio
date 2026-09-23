@@ -26,8 +26,6 @@ import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
-import { runTutorCoverReminders } from "@/lib/tutor-cover";
-import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
 import { CoverAlertPoller } from "./cover-alert-poller";
 import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
@@ -124,18 +122,6 @@ export async function AdminShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  // Hobby cron is daily, so reconcile on admin activity too. Durable deadline
-  // flags and notification dedupe keys make both sweeps retry-safe.
-  if (user) {
-    try {
-      await Promise.all([
-        runTutorCoverReminders(),
-        runFreeTrialNotifications(),
-      ]);
-    } catch (err) {
-      console.error("[admin-shell] daily notification sweep failed:", err);
-    }
-  }
   let unread = 0;
   let notifUnread = 0;
   if (user) {

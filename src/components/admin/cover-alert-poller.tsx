@@ -22,6 +22,10 @@ export function CoverAlertPoller() {
       }
     }
 
+    // Reconcile after the shell is interactive instead of blocking every
+    // server-rendered admin navigation. The interval keeps long-lived tabs
+    // current and the secured daily cron remains the durable fallback.
+    void sync();
     const timer = window.setInterval(sync, POLL_MS);
     const onVisibility = () => {
       if (document.visibilityState === "visible") void sync();

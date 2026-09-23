@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Swirling } from "@/components/ui/swirling";
+import {
+  NAVIGATION_LOADING_FINISH,
+  NAVIGATION_LOADING_START,
+} from "@/lib/navigation-loading";
 
 const MINIMUM_VISIBLE_MS = 300;
 const SAFETY_TIMEOUT_MS = 15_000;
@@ -177,13 +181,17 @@ export function GlobalNavigationIndicator() {
     document.addEventListener("click", onDocumentClick, true);
     window.addEventListener("pointermove", rememberPointer, { passive: true });
     window.addEventListener("popstate", onPopState);
+    window.addEventListener(NAVIGATION_LOADING_START, start);
+    window.addEventListener(NAVIGATION_LOADING_FINISH, finish);
     return () => {
       document.removeEventListener("click", onDocumentClick, true);
       window.removeEventListener("pointermove", rememberPointer);
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener(NAVIGATION_LOADING_START, start);
+      window.removeEventListener(NAVIGATION_LOADING_FINISH, finish);
       clearTimers();
     };
-  }, [clearTimers, start]);
+  }, [clearTimers, finish, start]);
 
   // A changed route/search string means the new server payload committed.
   // Deliberately do not depend on `active`: doing so would finish immediately

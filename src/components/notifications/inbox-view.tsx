@@ -22,6 +22,10 @@ import {
 } from "@/lib/notification-groups";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/format";
+import {
+  finishNavigationLoading,
+  startNavigationLoading,
+} from "@/lib/navigation-loading";
 
 /**
  * One row as the server hands it over. Everything time-dependent (the bucket,
@@ -122,6 +126,7 @@ export function NotificationsInboxView({
 
   async function openNotification(item: InboxItem) {
     if (!item.href) toggleExpanded(item.id);
+    if (item.href) startNavigationLoading();
 
     if (!item.isUnread || readIds.has(item.id)) {
       if (item.href) router.push(item.href);
@@ -134,6 +139,7 @@ export function NotificationsInboxView({
     try {
       const result = await markNotificationRead(item.id);
       if (!result.ok) {
+        if (item.href) finishNavigationLoading();
         setReadIds((current) => {
           const next = new Set(current);
           next.delete(item.id);
@@ -142,11 +148,15 @@ export function NotificationsInboxView({
         return;
       }
 
-      if (item.href) router.push(item.href);
-      // Refresh the shared shell too, so its notification badge uses the new
-      // database count rather than the count from the previous server render.
-      router.refresh();
+      if (item.href) {
+        router.push(item.href);
+      } else {
+        // Rows without a destination stay on this page, so refresh the shell's
+        // unread badge after their read state is persisted.
+        router.refresh();
+      }
     } catch {
+      if (item.href) finishNavigationLoading();
       setReadIds((current) => {
         const next = new Set(current);
         next.delete(item.id);

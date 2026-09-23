@@ -48,20 +48,10 @@ export type TutorCheckinMonthSummary = {
   hasMissingRate: boolean;
 };
 
-export async function getTutorCheckinWeek(
-  tutorId: string,
-  requestedWeek: string,
-): Promise<TutorCheckinView> {
-  const weekStart = weekStartForIsoDate(requestedWeek);
-  const checkin = await syncTutorCheckin(tutorId, weekStart);
-  const entries = await db
-    .select()
-    .from(tutorCheckinEntries)
-    .where(eq(tutorCheckinEntries.checkinId, checkin.id))
-    .orderBy(
-      asc(tutorCheckinEntries.workDate),
-      asc(tutorCheckinEntries.startTime),
-    );
+function checkinView(
+  checkin: typeof tutorWeeklyCheckins.$inferSelect,
+  entries: Array<typeof tutorCheckinEntries.$inferSelect>,
+): TutorCheckinView {
   const active = entries.filter((entry) => !entry.isRemoved);
   return {
     ...checkin,
@@ -75,9 +65,273 @@ export async function getTutorCheckinWeek(
   };
 }
 
-/** Payroll summary from durable weekly snapshots. A week contributes to
+/**
+ * Synchronise and load one week for several tutors in batches. The admin page
+ * used to call the single-tutor path in parallel, producing multiple rounds of
+ * select/insert/select traffic per tutor. Across a serverless-to-database
+ * connection that made a simple navigation wait on dozens of requests.
+ *
+ * Approved snapshots remain immutable. Pending snapshots are reconciled with
+ * the lesson timetable and current hourly rate before they are displayed.
+ */
+export async function getTutorCheckinWeeks(
+  requestedTutorIds: string[],
+  requestedWeek: string,
+): Promise<TutorCheckinView[]> {
+  const tutorIds = Array.from(new Set(requestedTutorIds));
+  if (tutorIds.length === 0) return [];
+
+  const weekStart = weekStartForIsoDate(requestedWeek);
+  const weekEnd = addIsoDays(weekStart, 6);
+  const loadCheckins = () =>
+    db
+      .select()
+      .from(tutorWeeklyCheckins)
+      .where(
+        and(
+          inArray(tutorWeeklyCheckins.tutorId, tutorIds),
+          eq(tutorWeeklyCheckins.weekStart, weekStart),
+        ),
+      );
+
+  let checkins = await loadCheckins();
+  const existingTutorIds = new Set(checkins.map((row) => row.tutorId));
+  const missingTutorIds = tutorIds.filter((id) => !existingTutorIds.has(id));
+  if (missingTutorIds.length > 0) {
+    await db
+      .insert(tutorWeeklyCheckins)
+      .values(missingTutorIds.map((tutorId) => ({ tutorId, weekStart })))
+      .onConflictDoNothing();
+    checkins = await loadCheckins();
+  }
+
+  const checkinByTutor = new Map(
+    checkins.map((checkin) => [checkin.tutorId, checkin]),
+  );
+  if (checkinByTutor.size !== tutorIds.length) {
+    throw new Error("Weekly check-ins could not be created.");
+  }
+
+  const checkinIds = checkins.map((checkin) => checkin.id);
+  const mutableCheckins = checkins.filter(
+    (checkin) => checkin.status !== "approved",
+  );
+  const mutableTutorIds = mutableCheckins.map((checkin) => checkin.tutorId);
+
+  const lessonPromise =
+    mutableTutorIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            tutorId: lessons.tutorId,
+            lessonId: lessons.id,
+            classId: classes.id,
+            subjectName: subjects.name,
+            className: classes.name,
+            workDate: lessons.date,
+            startTime: lessons.startTime,
+            endTime: lessons.endTime,
+          })
+          .from(lessons)
+          .innerJoin(classes, eq(classes.id, lessons.classId))
+          .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+          .where(
+            and(
+              inArray(lessons.tutorId, mutableTutorIds),
+              inArray(lessons.status, ["upcoming", "completed", "makeup"]),
+              gte(lessons.date, weekStart),
+              lte(lessons.date, weekEnd),
+            ),
+          );
+  const ratePromise =
+    mutableTutorIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            tutorId: tutorBankDetails.tutorId,
+            hourlyRate: tutorBankDetails.hourlyRate,
+          })
+          .from(tutorBankDetails)
+          .where(inArray(tutorBankDetails.tutorId, mutableTutorIds));
+
+  const [lessonRows, existingEntries, rateRows] = await Promise.all([
+    lessonPromise,
+    db
+      .select()
+      .from(tutorCheckinEntries)
+      .where(inArray(tutorCheckinEntries.checkinId, checkinIds))
+      .orderBy(
+        asc(tutorCheckinEntries.workDate),
+        asc(tutorCheckinEntries.startTime),
+      ),
+    ratePromise,
+  ]);
+
+  const rateByTutor = new Map(
+    rateRows.map((row) => [row.tutorId, row.hourlyRate ?? "0"]),
+  );
+  const existingByLesson = new Map(
+    existingEntries
+      .filter((entry) => entry.lessonId)
+      .map((entry) => [
+        `${entry.checkinId}:${entry.lessonId as string}`,
+        entry,
+      ]),
+  );
+  const activeLessonKeys = new Set<string>();
+  const insertValues: Array<typeof tutorCheckinEntries.$inferInsert> = [];
+  const updateValues: Array<{
+    id: string;
+    classId: string;
+    subjectName: string;
+    className: string;
+    workDate: string;
+    startTime: string;
+    endTime: string;
+    minutes: number;
+    hourlyRate: string;
+  }> = [];
+
+  for (const lesson of lessonRows) {
+    const checkin = checkinByTutor.get(lesson.tutorId);
+    if (!checkin || checkin.status === "approved") continue;
+    const key = `${checkin.id}:${lesson.lessonId}`;
+    activeLessonKeys.add(key);
+    const minutes = checkinMinutes(lesson.startTime, lesson.endTime);
+    const hourlyRate = rateByTutor.get(lesson.tutorId) ?? "0";
+    const existing = existingByLesson.get(key);
+    if (!existing) {
+      insertValues.push({
+        checkinId: checkin.id,
+        lessonId: lesson.lessonId,
+        classId: lesson.classId,
+        subjectName: lesson.subjectName,
+        className: lesson.className,
+        workDate: lesson.workDate,
+        startTime: lesson.startTime,
+        endTime: lesson.endTime,
+        minutes,
+        hourlyRate,
+      });
+      continue;
+    }
+    if (existing.isManualOverride) continue;
+    const changed =
+      existing.classId !== lesson.classId ||
+      existing.subjectName !== lesson.subjectName ||
+      existing.className !== lesson.className ||
+      existing.workDate !== lesson.workDate ||
+      existing.startTime !== lesson.startTime ||
+      existing.endTime !== lesson.endTime ||
+      existing.minutes !== minutes ||
+      existing.hourlyRate !== hourlyRate ||
+      existing.isRemoved;
+    if (changed) {
+      updateValues.push({
+        id: existing.id,
+        classId: lesson.classId,
+        subjectName: lesson.subjectName,
+        className: lesson.className,
+        workDate: lesson.workDate,
+        startTime: lesson.startTime,
+        endTime: lesson.endTime,
+        minutes,
+        hourlyRate,
+      });
+    }
+  }
+
+  const mutableCheckinIds = new Set(
+    mutableCheckins.map((checkin) => checkin.id),
+  );
+  const removeIds = existingEntries
+    .filter(
+      (entry) =>
+        mutableCheckinIds.has(entry.checkinId) &&
+        entry.lessonId &&
+        !entry.isManualOverride &&
+        !entry.isRemoved &&
+        !activeLessonKeys.has(`${entry.checkinId}:${entry.lessonId}`),
+    )
+    .map((entry) => entry.id);
+
+  const mutated =
+    insertValues.length > 0 || updateValues.length > 0 || removeIds.length > 0;
+  if (mutated) {
+    await db.transaction(async (tx) => {
+      if (insertValues.length > 0) {
+        await tx
+          .insert(tutorCheckinEntries)
+          .values(insertValues)
+          .onConflictDoNothing();
+      }
+      for (const entry of updateValues) {
+        await tx
+          .update(tutorCheckinEntries)
+          .set({
+            classId: entry.classId,
+            subjectName: entry.subjectName,
+            className: entry.className,
+            workDate: entry.workDate,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            minutes: entry.minutes,
+            hourlyRate: entry.hourlyRate,
+            isRemoved: false,
+            updatedAt: new Date(),
+          })
+          .where(eq(tutorCheckinEntries.id, entry.id));
+      }
+      if (removeIds.length > 0) {
+        await tx
+          .update(tutorCheckinEntries)
+          .set({ isRemoved: true, updatedAt: new Date() })
+          .where(inArray(tutorCheckinEntries.id, removeIds));
+      }
+    });
+  }
+
+  const entries = mutated
+    ? await db
+        .select()
+        .from(tutorCheckinEntries)
+        .where(inArray(tutorCheckinEntries.checkinId, checkinIds))
+        .orderBy(
+          asc(tutorCheckinEntries.workDate),
+          asc(tutorCheckinEntries.startTime),
+        )
+    : existingEntries;
+  const entriesByCheckin = new Map<
+    string,
+    Array<typeof tutorCheckinEntries.$inferSelect>
+  >();
+  for (const entry of entries) {
+    const current = entriesByCheckin.get(entry.checkinId) ?? [];
+    current.push(entry);
+    entriesByCheckin.set(entry.checkinId, current);
+  }
+
+  return tutorIds.map((tutorId) => {
+    const checkin = checkinByTutor.get(tutorId);
+    if (!checkin) throw new Error("Weekly check-in could not be loaded.");
+    return checkinView(checkin, entriesByCheckin.get(checkin.id) ?? []);
+  });
+}
+
+export async function getTutorCheckinWeek(
+  tutorId: string,
+  requestedWeek: string,
+): Promise<TutorCheckinView> {
+  const [view] = await getTutorCheckinWeeks([tutorId], requestedWeek);
+  if (!view) throw new Error("Weekly check-in could not be loaded.");
+  return view;
+}
+
+/*
+ * Payroll summary from durable weekly snapshots. A week contributes to
  * "owed" only after the tutor approves it; pending/disputed hours stay visible
- * separately so the owner can resolve them before payroll. */
+ * separately so the owner can resolve them before payroll.
+ */
 export async function getTutorCheckinMonthSummary(
   month: string,
   filters: { tutorId?: string; classId?: string } = {},
@@ -169,157 +423,6 @@ export async function getTutorCheckinMonthSummary(
   );
 }
 
-async function syncTutorCheckin(tutorId: string, weekStart: string) {
-  const weekEnd = addIsoDays(weekStart, 6);
-  let [checkin] = await db
-    .select()
-    .from(tutorWeeklyCheckins)
-    .where(
-      and(
-        eq(tutorWeeklyCheckins.tutorId, tutorId),
-        eq(tutorWeeklyCheckins.weekStart, weekStart),
-      ),
-    )
-    .limit(1);
-
-  if (!checkin) {
-    await db
-      .insert(tutorWeeklyCheckins)
-      .values({ tutorId, weekStart })
-      .onConflictDoNothing();
-    [checkin] = await db
-      .select()
-      .from(tutorWeeklyCheckins)
-      .where(
-        and(
-          eq(tutorWeeklyCheckins.tutorId, tutorId),
-          eq(tutorWeeklyCheckins.weekStart, weekStart),
-        ),
-      )
-      .limit(1);
-  }
-  if (!checkin) throw new Error("Weekly check-in could not be created.");
-  if (checkin.status === "approved") return checkin;
-
-  const [lessonRows, existingEntries, [rateRow]] = await Promise.all([
-    db
-      .select({
-        lessonId: lessons.id,
-        classId: classes.id,
-        subjectName: subjects.name,
-        className: classes.name,
-        workDate: lessons.date,
-        startTime: lessons.startTime,
-        endTime: lessons.endTime,
-      })
-      .from(lessons)
-      .innerJoin(classes, eq(classes.id, lessons.classId))
-      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-      .where(
-        and(
-          eq(lessons.tutorId, tutorId),
-          inArray(lessons.status, ["upcoming", "completed", "makeup"]),
-          and(
-            // Date columns are ISO strings; lexical range comparison is exact.
-            // sql is avoided here so Drizzle still parameterises each bound.
-            inArray(lessons.date, dateRange(weekStart, weekEnd)),
-          ),
-        ),
-      ),
-    db
-      .select()
-      .from(tutorCheckinEntries)
-      .where(eq(tutorCheckinEntries.checkinId, checkin.id)),
-    db
-      .select({ hourlyRate: tutorBankDetails.hourlyRate })
-      .from(tutorBankDetails)
-      .where(eq(tutorBankDetails.tutorId, tutorId))
-      .limit(1),
-  ]);
-
-  const existingByLesson = new Map(
-    existingEntries
-      .filter((entry) => entry.lessonId)
-      .map((entry) => [entry.lessonId as string, entry]),
-  );
-  const activeLessonIds = new Set(lessonRows.map((row) => row.lessonId));
-  const hourlyRate = rateRow?.hourlyRate ?? "0";
-
-  for (const lesson of lessonRows) {
-    const minutes = checkinMinutes(lesson.startTime, lesson.endTime);
-    const existing = existingByLesson.get(lesson.lessonId);
-    if (!existing) {
-      await db
-        .insert(tutorCheckinEntries)
-        .values({
-          checkinId: checkin.id,
-          lessonId: lesson.lessonId,
-          classId: lesson.classId,
-          subjectName: lesson.subjectName,
-          className: lesson.className,
-          workDate: lesson.workDate,
-          startTime: lesson.startTime,
-          endTime: lesson.endTime,
-          minutes,
-          hourlyRate,
-        })
-        .onConflictDoNothing();
-      continue;
-    }
-    if (existing.isManualOverride) continue;
-    const changed =
-      existing.classId !== lesson.classId ||
-      existing.subjectName !== lesson.subjectName ||
-      existing.className !== lesson.className ||
-      existing.workDate !== lesson.workDate ||
-      existing.startTime !== lesson.startTime ||
-      existing.endTime !== lesson.endTime ||
-      existing.minutes !== minutes ||
-      existing.hourlyRate !== hourlyRate ||
-      existing.isRemoved;
-    if (!changed) continue;
-    await db
-      .update(tutorCheckinEntries)
-      .set({
-        classId: lesson.classId,
-        subjectName: lesson.subjectName,
-        className: lesson.className,
-        workDate: lesson.workDate,
-        startTime: lesson.startTime,
-        endTime: lesson.endTime,
-        minutes,
-        hourlyRate,
-        isRemoved: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(tutorCheckinEntries.id, existing.id));
-  }
-
-  for (const entry of existingEntries) {
-    if (
-      entry.lessonId &&
-      !entry.isManualOverride &&
-      !entry.isRemoved &&
-      !activeLessonIds.has(entry.lessonId)
-    ) {
-      await db
-        .update(tutorCheckinEntries)
-        .set({ isRemoved: true, updatedAt: new Date() })
-        .where(eq(tutorCheckinEntries.id, entry.id));
-    }
-  }
-
-  return checkin;
-}
-
-function dateRange(start: string, end: string): string[] {
-  const dates: string[] = [];
-  for (let value = start; value <= end; value = addIsoDays(value, 1)) {
-    dates.push(value);
-  }
-  return dates;
-}
-
 /** Creates missing current-week snapshots and sends retry-safe Saturday/Sunday
  * reminders. This shares the existing authenticated daily cron. */
 export async function runTutorCheckinReminders(now = new Date()) {
@@ -345,10 +448,15 @@ export async function runTutorCheckinReminders(now = new Date()) {
             ),
           )
       : [];
+  const views = await getTutorCheckinWeeks(
+    tutors.map((tutor) => tutor.id),
+    weekStart,
+  );
 
   const values: Array<typeof notifications.$inferInsert> = [];
-  for (const tutor of tutors) {
-    const view = await getTutorCheckinWeek(tutor.id, weekStart);
+  for (const [index, tutor] of tutors.entries()) {
+    const view = views[index];
+    if (!view) continue;
     if (view.status === "approved" || view.entries.every((entry) => entry.isRemoved)) {
       continue;
     }

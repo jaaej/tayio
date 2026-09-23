@@ -287,7 +287,13 @@ export const lessons = pgTable(
     rescheduledFrom: uuid("rescheduled_from"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("lessons_date_idx").on(t.date), index("lessons_class_idx").on(t.classId)],
+  (t) => [
+    index("lessons_date_idx").on(t.date),
+    index("lessons_class_idx").on(t.classId),
+    // Tutor payroll reconciliation always narrows by tutor and week before
+    // checking the lesson status. Keep that route off the date-only scan.
+    index("lessons_tutor_date_status_idx").on(t.tutorId, t.date, t.status),
+  ],
 );
 
 export const lessonNotes = pgTable("lesson_notes", {

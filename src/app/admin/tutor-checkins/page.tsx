@@ -15,7 +15,7 @@ import {
 import {
   checkinEntryLabel,
   getTutorCheckinMonthSummary,
-  getTutorCheckinWeek,
+  getTutorCheckinWeeks,
 } from "@/lib/tutor-checkins";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { CheckinEntryEditor } from "./_components/entry-editor";
@@ -110,12 +110,14 @@ export default async function AdminTutorCheckinsPage({
     : tutors;
   // Sync the selected week's snapshots first so the monthly table includes a
   // newly generated current week on the very first page load.
-  const views = await Promise.all(
-    visibleTutors.map(async (tutor) => ({
-      tutor,
-      view: await getTutorCheckinWeek(tutor.id, week),
-    })),
+  const checkinViews = await getTutorCheckinWeeks(
+    visibleTutors.map((tutor) => tutor.id),
+    week,
   );
+  const views = visibleTutors.map((tutor, index) => ({
+    tutor,
+    view: checkinViews[index],
+  }));
   const filteredViews = selectedClass
     ? views.filter(({ view }) =>
         view.entries.some((entry) => entry.classId === selectedClass),
