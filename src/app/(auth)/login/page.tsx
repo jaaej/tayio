@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Wordmark, LogoCard } from "@/components/brand/wordmark";
+import { Wordmark } from "@/components/brand/wordmark";
 import { LoginForm } from "./form";
 
 export default function LoginPage() {
@@ -8,7 +8,7 @@ export default function LoginPage() {
     <div className="min-h-screen brand-field grain">
       <div className="mx-auto max-w-6xl px-6 lg:px-10 pt-8">
         <Link href="/">
-          <Wordmark />
+          <Wordmark portalPlacement="inline" />
         </Link>
       </div>
 
@@ -47,14 +47,8 @@ export default function LoginPage() {
         </div>
 
         {/* Editorial brand panel */}
-        <div className="hidden lg:flex flex-col items-center text-center px-6">
-          <LogoCard width={340} />
-          <p className="mt-12 text-3xl text-ink leading-snug">
-            "Be That Cousin"
-          </p>
-          <p className="mt-6 text-[11px] uppercase tracking-[0.22em] text-ink-soft">
-            taiyo · 太陽 · sun
-          </p>
+        <div className="hidden lg:flex flex-col items-center justify-center text-center px-6">
+          <p className="text-3xl text-ink leading-snug">"Be That Cousin"</p>
         </div>
       </div>
 

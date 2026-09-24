@@ -40,9 +40,11 @@ export function ToriiMark({ width = 24 }: { width?: number }) {
 export function Wordmark({
   className,
   size = "md",
+  portalPlacement = "stacked",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
+  portalPlacement?: "stacked" | "inline";
 }) {
   const dims = {
     sm: { icon: 26, title: "text-sm", tag: "text-[9px]" },
@@ -53,23 +55,44 @@ export function Wordmark({
   return (
     <div className={cn("inline-flex items-center gap-3", className)}>
       <ToriiMark width={dims.icon} />
-      <div className="flex flex-col leading-none">
-        <span
-          className={cn(
-            "font-semibold tracking-[0.14em] text-ink uppercase",
-            dims.title,
-          )}
-        >
-          Taiyo Tuition
+      <div
+        className={cn(
+          "leading-none",
+          portalPlacement === "inline"
+            ? "flex items-baseline gap-2"
+            : "flex flex-col",
+        )}
+      >
+        <span className="whitespace-nowrap">
+          <span
+            className={cn(
+              "font-semibold tracking-[0.14em] text-ink uppercase",
+              dims.title,
+            )}
+          >
+            Taiyo Tuition
+          </span>
+          {portalPlacement === "inline" ? (
+            <span
+              className={cn(
+                "ml-2 tracking-[0.18em] text-muted uppercase",
+                dims.tag,
+              )}
+            >
+              Portal
+            </span>
+          ) : null}
         </span>
-        <span
-          className={cn(
-            "tracking-[0.32em] text-muted uppercase mt-1",
-            dims.tag,
-          )}
-        >
-          Portal
-        </span>
+        {portalPlacement === "stacked" ? (
+          <span
+            className={cn(
+              "mt-1 tracking-[0.32em] text-muted uppercase",
+              dims.tag,
+            )}
+          >
+            Portal
+          </span>
+        ) : null}
       </div>
     </div>
   );
