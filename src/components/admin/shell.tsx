@@ -29,6 +29,10 @@ import { getUnreadCount } from "@/lib/notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
 import { CoverAlertPoller } from "./cover-alert-poller";
 import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
+import {
+  AdminGlobalSearch,
+  type AdminSearchDestination,
+} from "@/components/admin/global-search";
 
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
@@ -151,6 +155,14 @@ export async function AdminShell({
         return item;
       }),
   })).filter((s) => s.items.length > 0);
+  const searchDestinations: AdminSearchDestination[] = sections.flatMap(
+    (section) =>
+      section.items.map((item) => ({
+        label: item.label,
+        href: item.href,
+        section: section.heading,
+      })),
+  );
   const initial = userName.charAt(0).toUpperCase();
 
   return (
@@ -161,52 +173,53 @@ export async function AdminShell({
         desktopBrand={<BrandMark />}
         desktopActions={
           <>
-          <Link
-            href="/admin/notifications"
-            className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
-            aria-label={
-              notifUnread > 0
-                ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
-                : "Notifications"
-            }
-          >
-            <Bell className="h-[18px] w-[18px]" />
-            {notifUnread > 0 && (
-              <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
-                {notifUnread > 99 ? "99+" : notifUnread}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/admin/messages"
-            className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            aria-label="Messages"
-          >
-            <MessageCircle className="h-[18px] w-[18px]" />
-            {unread > 0 && (
-              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
-            )}
-          </Link>
-          <div className="flex items-center gap-2.5 pr-2.5 pl-1 py-1 rounded-full border border-line bg-surface">
-            <div className="h-7 w-7 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold">
-              {initial}
-            </div>
-            <div className="leading-tight">
-              <div className="text-[13px] font-bold text-ink whitespace-nowrap">
-                {userName}
-              </div>
-              <div className="text-[11px] text-muted capitalize">Admin</div>
-            </div>
-          </div>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
+            <AdminGlobalSearch destinations={searchDestinations} />
+            <Link
+              href="/admin/notifications"
+              className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
+              aria-label={
+                notifUnread > 0
+                  ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
+                  : "Notifications"
+              }
             >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </form>
+              <Bell className="h-[18px] w-[18px]" />
+              {notifUnread > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
+                  {notifUnread > 99 ? "99+" : notifUnread}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/admin/messages"
+              className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
+              aria-label="Messages"
+            >
+              <MessageCircle className="h-[18px] w-[18px]" />
+              {unread > 0 && (
+                <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
+              )}
+            </Link>
+            <div className="flex items-center gap-2.5 pr-2.5 pl-1 py-1 rounded-full border border-line bg-surface">
+              <div className="h-7 w-7 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold">
+                {initial}
+              </div>
+              <div className="leading-tight">
+                <div className="text-[13px] font-bold text-ink whitespace-nowrap">
+                  {userName}
+                </div>
+                <div className="text-[11px] text-muted capitalize">Admin</div>
+              </div>
+            </div>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                className="h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+              </button>
+            </form>
           </>
         }
         desktopSidebar={
@@ -224,15 +237,22 @@ export async function AdminShell({
           <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
             <div className="px-5 h-14 flex items-center justify-between gap-3">
               <BrandMark />
-              <form action={signOutAction}>
-                <button
-                  type="submit"
-                  aria-label="Sign out"
-                  className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
-                >
-                  <LogOut className="h-[18px] w-[18px]" />
-                </button>
-              </form>
+              <div className="flex items-center gap-1.5">
+                <AdminGlobalSearch
+                  destinations={searchDestinations}
+                  compact
+                  shortcutEnabled={false}
+                />
+                <form action={signOutAction}>
+                  <button
+                    type="submit"
+                    aria-label="Sign out"
+                    className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+                  >
+                    <LogOut className="h-[18px] w-[18px]" />
+                  </button>
+                </form>
+              </div>
             </div>
             <AdminNavLinksMobile sections={sections} />
           </header>

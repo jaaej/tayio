@@ -7,14 +7,19 @@ import {
   PROFILE_AVATAR_OPTIONS,
   type ProfileAvatarKey,
 } from "@/lib/profile-avatars";
-import { setMyProfileAvatar } from "../actions";
+
+type AvatarUpdateResult =
+  | { ok: true }
+  | { ok: false; error: string };
 
 export function ProfileIconPicker({
   current,
   initials,
+  updateAction,
 }: {
   current: string | null;
   initials: string;
+  updateAction: (avatarKey: string) => Promise<AvatarUpdateResult>;
 }) {
   const [selected, setSelected] = useState<string | null>(current);
   const [pending, start] = useTransition();
@@ -23,7 +28,7 @@ export function ProfileIconPicker({
   function choose(key: ProfileAvatarKey) {
     setMessage(null);
     start(async () => {
-      const result = await setMyProfileAvatar(key);
+      const result = await updateAction(key);
       if (!result.ok) {
         setMessage(result.error);
         return;

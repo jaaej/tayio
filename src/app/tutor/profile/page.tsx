@@ -5,13 +5,12 @@ import { requireRole } from "@/lib/auth";
 import { Card, CardBody, CardHead } from "@/components/student/card";
 import { PageHead } from "@/components/student/page-head";
 import { ProfileIconPicker } from "@/components/profile-icon-picker";
-import { PasswordChangeForm } from "./_components/password-change-form";
-import { setMyProfileAvatar } from "./actions";
+import { setMyTutorProfileAvatar } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudentProfileIconPage() {
-  const user = await requireRole("student");
+export default async function TutorProfilePage() {
+  const user = await requireRole("tutor");
   const [profile] = await db
     .select({
       firstName: profiles.firstName,
@@ -24,33 +23,23 @@ export default async function StudentProfileIconPage() {
 
   const initials = profile
     ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()
-    : "S";
+    : "T";
 
   return (
     <div className="space-y-5">
       <PageHead
         eyebrow="Your profile"
-        title="Profile & security"
-        sub="Choose how you appear in Taiyo and manage your account password."
+        title="Choose your icon"
+        sub="Choose the profile icon shown in your tutor portal."
       />
       <Card>
         <CardHead title="Profile icon" />
         <CardBody>
-          <p className="mb-4 text-[13px] text-muted">
-            Pick an icon that represents you. Your assigned tutors will see it
-            beside your name.
-          </p>
           <ProfileIconPicker
             current={profile?.profileAvatarKey ?? null}
             initials={initials}
-            updateAction={setMyProfileAvatar}
+            updateAction={setMyTutorProfileAvatar}
           />
-        </CardBody>
-      </Card>
-      <Card>
-        <CardHead title="Password & security" />
-        <CardBody>
-          <PasswordChangeForm />
         </CardBody>
       </Card>
     </div>

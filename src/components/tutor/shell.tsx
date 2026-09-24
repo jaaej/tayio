@@ -19,6 +19,10 @@ import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
+import { db } from "@/db/client";
+import { profiles } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { TutorNavLinks, TutorNavLinksMobile, type NavSection } from "./nav-links";
 import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
 
@@ -81,16 +85,41 @@ export async function TutorShell({
   const user = await getCurrentUser();
   let unread = 0;
   let notifUnread = 0;
+  let profileAvatarKey: string | null = null;
   if (user) {
-    try {
-      [unread, notifUnread] = await Promise.all([
+    const [threadResult, notificationResult, avatarResult] =
+      await Promise.allSettled([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
+        db
+          .select({ profileAvatarKey: profiles.profileAvatarKey })
+          .from(profiles)
+          .where(eq(profiles.id, user.id))
+          .limit(1),
       ]);
-    } catch (err) {
-      console.error("[tutor-shell] badge counts failed:", err);
-      unread = 0;
-      notifUnread = 0;
+    if (threadResult.status === "fulfilled") {
+      unread = threadResult.value;
+    } else {
+      console.error(
+        "[tutor-shell] message count failed:",
+        threadResult.reason,
+      );
+    }
+    if (notificationResult.status === "fulfilled") {
+      notifUnread = notificationResult.value;
+    } else {
+      console.error(
+        "[tutor-shell] notification count failed:",
+        notificationResult.reason,
+      );
+    }
+    if (avatarResult.status === "fulfilled") {
+      profileAvatarKey = avatarResult.value[0]?.profileAvatarKey ?? null;
+    } else {
+      console.error(
+        "[tutor-shell] profile icon failed:",
+        avatarResult.reason,
+      );
     }
   }
   const sections: NavSection[] = SECTIONS.map((s) => ({
@@ -137,17 +166,23 @@ export async function TutorShell({
               <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
             )}
           </Link>
-          <div className="flex items-center gap-2.5 pr-2.5 pl-1 py-1 rounded-full border border-line bg-surface">
-            <div className="h-7 w-7 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold">
-              {initial}
-            </div>
+          <Link
+            href="/tutor/profile"
+            aria-label="Open tutor profile settings"
+            className="flex items-center gap-2.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 transition-colors hover:border-brand-300 hover:bg-surface-2"
+          >
+            <ProfileAvatar
+              avatarKey={profileAvatarKey}
+              fallback={initial}
+              className="h-7 w-7 text-[12px]"
+            />
             <div className="leading-tight">
               <div className="text-[13px] font-bold text-ink whitespace-nowrap">
                 {userName}
               </div>
               <div className="text-[11px] text-muted capitalize">Tutor</div>
             </div>
-          </div>
+          </Link>
           <form action={signOutAction}>
             <button
               type="submit"
@@ -174,15 +209,28 @@ export async function TutorShell({
         <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
           <div className="px-5 h-14 flex items-center justify-between gap-3">
             <BrandMark />
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                aria-label="Sign out"
-                className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/tutor/profile"
+                aria-label="Open tutor profile settings"
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                <LogOut className="h-[18px] w-[18px]" />
-              </button>
-            </form>
+                <ProfileAvatar
+                  avatarKey={profileAvatarKey}
+                  fallback={initial}
+                  className="h-9 w-9 text-[12px]"
+                />
+              </Link>
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  aria-label="Sign out"
+                  className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+                >
+                  <LogOut className="h-[18px] w-[18px]" />
+                </button>
+              </form>
+            </div>
           </div>
           <TutorNavLinksMobile sections={sections} />
         </header>

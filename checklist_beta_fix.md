@@ -682,6 +682,13 @@ Last updated: 23 September 2026
 
 ## Admin users list
 
+- [x] Add an admin header search (button, `/`, or Command/Ctrl+K) for portal
+  pages, users, classes, and subjects; directory searches keep existing role
+  permissions and subject aliases.
+- [ ] QA: Open admin global search on desktop and mobile, search for a portal
+  page and navigate to it, then search a student's name, email, class, full
+  subject name, and configured subject alias. Confirm each directory result is
+  filtered correctly and reception cannot surface owner-only destinations.
 - [x] Add subject-only information as compact status badges; class schedule
   details remain available through the badge link.
 - [x] Move Reset and Deactivate actions into a labelled gear menu.
@@ -801,6 +808,10 @@ Last updated: 23 September 2026
 - [x] Add an in-game Close button that exits without opening another tab.
 - [x] Let students choose a profile icon from a controlled icon library.
 - [x] Show those profile icons to assigned tutors.
+- [x] Let tutors choose their own profile icon from the top-right profile chip
+  on desktop and mobile.
+- [ ] QA: Sign in as a tutor, open the top-right avatar, choose several icons,
+  and confirm the selected icon persists in both desktop and mobile headers.
 - [x] Remove the `Open` and `Due this week` summary blocks from Student
   Homework.
 - [x] Add clear colour-coded effort levels to Student Progress, with accessible
