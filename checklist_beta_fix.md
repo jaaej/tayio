@@ -706,8 +706,9 @@ Last updated: 23 September 2026
   to `/login`.
 - [x] Simplify the login branding: keep `Taiyo Tuition Portal` together in the
   top-left wordmark and remove the duplicate centre logo and translation line.
-- [x] Add the supplied Great Wave artwork as a mirrored, softly blended login
-  illustration with subtle motion and a reduced-motion fallback.
+- [x] Extract the supplied Great Wave onto a transparent alpha background and
+  anchor the mirrored artwork flush to the login page's bottom-right edges,
+  with subtle motion and a reduced-motion fallback.
 - [ ] **Manual QA:** Check the login page at desktop and mobile widths. Confirm
   the form stays clear, the artwork faces left from the right side, no hard
   image edges are visible, and reduced-motion mode stops the animation.
