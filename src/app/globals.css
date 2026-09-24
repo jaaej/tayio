@@ -323,6 +323,85 @@ body > * {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+/* Login artwork - a quiet, mirrored Great Wave that drifts behind the quote. */
+.login-wave-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.login-wave-motion {
+  position: absolute;
+  inset: 1% -18% -5% -10%;
+  z-index: -2;
+  transform-origin: 68% 58%;
+  animation: login-wave-drift 11s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+}
+
+.login-wave-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 48% center;
+  opacity: 0.28;
+  mix-blend-mode: multiply;
+  filter: saturate(0.72) contrast(0.9) brightness(1.08);
+  transform: scaleX(-1) scale(1.06);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+}
+
+.login-wave-quote {
+  position: relative;
+  z-index: 1;
+  max-width: 18rem;
+  text-wrap: balance;
+  text-shadow: 0 1px 18px rgba(255, 255, 255, 0.88);
+}
+
+@keyframes login-wave-drift {
+  0%,
+  100% {
+    transform: translate3d(1.4%, 1%, 0) rotate(-0.7deg) scale(1.015);
+  }
+  50% {
+    transform: translate3d(-1.6%, -1.8%, 0) rotate(0.7deg) scale(1.035);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-wave-motion {
+    animation: none;
+    transform: none;
+  }
+}
+
 /* Taiyo Blitz game - engagement effects */
 @keyframes blitz-float {
   0%, 100% { transform: translateY(0); }

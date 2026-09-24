@@ -46,9 +46,21 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Editorial brand panel */}
-        <div className="hidden lg:flex flex-col items-center justify-center text-center px-6">
-          <p className="text-3xl text-ink leading-snug">"Be That Cousin"</p>
+        {/* Editorial artwork panel */}
+        <div className="login-wave-stage hidden min-h-[570px] items-center justify-center overflow-hidden px-10 text-center lg:flex">
+          <div className="login-wave-motion" aria-hidden="true">
+            <img
+              src="/brand/great-wave.jpeg"
+              alt=""
+              width={1200}
+              height={807}
+              draggable={false}
+              className="login-wave-art"
+            />
+          </div>
+          <p className="login-wave-quote text-3xl leading-snug text-ink">
+            "Be That Cousin"
+          </p>
         </div>
       </div>
 
