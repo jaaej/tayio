@@ -323,57 +323,6 @@ body > * {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Login artwork - a quiet, mirrored Great Wave that drifts behind the quote. */
-.login-wave-stage {
-  position: relative;
-  isolation: isolate;
-}
-
-.login-wave-motion {
-  position: absolute;
-  right: -2.5vw;
-  bottom: -2vw;
-  z-index: 0;
-  width: min(68vw, 1300px);
-  transform-origin: 74% 82%;
-  animation: login-wave-drift 11s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  will-change: transform;
-}
-
-.login-wave-art {
-  width: 100%;
-  height: auto;
-  opacity: 0.3;
-  mix-blend-mode: multiply;
-  filter: saturate(0.78) contrast(0.94);
-  transform: scaleX(-1);
-}
-
-.login-wave-quote {
-  position: relative;
-  z-index: 1;
-  max-width: 18rem;
-  text-wrap: balance;
-  text-shadow: 0 1px 18px rgba(255, 255, 255, 0.88);
-}
-
-@keyframes login-wave-drift {
-  0%,
-  100% {
-    transform: translate3d(1%, 1%, 0) rotate(-0.45deg) scale(1.025);
-  }
-  50% {
-    transform: translate3d(-0.7%, -0.8%, 0) rotate(0.35deg) scale(1.04);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .login-wave-motion {
-    animation: none;
-    transform: none;
-  }
-}
-
 /* Taiyo Blitz game - engagement effects */
 @keyframes blitz-float {
   0%, 100% { transform: translateY(0); }

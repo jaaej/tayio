@@ -5,25 +5,14 @@ import { LoginForm } from "./form";
 
 export default function LoginPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden brand-field grain">
-      <div className="login-wave-motion hidden lg:block" aria-hidden="true">
-        <img
-          src="/brand/great-wave-cutout.png"
-          alt=""
-          width={1529}
-          height={1028}
-          draggable={false}
-          className="login-wave-art"
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 pt-8">
+    <div className="min-h-screen brand-field grain">
+      <div className="mx-auto max-w-6xl px-6 lg:px-10 pt-8">
         <Link href="/">
           <Wordmark portalPlacement="inline" />
         </Link>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-12 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-center">
+      <div className="mx-auto max-w-6xl px-6 lg:px-10 py-12 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-center">
         {/* Form on a white card */}
         <div className="bg-card rounded-3xl border border-hairline/40 shadow-[0_2px_4px_rgba(29,41,81,0.04),0_24px_60px_-24px_rgba(29,41,81,0.25)] px-8 py-10 lg:px-12 lg:py-14">
           <div className="w-full max-w-sm mx-auto">
@@ -57,15 +46,15 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Editorial artwork panel */}
-        <div className="login-wave-stage hidden min-h-[570px] items-center justify-center px-10 text-center lg:flex">
-          <p className="login-wave-quote text-3xl leading-snug text-ink">
+        {/* Editorial quote panel */}
+        <div className="hidden min-h-[570px] items-center justify-center px-10 text-center lg:flex">
+          <p className="max-w-72 text-3xl leading-snug text-ink">
             "Be That Cousin"
           </p>
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-8 text-[11px] text-ink-soft tracking-wide">
+      <div className="mx-auto max-w-6xl px-6 lg:px-10 py-8 text-[11px] text-ink-soft tracking-wide">
         © Taiyo Tuition · Mount Waverley, VIC
       </div>
     </div>
