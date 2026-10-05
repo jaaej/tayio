@@ -1,3 +1,6 @@
+> **Archive notice:** This completed one-off brief is not current status or an
+> active assignment. See `docs/briefs/README.md`.
+
 You own the **Notifications** track. The `notifications` table already exists in `src/db/schema.ts` but nothing writes to it. Your job is to build the backend that fires notifications on meaningful events, and a small read API the role frontends will consume later.
 
 **Required reading first:**

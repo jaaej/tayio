@@ -154,6 +154,8 @@ For a feature change:
 
 ## Documentation priority
 
+The complete document map and audit boundary are in `docs/README.md`.
+
 When documents disagree, use this order:
 
 1. Current code, migrations, and tests.

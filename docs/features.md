@@ -124,13 +124,13 @@ Conventions referenced throughout:
 
 ### Classes (calendar + attendance + reschedule)
 1. **What it is** - Combined per-child calendar, attendance log, and the reschedule entry point.
-2. **How it works** - `/parent/classes` (attendance + bookings combined 2026-05-26); reschedule at `/parent/classes/reschedule/[lessonId]`. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
-3. **Rationale:** `Rationale: not documented` for the combine-into-one-page decision (checklist notes the date but no "why").
+2. **How it works** - `/parent/classes` renders the shared interactive timetable and attendance for the selected linked child. `/parent/classes/[classId]` is the class detail. The older `/parent/classes/reschedule/[lessonId]` route remains in the tree but is not the current linked entry point. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
+3. **Rationale:** Keeping attendance, upcoming lessons, and the move action on one calendar reduces the number of places a parent must search.
 
 ### Reschedule a class
-1. **What it is** - Parent picks a child's upcoming lesson, picks a slot from same-subject tutors, adds an optional reason; routed direct or to approval.
-2. **How it works** - `submitReschedule` (`src/lib/reschedule.ts`), slots via `getAvailableSlots`. Tables: `rescheduleRequests`, `lessons`, `attendance`. Approvals surface to the tutor (`/tutor/reschedules`) and admin (`/admin/reschedules`). Guard: `requireRole("parent")` + linked-child check.
-3. **Rationale:** Shares the exact same execution primitives and availability query as the student self-serve flow (unified on tutor-availability slots); notifications on reschedule go to tutor + linked parents + admin (per `docs/superpowers/specs/2026-07-10-reschedule-design.md`). Pending requests are deduped per student+lesson - only the latest survives (per memory `project_role_tiers_spec1_2026_07_10.md`).
+1. **What it is** - A parent can move an eligible upcoming lesson for a linked child into an available slot with the same tutor.
+2. **How it works** - The shared timetable calls `submitReschedule` in `src/app/_actions/reschedule.ts`. The server enforces linked-child ownership, a seven-day notice period, the term allowance, an unused live slot, and the same tutor before it creates the isolated make-up lesson. The move executes directly; the old tutor approval queue is retired. Tables: `rescheduleRequests`, `lessons`, `attendance`. Guard: `requireRole(["student_unrestricted", "parent"])` plus linked-child ownership for a parent.
+3. **Rationale:** Student and parent self-service share one implementation so eligibility, allowance, attendance isolation, and notifications cannot drift between portals. Office intervention remains available when no eligible slot exists or a gate fails.
 
 ### Homework view (read-only)
 1. **What it is** - Track a child's homework completion, scores, and feedback.
@@ -281,7 +281,7 @@ Conventions referenced throughout:
 
 ### Enrolment management
 1. **What it is** - Onboard/move/withdraw students into classes, with per-enrolment admin notes and delivery mode.
-2. **How it works** - `/admin/enrolments`; also `/admin/classes/[id]` enrolments manager. Table: `enrollments` (`withdrawnAt`, `deliveryMode`, `adminNotes`). Guard: `requireAdmin()`.
+2. **How it works** - `/admin/classes/[id]` contains the enrolments manager for adding, withdrawing, and editing a student's class-specific delivery mode and internal note. Permanent class moves are handled from the student's `/admin/users/[id]` lesson panel. Table: `enrollments` (`withdrawnAt`, `deliveryMode`, `adminNotes`). Guard: `requireAdmin()`.
 3. **Rationale:** `enrollments.adminNotes` was added to move operational notes (`T3INV`, `MOVE CLASS BY NW`, holiday markers) out of the admin's spreadsheet and into the portal (per `docs/checklist.md` Excel-vs-portal audit, and memory `project_admin_excel_gap_2026_05_26`).
 
 ### Attendance (admin)
@@ -329,10 +329,10 @@ Conventions referenced throughout:
 2. **How it works** - `/admin/messages` (+ `[threadId]`, `with/[userId]`). Directory categorized parents/tutors/students; "Message" button on `/admin/users/[id]`. `canDM` returns true for any admin↔non-admin pair. Guard: `requireAdmin()`.
 3. **Rationale:** `getThreadForMe` scopes the admin messages UI to threads the admin *participates* in; RLS (migration 0012) permits admin read of all DMs, but no UI surfaces non-participant conversations - a safeguarding-oversight view would need an audit READ row + reason gate before exposing them (per security-checklist G3).
 
-### Students Leaving view
-1. **What it is** - List view of students flagged as leaving.
-2. **How it works** - `/admin/leaving`. Reads `enrollments.withdrawnAt`. Guard: `requireAdmin()`.
-3. **Rationale:** Built to move the "Students Leaving" workflow out of the spreadsheet (per memory `project_admin_excel_gap_2026_05_26`).
+### Discontinued students
+1. **What it is** - A directory status for deactivated accounts and students whose enrolments have all been withdrawn.
+2. **How it works** - `/admin/users?status=discontinued` uses the Status filter on the single user directory. `directoryStatus` in `src/app/admin/_lib/queries.ts` derives the value from `profiles.isActive` and `enrollments.withdrawnAt`. Guard: `requireAdmin()`.
+3. **Rationale:** The former standalone leaving page and separate directory tab were consolidated so admins search and manage every account in one place.
 
 ### Notifications inbox (admin)
 1. **What it is** - In-app operational inbox with an urgent filter and visually prominent urgent rows.

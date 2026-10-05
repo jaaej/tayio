@@ -1,5 +1,10 @@
 # PRD 3: Tutor Portal
 
+> **Requirements baseline:** This PRD records original product intent, not
+> current implementation status. It was classified during the 6 October 2026
+> documentation audit. Use `docs/features.md`, `docs/AGENT_HANDOFF.md`, and
+> `checklist_beta_fix.md` for current behavior and open acceptance work.
+
 ## 1. Purpose
 
 The tutor portal helps tutors manage lessons, students, attendance, homework, feedback, and progress.

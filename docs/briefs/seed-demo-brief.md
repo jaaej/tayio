@@ -1,3 +1,6 @@
+> **Archive notice:** This completed one-off brief is not current status or an
+> active assignment. See `docs/briefs/README.md`.
+
 You own the **Demo Seed Data** track. Right now the database has 4 test users and nothing else. Frontend agents are building UIs that look empty because there's no realistic data. Your job is to populate the database with believable Taiyo Tuition data so every page renders with meaningful content during development.
 
 **Required reading first:**

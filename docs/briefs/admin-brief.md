@@ -1,3 +1,6 @@
+> **Archive notice:** This completed one-off brief is not current status or an
+> active assignment. See `docs/briefs/README.md`.
+
 You own the **Admin** track for Phase 2 of the Tayio Tuition portal.
 
 **Required reading first:**

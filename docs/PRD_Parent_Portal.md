@@ -1,5 +1,10 @@
 # PRD 2: Parent Portal
 
+> **Requirements baseline:** This PRD records original product intent, not
+> current implementation status. It was classified during the 6 October 2026
+> documentation audit. Use `docs/features.md`, `docs/AGENT_HANDOFF.md`, and
+> `checklist_beta_fix.md` for current behavior and open acceptance work.
+
 ## 1. Purpose
 
 The parent portal helps parents understand their child's tutoring progress, attendance, homework completion, payments, and tutor feedback.

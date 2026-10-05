@@ -249,7 +249,7 @@ Everything deferred above comes due, plus:
 2. Enforce email verification (B6).
 3. Full browser QA of the student and parent portals, including the signed-URL download path on the private `homework-attachments` bucket.
 4. Re-read the lesson-note split with real Phase 1 data before parents can see it.
-   `parentVisibleComment` and `internalNote` are separate columns (`src/db/schema.ts:239-240`), so there is no visibility flag to get wrong, but it is worth confirming that what surfaces through the `lesson_notes_safe` view (migration 0003) is what tutors expected when they typed it.
+   `parentVisibleComment` and `internalNote` are separate columns in `src/db/schema.ts`, so there is no visibility flag to get wrong, but it is worth confirming that what surfaces through the `lesson_notes_safe` view (migration 0003) is what tutors expected when they typed it.
 5. Re-run `npm run db:check-rls` and the Supabase Advisor (checklist A11).
 
 ---

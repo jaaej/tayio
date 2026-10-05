@@ -828,6 +828,11 @@ Last updated: 6 October 2026
   deployment/DNS guides, and security status with the codebase and visible
   infrastructure on 6 October 2026. See
   `docs/changes/2026-10-06-production-documentation-sync.md`.
+- [x] Complete the full project documentation audit on 6 October 2026:
+  inventory and classify all root, `docs/`, and generated SDD Markdown;
+  correct stale current claims; add the authoritative `docs/README.md` index;
+  and validate all relative documentation links. See
+  `docs/changes/2026-10-06-full-documentation-audit.md`.
 - [x] Verify `https://portal.taiyotuition.com` resolves to the configured Vercel
   CNAME and Vercel reports the Production deployment `Ready` with the custom
   alias attached. Code baseline at the start of the audit: `49801e0`.

@@ -24,7 +24,12 @@ specific database.
 2. Write the DDL as a raw-SQL `ALTER TABLE` in a new `supabase/migrations/NNNN_*.sql`, and apply it with `node scripts/apply-sql.mjs supabase/migrations/NNNN_*.sql`.
 3. Run **`npm run db:check-rls`** - audits every table and fails if any lost RLS. Run this after ANY database change.
 
-If `db:push` ever does run (or you bypass the guard with `npx drizzle-kit push`), **re-apply `supabase/migrations/0003`–`0012` in order with the dev server stopped** (its connections hold locks that block `ALTER TABLE … ENABLE RLS`), then `npm run db:check-rls`.
+If `db:push` ever runs, treat it as a security incident.
+Stop application writes, capture the resulting schema and database status, and
+compare them with the ordered files in `supabase/migrations/`.
+Restore from a known-good backup or reapply only the exact affected raw-SQL
+objects after review; do not blindly replay an old fixed migration range.
+Then run `npm run db:status` and `npm run db:check-rls` before reopening access.
 
 ## Applying migrations
 

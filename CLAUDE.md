@@ -17,15 +17,17 @@ These apply to every agent working in this repo, ahead of everything below.
   If something clearly looks off, even if it is not directly related to what you are doing, try to get it fixed along the way.
 - Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
-- For any frontend or UI work, always load and follow the `ui-ux-pro-max:ui-ux-pro-max` skill before writing or changing UI.
-  Run the requested change through its ruleset first, and push back when the change violates a rule.
-  See the "UI/UX review mode (ui-ux-pro-max)" section below for how to apply it.
+- For any frontend or UI work, load and follow the `ui-ux-pro-max:ui-ux-pro-max`
+  skill before writing or changing UI when that skill is installed in the
+  current agent environment.
+  If it is unavailable, use the established design tokens and the review rules
+  below, and report that fallback rather than inventing skill output.
 
 ## Context
 
-**Project:** `tayio_portal` - a web portal for a tutoring company, scoped across four PRDs in `docs/`: **Student** (homework, timetable, lesson recaps, resources, quizzes, progress), **Parent** (child progress, attendance, tutor feedback, invoices, make-up requests), **Tutor** (class list, student profiles, attendance marking, lesson notes with parent-visible vs. internal split, homework marking), and **Admin** (user management, class/enrolment management, payments, announcements, reporting, resource approval). Built on Next.js 16 (App Router) + React 19, Supabase auth (`@supabase/ssr`), Drizzle ORM over Postgres, Tailwind v4, Zod. Source under `src/` (`app/`, `components/`, `db/`, `lib/`, `middleware.ts`).
+**Project:** `tayio_portal` - a web portal for a tutoring company, originally scoped across four PRDs in `docs/`: **Student** (homework, timetable, lesson recaps, resources, quizzes, progress), **Parent** (child progress, attendance, tutor feedback, invoices, make-up requests), **Tutor** (class list, student profiles, attendance marking, lesson notes with parent-visible vs. internal split, homework marking), and **Admin** (user management, class/enrolment management, payments, announcements, reporting, resource approval). Built on Next.js 15 App Router + React 19, Supabase auth (`@supabase/ssr`), Drizzle ORM over Postgres, Tailwind v4, Zod. Source under `src/` (`app/`, `components/`, `db/`, `lib/`, `middleware.ts`). Treat the PRDs as requirements history, not current implementation status; use `docs/README.md` for the documentation hierarchy.
 
-**Build order (from Admin PRD §15):** Phase 1 foundation (login, roles, four dashboards, schedule, user management) → Phase 2 learning workflow (homework, lesson notes, feedback, attendance, parent visibility) → Phase 3 admin ops (enrolments, classes, announcements, invoices, make-ups) → Phase 4 value-add (resources, quizzes, progress, reports) → Phase 5 advanced (AI summaries, mobile, payroll, calendar sync). P0 features should ship before any P1/P2 work.
+**Historical build order (from Admin PRD §15):** Phase 1 foundation (login, roles, four dashboards, schedule, user management) → Phase 2 learning workflow (homework, lesson notes, feedback, attendance, parent visibility) → Phase 3 admin ops (enrolments, classes, announcements, invoices, make-ups) → Phase 4 value-add (resources, quizzes, progress, reports) → Phase 5 advanced (AI summaries, mobile, payroll, calendar sync). This explains the original sequencing but does not describe current completion; use `checklist_beta_fix.md` for current priority.
 
 **Cross-cutting non-negotiables from the PRDs:** role-based permissions are strict (students see only their own data, parents only their children's, tutors only assigned students, admins everything with audit logs); parent-child account linking is a first-class concept; payment statuses are a fixed enum (unpaid/paid/overdue/partially paid/refunded/cancelled); lesson notes split parent-visible vs. internal; notifications must route to the correct role per the matrices in each PRD.
 
@@ -60,15 +62,23 @@ This covers discussions, calendars and timetables, resource libraries, cards, ta
 
 ## Keep the implementation checklist current (non-negotiable)
 
-`docs/checklist.md` is the source of truth for what's built across all four portals. It drifts fast and a stale entry makes the next agent rebuild finished work or re-scope shipped work.
+`checklist_beta_fix.md` is the active source of truth for production-beta work and manual acceptance across all four portals.
+`docs/checklist.md` is a dated legacy/full inventory and must not override the beta checklist, current code, or tests.
+A stale entry makes the next agent rebuild finished work or re-scope shipped work.
 
-**Updating it is part of finishing a task, not a follow-up.** When you complete (or partly complete) any feature:
-1. Find the matching row - or add one if it's new / an extra.
-2. Set the `FE` / `BE` ticks honestly (✅ done · 🔶 partial · ⬜ not built). Never ✅ before it's verified end-to-end with real data (see success-claim rule above).
-3. Rewrite the Notes cell to name the route/file + date; update any owning spec section's status line too.
-4. Do it **in the same change/commit** as the code (and in the PR, if you open one).
+**Updating it is part of finishing a task, not a follow-up.** When you complete
+or partly complete a feature:
+1. Find the matching beta-checklist item, or add one if it is new.
+2. Mark it complete only after the implementation and its stated verification
+   are complete. Keep manual QA unchecked when only automated checks ran.
+3. Record the durable route, file, decision, or dated change note needed by the
+   next agent.
+4. If the task directly changes a row in the legacy full inventory, update its
+   `FE` / `BE` state honestly (✅ done · 🔶 partial · ⬜ not built).
+5. Commit the relevant documentation with the code or operational change.
 
-The full protocol lives at the top of `docs/checklist.md`. The security items have their own file - `docs/security-checklist.md` - apply the same discipline there.
+The documentation hierarchy lives in `docs/README.md`.
+The security items have their own file - `docs/security-checklist.md` - apply the same discipline there.
 
 ## Anti-patterns to avoid (from reasoning_anti_patterns.md)
 
@@ -92,7 +102,7 @@ The full protocol lives at the top of `docs/checklist.md`. The security items ha
 
 ## UI/UX review mode (ui-ux-pro-max)
 
-For **every** UI / frontend design change the user requests, run the change through the `ui-ux-pro-max:ui-ux-pro-max` skill's ruleset before implementing. If the requested change violates a rule, **push back** - do not silently comply.
+For **every** UI / frontend design change the user requests, run the change through the `ui-ux-pro-max:ui-ux-pro-max` skill's ruleset before implementing when the skill is available. If it is unavailable, apply this section directly. If the requested change violates a rule, **push back** - do not silently comply.
 
 How to push back:
 1. Cite the rule by name (e.g. `visual-hierarchy`, `color-contrast`, `primary-action`, `consistency`).

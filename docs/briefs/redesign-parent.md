@@ -1,3 +1,6 @@
+> **Archive notice:** This completed one-off brief is not current status or an
+> active assignment. See `docs/briefs/README.md`.
+
 You own the **Parent** portal redesign on your current branch.
 
 **Step 0 - required before writing any code:** invoke these two skills in order so every visual decision is grounded:

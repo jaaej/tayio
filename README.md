@@ -99,6 +99,8 @@ npm run db:check-rls
 
 ## Documentation map
 
+- [`docs/README.md`](docs/README.md) - authoritative documentation index,
+  status labels, conflict order, and audit scope.
 - [`checklist_beta_fix.md`](checklist_beta_fix.md) — current implementation and
   manual QA backlog.
 - [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) — current state, safe resume

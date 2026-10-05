@@ -1,5 +1,10 @@
 # PRD 1: Student Portal
 
+> **Requirements baseline:** This PRD records original product intent, not
+> current implementation status. It was classified during the 6 October 2026
+> documentation audit. Use `docs/features.md`, `docs/AGENT_HANDOFF.md`, and
+> `checklist_beta_fix.md` for current behavior and open acceptance work.
+
 ## 1. Purpose
 
 The student portal helps students stay organised, complete homework, access resources, review lesson content, and track their own learning progress.

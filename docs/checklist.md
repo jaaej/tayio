@@ -9,12 +9,13 @@ Last audit: 2026-07-22.
 > 6 October 2026. Do not interpret an old unchecked row here as proof that its
 > current route is absent without checking the code and beta checklist.
 
-> ## ⚠️ Maintenance protocol - READ BEFORE YOU CLOSE ANY TASK
+> ## Legacy inventory maintenance protocol
 >
-> This checklist is only useful while it's true. A stale ✅ makes the next agent
-> rebuild finished work; a stale ⬜ makes them waste time re-scoping something
-> already shipped. **Updating this file is part of finishing a task, not a
-> follow-up.**
+> This checklist preserves the older role-spec inventory and is no longer the
+> active acceptance source.
+> For current work, update `checklist_beta_fix.md` and the relevant durable
+> reference from `docs/README.md`.
+> Update a row here only when the task directly changes that legacy inventory.
 >
 > When you complete (or partly complete) any feature:
 > 1. Find the matching row - or **add one** if it's new / an extra.
@@ -23,8 +24,8 @@ Last audit: 2026-07-22.
 > 3. Rewrite the **Notes** cell to name the route/file and the date.
 > 4. If the work belongs to a spec section (e.g. **Role Tiering**), update that
 >    section's status line too - not just the table row.
-> 5. Do all of this **in the same change/commit** as the code. If you're opening
->    a PR, the checklist edit goes in the PR.
+> 5. Do all of this **in the same change/commit** as the code when this legacy
+>    inventory is directly in scope.
 >
 > Only bump **"Last audit"** above when you've re-verified rows against the
 > codebase wholesale - not for a single-row edit.

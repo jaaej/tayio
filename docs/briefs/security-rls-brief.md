@@ -1,3 +1,6 @@
+> **Archive notice:** This completed one-off brief is not current status or an
+> active assignment. See `docs/briefs/README.md`.
+
 You own the **Security & RLS** track. Right now the Postgres database has no row-level security - anyone with the anon JWT can read every row of every table. Your job is to lock it down.
 
 **Required reading first:**

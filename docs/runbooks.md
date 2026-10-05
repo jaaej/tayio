@@ -156,9 +156,13 @@ a **"Reversible by"** block - that is the authoritative rollback for that file.
 reconciles the DB to `schema.ts` and, because RLS policies + the
 `lesson_notes_safe` view live only in raw SQL, it **drops all RLS + policies +
 the view** across every table (this caused a full RLS wipe on 2026-07-01). It's
-guarded by `scripts/db-push-guard.mjs`. If it ever runs anyway: re-apply
-`supabase/migrations/0003`–(latest) in order with the dev server stopped, then
-`npm run db:check-rls`.
+guarded by `scripts/db-push-guard.mjs`.
+If it ever runs anyway, stop application writes and treat it as a security
+incident.
+Capture the resulting schema, compare it with the ordered files in
+`supabase/migrations/`, then restore a known-good backup or reapply only the
+reviewed objects that were lost.
+Run `npm run db:status` and `npm run db:check-rls` before reopening access.
 
 **Data (not schema) rollback:** use Supabase point-in-time recovery - Dashboard
 → Database → Backups → restore to a timestamp. Confirm PITR is enabled first
