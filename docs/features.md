@@ -1,5 +1,7 @@
 # Feature Reference
 
+Last reconciled with the current codebase: **6 October 2026**.
+
 A comprehensive, deploy-ready reference of every feature shipped in `tayio_portal`,
 organized by role. Each feature documents three things:
 
@@ -10,9 +12,10 @@ organized by role. Each feature documents three things:
    Where no artifact documents the "why", it is marked **`Rationale: not documented`** -
    the motivation was not invented.
 
-Backbone inventory: `docs/checklist.md` (last audit 2026-07-22). Status ticks from
-that file are not repeated here; only shipped features are documented, with a
-"Planned / not yet built" list per role for the rest.
+The historical backbone inventory is `docs/checklist.md`; the active production
+acceptance backlog is `checklist_beta_fix.md`. Status ticks are not repeated
+here. Features described below are present in code, but any unchecked browser or
+live-delivery item in the beta checklist remains unaccepted.
 
 Conventions referenced throughout:
 - **Guards** live in `src/lib/auth.ts` (`requireRole`, `requireAdmin`, `requireStudent`,
@@ -48,8 +51,8 @@ Conventions referenced throughout:
 
 ### Subject deep-dive (curriculum)
 1. **What it is** - Per-subject, week-by-week curriculum: recorded video, booklet, homework due that week, and completion progress, grouped by topic.
-2. **How it works** - `/student/subjects/[id]` (`_queries.ts`, `_components/`, `_actions.ts`). Tables: `subjects`, `subjectTopics`, `subjectWeeks`, `studentWeekProgress`, `tutorWeekSections`/`tutorWeekAttachments` (the "From your tutor" block), `terms`. `markVideoWatched` / `markBookletOpened` server actions write `studentWeekProgress` and mint signed URLs. Guard: `requireRole("student")`; access scoped by an `enrollments` join. Permission failure returns `notFound()`.
-3. **Rationale:** Permission failure returns `notFound()` rather than 403 so the portal does not leak the existence of subjects the student isn't enrolled in (per `docs/superpowers/specs/2026-05-30-subject-curriculum-design.md` §Permissions). Students see the locked admin base plus only *their enrolled class's tutor's* section - a student never sees another tutor's supplementary material (per `docs/superpowers/specs/2026-07-01-tutor-sections-design.md`).
+2. **How it works** - `/student/subjects/[id]` (`_queries.ts`, `_components/`, `_actions.ts`). Tables: `subjects`, `subjectTopics`, `subjectWeeks`, `studentWeekProgress`, `studentCurriculumTermGrants`, `tutorWeekSections`/`tutorWeekAttachments`, and `terms`. `src/lib/curriculum-access.ts` limits a student to started terms from their first subject enrolment onward, plus explicit earlier-term grants, and releases teaching weeks progressively in Melbourne time. The same server guard protects videos, booklets, quizzes, and progress writes; the UI lock is not trusted. Guard: `requireRole("student")`; subject access remains scoped by active enrolment.
+3. **Rationale:** Permission failure returns `notFound()` rather than 403 so the portal does not leak the existence of subjects the student isn't enrolled in. Students see the locked admin base plus only *their enrolled class's tutor's* section, never another tutor's supplementary material. Progressive release avoids exposing future answers/material; the admin override on the student record handles legitimate access to an earlier term.
 
 ### Lesson recap viewer
 1. **What it is** - Read-only view of the parent-visible tutor note for a past lesson.
@@ -59,7 +62,7 @@ Conventions referenced throughout:
 ### Resources
 1. **What it is** - Lists the student's recorded lessons pulled from real lesson data.
 2. **How it works** - `/student/resources`, `/student/resources/[id]`. Sources recorded-lesson data from curriculum (`subjectWeeks.videoUrl`).
-3. **Rationale:** `Rationale: not documented.` (This is a partial feature - there is no `resources` library table for booklets/past papers/uploaded videos; see "Planned / not yet built".)
+3. **Rationale:** Recorded lessons remain a separate tab from the broader Resource Library so a learner can distinguish class recordings from tutor-published booklets, worksheets, past papers, and videos.
 
 ### Resource Library
 1. **What it is** - A **Library** tab (alongside the preserved **Recorded lessons** tab) of booklets, past papers, worksheets, and videos scoped to the student's enrolled subjects, with filter by type/topic/title.
@@ -87,14 +90,19 @@ Conventions referenced throughout:
 3. **Rationale:** The model unified on **tutor-availability slots** (every reschedule is a per-student make-up at a tutor-free time). The active flow keeps the assigned tutor and original class. The retained group-switch compatibility primitive also revalidates matching subject/year on the server. Allowance usage counts distinct original lessons, so changing one lesson's make-up destination remains one use even if legacy history contains multiple approved rows.
 
 ### Taiyo Blitz
-1. **What it is** - A Zetamac-style 60-second mental-math speed drill with five difficulty tiers, per-difficulty leaderboards, and a pick-your-sound reward.
-2. **How it works** - `/student/math-game` (`page.tsx`, `_queries.ts`, `_actions.ts`, `_components/`). Table: `mathGameScores` (append-only; enum `mathGameDifficultyEnum` = sprint/easy/medium/hard/genius). `submitScore` validates with Zod + a per-tier plausibility cap. Leaderboard = `max(score)` per student per difficulty, name shown as first name + last initial. Question generator is unit-tested (vitest). Guard: `requireRole("student")` (both tiers).
+1. **What it is** - A mental-math speed drill with a 30-second Sprint and four 60-second levels, profile-icon leaderboards, and optional sound/reward effects.
+2. **How it works** - `/student/math-game` (`page.tsx`, `_queries.ts`, `_actions.ts`, `_components/`). Table: `mathGameScores` (append-only; enum `mathGameDifficultyEnum` = sprint/easy/medium/hard/genius). `submitScore` validates with Zod + a per-tier plausibility cap. Leaderboards use each student's personal best per difficulty and switch between year-level and all-Taiyo scope; inactive accounts are excluded and rows show the selected profile icon or initials. Guard: `requireRole("student")` (both tiers).
 3. **Rationale:** Available to *all* students, not gated by tier - it's an engagement feature with no academic weight. Sound plays through the Web Audio API for rapid feedback and includes a persistent Mute choice. Correct answers trigger a short accessible `+1 Correct!` burst and score pop; `prefers-reduced-motion` disables the animations. The plausibility cap remains a guardrail rather than server-authoritative per-answer checking, which would add reflex-game latency.
 
 ### Notifications inbox
 1. **What it is** - In-app inbox of notifications (DMs, discussion replies, reschedule updates).
 2. **How it works** - `/student/notifications` (`NotificationsInbox` component). Table: `notifications`. Guard: `requireRole("student")` + `userId = me`.
-3. **Rationale:** In-app only; no email transport is wired (per `docs/checklist.md` Cross-cutting "Email delivery").
+3. **Rationale:** The inbox is the authoritative notification channel. Email is reserved for urgent targeted announcements when the Resend transport is configured; ordinary workflow events stay in-app to avoid notification noise.
+
+### Profile and security
+1. **What it is** - A profile-icon picker and authenticated password-change form reached from the top-right profile avatar.
+2. **How it works** - `/student/profile`; `setMyProfileAvatar` accepts only keys from the controlled icon library. `changeMyPassword` rate-limits attempts, verifies the current password through Supabase Auth, requires a different 8+ character password and matching confirmation, then updates the signed-in user. The shared student shell and Taiyo Blitz leaderboard render the selected icon with initials as fallback.
+3. **Rationale:** Requiring the current password protects an already-open session from silently changing credentials. A controlled icon set avoids unsafe arbitrary uploads while giving students visible identity in the portal.
 
 ### Planned / not yet built (student)
 - **Online payment** - no processor wired (checklist ⬜).
@@ -157,7 +165,7 @@ Conventions referenced throughout:
 ### Notifications inbox
 1. **What it is** - In-app notification inbox.
 2. **How it works** - `/parent/notifications` (`NotificationsInbox`). Table `notifications`. Guard: `requireRole("parent")`.
-3. **Rationale:** In-app only (no email transport wired).
+3. **Rationale:** The inbox is the authoritative channel. A parent receives email only when included in an urgent targeted announcement and the Resend transport is configured.
 
 ### Resource Library (read-only mirror)
 1. **What it is** - Read-only mirror of the student resource library, scoped to the selected child's enrolled subjects.
@@ -165,7 +173,7 @@ Conventions referenced throughout:
 3. **Rationale:** Same subject-scoping rationale as the student view - a parent only ever sees resources for subjects their linked child is actually enrolled in, never another family's materials (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Security, and PRD cross-cutting non-negotiable that parents see only their children's data).
 
 ### Planned / not yet built (parent)
-- **Class token / make-up credit** - spec'd 2026-06-03 (new `class_tokens` table) but unbuilt; needs a fresh migration number (checklist ⬜).
+- **Online self-service credit purchase** - reschedule allowances and class credits exist, but there is no payment flow for purchasing extra credit.
 - **Online payment** - stub link only, no processor (checklist ⬜).
 - **Per-class feedback detail link** - `/parent/classes/[classId]` not built (memory `project_pending_feedback_to_class_link`).
 
@@ -187,6 +195,11 @@ Conventions referenced throughout:
 1. **What it is** - Tutors can post one class they cannot teach or request multi-day leave. Extended leave requires admin approval; approval publishes each affected class to a shared board where any active, non-conflicting tutor can claim it.
 2. **How it works** - Requests are submitted from the `Absence or leave request` slide-over on `/tutor/timetable` (`?panel=leave` opens it directly); `/tutor/cover` is the notice board for claims, releases, and status. `/admin/reschedules#tutor-cover` handles leave approval, manual assignment/reassignment, and returning an accidental claim to the open board. Tables: `tutorLeaveRequests`, `tutorCoverRequests` (migration 0043). Claiming atomically moves `lessons.tutorId` to the replacement while retaining `originalTutorId` on the cover record; reopening restores the original lesson tutor before another claim. Server actions recheck role, lesson ownership, the 48-hour submission gate, active-tutor status, timetable clashes, and the expected current claim before mutation.
 3. **Rationale:** Multi-day leave is an approval envelope, while each lesson is independently claimable and auditable. Admin receives immediate workflow notifications, urgent 48h/24h alerts, and one reminder per day while approved leave remains partly uncovered. A secured daily Vercel cron is backed by an idempotent five-minute check while an admin has the portal open, matching Hobby's once-daily cron limit without producing duplicate alerts.
+
+### Weekly check-in and payroll
+1. **What it is** - A weekly record of scheduled work that tutors approve or dispute, with owner-only correction and pay reconciliation.
+2. **How it works** - `/tutor/checkin` creates one `tutorWeeklyCheckins` row per tutor/week and synchronizes lesson-backed `tutorCheckinEntries` until approval. `/admin/tutor-checkins` is owner-only and filters by week, tutor, and class; the owner can correct, remove, or restore entries without changing the lesson timetable. Rates come from owner-only `tutorBankDetails`, are snapshotted on entries, and valid approved weeks are not rewritten by later rate changes. Saturday/Sunday reminders and the Sunday owner alert are deduped by the daily cron. Database uniqueness prevents duplicate tutor/week and lesson/check-in rows.
+3. **Rationale:** Payroll uses an auditable snapshot rather than recalculating already approved pay from mutable schedules or rates. Missing/legacy zero rates reopen affected approval instead of silently paying `$0`, and stale owner edits are rejected to prevent lost updates.
 
 ### Homework marking
 1. **What it is** - Mark submissions, record scores/feedback, request resubmission.
@@ -226,7 +239,12 @@ Conventions referenced throughout:
 ### Notifications inbox
 1. **What it is** - In-app inbox.
 2. **How it works** - `/tutor/notifications` (`NotificationsInbox`). Table `notifications`.
-3. **Rationale:** In-app only.
+3. **Rationale:** The inbox is authoritative; only urgent targeted announcements use the optional email transport.
+
+### Profile icon
+1. **What it is** - Tutors choose a controlled profile icon from the top-right profile chip on desktop or mobile.
+2. **How it works** - `/tutor/profile`, `ProfileIconPicker`, and `setMyTutorProfileAvatar`; the selected `profiles.profileAvatarKey` is rendered by the shared tutor shell.
+3. **Rationale:** A controlled icon set keeps the interface consistent and avoids the moderation/storage burden of arbitrary profile-photo uploads.
 
 ### Resource Library (author + promote)
 1. **What it is** - Add a resource (booklet, past paper, worksheet, video) to the subject-wide library by direct file upload or link, plus a "promote" toggle that publishes an existing weekly curriculum attachment straight into the library.
@@ -236,8 +254,6 @@ Conventions referenced throughout:
 ### Planned / not yet built (tutor)
 - **Forward-looking lesson plan** - only retroactive `lesson_notes.nextLessonFocus` exists (checklist ⬜).
 - **Class-recording auto-upload pipeline** - no upload pipeline or Storage bucket for automatically capturing class recordings; resource library video entries are added manually (checklist ⬜ "Upload videos").
-- **`is_test` checkbox in homework create/edit** - flag exists but no tutor UI (checklist 🔶).
-- **Tutor → student mass announcements** - only admins post announcements (checklist ⬜).
 
 ---
 
@@ -249,14 +265,14 @@ Conventions referenced throughout:
 3. **Rationale:** `Rationale: not documented` for the specific tile set. (Revenue figures were moved off this page - see Revenue below.)
 
 ### User management + account creation
-1. **What it is** - Create, edit, deactivate, and role-assign accounts across all roles.
-2. **How it works** - `/admin/users`, `/admin/users/[id]`. Actions in `src/app/admin/_lib/actions-users.ts` (`createUser`, `updateUser`, `setUserActive`). Admin edits keep `profiles.email` and `auth.users.email` in sync through the server-only Supabase admin client. Table: `profiles` (+ `auth.users`). Guard: `requireAdmin()`.
+1. **What it is** - Search, create, edit, deactivate, reset, and permanently delete accounts, including optional same-step linked-parent creation for a student.
+2. **How it works** - `/admin/users`, `/admin/users/[id]`. Actions in `src/app/admin/_lib/actions-users.ts` keep `profiles.email` and `auth.users.email` synchronized through the server-only Supabase admin client. The directory exposes subject/delivery/status badges, linked family, admin-only quick notes, configurable subject aliases, and owner-protected destructive actions. The global `Command/Ctrl+K` or `/` search opens portal destinations and routes user/class/subject queries into the permission-filtered directory. Guard: `requireAdmin()` with separate owner checks for privileged roles, admin accounts, payroll data, and permanent deletion.
 3. **Rationale:** `createAdminClient()` (service-role) is used *only* here for `auth.users` CRUD, where RLS-bypass is genuinely required, and is `server-only`-guarded. Reception can manage operational student/parent/tutor records, but cannot create privileged accounts, change roles, or edit/reset/deactivate any admin account. Those boundaries are repeated inside server actions; hidden or disabled controls are not treated as authorization.
 
 ### Family links editor
 1. **What it is** - Editor for parent↔child relationships on the user detail page.
 2. **How it works** - On `/admin/users/[id]`. Table: `familyLinks` (`is_primary_contact`). Guard: `requireAdmin()`.
-3. **Rationale:** Parent-child account linking is a first-class concept per the PRDs; `is_primary_contact` exists in schema but the toggle UI is still a gap (checklist ⬜ "Primary-contact toggle").
+3. **Rationale:** Parent-child account linking is a first-class concept per the PRDs. The family-link manager can mark one linked parent as the student's primary contact; setting one clears any previous primary link.
 
 ### Class management
 1. **What it is** - Create/edit class slots (subject, tutor, capacity, type, location, recurrence).
@@ -274,8 +290,8 @@ Conventions referenced throughout:
 3. **Rationale:** `Rationale: not documented.`
 
 ### Payment management
-1. **What it is** - Manage invoices and manually mark them paid (cash received at desk).
-2. **How it works** - `/admin/payments` (`_components/`). Table: `invoices` (`invoiceStatusEnum`, `paidAt`). Guard: `requireAdmin()`. **Not** behind the PIN wall.
+1. **What it is** - Create and manually edit invoices, including linked family, amount/currency, due date, description, status, and payment date.
+2. **How it works** - `/admin/payments` (`_components/`). Parent selection constrains the student choices to linked children; paid/refunded states preserve an explicit payment date. Invoice mutations run with actor attribution into the audit log. Table: `invoices` (`invoiceStatusEnum`, `paidAt`). Guard: `requireAdmin()`. **Not** behind the PIN wall.
 3. **Rationale:** Individual invoice/payment status is deliberately *not* PIN-walled - daily ops (reception marking cash) need it; the wall covers only revenue aggregates (per `docs/superpowers/specs/2026-07-12-admin-pin-wall-design.md` §Scope). Payment model is free-trial → payment; no refunds/discounts (same spec).
 
 ### Revenue (PIN-walled)
@@ -289,9 +305,9 @@ Conventions referenced throughout:
 3. **Rationale:** The wall stays *open* until a PIN is set (no accidental lockout on first deploy) (commit `1744333`). PIN is 6–8 digits (commit `53a6aad`).
 
 ### Announcements
-1. **What it is** - Portal-wide announcements with audience scoping by role or class.
-2. **How it works** - `/admin/announcements` (`_components/`). Table: `announcements` (`audienceRole` uses `userRoleEnum`, `audienceClassId` → `classes`). Guard: `requireAdmin()`.
-3. **Rationale:** The coarse `userRoleEnum` values (student/parent/tutor/admin) survive specifically as announcement audience targets even after every account moved to a tiered role (per `src/lib/roles.ts` comment / role-tiers memory).
+1. **What it is** - Announcements with combinable role, subject, year, class, and tutor audiences, plus approval of tutor-authored class announcements.
+2. **How it works** - `/admin/announcements` resolves exact recipients through `src/lib/announcement-targeting.ts`. Tutor submissions originate from the class curriculum, remain `pending`, and notify all active admins; approval publishes only to the class students and optionally their linked parents, while rejection records a reason for the tutor. Urgent published announcements queue one email delivery row per resolved recipient and use `src/lib/announcement-email.ts` with retry/idempotency safeguards when Resend is configured. Guard: `requireAdmin()`; tutor creation is ownership-scoped.
+3. **Rationale:** Combinable filters avoid maintaining a long ambiguous audience dropdown. Recipient rows are resolved once and deduped so in-app and urgent-email delivery target the same audience without broad role leakage.
 
 ### Reschedules & tutor cover (admin)
 1. **What it is** - Tutor leave approval, open/claimed class-cover operations, read-only student credits/allowance usage, and admin-initiated student reschedules.
@@ -324,9 +340,9 @@ Conventions referenced throughout:
 3. **Rationale:** Scheduled notifications are event notifications rather than passive state. Database uniqueness on `(user_id, dedupe_key)` makes cron retries and admin-triggered reconciliation safe without hiding legitimate alerts for a different lesson or later trial period.
 
 ### Reporting
-1. **What it is** - Attendance + payment reporting (stub).
-2. **How it works** - `/admin/reports` - currently a "Coming in Phase 3" stub; underlying `attendance`/`invoices` data is queryable but nothing aggregates it. Guard: `requireAdmin()`.
-3. **Rationale:** Deferred to Phase 3 per the build-order phasing (checklist 🔶 / CLAUDE.md build order).
+1. **What it is** - Term-selectable operational reporting with organisation totals, per-class metrics, and CSV export.
+2. **How it works** - `/admin/reports` aggregates attendance, homework completion, average test result, current enrolment, capacity, and current class fill. `/admin/reports/export?term=…` emits the same class rows as CSV. Guard: `requireAdmin()`.
+3. **Rationale:** The metric calculation and CSV serialization are separated into testable helpers so the download and on-screen table use the same definitions.
 
 ### Resource Library (moderation)
 1. **What it is** - Admin-wide moderation view of every resource across every subject, including unpublished and removed ones, with unpublish/republish/remove(with reason)/restore.
@@ -335,7 +351,6 @@ Conventions referenced throughout:
 
 ### Planned / not yet built (admin)
 - **Automatic subject/skill matching for replacement tutors** - the cover board intentionally permits any active tutor and blocks timetable clashes, but does not rank tutors by subject expertise.
-- **Reporting aggregation** - see above.
 
 ---
 
@@ -344,7 +359,7 @@ Conventions referenced throughout:
 ### Authentication
 1. **What it is** - Supabase-backed login, password reset, and session handling.
 2. **How it works** - `/(auth)/login`, `/(auth)/forgot-password`, `/(auth)/reset-password`, `/auth/callback`. `@supabase/ssr`; `getCurrentUser`/`requireRole` in `src/lib/auth.ts`. Post-login routing lands on the coarse-role home.
-3. **Rationale:** Login routes to the *coarse-role* home (`/student`, `/admin`, …), not the raw tiered role - otherwise a `student_restricted` user was sent to a nonexistent `/student_restricted` and 404'd (per commit `9c60a6d`). The `auth/callback` + login redirects are guarded against open redirects (OWASP A01, commit `c16ddde`). Password-reset E2E is untested because seed emails aren't real inboxes (memory `project_password_reset_test_pending`).
+3. **Rationale:** Login routes to the *coarse-role* home (`/student`, `/admin`, …), not the raw tiered role - otherwise a `student_restricted` user was sent to a nonexistent `/student_restricted` and 404'd. The callback and login redirects are guarded against open redirects. Password setup/reset is implemented, but custom-SMTP delivery to a normal external inbox remains an acceptance item.
 
 ### Role model & tiered roles
 1. **What it is** - Six-tier role enum (2 admin tiers, 2 student tiers, plus `tutor`/`parent`) with coarse-role bridging.
@@ -357,9 +372,9 @@ Conventions referenced throughout:
 3. **Rationale:** The app layer is the real boundary - the Drizzle `db` connects as `postgres` and bypasses RLS, so `requireRole` + ownership checks are the primary control (verified present on every server action in the K3 review); RLS is defense-in-depth (per security-checklist C6/K3). Role is read from `app_metadata.role` **only** - never `user_metadata` - because `user_metadata` is user-mutable via `supabase.auth.updateUser()` and trusting it (even as a fallback) was a privilege-escalation path (per security-checklist B1/B2, migration 0002, commit `c16ddde`).
 
 ### Notifications
-1. **What it is** - In-app notification inbox for all four roles.
-2. **How it works** - `notifications` table; `NotificationsInbox` component; `/{role}/notifications`. Written by DM/discussion/reschedule flows.
-3. **Rationale:** In-app only - no Resend/SES/email transport is wired, so notifications intentionally sit in-app (per `docs/checklist.md` Cross-cutting "Email delivery").
+1. **What it is** - In-app notification inbox and unread badge for all four roles, with urgent presentation and optional urgent-announcement email.
+2. **How it works** - `notifications` table; shared `NotificationsInbox`; `/{role}/notifications`; red unread counts in desktop/mobile shells. Opening a notification records it read. Workflow writers use recipient-specific dedupe keys where retry is possible. Published urgent announcements queue `announcementEmailDeliveries`; the Resend worker claims, retries, and records delivery attempts.
+3. **Rationale:** The in-app inbox is authoritative and available even when external mail is unavailable. Email is limited to urgent targeted announcements; Supabase separately owns account/password Auth emails. DNS and Vercel variables are present, but custom-SMTP/real-inbox delivery remains unverified as of 6 October 2026.
 
 ### Row-Level Security (RLS)
 1. **What it is** - RLS enabled on every public table as defense-in-depth.
@@ -377,15 +392,16 @@ Conventions referenced throughout:
 3. **Rationale:** Added to harden login + write endpoints (per security-checklist B3/C4, commit `e56dd5f`). RLS-locked with no policies = deny-by-default for anon/authenticated (schema comment).
 
 ### Storage & file uploads
-1. **What it is** - Private Supabase Storage buckets for homework attachments/submissions, curriculum video/booklets, and discussion/DM attachments.
-2. **How it works** - Buckets `homework-attachments`, `curriculum`, `discussion-attachments`. Signed URLs minted server-side (1h TTL) after a permission check. Upload validation in `src/lib/*-storage.ts` (`validateUpload`). Tables reference storage *paths*, not public URLs.
-3. **Rationale:** Buckets are private with short-lived signed URLs so student submissions/materials aren't world-readable (per security-checklist E4/E5). **Deploy note:** the `discussion-attachments` bucket exists in dev but must be created (private) in prod at deploy, same as `homework-attachments` (per security-checklist E7 / memory `project_role_tiers_spec1`).
+1. **What it is** - Private Supabase Storage for homework attachments/submissions, curriculum media, discussion attachments, and the resource library.
+2. **How it works** - Buckets `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, and `resource-library`. Permission-checked server actions mint short-lived signed URLs. Upload validation lives in the storage/direct-upload helpers; database rows store object paths rather than public URLs. Supported PDFs and videos render through in-portal viewers with an Open separately fallback.
+3. **Rationale:** Private objects plus short-lived signed URLs keep student work and teaching material from becoming world-readable. Every replacement environment must create all five private buckets before runtime QA.
 
 ---
 
 ## Sources
 
-- `docs/checklist.md` (backbone inventory, last audit 2026-07-22)
+- `checklist_beta_fix.md` (current production acceptance backlog)
+- `docs/checklist.md` (historical/full inventory; last wholesale audit 2026-07-22)
 - `docs/PRD_{Student,Parent,Tutor,Admin}_Portal.md`
 - `docs/security-checklist.md`, `docs/SECURITY.md`
 - `docs/superpowers/specs/`: role-tiers (2026-07-09), reschedule (2026-07-10), admin PIN wall (2026-07-12), math game (2026-07-12), direct messaging (2026-05-27), discussions (2026-05-27), subject curriculum (2026-05-30), curriculum topics (2026-06-30), tutor sections (2026-07-01)

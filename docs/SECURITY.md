@@ -2,6 +2,11 @@
 
 Living document for the Security & RLS layer. Every migration that touches RLS / policies / triggers / views / grants is logged here so the access model can be reconstructed from this file alone.
 
+Last reconciled with the current codebase: **6 October 2026**. The current
+checkout contains migrations through `0055_student_curriculum_access.sql`;
+`npm run db:status` and `npm run db:check-rls` remain the authority for a
+specific database.
+
 ## Migration boundary
 
 - **Drizzle (`src/db/schema.ts`, `drizzle/`)** owns table DDL only - columns, types, foreign keys, indexes, enums.
@@ -412,24 +417,28 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 
 ---
 
-## Known caveats
+## Current caveats
 
-These are documented compromises, not currently-exploitable bugs. Worth fixing as follow-ups.
+The former role-edit and homework-grading caveats are closed by migrations 0013
+and 0007 respectively. Auth authorization reads `app_metadata.role` only.
 
-### 1. `profiles.role` is user-editable
+### Server database role bypasses RLS
 
-`profiles_update_own` lets a user UPDATE any column on their own profile row, including `role`. The `role` column on `profiles` is for display/joins only - the authoritative role lives in `auth.users.raw_app_meta_data` (which the user **cannot** modify). Every other table's RLS policy reads role from `auth.jwt()`, not from `profiles.role`. Changing your own `profiles.role` grants no access.
+The Drizzle runtime connection uses a trusted Postgres role and can bypass RLS.
+Every server loader/action must therefore keep its `requireRole`/ownership
+checks. RLS is defense-in-depth for direct Supabase client access, not the
+primary authorization boundary for server code.
 
-**Fix:** column-level `REVOKE UPDATE (role)` from authenticated, or a `BEFORE UPDATE` trigger that resets `role` to its prior value unless the caller is admin.
+### Safeguarding access to direct messages
 
-### 2. `homework_assignments` UPDATE is not column-restricted
+RLS permits admins to read DMs for safeguarding, but the current UI exposes
+only conversations in which that admin participates. If a non-participant
+oversight UI is added, it must require a reason/report and create an audit READ
+record before returning content.
 
-`homework_assignments_student_update` allows the student to UPDATE any column on their own assignment row, including `score`, `feedback`, `marked_at`, `marked_by`. The student portal API code MUST restrict the column set in `UPDATE` statements.
+### External security settings still need acceptance evidence
 
-**Fix:** split submissions into a `SECURITY DEFINER` function that only writes the student-mutable subset, or use column-level UPDATE grants.
-
-### 3. ~~Auth code reads `user_metadata` first~~ - FIXED 2026-05-27
-
-`src/lib/auth.ts`, `src/lib/supabase/middleware.ts`, `scripts/seed-users.mjs`, `scripts/seed-demo.mjs` now read/write `app_metadata.role` first, with `user_metadata.role` as a fallback only for users who predate migration 0002's backfill.
-
-History: the original flip was made on 2026-05-25 but reverted by a salvage merge that day. Restored 2026-05-27.
+The custom domain and Vercel Production environment-variable names are present,
+but `docs/security-checklist.md` intentionally leaves Supabase URL allowlists,
+Auth custom SMTP, backup/PITR, token settings, legal documents, and real-inbox
+delivery open until their dashboard or live tests are recorded.

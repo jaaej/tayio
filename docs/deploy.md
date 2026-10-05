@@ -1,11 +1,32 @@
 # Deployment runbook
 
-Staged rollout: **Phase 1** is an admin + tutor beta, **Phase 2** opens the portal to students and parents.
-Phase 1 exists to get real operational data in (attendance, lesson notes, curriculum, invoices) with a small, trusted, staff-only user set.
+Last reconciled: **6 October 2026**.
 
-The launch gate itself lives in `docs/security-checklist.md` §K5.
-This file is the ordered "how", and it records which of those items each phase actually needs.
-Incident procedures are in `docs/runbooks.md`.
+## Current production snapshot
+
+- `https://portal.taiyotuition.com` is attached to the Vercel project `tayio`
+  and was verified `Ready` on 6 October 2026.
+- The portal CNAME and the Resend DKIM/SPF/MX records resolve publicly.
+- The expected Production environment-variable names are present in Vercel.
+- The four role portals are live; the original Phase 1/Phase 2 sequence below is
+  retained as bootstrap and historical rollout guidance, not a statement that
+  the current app is still in the staff-only phase.
+- Email is **not yet an accepted end-to-end system**: configure/confirm Supabase
+  custom SMTP and test account setup, password reset, and urgent announcements
+  against a normal external inbox. DNS is no longer the blocking step.
+
+The launch gate lives in `docs/security-checklist.md` §K5, the current manual
+acceptance backlog lives in `checklist_beta_fix.md`, and incident procedures
+are in `docs/runbooks.md`.
+
+## Original staged-rollout context
+
+The original rollout used **Phase 1** for an admin+tutor beta and **Phase 2** to
+open the portal to students and parents. Those sections still explain the safe
+order for bootstrapping a replacement environment.
+
+This file is the ordered "how", and it records which of those items each phase
+needed.
 
 **Hosting decision (2026-08-15): the owner hosts on their own Supabase and Vercel accounts**, and the portal is operated for a separate tutoring company.
 Two consequences worth keeping in view.
@@ -20,7 +41,7 @@ A custom domain works either way: the client can keep their own DNS and point a 
 
 ---
 
-## Setup sequence - the evening before deploy
+## Setup sequence for a new/replacement environment
 
 Front-loads everything that has lead time or can fail, so deploy day is only clicks.
 Roughly 90 minutes of work, most of it spent waiting on DNS.
@@ -55,7 +76,7 @@ Fill `.env.local` with the production values (`.env.example` lists every key), t
 
 ```bash
 npm run db:bootstrap -- --confirm
-npm run db:status      # expect 37 of 37, and nothing under "recorded but not in this checkout"
+npm run db:status      # expect every on-disk migration applied and no unexplained drift
 npm run db:check-rls   # expect every table green
 ```
 
@@ -89,7 +110,7 @@ openssl rand -hex 32
 
 ### 6. Once Resend verifies
 
-13. Supabase → Project Settings → Auth → SMTP: point at Resend, sender on the verified domain.
+13. Supabase → Project Settings → Auth → SMTP: point at Resend, sender on the verified domain. Resend domain verification alone does not configure Supabase Auth email.
 14. Project Settings → API → Site URL: the production URL.
 15. Authentication → URL Configuration → Redirect URLs: add `https://<domain>/auth/callback`.
 
@@ -138,9 +159,12 @@ Do not read "it works in dev" as proof that a table exists in prod.
 npm run db:status     # applied vs pending, for whichever database DIRECT_URL points at
 ```
 
-The dev database was back-stamped on 2026-08-15 after verifying each migration's artifacts actually existed.
-It reports `37 of 37` plus three "recorded but not in this checkout": `0028`/`0029` from the unmerged `feat/term-test` branch, and `0030` from the archived `free-trials` branch, whose dead `enrollments.trial_starts_at`/`trial_ends_at` columns exist in dev and will never exist in prod.
-That section of the output is the drift signal - anything listed there was applied from a branch, and a fresh production database will not have it.
+The development database was originally back-stamped on 15 August 2026 after
+verifying that each recorded migration's artifacts existed. Do not rely on the
+historical migration count: this checkout contained 52 SQL files as of
+6 October 2026, with numbering gaps from archived/branch work. `db:status` is
+the authority for the selected database. Anything under "recorded but not in
+this checkout" is a drift signal that must be explained before deployment.
 
 The ledger is created idempotently by `scripts/migration-ledger.mjs` rather than by a numbered migration, because it has to exist before the first migration can be recorded.
 It is deliberately absent from `src/db/schema.ts` - it is tooling, not application schema - which also means a stray `drizzle-kit push` would drop it. That would already be a catastrophe for RLS, so it is not a new risk.
@@ -172,7 +196,7 @@ It is deliberately absent from `src/db/schema.ts` - it is tooling, not applicati
    The callback route is `src/app/auth/callback/route.ts`.
 7. Project Settings → API → Site URL: your production domain only (checklist F7).
 8. Project Settings → Auth → SMTP: wire a real provider (Resend / SES / SendGrid) (checklist K6).
-   **Not optional even for a staff-only beta.** `updateUser` in `src/app/admin/_lib/actions-users.ts` cannot set a password - only `createUser` does, at creation time. The single in-product recovery path is `sendPasswordReset`, which sends email. Supabase's built-in sender is capped at 4 emails/hour from a spam-flagged address, so without SMTP a locked-out tutor needs manual dashboard intervention.
+   **Not optional even for a staff-only beta.** `updateUser` in `src/app/admin/_lib/actions-users.ts` cannot set a password - only `createUser` does, at creation time. The in-product recovery path sends email. Supabase currently limits its built-in provider to **2 Auth emails per project per hour** and treats it as non-production/best-effort; custom SMTP starts with a configurable 30-per-hour Auth limit. Confirm the current values in [Supabase's rate-limit documentation](https://supabase.com/docs/guides/auth/rate-limits) rather than relying on this dated number.
 9. Enable point-in-time recovery (checklist I1, paid tier).
    Phase 1 is a weeks-long data-entry period; the realistic disaster is losing typed lesson notes, not a breach.
 
@@ -203,7 +227,9 @@ They create Tom Tutor and friends; demo rows tangled with real ones are painful 
 - Log in as admin; create a tutor; log in as that tutor.
 - **From the tutor account, try to open a student who is not theirs.** Admin is all-powerful by design, so tutor scoping is the only real access-control boundary this phase exercises.
 - Upload one file per bucket path in use (curriculum, homework attachment, discussion attachment, resource) - this is what catches a missing bucket.
-- Run the password reset end-to-end on real SMTP. It has never been tested (checklist B7).
+- Run account setup and password reset end-to-end through the configured custom
+  SMTP provider and a normal external inbox. A prior reset succeeded through
+  the default path, but custom-domain SMTP remains unaccepted.
 
 ### What Phase 1 defers, and why it is defensible
 

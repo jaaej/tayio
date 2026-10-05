@@ -1,103 +1,59 @@
-# DNS setup - instructions to send to the client
+# Client DNS setup — completed reference
 
-Hand this to whoever manages `taiyotuition.com`.
-Written for a non-technical reader; no jargon is used before it is explained.
+Last verified: **6 October 2026**.
 
-Fill in the four bracketed values before sending - the email records come from the Resend dashboard after adding the domain there (step 2 of the deploy setup sequence).
+This was originally the non-technical instruction sheet for the client. The
+required portal and Resend records have now been added in GoDaddy and resolve
+publicly, so it is retained as a recovery/reference document rather than an
+open setup task.
 
----
+## Current records
 
-## What this is for
+| Purpose | Type | Host | Current destination/value |
+|---|---|---|---|
+| Portal | CNAME | `portal` | `f2e212bdd2bb45bb.vercel-dns-017.com` |
+| Resend DKIM | TXT | `resend._domainkey.send` | Public key supplied by Resend; verified in DNS |
+| Resend bounce handling | MX | `send.send` | Priority `10`, `feedback-smtp.ap-northeast-1.amazonses.com` |
+| Resend SPF | TXT | `send.send` | `v=spf1 include:amazonses.com ~all` |
 
-We are putting the tutoring portal online at **portal.taiyotuition.com**.
+GoDaddy displays host names relative to `taiyotuition.com`; do not append the
+root domain twice. A trailing dot shown by a DNS lookup is normal and should
+not be manually added to GoDaddy values unless the UI does it automatically.
 
-That is a new section of your existing web address, like a new room in a house you already own.
-Your current website at `taiyotuition.com` is not touched and will keep working exactly as it does now.
+The long DKIM value is intentionally not duplicated in this repository. If it
+must be recovered or rotated, copy the current value from Resend → Domains and
+replace only that matching DNS row.
 
-To connect it, four settings need to be added to your domain.
-It takes about ten minutes and nothing here can break your existing site.
+## What remains for email
 
----
+DNS verification does not make Supabase Auth use Resend automatically. The
+remaining work is:
 
-## Step 1 - find where your domain is managed
+1. In Supabase, configure or confirm Auth → SMTP with the Resend SMTP host,
+   port, username, password, and a sender on the verified domain.
+2. Confirm Supabase Site URL and Redirect URLs include
+   `https://portal.taiyotuition.com` and its `/auth/callback` route.
+3. Test a newly created account and a forgot-password request using a normal
+   external inbox, then sign in with the new password.
+4. Send a narrowly targeted urgent announcement and verify delivery and
+   recipient isolation in both the portal and Resend logs.
+5. After delivery is stable, add a DMARC policy for
+   `_dmarc.taiyotuition.com`. No DMARC TXT record resolved on 6 October 2026.
 
-Your domain is registered with a company you pay a yearly fee to. Common ones: **GoDaddy, Namecheap, Squarespace, Wix, Shopify, Cloudflare, Crazy Domains**.
+Do not call email complete until those tests are recorded in
+`checklist_beta_fix.md`.
 
-If you are not sure which:
+## Recovery procedure
 
-- Search your email for "domain renewal" or "domain expiring" - the sender is the company.
-- Or check your card statement for a small yearly charge.
-- Or ask whoever originally built your website, since they often set it up.
+If `portal.taiyotuition.com` stops resolving:
 
-Log in to that company's website.
+1. Open GoDaddy → My Products → `taiyotuition.com` → DNS.
+2. Confirm the `portal` CNAME still points to the exact target Vercel currently
+   shows under Project → Domains.
+3. Confirm Vercel still lists `portal.taiyotuition.com` as a Production alias.
+4. Check with `dig +short portal.taiyotuition.com CNAME` and
+   `npx vercel@latest inspect https://portal.taiyotuition.com`.
 
-## Step 2 - find the DNS settings
-
-Once logged in, find your domain `taiyotuition.com` and look for a button or menu called one of:
-
-- **DNS**
-- **Manage DNS**
-- **DNS Settings**
-- **Advanced DNS**
-- **DNS Records**
-- **Nameservers / Custom records**
-
-Rough paths for the common providers (the wording moves around, so match the closest thing you see):
-
-| Provider | Where to look |
-|---|---|
-| GoDaddy | My Products → find the domain → **DNS** → Manage Zones / Add Record |
-| Namecheap | Domain List → **Manage** → **Advanced DNS** tab |
-| Squarespace | Settings → Domains → select the domain → **DNS Settings** |
-| Wix | Domains → select the domain → **Advanced** → Edit DNS / DNS Records |
-| Cloudflare | Select the domain → **DNS** tab → Add record |
-| Shopify | Settings → Domains → select the domain → **Domain settings** → Edit DNS |
-
-You should end up on a page listing existing records in a table, with an **Add** or **Add Record** button.
-
-**Do not delete or edit anything already on that page.** Only add new rows.
-
-## Step 3 - add the portal address
-
-Click Add Record and enter:
-
-| Field | Value |
-|---|---|
-| Type | `CNAME` |
-| Name / Host | `portal` |
-| Value / Points to / Target | `cname.vercel-dns.com` |
-| TTL | leave as the default (Auto or 3600) |
-
-Save.
-
-**Important:** in the Name field enter only `portal`, not `portal.taiyotuition.com`.
-Most providers add the rest of the domain for you, and typing the full address produces `portal.taiyotuition.com.taiyotuition.com`, which will not work.
-
-## Step 4 - add the three email settings
-
-These let the portal send password-reset emails from your own domain, so they arrive properly instead of going to spam.
-
-Add each of these as a new record, the same way:
-
-| Type | Name / Host | Value |
-|---|---|---|
-| `[TYPE 1]` | `[NAME 1]` | `[VALUE 1]` |
-| `[TYPE 2]` | `[NAME 2]` | `[VALUE 2]` |
-| `[TYPE 3]` | `[NAME 3]` | `[VALUE 3]` |
-
-Copy the values exactly, including any quotation marks.
-They are long, so paste rather than type them.
-
-## Step 5 - tell me it is done
-
-Send a message once all four are saved.
-Changes usually take effect within an hour, though they can take up to a day.
-I will confirm from my side and you do not need to do anything else.
-
----
-
-## If something looks wrong
-
-- **"This record already exists"** - a record with that name may already be there. Do not overwrite it; send me a screenshot of the existing one instead.
-- **You cannot find DNS settings** - your website provider may manage the domain on your behalf. Send me their name and I will contact them directly.
-- **You would rather I did it** - add me as a user on the account, or share the login, and I will make the changes myself. I will not touch anything relating to your current website.
+If Resend loses domain verification, compare the three records in Resend →
+Domains with GoDaddy. Do not delete or edit unrelated website, Microsoft 365,
+Google Workspace, or mail records.

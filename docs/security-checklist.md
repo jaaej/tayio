@@ -2,6 +2,11 @@
 
 Every backend security item for the tayio portal, grouped by area and tagged by priority.
 
+Last reconciled with code and the visible production configuration:
+**6 October 2026**. Dashboard-only controls remain unchecked unless they were
+directly verified; current product acceptance work is also tracked in
+`checklist_beta_fix.md`.
+
 **Legend**
 - ✓ done
 - ⚠ partial / has documented caveat
@@ -25,7 +30,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | A2 | Helper functions SECURITY DEFINER with pinned `search_path` | ✓ | P0 | See SECURITY.md §0004 |
 | A3 | `lesson_notes_safe` view hides `internal_note` from students/parents | ✓ | P0 | Migration 0003 |
 | A4 | Profile sync trigger on `auth.users` insert | ✓ | P0 | Migration 0001 |
-| A5 | Storage policies for homework attachments | ☐ | P1 | Bucket not created yet; ~15 min once it is |
+| A5 | Storage policies for homework attachments | - | P1 | Broad client policies are intentionally unnecessary. The private bucket is uploaded/signed through the server-only service client only after application ownership checks; see `src/app/student/homework/_storage.ts`. Bucket privacy still needs dashboard evidence under E4. |
 | A6 | Storage policies for resource library (admin/tutor uploads) | ✓ | P1 | No client-side `storage.objects` policies needed - same model as the `curriculum` bucket: all access is authorized at the app layer (`requireRole` + subject-scope check in `src/lib/resources.ts`) *before* a service-role client signs the URL (`uploadResourceFile`/`signResourceAttachment`, `src/lib/resources-storage.ts`). See E8 for bucket existence. |
 | A7 | Storage policies for profile photos | ☐ | P2 | Feature not built |
 | A8 | Column-level UPDATE restriction on `profiles.role` | ✓ | P1 | **Closed 2026-07-02, migration 0013.** BEFORE UPDATE trigger silently reverts `profiles.role` unless caller is admin or a trusted server context (postgres/service_role). Verified via JWT impersonation: self-promote blocked, non-role updates unaffected, admin + server bypass work |
@@ -47,8 +52,8 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B3 | Rate limiting on `/login` (brute-force protection) | ✓ | P0 | **Implemented + verified 2026-07-02.** Login moved from client-side `signInWithPassword` to a server action (`src/app/(auth)/login/actions.ts`) wrapped in a Postgres-backed rate limiter (migration 0014, `check_rate_limit`): 20/5min per IP + 5/15min per email. Limiter function verified (fixed-window + reset PASS); login flow (server-side sign-in + cookie + redirect) verified in dev browser. Free-tier; no Pro Auth Hooks needed. Deploy note: per-IP limit assumes a trusted proxy (Vercel) - see `rate-limit.ts` trust boundary; per-email limit is IP-independent |
 | B4 | Account lockout after N failed attempts | ⚠ | P1 | Partially addressed by B3's per-email limit (5 fails / 15 min throttles that account). Not a persistent lockout; revisit if needed |
 | B5 | Password complexity requirements | ⚠ | P1 | Code-side minimums aligned 2026-07-02: admin-created passwords `min(8)` (was 6), reset flow already `min(8)`. Full complexity policy (length/charset/breach-check) is a Supabase dashboard setting - Auth → Policies (still to configure) |
-| B6 | Email verification loop enforced on signup | ☐ | P0 | Currently seed scripts pass `email_confirm: true`; real signup flow must require verification |
-| B7 | Password reset flow tested end-to-end | ⚠ | P0 | Pages built 2026-05-27: `/forgot-password` (email entry) and `/reset-password` (new password form). Wired via existing `/auth/callback` exchange. **Dev test still pending: click through end-to-end with a seed account on built-in SMTP.** For production SMTP setup see K6 |
+| B6 | Email ownership confirmed during invite/setup | ⚠ | P0 | Self-signup is disabled; admins create accounts and the setup link is sent to the entered address. Custom-SMTP delivery to a normal external inbox remains unverified, so this cannot be closed yet. |
+| B7 | Password reset flow tested end-to-end | ⚠ | P0 | UI/callback/password change work and one reset was received successfully on 2026-09-18. Repeat through Supabase custom SMTP to a normal non-team inbox before marking complete; see K6 and `checklist_beta_fix.md`. |
 | B8 | JWT access token TTL reviewed (Supabase default: 1hr) | ☐ | P1 | OK at default; document choice |
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |
@@ -58,7 +63,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| C1 | CSRF protection (Next.js Server Actions origin check) | ✓ | P0 | Verified 2026-05-27 - no custom server-action config in `next.config.ts` disables the default origin check. Next 16 Server Actions enforce same-origin by default |
+| C1 | CSRF protection (Next.js Server Actions origin check) | ✓ | P0 | Verified 2026-05-27 - no custom server-action config in `next.config.ts` disables the default origin check. Next.js Server Actions enforce same-origin by default. |
 | C2 | Zod validation on every server action input | ✓ | P0 | **Closed 2026-07-02.** Full audit of every `"use server"` action. All free-text inputs now length-capped: Zod-schema actions got `.max(N)` (announcements body 10k, users name/phone/school/email/password, classes name/location/onlineLink/description, curriculum description/urls, invoices description, family relationship); manual-FormData actions (tutor saveAttendance/saveLessonNote/createHomework/markSubmission, admin adminSaveAttendance, parent + admin reschedule reason) use `src/lib/validation.ts` `optionalText`/`requiredText` or an inline length guard. Type/format validation was already present; this closes the storage-abuse gap |
 | C3 | XSS protection on user-generated content (lesson notes, feedback) | ✓ | P0 | Audited 2026-05-27 - no raw HTML rendering of user input found in any portal page. React's default escape covers everything |
 | C4 | Rate limiting on write endpoints (homework submit, feedback post) | ✓ | P1 | **2026-07-02.** `src/lib/rate-limit.ts` (`rateLimit`, fails open) over migration 0014. Applied to the abuse-prone public writes: DM send (30/min/user), discussion thread (10/min), discussion reply (30/min) - all keyed by user id, generous enough to never hit normal use. Reusable helper for any other action |
@@ -72,10 +77,10 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 |---|---|---|---|---|
 | D1 | `.env.local` in `.gitignore` | ✓ | P0 | `.gitignore` has `.env*`; no `.env` files tracked. Verified 2026-05-27 |
 | D2 | No secrets in git history | ✓ | P0 | Verified 2026-05-27 - scanned for service role JWTs, `SUPABASE_SERVICE_ROLE_KEY=`, private key blocks. Zero hits |
-| D3 | Vercel production env vars set separately from dev | ☐ | P0 | When deploying |
+| D3 | Vercel production env vars set separately from dev | ✓ | P0 | Production variable names were verified in Vercel on 2026-10-06. Values are secret and are not recorded in the repository. Local development uses `.env.local`; always confirm its target before database commands. |
 | D4 | Anon key vs service role key - usage audited | ✓ | P0 | **Audited 2026-07-02 (J4/J5 + OWASP).** Anon key: client SDK + server SSR clients only. Service-role key: only in `supabase-admin.ts`, `server-only`-guarded, never in a `"use client"` file (verified 0 client `process.env` refs). No secret reaches the browser bundle |
 | D5 | Supabase JWT secret rotated from any default / pre-shared value | ☐ | P1 | Supabase dashboard |
-| D6 | Service role key rotation procedure documented | ☐ | P1 | When you'd rotate, how to rotate, what breaks |
+| D6 | Service role key rotation procedure documented | ✓ | P1 | `docs/runbooks.md` §I4 covers containment, Supabase rotation, local/Vercel replacement, redeploy, and exposure review. |
 
 ## E. File Uploads / Storage
 
@@ -84,24 +89,24 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | E1 | Server-side file type validation (MIME + magic bytes, not just extension) | ✓ | P0 | **Closed 2026-07-02.** `src/lib/upload-validation.ts` sniffs leading bytes (pdf/png/jpeg/gif/webp/zip-OOXML/ole-Office/mp4/webm; text validated as UTF-8) and requires the *declared* MIME to be in a per-context allowlist AND the content family to match. All three upload paths (`createHomework`, `uploadTutorAttachment`, `uploadCurriculumFile`) route through it. Residual (accepted): OOXML/OLE subtypes not distinguished - verifies container family only. `image/svg+xml` deliberately excluded (XSS vector). Logic verified with 24 unit cases incl. html/exe-spoofed-as-pdf → rejected |
 | E2 | Server-side file size limits | ✓ | P0 | **Closed 2026-07-02.** `validateUpload` enforces per-policy `maxBytes` (25 MB attachments/booklets, 500 MB video) + rejects empty files, before any upload |
 | E3 | Filename sanitisation (path traversal, special chars) | ✓ | P0 | **Closed 2026-07-02.** Extension + content-type are now **canonical**, derived from the validated allowlist entry - never from the client filename. A client cannot force a `.html`/`.exe`/`.svg` extension or a `text/html` content-type. Path components remain server-generated (`tutor.id`/`sectionId` + `randomUUID`) |
-| E4 | Public vs private bucket separation | ⚠ | P0 | **Code half done 2026-07-02.** `createHomework` now stores the storage **path** (not a persisted public URL); reads go through `signHomeworkAttachment` (student + tutor homework pages). No legacy rows to migrate (0 rows had attachment_url). **Remaining (needs you):** (1) flip the `homework-attachments` bucket to **private** in the Supabase dashboard; (2) ensure signing works on the private bucket - either add a storage.objects SELECT policy for that bucket (A5) or switch signing to a service-role client (app already authorizes who loads the homework, then signs); (3) live-test download as student + tutor. Curriculum (video/booklet) + submissions already use signed URLs |
+| E4 | Public vs private bucket separation | ⚠ | P0 | **Code complete:** homework attachments store object paths and are signed by the server-only service client after student/tutor ownership checks; curriculum, submissions, discussions, and resources follow the same private/signed pattern. **Remaining evidence:** verify all five Production buckets are private and live-test each role's allowed download plus a denied cross-user request. |
 | E5 | Signed URL expiry for private downloads | ✓ | P0 | Signed URLs are short-lived (1 hr): curriculum `SIGNED_URL_TTL_SECONDS = 3600`, homework attachments + submissions `3600`. No long-lived/persisted URLs stored after E4 code change |
 | E6 | Virus / malware scanning on uploads | ☐ | P2 | Real concern once external parents upload; defer |
-| E7 | `discussion-attachments` private bucket exists | ⚠ | P1 | **Created in dev Supabase 2026-07-22.** Was missing → discussion/DM file uploads failed at runtime (`"Bucket not found"`, 500). Private; access gated at app layer (`requireRole` + `canSeeBoard`), upload + signing via service-role (`src/lib/discussions-storage.ts`). **Prod: must be created at deploy** - same manual step as the homework-attachments bucket (E4). |
-| E8 | `resource-library` private bucket exists + storage policies | ⚠ | P1 | **Created in dev Supabase 2026-07-23; quiz reuse verified 2026-07-27.** Private bucket; resources use subject-scoped paths and quiz attachments use quiz-scoped randomized paths. Signing uses the service role only after the application re-authorizes the caller. Quiz files are limited to six per quiz, three per request, 10 MB each, and the document/image MIME allowlist in `src/lib/upload-validation.ts`. Database metadata is stored in `quiz_attachments`; failed database writes clean up staged storage objects. **Prod: the bucket must exist at deploy.** |
+| E7 | `discussion-attachments` private bucket exists | ⚠ | P1 | Created and verified in dev on 2026-07-22. Upload/signing use the service client after `requireRole` + board visibility checks. Confirm the Production bucket is private in the dashboard and run an allowed/denied live attachment test. |
+| E8 | `resource-library` private bucket exists + storage policies | ⚠ | P1 | Created in dev; resource and quiz flows use randomized paths, server-side authorization, signed URLs, size/count limits, MIME/magic-byte validation, and staged-object cleanup. Confirm Production bucket privacy and one allowed/denied live download. |
 
 ## F. Network / Headers
 
 | # | Item | Status | Priority | Notes |
 |---|---|---|---|---|
-| F1 | HTTPS only in production | ⚠ | P0 | Code clean (only `http://` in code is the SVG namespace ID); auth callback uses `url.origin`. Verify Vercel "HTTPS redirect" toggle at deploy time |
+| F1 | HTTPS only in production | ✓ | P0 | `https://portal.taiyotuition.com` was inspected as a Ready Vercel Production deployment on 2026-10-06; security headers are configured in `next.config.ts`. |
 | F2 | HSTS header | ✓ | P1 | **2026-07-02** - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` in `next.config.ts`. Ignored by browsers over http (dev), enforced over https (prod) |
 | F3 | Content-Security-Policy header | ⚠ | P1 | **CSP present in `next.config.ts`; script-src is `'unsafe-inline'`. Nonce upgrade attempted 2026-07-02 and REVERTED - see below.** All directives locked except script/style: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `form-action 'self'`, scoped img/media/connect (Supabase https+wss), env-derived, prod adds `upgrade-insecure-requests`. `style-src 'unsafe-inline'` required by inline `style={{}}`. **Verified in a prod build (`next build && next start`): `/login` serves with all 18 scripts loadable, no breakage.** <br>**Why not nonce-based:** a per-request nonce needs dynamic rendering, but public pages like `/login` are **statically prerendered** (`x-nextjs-prerender: 1`) - their HTML is baked at build with no nonce, so a nonce'd `script-src` blocks every script (verified: 0/18 scripts nonced → page dead). Making it work would require forcing the whole app to dynamic rendering (loses static optimization) for marginal gain over existing XSS defenses (C3: React auto-escaping, no `dangerouslySetInnerHTML`; object-src/base-uri/frame-ancestors already locked). Not worth it. Revisit only if a strong script-XSS control is specifically required |
 | F4 | X-Frame-Options / frame-ancestors (clickjacking) | ✓ | P1 | **2026-07-02** - `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` in `next.config.ts` |
 | F5 | X-Content-Type-Options: nosniff | ✓ | P1 | **2026-07-02** - set in `next.config.ts` headers |
 | F6 | Referrer-Policy: strict-origin-when-cross-origin (or stricter) | ✓ | P1 | **2026-07-02** - set in `next.config.ts` headers; also `Permissions-Policy` disables camera/mic/geo/topics |
-| F7 | Supabase CORS allowed origins set to production domain only | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Project Settings → API → Site URL = `https://<your-domain>` |
-| F8 | Auth redirect URLs whitelisted in Supabase | ☐ | P0 | Deferred until production deploy. Supabase dashboard → Authentication → URL Configuration → Redirect URLs: add `http://localhost:3000/auth/callback` (dev) and `https://<your-domain>/auth/callback` (prod). Callback path verified at `src/app/auth/callback/route.ts` |
+| F7 | Supabase Site URL set to the production origin | ☐ | P0 | Production is live, but this dashboard value was not independently verified in the 2026-10-06 audit. Confirm it is `https://portal.taiyotuition.com`. |
+| F8 | Auth redirect URLs whitelisted in Supabase | ☐ | P0 | Confirm `http://localhost:3000/auth/callback` for dev and `https://portal.taiyotuition.com/auth/callback` for Production. The callback route exists; dashboard evidence is still pending. |
 
 ## G. Logging / Monitoring / Audit
 
@@ -138,7 +143,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | I4 | Service role key compromise procedure | ✓ | P0 | **`docs/runbooks.md` §I4** - rotate in Supabase, update `.env.local`+Vercel+redeploy, assess exposure window via audit_logs, git-history note |
 | I5 | Admin account compromise procedure | ✓ | P1 | **`docs/runbooks.md` §I5** - ban + revoke sessions, audit `actor_id` actions, reverse via `old_data`, check planted persistence |
 | I6 | Migration rollback procedure | ✓ | P1 | **`docs/runbooks.md` §I6** - stop dev server, apply per-migration "Reversible by" via `apply-sql.mjs`, re-run `db:check-rls`; never `db:push`; PITR for data |
-| I7 | Production Supabase project separate from dev | ☐ | P0 | If it isn't already - verify |
+| I7 | Production Supabase project separate from dev | ✓ | P0 | Production and personal/test projects are intentionally separate. Never copy production database credentials into the local environment used for testing. |
 
 ## J. Code / Dependency Security
 
@@ -158,8 +163,8 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | K2 | Penetration test (or HackerOne-style bounty) | ☐ | P2 | Probably overkill for MVP, essential later |
 | K3 | Security review of all server actions before launch | ✓ | P0 | **Done 2026-07-02; admin-tier pass 2026-09-09.** Every mutation rechecks role/ownership server-side. Reception cannot create privileged accounts, change any role, edit/reset/deactivate an admin account, or set the admin PIN; hiding controls is only presentation. Tutor homework reminders reload overdue work and current enrolment server-side, apply `canDM`, and are rate-limited. Reschedule execution revalidates compatible targets rather than trusting the picker. |
 | K4 | Supabase project settings reviewed (URL allowlist, redirect URLs, JWT secret) | ☐ | P0 | One-time before launch |
-| K5 | All P0 items in this checklist resolved | ☐ | P0 | Gate for launch. **All code-side P0s now resolved.** Remaining P0s are deploy/dashboard/legal only: E4 bucket flip, B6 email verification, D3/F1/F7/F8/I1/I7/K4/K6 deploy config, H1–H3 legal (privacy/ToS/parental consent) |
-| K6 | Configure production SMTP provider | ☐ | P0 | **Pre-launch must.** Supabase's built-in email service is limited to 4 emails/hour and sends from `noreply@mail.app.supabase.io` (lands in spam, not branded). Required for: password reset (B7), email change, magic links if ever used. Set in Supabase dashboard → Project Settings → Auth → SMTP Settings. Recommended providers: Resend, AWS SES, SendGrid |
+| K5 | All P0 items in this checklist resolved | ☐ | P0 | Gate for full release. Remaining evidence includes storage/dashboard checks, B6/B7/K6 custom-SMTP delivery, F7/F8/K4 Supabase URL settings, I1 backup/PITR, and H1–H3 legal/privacy/parental-consent work. |
+| K6 | Configure production SMTP provider | ☐ | P0 | Resend DKIM/SPF/MX DNS and Vercel email variable names were verified on 2026-10-06. DNS does not configure Supabase Auth: confirm Auth → SMTP, then test account setup and reset to a normal external inbox before closing. |
 
 ---
 

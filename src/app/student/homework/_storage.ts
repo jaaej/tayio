@@ -7,7 +7,8 @@ import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 //   authenticated read via signed URL; students write to a path prefixed by
 //   their auth uid (enforced by storage RLS).
 // - homework-attachments: tutor-provided worksheets attached to a homework.
-//   Being migrated from public to private + signed URLs (checklist E4/E5).
+//   Private; opened through a service-signed short-lived URL after the page has
+//   already enforced homework ownership (checklist E4/E5).
 export const HOMEWORK_BUCKET = "homework-submissions";
 export const HOMEWORK_ATTACHMENT_BUCKET = "homework-attachments";
 export const SIGNED_URL_TTL_SECONDS = 3600;

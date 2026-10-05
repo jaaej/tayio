@@ -3,6 +3,12 @@
 Cross-references the role spec against the actual codebase.
 Last audit: 2026-07-22.
 
+> **Current acceptance tracking:** this legacy/full inventory has not been
+> re-audited wholesale since the date above. Use `checklist_beta_fix.md` for the
+> production-beta implementation and manual QA state last reconciled on
+> 6 October 2026. Do not interpret an old unchecked row here as proof that its
+> current route is absent without checking the code and beta checklist.
+
 > ## ⚠️ Maintenance protocol - READ BEFORE YOU CLOSE ANY TASK
 >
 > This checklist is only useful while it's true. A stale ✅ makes the next agent

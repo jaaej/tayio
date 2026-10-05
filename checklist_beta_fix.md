@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 23 September 2026
+Last updated: 6 October 2026
 
 ## Status key
 
@@ -652,10 +652,10 @@ Last updated: 23 September 2026
     set-password page. Delivery status is shown explicitly to admin.
 - [x] Forgotten-password and admin-triggered password-reset emails are wired
   through Supabase.
-- [ ] Verify password-reset delivery end-to-end with a real configured email
-  provider and real inbox. The owner confirmed a received reset email and
-  successful password change on 18 September; custom-domain SMTP and delivery
-  to a non-team recipient remain unverified.
+- [ ] Verify password-reset delivery end-to-end through Supabase custom SMTP and
+  a normal external inbox. The owner confirmed a received reset email and
+  successful password change on 18 September; custom-domain SMTP delivery to a
+  non-team recipient remains unverified.
 
 ## Make-up class attendance
 
@@ -711,14 +711,17 @@ Last updated: 23 September 2026
 
 ## Announcements and email delivery
 
-- [ ] **Deferred until client GoDaddy access is available:** Add the three
-  DNS records requested by Resend for `send.taiyotuition.com` (domain
-  verification/DKIM, SPF, and MX) in the client's GoDaddy DNS, without
-  changing the website's existing records. Refresh Resend domain verification,
-  then configure Supabase custom SMTP with the verified sender and test new
-  account setup, password reset, and urgent-announcement delivery to a
-  non-team inbox. The user will obtain GoDaddy access later; do not mark email
-  delivery complete or change production SMTP before verification.
+- [x] Add and publicly verify the portal CNAME plus Resend DKIM, SPF, and MX
+  records without changing the existing website records. DNS was rechecked on
+  6 October 2026.
+- [x] Add the required Resend email variable names to Vercel Production. Their
+  presence was rechecked on 6 October 2026; secret values are not documented.
+- [ ] Configure/confirm Supabase custom SMTP with the verified Resend sender,
+  then test new-account setup and password reset to a normal non-team inbox.
+- [ ] Publish a DMARC record after the current sending flow is verified. No TXT
+  policy resolved at `_dmarc.taiyotuition.com` on 6 October 2026.
+- [ ] Send a narrowly targeted urgent announcement and confirm Resend delivery,
+  idempotent retry behavior, and that no unrelated inbox receives it.
 
 - [x] Replace the single audience dropdown with combinable audience filters:
   role, subject, year level, class, and tutor.
@@ -821,9 +824,18 @@ Last updated: 23 September 2026
 
 ## Production deployment and acceptance
 
+- [x] Reconcile the current README, engineering handoff, feature reference,
+  deployment/DNS guides, and security status with the codebase and visible
+  infrastructure on 6 October 2026. See
+  `docs/changes/2026-10-06-production-documentation-sync.md`.
+- [x] Verify `https://portal.taiyotuition.com` resolves to the configured Vercel
+  CNAME and Vercel reports the Production deployment `Ready` with the custom
+  alias attached. Code baseline at the start of the audit: `49801e0`.
 - [x] Re-run `npm run typecheck`, all unit tests, and `npm run build` after
   moving the repository out of iCloud. All completed successfully on
-  20 September; the follow-up batch now passes 161 tests across 28 files.
+  20 September. The documentation reconciliation pass on 6 October is also
+  green: TypeScript passed, 167 tests passed across 29 files, and the Next.js
+  15.5.18 production build generated all 51 static pages successfully.
 - [x] Apply `supabase/migrations/0043_tutor_cover_workflow.sql`.
 - [x] Apply `supabase/migrations/0044_notification_dedupe.sql`.
 - [x] Add `CRON_SECRET` to the Vercel Production environment.
