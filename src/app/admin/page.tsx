@@ -82,8 +82,9 @@ export default async function AdminDashboard() {
           style={{ animationDelay: "80ms" }}
         >
           {/* Needs your attention */}
-          <Card>
+          <Card className="admin-dashboard-glass-card">
             <CardHead
+              className="bg-surface"
               title="Needs your attention"
               action={
                 <Pill tone={attentionItems > 0 ? "warn" : "good"}>
@@ -93,59 +94,64 @@ export default async function AdminDashboard() {
                 </Pill>
               }
             />
-            {attentionItems === 0 ? (
-              <Empty>Nothing to action - every tutor and parent is up to date.</Empty>
-            ) : (
-              <div className="divide-y divide-line">
-                {tutorBacklog.map((t) => (
-                  <Link
-                    key={t.tutorId}
-                    href={`/admin/users/${t.tutorId}`}
-                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-2 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-bold text-ink truncate">
-                        {t.firstName} {t.lastName}
+            <div className="admin-dashboard-glass-content">
+              {attentionItems === 0 ? (
+                <Empty>
+                  Nothing to action - every tutor and parent is up to date.
+                </Empty>
+              ) : (
+                <div className="divide-y divide-white/55">
+                  {tutorBacklog.map((t) => (
+                    <Link
+                      key={t.tutorId}
+                      href={`/admin/users/${t.tutorId}`}
+                      className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/35"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-bold text-ink truncate">
+                          {t.firstName} {t.lastName}
+                        </div>
+                        <div className="text-[12px] text-muted mt-0.5">
+                          {t.pendingNotes} lesson note
+                          {t.pendingNotes === 1 ? "" : "s"} overdue · last 14 days
+                        </div>
                       </div>
-                      <div className="text-[12px] text-muted mt-0.5">
-                        {t.pendingNotes} lesson note
-                        {t.pendingNotes === 1 ? "" : "s"} overdue · last 14 days
+                      <Pill tone="warn">Notes</Pill>
+                    </Link>
+                  ))}
+                  {overdueList.map((inv) => (
+                    <Link
+                      key={inv.id}
+                      href="/admin/payments"
+                      className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/35"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-bold text-ink truncate">
+                          {inv.parentFirst} {inv.parentLast}
+                          {inv.studentFirst ? (
+                            <span className="text-muted font-normal">
+                              {" "}
+                              · {inv.studentFirst} {inv.studentLast}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-[12px] text-muted mt-0.5">
+                          {formatMoney(Number(inv.amount))} · due{" "}
+                          {formatDueDate(new Date(`${inv.dueDate}T00:00:00`))}
+                        </div>
                       </div>
-                    </div>
-                    <Pill tone="warn">Notes</Pill>
-                  </Link>
-                ))}
-                {overdueList.map((inv) => (
-                  <Link
-                    key={inv.id}
-                    href="/admin/payments"
-                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-2 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-bold text-ink truncate">
-                        {inv.parentFirst} {inv.parentLast}
-                        {inv.studentFirst ? (
-                          <span className="text-muted font-normal">
-                            {" "}
-                            · {inv.studentFirst} {inv.studentLast}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-[12px] text-muted mt-0.5">
-                        {formatMoney(Number(inv.amount))} · due{" "}
-                        {formatDueDate(new Date(`${inv.dueDate}T00:00:00`))}
-                      </div>
-                    </div>
-                    <Pill tone="bad">Overdue</Pill>
-                  </Link>
-                ))}
-              </div>
-            )}
+                      <Pill tone="bad">Overdue</Pill>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
 
           {/* This week */}
-          <Card>
+          <Card className="admin-dashboard-glass-card">
             <CardHead
+              className="bg-surface"
               title="This week"
               action={
                 <Link
@@ -156,14 +162,15 @@ export default async function AdminDashboard() {
                 </Link>
               }
             />
-            <div className="p-4 bg-gradient-to-b from-brand-50/40 to-transparent">
+            <div className="admin-dashboard-glass-content p-4">
               <MiniWeekCalendar events={events} weekStart={weekStart} />
             </div>
           </Card>
 
           {/* At-risk students */}
-          <Card>
+          <Card className="admin-dashboard-glass-card">
             <CardHead
+              className="bg-surface"
               title="At-risk students"
               action={
                 <Pill tone={atRisk.length > 0 ? "warn" : "good"}>
@@ -173,75 +180,81 @@ export default async function AdminDashboard() {
                 </Pill>
               }
             />
-            {atRisk.length === 0 ? (
-              <Empty>No students with pending homework backlog.</Empty>
-            ) : (
-              <div className="divide-y divide-line">
-                {atRisk.map((s) => (
-                  <Link
-                    key={s.studentId}
-                    href={`/admin/users/${s.studentId}`}
-                    className="block px-5 py-3.5 hover:bg-surface-2 transition-colors"
-                  >
-                    <div className="flex items-baseline justify-between gap-3 mb-2">
-                      <div className="min-w-0">
-                        <div className="text-[14px] font-bold text-ink truncate">
-                          {s.firstName} {s.lastName}
+            <div className="admin-dashboard-glass-content">
+              {atRisk.length === 0 ? (
+                <Empty>No students with pending homework backlog.</Empty>
+              ) : (
+                <div className="divide-y divide-white/55">
+                  {atRisk.map((s) => (
+                    <Link
+                      key={s.studentId}
+                      href={`/admin/users/${s.studentId}`}
+                      className="block px-5 py-3.5 transition-colors hover:bg-white/35"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 mb-2">
+                        <div className="min-w-0">
+                          <div className="text-[14px] font-bold text-ink truncate">
+                            {s.firstName} {s.lastName}
+                          </div>
+                          <div className="text-[12px] text-muted mt-0.5">
+                            {s.yearLevel ? `Yr ${s.yearLevel} · ` : ""}
+                            {s.pendingHomework} pending homework
+                          </div>
                         </div>
-                        <div className="text-[12px] text-muted mt-0.5">
-                          {s.yearLevel ? `Yr ${s.yearLevel} · ` : ""}
-                          {s.pendingHomework} pending homework
-                        </div>
+                        <span className="text-[13px] font-bold text-ink-soft tabular-nums shrink-0">
+                          {s.completionPercent}%
+                        </span>
                       </div>
-                      <span className="text-[13px] font-bold text-ink-soft tabular-nums shrink-0">
-                        {s.completionPercent}%
-                      </span>
-                    </div>
-                    <ProgressBar
-                      percent={s.completionPercent}
-                      color={
-                        s.completionPercent >= 75
-                          ? "bg-mint"
-                          : s.completionPercent >= 40
-                            ? "bg-sun-500"
-                            : "bg-coral"
-                      }
-                    />
-                  </Link>
-                ))}
-              </div>
-            )}
+                      <ProgressBar
+                        percent={s.completionPercent}
+                        color={
+                          s.completionPercent >= 75
+                            ? "bg-mint"
+                            : s.completionPercent >= 40
+                              ? "bg-sun-500"
+                              : "bg-coral"
+                        }
+                      />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
 
           {/* Recent activity */}
-          <Card>
-            <CardHead title="Recent activity" />
-            {activity.length === 0 ? (
-              <Empty>No enrolments, payments, or announcements yet.</Empty>
-            ) : (
-              <div className="divide-y divide-line">
-                {activity.map((a, i) => (
-                  <Link
-                    key={`${a.kind}-${i}`}
-                    href={a.href}
-                    className="flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors"
-                  >
-                    <ActivityDot kind={a.kind} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] text-ink truncate">{a.title}</div>
-                      {a.meta && (
-                        <div className="text-[12px] text-muted mt-0.5 truncate">
-                          {a.meta}
+          <Card className="admin-dashboard-glass-card">
+            <CardHead className="bg-surface" title="Recent activity" />
+            <div className="admin-dashboard-glass-content">
+              {activity.length === 0 ? (
+                <Empty>No enrolments, payments, or announcements yet.</Empty>
+              ) : (
+                <div className="divide-y divide-white/55">
+                  {activity.map((a, i) => (
+                    <Link
+                      key={`${a.kind}-${i}`}
+                      href={a.href}
+                      className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-white/35"
+                    >
+                      <ActivityDot kind={a.kind} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] text-ink truncate">
+                          {a.title}
                         </div>
-                      )}
-                    </div>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
-                      {relativeTime(a.at)}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
+                        {a.meta && (
+                          <div className="text-[12px] text-muted mt-0.5 truncate">
+                            {a.meta}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
+                        {relativeTime(a.at)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
         </div>
 
@@ -251,8 +264,9 @@ export default async function AdminDashboard() {
           style={{ animationDelay: "120ms" }}
         >
           {/* Announcements */}
-          <Card accent="brand">
+          <Card accent="brand" className="admin-dashboard-glass-card">
             <CardHead
+              className="bg-surface"
               title="Announcements"
               action={
                 <Link
@@ -263,48 +277,49 @@ export default async function AdminDashboard() {
                 </Link>
               }
             />
-            {notices.length === 0 ? (
-              <Empty>
-                Nothing published yet -{" "}
-                <Link
-                  className="text-brand-700 font-semibold hover:underline"
-                  href="/admin/announcements"
-                >
-                  send your first
-                </Link>
-                .
-              </Empty>
-            ) : (
-              <div className="divide-y divide-line">
-                {notices.map((n) => (
-                  <div
-                    key={n.id}
-                    className="px-5 py-3.5 hover:bg-surface-2 transition-colors"
+            <div className="admin-dashboard-glass-content">
+              {notices.length === 0 ? (
+                <Empty>
+                  Nothing published yet -{" "}
+                  <Link
+                    className="text-brand-700 font-semibold hover:underline"
+                    href="/admin/announcements"
                   >
-                    <div className="flex items-baseline justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0" />
-                        <div className="text-[13px] text-ink font-semibold truncate">
-                          {n.title}
+                    send your first
+                  </Link>
+                  .
+                </Empty>
+              ) : (
+                <div className="divide-y divide-white/55">
+                  {notices.map((n) => (
+                    <div
+                      key={n.id}
+                      className="px-5 py-3.5 transition-colors hover:bg-white/35"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0" />
+                          <div className="text-[13px] text-ink font-semibold truncate">
+                            {n.title}
+                          </div>
+                        </div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
+                          {relativeTime(new Date(n.publishedAt))}
                         </div>
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-2 shrink-0">
-                        {relativeTime(new Date(n.publishedAt))}
+                      <div className="mt-1.5 ml-3.5 text-[12px] text-muted">
+                        {n.className
+                          ? `Class · ${n.className}`
+                          : n.audienceRole
+                            ? `All ${n.audienceRole}s`
+                            : "Everyone"}
                       </div>
                     </div>
-                    <div className="mt-1.5 ml-3.5 text-[12px] text-muted">
-                      {n.className
-                        ? `Class · ${n.className}`
-                        : n.audienceRole
-                          ? `All ${n.audienceRole}s`
-                          : "Everyone"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
-
         </aside>
       </div>
     </div>

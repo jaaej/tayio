@@ -87,7 +87,8 @@ export function MonthGrid({
     days.slice(35).every((day) => !day.inMonth) ? days.slice(0, 35) : days;
 
   return (
-    <div className="calendar-glass-grid rounded-[22px] border p-1.5">
+    <div className="overflow-x-auto overscroll-x-contain pb-2">
+      <div className="calendar-glass-grid min-w-[680px] rounded-[22px] border p-1.5 sm:min-w-0">
       <div className="mb-1.5 grid grid-cols-7 gap-0 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-2">
         {DAY_LABELS.map((label, index) => (
           <div
@@ -155,6 +156,7 @@ export function MonthGrid({
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

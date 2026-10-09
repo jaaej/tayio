@@ -106,8 +106,8 @@ export function MiniWeekCalendar({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-7 gap-2">
+    <div className="space-y-3 overflow-x-auto overscroll-x-contain pb-2">
+      <div className="grid min-w-[720px] grid-cols-7 gap-2 sm:min-w-0">
         {days.map((d) => {
           const dayEvents = byDate.get(d.iso) ?? [];
           return (

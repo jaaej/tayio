@@ -159,7 +159,7 @@ export async function PortalShell({
 
       {/* Mobile top bar (sidebar replacement) */}
       <header className="lg:hidden bg-card/90 backdrop-blur-md border-b border-hairline/60 sticky top-0 z-40">
-        <div className="px-6 h-16 flex items-center justify-between">
+        <div className="h-16 px-3 sm:px-6 flex items-center justify-between">
           <Link href={`/${cr}`}>
             <Wordmark />
           </Link>
@@ -172,7 +172,7 @@ export async function PortalShell({
             </button>
           </form>
         </div>
-        <nav className="px-6 pb-3 flex items-center gap-1 overflow-x-auto">
+        <nav className="px-3 pb-3 sm:px-6 flex items-center gap-1 overflow-x-auto">
           {nav.map((item) => (
             <Link
               key={item.href}
@@ -188,7 +188,7 @@ export async function PortalShell({
 
       {/* Main */}
       <div className="min-w-0 flex flex-col">
-        <main className="flex-1 px-6 lg:px-10 xl:px-14 py-10 lg:py-12 w-full">
+        <main className="flex-1 w-full px-3 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-12 xl:px-14">
           {children}
         </main>
         <footer className="border-t border-hairline/60 mt-12">

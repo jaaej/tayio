@@ -110,7 +110,7 @@ export function CollapsiblePortalShell({
 
       {mobileHeader}
 
-      <main className="min-w-0 overflow-y-auto px-5 lg:px-7 py-6 lg:pb-16">
+      <main className="min-w-0 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:pb-16">
         {children}
       </main>
     </div>

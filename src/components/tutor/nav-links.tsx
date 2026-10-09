@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { MobilePortalNav } from "@/components/portal/mobile-nav";
 
 export type NavItem = {
   label: string;
@@ -85,28 +86,6 @@ export function TutorNavLinks({ sections }: { sections: NavSection[] }) {
 }
 
 export function TutorNavLinksMobile({ sections }: { sections: NavSection[] }) {
-  const pathname = usePathname();
   const items = sections.flatMap((s) => s.items);
-  return (
-    <nav className="px-6 pb-3 flex items-center gap-1 overflow-x-auto">
-      {items.map((item) => {
-        const active = isActive(pathname, item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap rounded-md transition-colors",
-              active
-                ? "bg-brand-50 text-brand-700"
-                : "text-ink-soft hover:bg-surface-2",
-            )}
-          >
-            <span className="shrink-0">{item.icon}</span>
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <MobilePortalNav items={items} />;
 }

@@ -20,7 +20,7 @@ export function StudentHero({
 }) {
   return (
     <section
-      className="relative overflow-hidden rounded-[28px] px-7 py-6 text-white flex items-center gap-6 shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
+      className="relative overflow-hidden rounded-[22px] px-5 py-5 text-white flex items-center gap-4 shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)] sm:rounded-[28px] sm:px-7 sm:py-6 sm:gap-6"
       style={{
         background: `radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)`,
       }}
@@ -36,12 +36,12 @@ export function StudentHero({
         <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.12)" />
       </svg>
 
-      <div className="relative z-10 flex items-center gap-[18px]">
-        <div className="h-[76px] w-[76px] rounded-[22px] grid place-items-center text-[28px] font-extrabold text-white border-2 border-white/50 bg-white/[0.16] backdrop-blur-sm shrink-0">
+      <div className="relative z-10 flex min-w-0 items-center gap-3 sm:gap-[18px]">
+        <div className="h-14 w-14 rounded-[18px] grid place-items-center text-[22px] font-extrabold text-white border-2 border-white/50 bg-white/[0.16] backdrop-blur-sm shrink-0 sm:h-[76px] sm:w-[76px] sm:rounded-[22px] sm:text-[28px]">
           {initials}
         </div>
-        <div>
-          <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">
+        <div className="min-w-0">
+          <h2 className="m-0 text-[20px] font-extrabold tracking-[-0.02em] sm:text-[24px]">
             Hey {firstName} 👋
           </h2>
           <div className="flex flex-wrap gap-2 mt-2">

@@ -255,7 +255,7 @@ export function QuizMaker({
             <ArrowLeft className="h-4 w-4" aria-hidden />
           </Link>
 
-          <div className="min-w-[220px] flex-1">
+          <div className="min-w-0 flex-1 basis-[220px]">
             <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em]">
               <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
                 {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}

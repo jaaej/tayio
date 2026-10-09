@@ -67,7 +67,8 @@ export function WeekCalendar({
     .slice(0, 10);
 
   return (
-    <div className="flex">
+    <div className="overflow-x-auto overscroll-x-contain pb-2">
+      <div className="flex min-w-[720px] sm:min-w-0">
       {/* hour gutter */}
       <div
         className="w-12 shrink-0 pr-2 text-right"
@@ -141,6 +142,7 @@ export function WeekCalendar({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

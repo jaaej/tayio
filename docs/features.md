@@ -1,6 +1,6 @@
 # Feature Reference
 
-Last reconciled with the current codebase: **6 October 2026**.
+Last reconciled with the current codebase: **10 October 2026**.
 
 A comprehensive, deploy-ready reference of every feature shipped in `tayio_portal`,
 organized by role. Each feature documents three things:
@@ -291,8 +291,8 @@ Conventions referenced throughout:
 
 ### Operations dashboard
 1. **What it is** - Stat tiles, alerts, and recent activity for the whole business.
-2. **How it works** - `/admin` (`src/app/admin/page.tsx`, `_lib/queries.ts`). Aggregates across `profiles`, `enrollments`, `attendance`, `invoices`. Guard: `requireAdmin()` (either admin tier via middleware).
-3. **Rationale:** `Rationale: not documented` for the specific tile set. (Revenue figures were moved off this page - see Revenue below.)
+2. **How it works** - `/admin` (`src/app/admin/page.tsx`, `_lib/queries.ts`). Aggregates across `profiles`, `enrollments`, `attendance`, `invoices`. Section headers retain a solid surface while attention items, the weekly calendar, at-risk students, recent activity, and announcements use the shared frosted-glass visual treatment. Guard: `requireAdmin()` (either admin tier via middleware).
+3. **Rationale:** Solid headers preserve the dashboard hierarchy while glass content surfaces connect its operational blocks to the calendar visual system. `Rationale: not documented` for the specific tile set. Revenue figures were moved off this page; see Revenue below.
 
 ### User management + account creation
 1. **What it is** - Search, create, edit, deactivate, reset, and permanently delete accounts, including optional same-step linked-parent creation for a student.
@@ -399,6 +399,15 @@ Conventions referenced throughout:
 ---
 
 ## Cross-cutting
+
+### Responsive portal layout
+1. **What it is** - Phone-compatible navigation and content layouts across the admin, tutor, student, and parent portals without changing the established desktop presentation.
+2. **How it works** - `src/components/portal/mobile-nav.tsx` provides a shared expandable phone menu while the existing role sidebars remain active at the desktop breakpoint.
+   Shared shell spacing narrows only below the `sm` and `lg` breakpoints.
+   Curriculum pages collapse the weeks rail behind `Choose a week` on phones.
+   Seven-day calendars and wide data tables use local horizontal scroll regions, and file viewers use the full phone viewport while retaining their desktop modal dimensions.
+3. **Rationale:** Dense portal navigation, seven-column calendars, and operational tables cannot remain readable when compressed into a narrow viewport.
+   Local overflow and mobile-only disclosure preserve access to every control without changing desktop information density or hierarchy.
 
 ### Authentication
 1. **What it is** - Supabase-backed login, password reset, and session handling.

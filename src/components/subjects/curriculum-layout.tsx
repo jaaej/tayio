@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -42,6 +42,7 @@ export function CurriculumLayout({
   flushTabTop?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -92,10 +93,56 @@ export function CurriculumLayout({
     </div>
   );
 
+  const mobileRail = (
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setMobileOpen((current) => !current)}
+        aria-expanded={mobileOpen}
+        className="flex min-h-12 w-full items-center gap-2.5 rounded-[12px] border border-line-strong bg-surface px-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+      >
+        {subject ? (
+          <span
+            aria-hidden
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold"
+            style={{
+              background: subject.tokens.bgFrom,
+              color: subject.tokens.arrow,
+            }}
+          >
+            {subject.initial}
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1">
+          {subject ? (
+            <span
+              className="block truncate text-[13px] font-extrabold"
+              style={{ color: subject.tokens.title }}
+            >
+              {subject.name}
+            </span>
+          ) : null}
+          <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+            {mobileOpen ? "Hide weeks" : "Choose a week"}
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted transition-transform",
+            mobileOpen && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      {mobileOpen && <div className="mt-2">{rail}</div>}
+    </div>
+  );
+
   if (!attached) {
     return (
       <div className="flex-1 grid grid-cols-1 items-start gap-3 px-3 py-3 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-4">
-        <div className="lg:sticky lg:top-2 lg:max-h-[calc(100vh-24px)] lg:self-start lg:overflow-y-auto">
+        {mobileRail}
+        <div className="hidden lg:sticky lg:top-2 lg:block lg:max-h-[calc(100vh-24px)] lg:self-start lg:overflow-y-auto">
           {rail}
         </div>
         <div className="min-w-0">{children}</div>
@@ -205,15 +252,12 @@ export function CurriculumLayout({
           )}
         </div>
         {/* Mobile: full rail, stacked above the content. */}
-        <div className="lg:hidden">
-          {subjectHeader}
-          {rail}
-        </div>
+        {mobileRail}
       </div>
       {/* No pt on the content column: the weeks tab beside it is anchored to
           the column top, so any top padding here left a square of page
           background above the tab. Both columns now start on the same edge. */}
-      <div className="min-w-0 pb-3 pr-3 lg:pr-4">{children}</div>
+      <div className="min-w-0 px-3 pb-3 lg:pl-0 lg:pr-4">{children}</div>
     </div>
   );
 }

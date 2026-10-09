@@ -187,7 +187,7 @@ export default async function AdminReschedulesPage() {
           <Empty>No class credits yet.</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[720px] text-[13px]">
               <thead>
                 <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
                   <th className="text-left px-5 py-2.5">Student</th>
@@ -241,7 +241,7 @@ export default async function AdminReschedulesPage() {
           <Empty>No usage this term.</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[720px] text-[13px]">
               <thead>
                 <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
                   <th className="text-left px-5 py-2.5">Student</th>

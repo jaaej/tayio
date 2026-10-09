@@ -76,7 +76,7 @@ export default async function TutorClassCurriculumPage({
   // padding, subject-tinted header, skinny rail + content that fills the rest.
   return (
     <div
-      className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col"
+      className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16"
     >
       <h1 className="sr-only">{data.className} - Curriculum</h1>
 

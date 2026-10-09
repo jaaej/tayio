@@ -113,7 +113,7 @@ export default async function StudentSubjectPage({
   // hero runs straight into the top bar.
   return (
     <div
-      className="-mx-5 lg:-mx-7 -mt-6 -mb-6 lg:-mb-16 min-h-[calc(100vh-56px)] flex flex-col"
+      className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16"
     >
       {/* The subject is shown in the weeks tab, but the document still needs
           an h1 so the week hero's h2 isn't the first heading on the page. */}

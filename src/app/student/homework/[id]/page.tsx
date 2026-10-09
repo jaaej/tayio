@@ -178,7 +178,7 @@ export default async function HomeworkDetailPage({
           icon={<FileText className="h-4 w-4" />}
           title="Worksheet"
         >
-          <div className="flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 sm:flex-nowrap">
             <span
               className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
               style={{ background: tokens.bgFrom, color: tokens.arrow }}
@@ -196,7 +196,7 @@ export default async function HomeworkDetailPage({
             <FileViewerButton
               url={attachmentHref}
               title={`${hw.title} worksheet`}
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
             >
               View file
             </FileViewerButton>
@@ -210,7 +210,7 @@ export default async function HomeworkDetailPage({
           icon={<FileCheck2 className="h-4 w-4" />}
           title="Solution"
         >
-          <div className="flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 sm:flex-nowrap">
             <span
               className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
               style={{ background: tokens.bgFrom, color: tokens.arrow }}
@@ -228,7 +228,7 @@ export default async function HomeworkDetailPage({
             <FileViewerButton
               url={solutionHref}
               title={`${hw.title} solution`}
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
             >
               View solution
             </FileViewerButton>

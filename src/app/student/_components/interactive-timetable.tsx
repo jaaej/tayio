@@ -418,8 +418,8 @@ export function InteractiveTimetable({
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink tabular-nums sm:text-[22px]">
           {MONTH_NAMES[view.month]} {view.year}
         </h2>
         <div className="flex items-center gap-1.5">
@@ -448,7 +448,8 @@ export function InteractiveTimetable({
         </div>
       </div>
 
-      <div className="calendar-glass-grid rounded-[22px] border p-1.5">
+      <div className="overflow-x-auto overscroll-x-contain pb-2">
+        <div className="calendar-glass-grid min-w-[680px] rounded-[22px] border p-1.5 sm:min-w-0">
         <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
           {DAY_LABELS.map((d, i) => (
             <div key={d} className={cn("text-center py-2", (i === 5 || i === 6) && "text-muted")}>
@@ -568,6 +569,7 @@ export function InteractiveTimetable({
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
 

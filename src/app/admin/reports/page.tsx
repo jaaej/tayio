@@ -86,7 +86,7 @@ export default async function ReportsPage({
           <Empty>No classes to report on for this term.</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[760px] text-[13px]">
               <thead>
                 <tr className="text-left text-muted border-b border-line">
                   <th className="px-5 py-2.5 font-bold">Class</th>

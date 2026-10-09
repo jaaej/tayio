@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 8 October 2026
+Last updated: 10 October 2026
 
 ## Status key
 
@@ -13,6 +13,32 @@ Last updated: 8 October 2026
 
 ## Manual QA required
 
+- [ ] Open the admin dashboard on desktop and phone widths. Confirm each
+  section header, including `Needs your attention`, retains its solid surface
+  while the content below it uses the calendar-style frosted glass treatment.
+  Confirm lists, hover states, empty states, pills, and the weekly calendar
+  remain legible over the portal background.
+- [ ] At a phone-width viewport, sign in as admin, tutor, student, and parent.
+  Open the compact Menu control, confirm the active destination is named,
+  visit every destination, and confirm unread badges and Taiyo Blitz rank
+  remain visible where applicable. Repeat the core navigation on desktop and
+  confirm the existing sidebar is unchanged.
+- [ ] On phone-width admin, tutor, and student curriculum pages, confirm the
+  weeks rail starts collapsed, opens from `Choose a week`, switches weeks, and
+  closes without covering the selected week content. Confirm the desktop weeks
+  rail and attached content layout remain unchanged.
+- [ ] On phone width, check the student timetable, shared month calendar,
+  week calendar, mini week calendar, and reschedule date grid. Confirm all
+  seven days remain legible through horizontal scrolling without making the
+  entire page scroll sideways. Confirm the permanent class-time footer and
+  its request button fit within the calendar card.
+- [ ] On phone width, inspect admin users, quizzes, reports, resources,
+  payments, reschedules, student homework, tutor homework, and tutor students.
+  Confirm wide tables scroll inside their own region, page headers and actions
+  wrap cleanly, and desktop column widths remain unchanged.
+- [ ] Open a homework PDF, image, and video on a phone. Confirm each viewer
+  uses the available screen, can be closed without browser navigation, and
+  retains the existing desktop modal treatment at desktop width.
 - [ ] As admin, tutor, student, and parent, open a new message composer, select
   a valid contact, then return without sending. Confirm the contact does not
   appear in the inbox. Send a first message and confirm the conversation then
@@ -382,6 +408,25 @@ Last updated: 8 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin dashboard glass content surfaces.
+  - Section headers keep their existing solid treatment and hierarchy.
+  - Attention items, the weekly calendar, at-risk students, recent activity,
+    and announcements now sit on frosted content surfaces matched to the
+    calendar glass system.
+  - Dividers and hover states remain translucent so the background treatment
+    is preserved throughout each content block.
+
+- [x] Phone-compatible portal layout without desktop layout changes.
+  - Admin, tutor, student, and parent portals share a compact expandable mobile
+    menu while retaining their existing desktop sidebars.
+  - Curriculum week navigation collapses behind a clear phone control and
+    remains permanently visible on desktop.
+  - Seven-day calendars and wide data tables scroll within their own regions
+    instead of compressing columns or widening the entire page.
+  - Mobile spacing, page headers, action groups, class-move controls, and file
+    viewers use the available phone width while desktop breakpoints preserve
+    the prior dimensions.
 
 - [x] Connected calendar and permanent-class-time glass composition.
   - Student timetable now places the permanent weekly class-move section below

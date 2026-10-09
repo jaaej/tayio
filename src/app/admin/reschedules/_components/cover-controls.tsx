@@ -95,7 +95,7 @@ export function AssignCoverForm({
   }
 
   return (
-    <div className="flex min-w-[260px] flex-wrap justify-end gap-2">
+    <div className="flex w-full min-w-0 flex-wrap justify-end gap-2 sm:w-auto sm:min-w-[260px]">
       <select
         required
         value={selectedTutorId}

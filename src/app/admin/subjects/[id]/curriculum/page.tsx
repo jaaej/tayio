@@ -183,7 +183,7 @@ export default async function AdminSubjectCurriculumPage({
   }));
 
   return (
-    <div className="-mx-5 -mt-6 -mb-6 flex min-h-[calc(100vh-56px)] flex-col lg:-mx-7 lg:-mb-16">
+    <div className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16">
       <h1 className="sr-only">{subject.name} - Curriculum</h1>
 
       <CurriculumLayout

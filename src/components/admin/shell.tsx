@@ -235,7 +235,7 @@ export async function AdminShell({
         }
         mobileHeader={
           <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-            <div className="px-5 h-14 flex items-center justify-between gap-3">
+            <div className="h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
               <BrandMark />
               <div className="flex items-center gap-1.5">
                 <AdminGlobalSearch

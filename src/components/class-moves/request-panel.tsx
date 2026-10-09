@@ -84,7 +84,7 @@ export function ClassMoveRequestPanel({
           : "rounded-[16px] border border-line bg-surface",
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[14px] font-extrabold text-ink">
             <CalendarClock className="h-[18px] w-[18px] text-brand-600" aria-hidden />
@@ -102,25 +102,25 @@ export function ClassMoveRequestPanel({
             setOpen(true);
             setSuccess(null);
           }}
-          className="inline-flex min-h-11 items-center rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
         >
           Request class move
         </button>
       </div>
 
       {!hasAlternative && current.length > 0 && (
-        <p className="border-t border-line bg-surface-2 px-5 py-3 text-[12px] text-muted">
+        <p className="border-t border-line bg-surface-2 px-4 py-3 text-[12px] text-muted sm:px-5">
           No alternative class with space is currently available for the same
           subject. Contact the office for other options.
         </p>
       )}
       {success && (
-        <p className="border-t border-good/20 bg-good-bg px-5 py-3 text-[12px] font-semibold text-good">
+        <p className="border-t border-good/20 bg-good-bg px-4 py-3 text-[12px] font-semibold text-good sm:px-5">
           {success}
         </p>
       )}
       {pendingRequests.length > 0 && (
-        <div className="border-t border-line px-5 py-3">
+        <div className="border-t border-line px-4 py-3 sm:px-5">
           <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
             Pending request{pendingRequests.length === 1 ? "" : "s"}
           </div>

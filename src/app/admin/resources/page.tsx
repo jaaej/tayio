@@ -84,7 +84,7 @@ export default async function AdminResourcesPage({
             <Empty>No resources match this filter.</Empty>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[760px]">
                 <thead>
                   <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
                     <th className="text-left px-5 py-2.5">Title</th>

@@ -1,6 +1,6 @@
 # Current engineering handoff
 
-Last reconciled with the repository and live infrastructure: **6 October 2026**.
+Last reconciled with the repository and live infrastructure: **10 October 2026**.
 
 This file is the fastest safe entry point for another coding agent. It replaces
 the old Phase 2/four-agent placeholder handoff: the application is now a
@@ -67,6 +67,9 @@ checked in `checklist_beta_fix.md`:
   quizzes require authenticated browser acceptance;
 - the connected calendar and permanent-class-time glass layout requires
   authenticated student and parent browser acceptance;
+- the shared phone menu, collapsible curriculum weeks rail, calendar/table
+  overflow, and full-screen phone file viewers require authenticated manual
+  acceptance across all four roles and a desktop regression check;
 - empty direct-message drafts, tutor profile-photo upload, and subject-only
   admin homework require authenticated cross-role browser acceptance;
 - tutor payroll/check-in acceptance, cron reminders, audit attribution, and

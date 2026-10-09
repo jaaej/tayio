@@ -35,7 +35,7 @@ export function Hero({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[28px] px-7 py-7 lg:px-8 lg:py-8 text-white shadow-[0_20px_44px_-22px_rgba(31,40,90,0.5)]",
+        "relative overflow-hidden rounded-[22px] px-5 py-5 text-white shadow-[0_20px_44px_-22px_rgba(31,40,90,0.5)] sm:rounded-[28px] sm:px-7 sm:py-7 lg:px-8 lg:py-8",
         className,
       )}
       style={{ background: HERO_BG }}
@@ -51,9 +51,9 @@ export function Hero({
         <circle cx="70" cy="30" r="10" fill="rgba(255,255,255,0.50)" />
       </svg>
 
-      <div className="relative z-10 flex items-center gap-5">
+      <div className="relative z-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
         {icon && (
-          <div className="h-[72px] w-[72px] rounded-[22px] grid place-items-center text-[28px] font-bold bg-white/[0.18] border border-white/30 backdrop-blur-sm shrink-0">
+          <div className="h-14 w-14 rounded-[18px] grid place-items-center text-[22px] font-bold bg-white/[0.18] border border-white/30 backdrop-blur-sm shrink-0 sm:h-[72px] sm:w-[72px] sm:rounded-[22px] sm:text-[28px]">
             {icon}
           </div>
         )}
@@ -63,7 +63,7 @@ export function Hero({
               {eyebrow}
             </div>
           )}
-          <h1 className="mt-2 text-[26px] lg:text-[32px] font-extrabold tracking-[-0.02em] leading-[1.05]">
+          <h1 className="mt-2 text-[23px] font-extrabold tracking-[-0.02em] leading-[1.05] sm:text-[26px] lg:text-[32px]">
             {title}
           </h1>
           {sub && (
@@ -71,7 +71,7 @@ export function Hero({
           )}
           {chips && <div className="mt-4 flex flex-wrap gap-2">{chips}</div>}
         </div>
-        {right && <div className="relative z-10 shrink-0">{right}</div>}
+        {right && <div className="relative z-10 w-full sm:w-auto sm:shrink-0">{right}</div>}
       </div>
     </section>
   );

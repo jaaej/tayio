@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobilePortalNav } from "@/components/portal/mobile-nav";
 
 export type NavItem = {
   label: string;
@@ -92,44 +93,14 @@ export function StudentNavLinksMobile({
   sections: NavSection[];
   blitzRank?: number | null;
 }) {
-  const pathname = usePathname();
-  const items = sections.flatMap((s) => s.items);
-  return (
-    <nav className="px-6 pb-3 flex items-center gap-1 overflow-x-auto">
-      <Link
-        href="/student/math-game"
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap rounded-md font-semibold text-white shadow-sm shrink-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(120deg, #7B6EF0 0%, #6D3BD6 55%, #5A21B0 100%)",
-        }}
-      >
-        <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
-        Taiyo Blitz
-        {blitzRank ? (
-          <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-extrabold tabular-nums text-[#5A21B0]">
-            #{blitzRank}
-          </span>
-        ) : null}
-      </Link>
-      {items.map((item) => {
-        const active = isActive(pathname, item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap rounded-md transition-colors",
-              active
-                ? "bg-brand-50 text-brand-700"
-                : "text-ink-soft hover:bg-surface-2",
-            )}
-          >
-            <span className="shrink-0">{item.icon}</span>
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  const items = [
+    {
+      label: blitzRank ? `Taiyo Blitz #${blitzRank}` : "Taiyo Blitz",
+      href: "/student/math-game",
+      icon: <Gamepad2 className="h-3.5 w-3.5" />,
+      featured: true,
+    },
+    ...sections.flatMap((section) => section.items),
+  ];
+  return <MobilePortalNav items={items} />;
 }

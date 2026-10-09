@@ -193,7 +193,7 @@ export default async function AdminQuizzesPage({
                   over-narrow filter never strips away the controls that undo
                   it. */}
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr className="bg-surface-2 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
                       <Th>Quiz</Th>

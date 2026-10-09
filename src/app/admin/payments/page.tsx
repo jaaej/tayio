@@ -182,7 +182,7 @@ export default async function PaymentsPage() {
             <Empty>No invoices yet.</Empty>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[820px]">
                 <thead>
                   <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
                     <th className="text-left px-5 py-2.5">Parent</th>

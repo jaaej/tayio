@@ -108,7 +108,7 @@ export default async function TutorStudentsPage({
             result would strip away the only controls that can undo the
             filter. */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full min-w-[720px] border-collapse">
             <thead>
               <tr className="bg-surface-2">
                 <Th>Student</Th>

@@ -192,6 +192,8 @@
 
 html {
   color: var(--foreground);
+  max-width: 100%;
+  overflow-x: clip;
   /* Bump base font slightly larger than Tailwind's 16px default
    * so every text-xs / text-sm / text-base scales up proportionally. */
   font-size: 17px;
@@ -204,6 +206,8 @@ html {
  * design line, not a hard edge. Fixed so it doesn't scroll.
  */
 body {
+  max-width: 100%;
+  overflow-x: clip;
   color: var(--foreground);
   font-family: var(--font-sans);
   font-weight: 400;
@@ -286,6 +290,27 @@ body {
 .calendar-glass-control:hover {
   border-color: rgba(160, 191, 252, 0.9);
   background: rgba(255, 255, 255, 0.82);
+}
+
+/* Admin dashboard headers keep their existing solid surface while the content
+ * beneath them uses the same frosted depth as the portal calendars. */
+.admin-dashboard-glass-card {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 24px 60px -32px rgba(31, 40, 90, 0.42);
+}
+
+.admin-dashboard-glass-content {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.48),
+    rgba(255, 255, 255, 0.24)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
 }
 
 .font-display {

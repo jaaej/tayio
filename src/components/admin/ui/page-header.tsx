@@ -53,13 +53,13 @@ export function PageHeader({
             {eyebrow}
           </div>
         )}
-        <h1 className="mt-1 text-[26px] lg:text-[28px] font-extrabold tracking-[-0.01em] text-ink">
+        <h1 className="mt-1 text-[23px] font-extrabold tracking-[-0.01em] text-ink sm:text-[26px] lg:text-[28px]">
           {title}
         </h1>
         {sub && <p className="text-[13px] text-ink-soft mt-1">{sub}</p>}
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-2 shrink-0 max-w-full">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
           {actions}
         </div>
       )}

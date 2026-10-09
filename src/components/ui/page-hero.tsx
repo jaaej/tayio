@@ -21,7 +21,7 @@ export function PageHero({
 }) {
   return (
     <section
-      className="relative overflow-hidden rounded-[28px] px-8 py-8 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)]"
+      className="relative overflow-hidden rounded-[22px] px-5 py-6 text-white shadow-[0_20px_44px_-22px_rgba(50,58,145,0.6)] sm:rounded-[28px] sm:px-8 sm:py-8"
       style={{
         background:
           "radial-gradient(120% 140% at 0% 0%, #A0BFFC 0%, transparent 45%), radial-gradient(110% 150% at 100% 10%, #7A9BF5 0%, transparent 52%), linear-gradient(125deg, #4F5BD5 0%, #3F4AB5 58%, #2B3287 100%)",
@@ -43,7 +43,7 @@ export function PageHero({
           <div className="text-[11px] uppercase tracking-[0.2em] font-bold opacity-80">
             {eyebrow}
           </div>
-          <h1 className="mt-2 text-[32px] lg:text-[36px] font-bold tracking-[-0.02em] leading-tight">
+          <h1 className="mt-2 text-[26px] font-bold tracking-[-0.02em] leading-tight sm:text-[32px] lg:text-[36px]">
             {title}
           </h1>
           {subtitle && (
@@ -53,7 +53,7 @@ export function PageHero({
           )}
         </div>
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{actions}</div>
         )}
       </div>
     </section>

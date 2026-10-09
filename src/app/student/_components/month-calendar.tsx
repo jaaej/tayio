@@ -147,9 +147,9 @@ export function MonthCalendar({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-4">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-2 sm:gap-4">
+          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink tabular-nums sm:text-[22px]">
             {MONTH_NAMES[month]} {year}
           </h2>
           <Link
@@ -329,9 +329,9 @@ export function WeekCalendar({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-4">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-2 sm:gap-4">
+          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink tabular-nums sm:text-[22px]">
             {weekRangeLabel(weekStart)}
           </h2>
           <Link
@@ -359,7 +359,8 @@ export function WeekCalendar({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
+      <div className="overflow-x-auto overscroll-x-contain pb-2">
+        <div className="min-w-[680px] rounded-2xl border border-line bg-surface-2/60 p-1.5 sm:min-w-0">
         <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
           {DAY_LABELS.map((d, i) => (
             <div
@@ -381,6 +382,7 @@ export function WeekCalendar({
               subjectColorHomework={subjectColorHomework}
             />
           ))}
+        </div>
         </div>
       </div>
 

@@ -174,7 +174,7 @@ export function SidePanel({
             : "translate-x-full transition-transform duration-[140ms] ease-in",
         )}
       >
-        <div className="flex shrink-0 items-start gap-2 border-b border-line-strong bg-surface-2 px-5 py-4">
+        <div className="flex shrink-0 items-start gap-2 border-b border-line-strong bg-surface-2 px-4 py-4 sm:px-5">
           <div className="min-w-0 flex-1">
             <h2
               id={titleId}
@@ -194,7 +194,7 @@ export function SidePanel({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
 
         {footer && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line-strong bg-surface p-4">

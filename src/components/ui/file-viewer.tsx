@@ -95,7 +95,7 @@ function ImageViewerButton({
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/75 p-2 backdrop-blur-sm sm:p-5"
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/75 backdrop-blur-sm sm:p-5"
               role="presentation"
               onMouseDown={(event) => {
                 if (event.target === event.currentTarget) setOpen(false);
@@ -105,7 +105,7 @@ function ImageViewerButton({
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
-                className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-[18px] border border-white/20 bg-surface shadow-2xl"
+                className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-surface shadow-2xl sm:h-[94vh] sm:rounded-[18px] sm:border sm:border-white/20"
               >
                 <header className="flex min-h-14 items-center gap-3 border-b border-line px-4 sm:px-5">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-brand-50 text-brand-700">

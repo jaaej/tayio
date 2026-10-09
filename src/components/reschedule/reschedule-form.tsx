@@ -354,6 +354,8 @@ export function RescheduleForm(props: {
         </div>
       </div>
 
+      <div className="overflow-x-auto overscroll-x-contain pb-2">
+        <div className="min-w-[680px] sm:min-w-0">
       {/* Weekday header */}
       <div className="grid grid-cols-7 gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
         {DAY_LABELS.map((d) => (
@@ -433,6 +435,8 @@ export function RescheduleForm(props: {
             </div>
           </div>
         ))}
+      </div>
+        </div>
       </div>
 
       {/* Reason */}

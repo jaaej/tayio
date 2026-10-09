@@ -191,7 +191,7 @@ export default async function UsersPage({
               hiding it on an empty result would strip away the only controls
               that can undo the filter. */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <UserTableHeaderRow schools={schools} />
               </thead>
