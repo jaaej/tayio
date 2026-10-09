@@ -87,7 +87,7 @@ export function MonthGrid({
     days.slice(35).every((day) => !day.inMonth) ? days.slice(0, 35) : days;
 
   return (
-    <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
+    <div className="calendar-glass-grid rounded-[22px] border p-1.5">
       <div className="mb-1.5 grid grid-cols-7 gap-0 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-2">
         {DAY_LABELS.map((label, index) => (
           <div
@@ -106,16 +106,16 @@ export function MonthGrid({
           <div
             key={day.iso}
             className={cn(
-              "flex min-h-[140px] flex-col rounded-xl border transition-colors lg:min-h-[160px] xl:min-h-[180px]",
+              "calendar-glass-day flex min-h-[140px] flex-col rounded-[18px] border transition-[border-color,background-color,box-shadow] lg:min-h-[160px] xl:min-h-[180px]",
               !day.inMonth
-                ? "border-line/40 bg-surface-2/40"
+                ? "calendar-glass-day-muted"
                 : day.isToday
-                  ? "border-brand-400 bg-surface ring-1 ring-brand-300/40"
+                  ? "border-brand-400/70 bg-white/65 ring-1 ring-brand-300/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_30px_-20px_rgba(79,91,213,0.55)]"
                   : shadedDates?.has(day.iso)
-                    ? "border-warn/35 bg-warn-bg/60"
+                    ? "border-warn/35 bg-warn-bg/55"
                     : day.isWeekend
-                      ? "border-line bg-surface-2/40"
-                      : "border-line bg-surface",
+                      ? "bg-white/32"
+                      : "",
             )}
           >
             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-2">

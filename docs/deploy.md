@@ -90,7 +90,8 @@ cp .env.local.dev .env.local
 
 ### 4. Finish the Supabase dashboard while you are in there
 
-7. Storage: create five **private** buckets - `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`.
+7. Storage: confirm six **private** buckets - `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`, and `profile-photos`.
+   Migration 0058 creates and locks down `profile-photos`; the original five may still require dashboard creation for a new project.
 8. Authentication → Sign In / Providers → Email: **turn sign-up off**. This is per-project; the dev setting does not carry over.
 9. Authentication → Users → Add user (your email, auto-confirm on), then set that user's `app_metadata` to `{"role": "admin"}`.
    The app reads `app_metadata` only - a role in `user_metadata` is deliberately ignored and will silently not work.
@@ -187,8 +188,9 @@ It is deliberately absent from `src/db/schema.ts` - it is tooling, not applicati
 3. `npm run db:bootstrap -- --confirm`
    This runs `drizzle-kit push` → all migrations in order → `check-rls`, and stops on the first failure.
    Then `npm run db:status` should report every on-disk migration applied and nothing in the "recorded but not in this checkout" section.
-4. Create five **private** storage buckets:
-   `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`.
+4. Confirm six **private** storage buckets:
+   `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, `resource-library`, and `profile-photos`.
+   Migration 0058 creates `profile-photos` with its image type and size limits.
    Missing buckets do not fail at build - they fail at runtime with `Bucket not found` and a 500 (this already happened once in dev; checklist E7/E8).
    `homework-attachments` must be private specifically, not just created (checklist E4).
 5. Authentication → Sign In / Providers → Email: **turn sign-up off.** The portal is invite-only; admins create accounts (checklist B11). This is a per-project setting, so flipping it in dev did not flip it here.

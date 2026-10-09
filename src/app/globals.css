@@ -91,7 +91,7 @@
  * like `bg-brand-500` resolve to the v2 cornflower-blue palette
  * inside this wrapper, without affecting parent/admin. Same
  * tokens for both portals so the cross-portal look matches.
- * Font is inherited from the body (Plus Jakarta Sans) - same as parent/admin.
+ * Font is inherited from the body (Nunito Sans) - same as parent/admin.
  * =========================================================== */
 .theme-student,
 .theme-tutor {
@@ -185,8 +185,8 @@
   --color-bad:  var(--bad);  --color-bad-bg:  var(--bad-bg);
   --color-info: var(--info); --color-info-bg: var(--info-bg);
 
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
 
@@ -218,6 +218,74 @@ body {
     var(--periwinkle-400) 100%
   );
   background-attachment: fixed;
+}
+
+/* Frosted calendar surfaces. The translucent layers keep the portal's
+ * diagonal colour wash visible while the blur and inset highlight preserve
+ * readable boundaries over both the light and saturated parts of the page. */
+.calendar-glass-panel {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.58),
+    rgba(255, 255, 255, 0.34)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 24px 60px -32px rgba(31, 40, 90, 0.42);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.calendar-glass-grid {
+  border-color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.calendar-glass-footer {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.34),
+    rgba(255, 255, 255, 0.2)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.calendar-glass-day {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 10px 28px -24px rgba(31, 40, 90, 0.5);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  backdrop-filter: blur(12px) saturate(125%);
+}
+
+.calendar-glass-day-muted {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.calendar-glass-control {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 22px -16px rgba(31, 40, 90, 0.55);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  backdrop-filter: blur(14px) saturate(135%);
+}
+
+.calendar-glass-control:hover {
+  border-color: rgba(160, 191, 252, 0.9);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .font-display {

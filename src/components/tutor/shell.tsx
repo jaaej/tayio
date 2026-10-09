@@ -23,6 +23,7 @@ import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { signProfilePhoto } from "@/lib/profile-photo-storage";
 import { TutorNavLinks, TutorNavLinksMobile, type NavSection } from "./nav-links";
 import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
 
@@ -86,13 +87,17 @@ export async function TutorShell({
   let unread = 0;
   let notifUnread = 0;
   let profileAvatarKey: string | null = null;
+  let profilePhotoUrl: string | null = null;
   if (user) {
     const [threadResult, notificationResult, avatarResult] =
       await Promise.allSettled([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
         db
-          .select({ profileAvatarKey: profiles.profileAvatarKey })
+          .select({
+            avatarUrl: profiles.avatarUrl,
+            profileAvatarKey: profiles.profileAvatarKey,
+          })
           .from(profiles)
           .where(eq(profiles.id, user.id))
           .limit(1),
@@ -115,6 +120,9 @@ export async function TutorShell({
     }
     if (avatarResult.status === "fulfilled") {
       profileAvatarKey = avatarResult.value[0]?.profileAvatarKey ?? null;
+      profilePhotoUrl = await signProfilePhoto(
+        avatarResult.value[0]?.avatarUrl,
+      );
     } else {
       console.error(
         "[tutor-shell] profile icon failed:",
@@ -173,6 +181,7 @@ export async function TutorShell({
           >
             <ProfileAvatar
               avatarKey={profileAvatarKey}
+              imageUrl={profilePhotoUrl}
               fallback={initial}
               className="h-7 w-7 text-[12px]"
             />
@@ -217,6 +226,7 @@ export async function TutorShell({
               >
                 <ProfileAvatar
                   avatarKey={profileAvatarKey}
+                  imageUrl={profilePhotoUrl}
                   fallback={initial}
                   className="h-9 w-9 text-[12px]"
                 />

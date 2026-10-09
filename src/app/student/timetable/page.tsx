@@ -83,12 +83,7 @@ export default async function TimetablePage({
           eyebrow="Timetable"
           title="Your schedule"
         />
-        <ClassMoveRequestPanel
-          studentId={user.id}
-          classes={classMoves.classes}
-          requests={classMoves.requests}
-        />
-        <Card>
+        <Card className="calendar-glass-panel overflow-visible">
           <div className="p-4 lg:p-5">
             <InteractiveTimetable
               initialYear={year}
@@ -99,6 +94,12 @@ export default async function TimetablePage({
               adminId={adminContact?.id ?? null}
             />
           </div>
+          <ClassMoveRequestPanel
+            studentId={user.id}
+            classes={classMoves.classes}
+            requests={classMoves.requests}
+            embedded
+          />
         </Card>
       </div>
     );
@@ -147,12 +148,7 @@ export default async function TimetablePage({
         eyebrow="Timetable"
         title={isCurrentMonth ? "Your schedule" : `${MONTH_NAMES[month]} ${year}`}
       />
-      <ClassMoveRequestPanel
-        studentId={user.id}
-        classes={classMoves.classes}
-        requests={classMoves.requests}
-      />
-      <Card className="overflow-hidden">
+      <Card className="calendar-glass-panel overflow-hidden">
         <div className="p-4 lg:p-5">
           <MonthCalendar
             year={year}
@@ -162,6 +158,12 @@ export default async function TimetablePage({
             basePath="/student/timetable"
           />
         </div>
+        <ClassMoveRequestPanel
+          studentId={user.id}
+          classes={classMoves.classes}
+          requests={classMoves.requests}
+          embedded
+        />
       </Card>
     </div>
   );

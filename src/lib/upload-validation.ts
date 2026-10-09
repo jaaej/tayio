@@ -203,6 +203,17 @@ export const QUIZ_ATTACHMENT_POLICY: UploadPolicy = {
 /** Homework attachments use the same allowlist as tutor attachments. */
 export const HOMEWORK_POLICY: UploadPolicy = ATTACHMENT_POLICY;
 
+/** Tutor profile photos: static raster images only, up to 5 MB. */
+export const PROFILE_PHOTO_POLICY: UploadPolicy = {
+  maxBytes: 5 * 1024 * 1024,
+  allowed: {
+    "image/png": { family: "png", ext: "png", mime: "image/png" },
+    "image/jpeg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/jpg": { family: "jpeg", ext: "jpg", mime: "image/jpeg" },
+    "image/webp": { family: "webp", ext: "webp", mime: "image/webp" },
+  },
+};
+
 export const VIDEO_POLICY: UploadPolicy = {
   maxBytes: 500 * 1024 * 1024,
   allowed: {

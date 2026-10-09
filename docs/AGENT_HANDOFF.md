@@ -61,6 +61,14 @@ checked in `checklist_beta_fix.md`:
 - urgent-announcement email delivery and recipient isolation;
 - the complete make-up move/attendance/privacy sequence;
 - curriculum week/term locking and PDF/video viewer acceptance across roles;
+- admin-created homework, due-date-gated homework solutions, and the compact
+  quiz-builder layout require authenticated cross-role browser acceptance;
+- inline homework attachment/solution viewing and admin editing of approved
+  quizzes require authenticated browser acceptance;
+- the connected calendar and permanent-class-time glass layout requires
+  authenticated student and parent browser acceptance;
+- empty direct-message drafts, tutor profile-photo upload, and subject-only
+  admin homework require authenticated cross-role browser acceptance;
 - tutor payroll/check-in acceptance, cron reminders, audit attribution, and
   stale-edit rejection;
 - admin global-search and tutor-profile-icon browser checks;
@@ -109,6 +117,18 @@ data.
   because schema push can drop raw-SQL policies/views.
 - `npm run db:bootstrap -- --confirm` is allowed only for a new empty project.
 - Never run seed/demo scripts against production.
+
+Migration `0056_admin_homework_and_solutions.sql` was applied to the isolated
+development database on 8 October 2026.
+It adds the homework creator and separate solution path and is not yet recorded
+as applied to Production.
+
+Migrations `0057_subject_homework_drafts.sql` and
+`0058_tutor_profile_photos.sql` were applied to the isolated development
+database on 8 October 2026.
+They allow classless curriculum homework and create the private
+`profile-photos` bucket.
+Neither migration is yet recorded as applied to Production.
 
 ## Environment separation
 

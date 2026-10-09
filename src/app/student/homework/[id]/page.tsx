@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ClipboardList,
-  Download,
+  FileCheck2,
   FileText,
   MessageSquareText,
   PenLine,
@@ -19,6 +19,8 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDueDate } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
+import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
+import { FileViewerButton } from "@/components/ui/file-viewer";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import {
   getHomeworkDetail,
@@ -57,6 +59,13 @@ export default async function HomeworkDetailPage({
   const supabase = await createClient();
   const submissionLink = await signedSubmissionLink(supabase, hw.submissionUrl);
   const attachmentHref = await signHomeworkAttachment(hw.attachmentUrl);
+  const solutionHref =
+    homeworkSolutionIsAvailable({
+      solutionUrl: hw.solutionUrl,
+      dueDate: hw.dueDate,
+    })
+      ? await signHomeworkAttachment(hw.solutionUrl)
+      : null;
 
   // effectiveStatus is "not_started" → "viewed" by now, so omit it here.
   const canSubmit =
@@ -169,12 +178,7 @@ export default async function HomeworkDetailPage({
           icon={<FileText className="h-4 w-4" />}
           title="Worksheet"
         >
-          <a
-            href={attachmentHref}
-            target="_blank"
-            rel="noreferrer"
-            className="group flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 transition-colors hover:bg-surface-2"
-          >
+          <div className="flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3">
             <span
               className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
               style={{ background: tokens.bgFrom, color: tokens.arrow }}
@@ -189,14 +193,46 @@ export default async function HomeworkDetailPage({
                 Provided by your tutor
               </span>
             </span>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold text-white shrink-0"
-              style={{ background: tokens.arrow }}
+            <FileViewerButton
+              url={attachmentHref}
+              title={`${hw.title} worksheet`}
+              className="shrink-0"
             >
-              <Download className="h-3.5 w-3.5" aria-hidden />
-              Download
+              View file
+            </FileViewerButton>
+          </div>
+        </SectionCard>
+      )}
+
+      {solutionHref && (
+        <SectionCard
+          tokens={tokens}
+          icon={<FileCheck2 className="h-4 w-4" />}
+          title="Solution"
+        >
+          <div className="flex items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3">
+            <span
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
+              style={{ background: tokens.bgFrom, color: tokens.arrow }}
+            >
+              <FileCheck2 className="h-5 w-5" aria-hidden />
             </span>
-          </a>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-bold text-ink">
+                Homework solution
+              </span>
+              <span className="block text-[12px] text-muted">
+                Available after the due date
+              </span>
+            </span>
+            <FileViewerButton
+              url={solutionHref}
+              title={`${hw.title} solution`}
+              className="shrink-0"
+            >
+              View solution
+            </FileViewerButton>
+          </div>
         </SectionCard>
       )}
 

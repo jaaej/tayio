@@ -239,27 +239,29 @@ export function QuizMaker({
       : null;
 
   return (
-    <div className="space-y-5">
-      <Link
-        href={hrefBack}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-ink transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to quizzes
-      </Link>
-
-      <section className="relative overflow-hidden rounded-[22px] border border-brand-200 bg-[linear-gradient(135deg,#F3F4FF_0%,#FFFFFF_48%,#EEF0FF_100%)] p-5 shadow-[0_16px_38px_-28px_rgba(31,40,90,0.42)] sm:p-6">
+    <div className="space-y-4">
+      <section className="relative overflow-hidden rounded-[20px] border border-brand-200 bg-[linear-gradient(135deg,#F3F4FF_0%,#FFFFFF_52%,#EEF0FF_100%)] p-4 shadow-[0_14px_34px_-28px_rgba(31,40,90,0.38)]">
         <div
           aria-hidden
-          className="absolute -right-12 -top-16 h-48 w-48 rounded-full border-[32px] border-brand-200/40"
+          className="absolute -right-12 -top-20 h-40 w-40 rounded-full border-[28px] border-brand-200/35"
         />
-        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white">
-                <ListChecks className="h-3.5 w-3.5" /> Quiz workspace
-              </span>
+        <div className="relative flex flex-wrap items-start gap-3">
+          <Link
+            href={hrefBack}
+            aria-label="Back to quizzes"
+            title="Back to quizzes"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-brand-200 bg-white/85 text-brand-700 transition-colors hover:border-brand-400 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Link>
+
+          <div className="min-w-[220px] flex-1">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em]">
               <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
                 {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
+              </span>
+              <span className="text-muted">
+                {quiz.subjectName} · {quiz.termYear} Term {quiz.termNumber} · Week {quiz.weekNumber}
               </span>
             </div>
             <TitleEditor
@@ -267,13 +269,9 @@ export function QuizMaker({
               title={quiz.title}
               editable={canEditTitle}
             />
-            <p className="mt-2 text-[12px] font-semibold text-muted">
-              {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
-              {quiz.weekNumber}
-            </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[240px]">
             <Metric value={gradable.length} label="Questions" />
             <Metric value={optionCount} label="Options" />
             <Metric
@@ -284,111 +282,96 @@ export function QuizMaker({
         </div>
       </section>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <main className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+      <main className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink">
+            Questions
+          </h2>
+          <span className="text-[11px] font-semibold text-muted">
+            Changes save when you leave a field
+          </span>
+        </div>
+
+        {topLevel.length === 0 ? (
+          <div className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-brand-200 bg-brand-50/50 p-6 text-center">
             <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-ink">
-                Question canvas
-              </div>
-              <h2 className="mt-2 text-[20px] font-extrabold tracking-[-0.02em] text-ink">
-                Build the quiz
+              <span className="mx-auto grid h-12 w-12 place-items-center rounded-[14px] bg-brand-100 text-brand-700">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <h3 className="mt-3 text-[17px] font-extrabold text-ink">
+                Add the first question
+              </h3>
+            </div>
+          </div>
+        ) : (
+          topLevel.map((question, index) =>
+            question.type === "context" ? (
+              <ContextCard
+                key={question.id}
+                quizId={quiz.id}
+                context={question}
+                index={index}
+                editable={editable}
+                subQuestions={childrenByParent.get(question.id) ?? []}
+                attachmentsByQuestion={attachmentsByQuestion}
+                contextAttachments={attachmentsByQuestion.get(question.id) ?? []}
+                totalAttachmentCount={attachments.length}
+                reorder={topReorder.handlers(question.id, index)}
+              />
+            ) : (
+              <QuestionCard
+                key={question.id}
+                quizId={quiz.id}
+                index={index}
+                displayLabel={String(index + 1)}
+                question={question}
+                editable={editable}
+                attachments={attachmentsByQuestion.get(question.id) ?? []}
+                totalAttachmentCount={attachments.length}
+                reorder={topReorder.handlers(question.id, index)}
+              />
+            ),
+          )
+        )}
+
+        {generalAttachments.length > 0 && (
+          <section className="rounded-[18px] border border-line bg-surface p-4">
+            <div className="flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-brand-600" />
+              <h2 className="text-[13px] font-extrabold text-ink">
+                Quiz files (legacy)
               </h2>
             </div>
-            <span className="text-[12px] font-semibold text-ink-soft">
-              Changes save when you leave a field
-            </span>
-          </div>
-
-          {topLevel.length === 0 ? (
-            <div className="grid min-h-64 place-items-center rounded-[22px] border-2 border-dashed border-brand-200 bg-brand-50/50 p-7 text-center">
-              <div>
-                <span className="mx-auto grid h-14 w-14 place-items-center rounded-[16px] bg-brand-100 text-brand-700">
-                  <Sparkles className="h-6 w-6" />
-                </span>
-                <h3 className="mt-4 text-[18px] font-extrabold text-ink">
-                  Start with your first question
-                </h3>
-                <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted">
-                  Use the builder tools to add multiple-choice, true/false, or a
-                  context set with its own sub-questions. Attach supporting files
-                  to any question.
-                </p>
-              </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {generalAttachments.map((attachment) => (
+                <AttachmentRow
+                  key={attachment.id}
+                  attachment={attachment}
+                  editable={false}
+                  pending={false}
+                  onDelete={() => {}}
+                />
+              ))}
             </div>
-          ) : (
-            topLevel.map((question, index) =>
-              question.type === "context" ? (
-                <ContextCard
-                  key={question.id}
-                  quizId={quiz.id}
-                  context={question}
-                  index={index}
-                  editable={editable}
-                  subQuestions={childrenByParent.get(question.id) ?? []}
-                  attachmentsByQuestion={attachmentsByQuestion}
-                  contextAttachments={attachmentsByQuestion.get(question.id) ?? []}
-                  totalAttachmentCount={attachments.length}
-                  reorder={topReorder.handlers(question.id, index)}
-                />
-              ) : (
-                <QuestionCard
-                  key={question.id}
-                  quizId={quiz.id}
-                  index={index}
-                  displayLabel={String(index + 1)}
-                  question={question}
-                  editable={editable}
-                  attachments={attachmentsByQuestion.get(question.id) ?? []}
-                  totalAttachmentCount={attachments.length}
-                  reorder={topReorder.handlers(question.id, index)}
-                />
-              ),
-            )
-          )}
-        </main>
+          </section>
+        )}
 
-        <aside className="space-y-4 lg:sticky lg:top-4">
-          <BuilderTools
-            quizId={quiz.id}
-            editable={editable}
-            pending={actionPending}
-            run={run}
-          />
+        <BuilderTools
+          quizId={quiz.id}
+          editable={editable}
+          pending={actionPending}
+          run={run}
+        />
 
-          {generalAttachments.length > 0 && (
-            <section className="rounded-[20px] border border-line bg-surface p-4 shadow-[0_14px_32px_-26px_rgba(31,40,90,0.36)]">
-              <div className="flex items-center gap-2">
-                <Paperclip className="h-4 w-4 text-brand-600" />
-                <h2 className="text-[14px] font-extrabold text-ink">
-                  Quiz files (legacy)
-                </h2>
-              </div>
-              <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted">
-                Older quiz-level files. New files attach to a specific question.
-              </p>
-              <div className="mt-3 space-y-2">
-                {generalAttachments.map((attachment) => (
-                  <AttachmentRow
-                    key={attachment.id}
-                    attachment={attachment}
-                    editable={false}
-                    pending={false}
-                    onDelete={() => {}}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="rounded-[20px] border border-line bg-surface p-4 shadow-[0_14px_32px_-26px_rgba(31,40,90,0.36)]">
+        <section className="flex flex-col gap-4 rounded-[18px] border border-line bg-surface p-4 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-brand-600" />
-              <h2 className="text-[14px] font-extrabold text-ink">
+              <h2 className="text-[13px] font-extrabold text-ink">
                 Quiz readiness
               </h2>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
+            <div className="mt-2 h-2 max-w-xl overflow-hidden rounded-full bg-surface-2">
               <div
                 className="h-full rounded-full bg-brand-600 transition-[width] duration-200 motion-reduce:transition-none"
                 style={{
@@ -399,44 +382,42 @@ export function QuizMaker({
                 }}
               />
             </div>
-            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted">
+            <p className="mt-1.5 text-[11px] font-semibold text-muted">
               {gradable.length === 0
                 ? "Add a question to begin."
-                : `${completeQuestions} of ${gradable.length} questions have a prompt, options, and one correct answer.`}
+                : `${completeQuestions} of ${gradable.length} questions are ready.`}
             </p>
+          </div>
 
-            {primaryAction ? (
-              <button
-                type="button"
-                disabled={actionPending}
-                onClick={() => run(primaryAction.run)}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-600 px-5 text-[13px] font-bold text-white shadow-[0_12px_24px_-16px_rgba(79,91,213,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-[0_16px_28px_-16px_rgba(79,91,213,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          {primaryAction ? (
+            <button
+              type="button"
+              disabled={actionPending}
+              onClick={() => run(primaryAction.run)}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-brand-600 px-5 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ActionButtonLabel
+                pending={actionPending}
+                pendingLabel={primaryAction.pendingLabel}
               >
-                <ActionButtonLabel
-                  pending={actionPending}
-                  pendingLabel={primaryAction.pendingLabel}
-                >
-                  <>
-                    <Check className="h-4 w-4" />
-                    {primaryAction.label}
-                  </>
-                </ActionButtonLabel>
-              </button>
-            ) : (
-              <div className="mt-4 rounded-[12px] bg-surface-2 px-3 py-2.5 text-center text-[12px] font-bold text-muted">
-                {quiz.status === "approved"
-                  ? "Approved quizzes are locked"
-                  : "No action is available for this status"}
-              </div>
-            )}
-            {actionError && (
-              <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
-                {actionError}
-              </p>
-            )}
-          </section>
-        </aside>
-      </div>
+                <>
+                  <Check className="h-4 w-4" />
+                  {primaryAction.label}
+                </>
+              </ActionButtonLabel>
+            </button>
+          ) : !editable ? (
+            <span className="shrink-0 rounded-full bg-surface-2 px-4 py-2 text-[11px] font-bold text-muted">
+              {quiz.status === "approved" ? "Approved and locked" : "Read only"}
+            </span>
+          ) : null}
+          {actionError && (
+            <p role="alert" className="text-[12px] font-semibold text-bad">
+              {actionError}
+            </p>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
@@ -453,10 +434,10 @@ function TitleEditor({
   const { error, pending, run } = useActionRunner();
 
   return (
-    <div className="mt-4">
+    <div className="mt-2">
       <label
         htmlFor={`quiz-title-${quizId}`}
-        className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted"
+        className="sr-only"
       >
         Quiz name
       </label>
@@ -483,12 +464,12 @@ function TitleEditor({
               },
             );
           }}
-          className="mt-2 min-h-12 w-full max-w-3xl rounded-[14px] border border-brand-200 bg-white/90 px-4 py-2 text-[22px] font-extrabold tracking-[-0.02em] text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 sm:text-[26px]"
+          className="min-h-10 w-full max-w-3xl rounded-[11px] border border-brand-200 bg-white/90 px-3 py-1.5 text-[19px] font-extrabold tracking-[-0.02em] text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 sm:text-[21px]"
         />
       ) : (
         <h1
           id={`quiz-title-${quizId}`}
-          className="mt-2 text-[26px] font-extrabold tracking-[-0.025em] text-ink sm:text-[30px]"
+          className="text-[21px] font-extrabold tracking-[-0.025em] text-ink sm:text-[23px]"
         >
           {title}
         </h1>
@@ -504,11 +485,11 @@ function TitleEditor({
 
 function Metric({ value, label }: { value: string | number; label: string }) {
   return (
-    <div className="rounded-[14px] border border-white/80 bg-white/75 px-3 py-3 text-center shadow-[0_8px_20px_-18px_rgba(31,40,90,0.38)]">
-      <div className="text-[20px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
+    <div className="rounded-[11px] border border-white/80 bg-white/75 px-2.5 py-2 text-center">
+      <div className="text-[16px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
         {value}
       </div>
-      <div className="mt-1.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted">
+      <div className="mt-0.5 text-[8px] font-extrabold uppercase tracking-[0.12em] text-muted">
         {label}
       </div>
     </div>
@@ -529,22 +510,19 @@ function BuilderTools({
   if (!editable) return null;
 
   return (
-    <section className="rounded-[20px] border border-line bg-surface p-4 shadow-[0_14px_32px_-26px_rgba(31,40,90,0.36)]">
+    <section className="rounded-[18px] border border-line bg-surface p-4">
       <div className="flex items-center gap-2">
         <Plus className="h-4 w-4 text-brand-600" />
         <h2 className="text-[14px] font-extrabold text-ink">Add a question</h2>
       </div>
-      <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted">
-        Pick a format. New questions appear at the end of the canvas.
-      </p>
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
         <button
           type="button"
           disabled={pending}
           onClick={() =>
             run(() => addQuestion({ quizId, type: "multiple_choice" }))
           }
-          className="flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-background px-3 text-left transition-all duration-200 hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
             <ListChecks className="h-4 w-4" />
@@ -562,7 +540,7 @@ function BuilderTools({
           type="button"
           disabled={pending}
           onClick={() => run(() => addQuestion({ quizId, type: "true_false" }))}
-          className="flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-background px-3 text-left transition-all duration-200 hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
             <CheckCircle2 className="h-4 w-4" />
@@ -580,7 +558,7 @@ function BuilderTools({
           type="button"
           disabled={pending}
           onClick={() => run(() => addQuestion({ quizId, type: "context" }))}
-          className="flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-background px-3 text-left transition-all duration-200 hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
             <Layers className="h-4 w-4" />

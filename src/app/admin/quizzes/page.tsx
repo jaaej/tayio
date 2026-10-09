@@ -148,7 +148,7 @@ export default async function AdminQuizzesPage({
                   </div>
                   <div className="flex shrink-0 items-start gap-2">
                     <ButtonLink href={`/admin/quizzes/${r.id}`}>
-                      Preview
+                      Edit quiz
                     </ButtonLink>
                     <ApproveQuizButton quizId={r.id} />
                   </div>
@@ -278,7 +278,7 @@ function QuizRow({ row: r }: { row: QuizListRow }) {
             <ApproveQuizButton quizId={r.id} size="sm" />
           )}
           <ButtonLink href={`/admin/quizzes/${r.id}`} size="sm">
-            Edit
+            Edit quiz
           </ButtonLink>
           <Link
             href={`/admin/quizzes/${r.id}`}

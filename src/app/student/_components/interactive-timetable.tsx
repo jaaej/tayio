@@ -322,7 +322,7 @@ export function InteractiveTimetable({
       )}
 
       {picking && (
-        <div className="sticky top-4 z-30 flex items-center justify-between gap-3 rounded-[12px] border border-brand-300 bg-brand-50 px-4 py-2.5 shadow-sm">
+        <div className="calendar-glass-panel sticky top-4 z-30 flex items-center justify-between gap-3 rounded-[16px] border px-4 py-2.5">
           <div className="text-[13px] font-bold text-brand-800">
             {picking.picked ? (
               <>
@@ -428,7 +428,7 @@ export function InteractiveTimetable({
             onClick={() => navMonth(-1)}
             aria-label="Previous month"
             className={cn(
-              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              "calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors",
               FOCUS_RING,
             )}
           >
@@ -439,7 +439,7 @@ export function InteractiveTimetable({
             onClick={() => navMonth(1)}
             aria-label="Next month"
             className={cn(
-              "h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors",
+              "calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors",
               FOCUS_RING,
             )}
           >
@@ -448,7 +448,7 @@ export function InteractiveTimetable({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface-2/60 p-1.5">
+      <div className="calendar-glass-grid rounded-[22px] border p-1.5">
         <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
           {DAY_LABELS.map((d, i) => (
             <div key={d} className={cn("text-center py-2", (i === 5 || i === 6) && "text-muted")}>
@@ -461,12 +461,12 @@ export function InteractiveTimetable({
             <div
               key={d.iso}
               className={cn(
-                "min-h-[140px] lg:min-h-[160px] rounded-xl border flex flex-col transition-colors",
+                "calendar-glass-day min-h-[140px] rounded-[18px] border flex flex-col transition-[border-color,background-color,box-shadow] lg:min-h-[160px]",
                 !d.inMonth
-                  ? "border-line/40 bg-surface-2/40"
+                  ? "calendar-glass-day-muted"
                   : d.isToday
-                    ? "border-brand-400 bg-surface ring-1 ring-brand-300/40"
-                    : "border-line bg-surface",
+                    ? "border-brand-400/70 bg-white/65 ring-1 ring-brand-300/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_30px_-20px_rgba(79,91,213,0.55)]"
+                    : "",
               )}
             >
               <div className="px-2.5 pt-2 pb-1.5">

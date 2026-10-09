@@ -35,7 +35,7 @@ const csp = [
   `style-src 'self' 'unsafe-inline'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws:" : ""}`.trim(),
-  `frame-src 'self' ${videoFrameSrc}`,
+  `frame-src 'self' ${supabaseOrigin} ${videoFrameSrc}`.trim(),
   `worker-src 'self' blob:`,
   // Only force HTTPS upgrades in production; localhost dev is http.
   ...(isDev ? [] : [`upgrade-insecure-requests`]),

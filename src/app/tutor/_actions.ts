@@ -602,6 +602,7 @@ export async function createHomework(formData: FormData) {
       .insert(homework)
       .values({
         tutorId: tutor.id,
+        createdById: tutor.id,
         classId,
         title,
         description: description || null,

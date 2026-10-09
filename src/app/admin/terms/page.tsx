@@ -2,7 +2,14 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { terms } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { Card, CardHead, CardBody, PageHeader, Empty } from "@/components/admin/ui";
+import {
+  BackLink,
+  Card,
+  CardHead,
+  CardBody,
+  PageHeader,
+  Empty,
+} from "@/components/admin/ui";
 import { TermForm } from "./_components/term-form";
 
 export default async function AdminTermsPage() {
@@ -14,6 +21,8 @@ export default async function AdminTermsPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/admin/classes">Back to classes</BackLink>
+
       <PageHeader
         className="rise"
         eyebrow="Academic Calendar"

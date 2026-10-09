@@ -780,6 +780,7 @@ export async function getHomeworkDetail(studentId: string, homeworkId: string) {
       title: homework.title,
       description: homework.description,
       attachmentUrl: homework.attachmentUrl,
+      solutionUrl: homework.solutionUrl,
       dueDate: homework.dueDate,
       allowResubmission: homework.allowResubmission,
       isTest: homework.isTest,

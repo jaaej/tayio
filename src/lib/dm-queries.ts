@@ -61,7 +61,7 @@ export async function listMyThreads(meId: string): Promise<ThreadInboxRow[]> {
         when t.user_a_id = ${meId} then t.user_b_id
         else t.user_a_id
       end
-    left join lateral (
+    join lateral (
       select message.sender_id, message.body, message.created_at
       from ${dmMessages} message
       where message.thread_id = t.id

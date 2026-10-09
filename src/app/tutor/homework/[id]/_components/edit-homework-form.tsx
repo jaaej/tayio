@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FileText, ExternalLink } from "lucide-react";
+import { FileText } from "lucide-react";
 import {
   prepareTutorHomeworkEditAttachmentUpload,
   updateHomework,
 } from "@/app/tutor/_actions";
 import { Label } from "@/components/ui/input";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { FileViewerButton } from "@/components/ui/file-viewer";
 import { createClient } from "@/lib/supabase/client";
 
 const INPUT_CLS =
@@ -158,14 +159,13 @@ export function EditHomeworkForm({
                 </p>
               </div>
               {attachmentHref && (
-                <a
-                  href={attachmentHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-3 text-[11px] font-bold text-white hover:bg-brand-700"
+                <FileViewerButton
+                  url={attachmentHref}
+                  title={`${title} attachment`}
+                  className="shrink-0 px-3 text-[11px]"
                 >
-                  Open file <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
+                  View file
+                </FileViewerButton>
               )}
             </div>
           )}

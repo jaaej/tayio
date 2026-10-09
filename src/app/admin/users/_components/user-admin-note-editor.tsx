@@ -81,7 +81,7 @@ export function UserAdminNoteEditor({
           aria-label="Edit internal admin note"
           className={cn(
             "block w-full rounded-[9px] border border-warn/25 bg-warn-bg text-left text-[11px] font-medium leading-snug text-warn transition-colors hover:border-warn/45 hover:bg-warn-bg/80",
-            compact ? "mt-2 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
+            compact ? "mt-3 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
           )}
         >
           {content}
@@ -90,7 +90,7 @@ export function UserAdminNoteEditor({
         <div
           className={cn(
             "rounded-[9px] border border-warn/25 bg-warn-bg text-[11px] font-medium leading-snug text-warn",
-            compact ? "mt-2 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
+            compact ? "mt-3 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
           )}
         >
           {content}
@@ -110,7 +110,7 @@ export function UserAdminNoteEditor({
         onClick={beginEditing}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-line-strong font-bold text-muted transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700",
-          compact ? "mt-2 px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]",
+          compact ? "mt-3 px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]",
         )}
       >
         <StickyNote className="h-3.5 w-3.5" aria-hidden />
@@ -123,7 +123,7 @@ export function UserAdminNoteEditor({
     <div
       className={cn(
         "rounded-[10px] border border-warn/30 bg-warn-bg/55 p-3",
-        compact ? "mt-2 w-[300px] max-w-full" : "w-full",
+        compact ? "mt-3 w-[300px] max-w-full" : "w-full",
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">

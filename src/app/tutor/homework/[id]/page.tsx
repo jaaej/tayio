@@ -10,6 +10,8 @@ import { HOMEWORK_BUCKET, signHomeworkAttachment } from "@/app/student/homework/
 import { markSubmission } from "../../_actions";
 import { getHomeworkDetail, requireTutor } from "../../_data";
 import { EditHomeworkForm } from "./_components/edit-homework-form";
+import { HomeworkSolutionEditor } from "@/components/homework/homework-solution-editor";
+import { FileViewerButton } from "@/components/ui/file-viewer";
 
 /** Format a Date as a local-time value for <input type="datetime-local">. */
 function toDateTimeLocal(d: Date): string {
@@ -59,6 +61,7 @@ export default async function HomeworkDetailPage({
   );
 
   const attachmentHref = await signHomeworkAttachment(homework.attachmentUrl);
+  const solutionHref = await signHomeworkAttachment(homework.solutionUrl);
 
   const toMarkCount = signedSubmissions.filter(
     (s) => s.status === "submitted" || s.status === "late",
@@ -85,14 +88,13 @@ export default async function HomeworkDetailPage({
               <span className="text-muted">Resubmission allowed</span>
             )}
             {attachmentHref && (
-              <a
-                href={attachmentHref}
-                target="_blank"
-                rel="noreferrer"
-                className="text-brand-600 font-bold hover:text-brand-700"
+              <FileViewerButton
+                url={attachmentHref}
+                title={`${homework.title} attachment`}
+                className="min-h-0 border-0 bg-transparent p-0 text-brand-600 hover:bg-transparent hover:text-brand-700"
               >
-                View attachment ↗
-              </a>
+                View attachment
+              </FileViewerButton>
             )}
           </div>
         }
@@ -120,6 +122,12 @@ export default async function HomeworkDetailPage({
           attachmentHref={attachmentHref}
         />
       </Card>
+
+      <HomeworkSolutionEditor
+        homeworkId={homework.id}
+        hasSolution={Boolean(homework.solutionUrl)}
+        solutionHref={solutionHref}
+      />
 
       <Card className="overflow-hidden">
         <CardHead
@@ -198,14 +206,13 @@ export default async function HomeworkDetailPage({
                         </p>
                       )}
                       {s.signedUrl && (
-                        <a
-                          href={s.signedUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 text-white px-3.5 py-1.5 text-[12px] font-bold hover:bg-brand-700"
+                        <FileViewerButton
+                          url={s.signedUrl}
+                          title={`${s.firstName} ${s.lastName} submission`}
+                          className="border-brand-600 bg-brand-600 px-3.5 py-1.5 text-white hover:border-brand-700 hover:bg-brand-700"
                         >
-                          Open file ↗
-                        </a>
+                          View file
+                        </FileViewerButton>
                       )}
                     </div>
                   ) : (

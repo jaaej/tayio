@@ -65,7 +65,6 @@ async function loadEditable(
   const [row] = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
   if (!row) return { ok: false, error: "Quiz not found." };
   if (role === "admin") {
-    if (row.status === "approved") return { ok: false, error: "Quiz is approved and locked." };
     return { ok: true, row };
   }
   // tutor

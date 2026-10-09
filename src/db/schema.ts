@@ -602,11 +602,14 @@ export const homework = pgTable("homework", {
   classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),
   lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
   tutorId: uuid("tutor_id")
+    .references(() => profiles.id),
+  createdById: uuid("created_by_id")
     .notNull()
     .references(() => profiles.id),
   title: text("title").notNull(),
   description: text("description"),
   attachmentUrl: text("attachment_url"),
+  solutionUrl: text("solution_url"),
   dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
   allowResubmission: boolean("allow_resubmission").notNull().default(false),
   isTest: boolean("is_test").notNull().default(false),

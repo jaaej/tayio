@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 6 October 2026
+Last updated: 8 October 2026
 
 ## Status key
 
@@ -13,6 +13,51 @@ Last updated: 6 October 2026
 
 ## Manual QA required
 
+- [ ] As admin, tutor, student, and parent, open a new message composer, select
+  a valid contact, then return without sending. Confirm the contact does not
+  appear in the inbox. Send a first message and confirm the conversation then
+  appears for both participants.
+- [ ] As a tutor, upload, replace, and remove a JPEG, PNG, or WebP profile
+  photo on `/tutor/profile`. Confirm the signed photo appears in the desktop
+  profile chip and mobile header, an invalid or oversized file is rejected,
+  and choosing an icon removes the photo.
+- [ ] In an admin subject curriculum with no classes, save homework with
+  `Subject only - not assigned`, add a worksheet and solution, and confirm it
+  remains on the selected week without creating student assignments or
+  appearing in a tutor marking queue.
+- [ ] In Admin Classes, open a curriculum week, create homework for a selected
+  class with and without a worksheet, and confirm every active enrolment is
+  assigned exactly once and the class tutor receives it in the normal marking
+  workflow.
+- [ ] Upload, replace, open, and remove a homework solution as both admin and
+  the assigned tutor. Confirm an assigned student cannot see or open the
+  solution before the due date and can open it after the due date.
+- [ ] As admin, tutor, and student, open homework PDFs and images and confirm
+  they render inside the portal without a required download. Open a supported
+  video and confirm it plays inside the portal. Confirm Word and PowerPoint
+  files retain the Open file fallback.
+- [ ] Open an approved quiz from an admin curriculum week and confirm the
+  action says `Edit quiz`. Change its title, questions, and answers, refresh,
+  and confirm the saved approved quiz remains live and editable.
+- [ ] Open an editable quiz as admin and tutor on desktop and mobile. Confirm
+  the compact title/metrics header aligns cleanly, the icon-sized back control
+  returns to the correct curriculum week, question cards use the full content
+  width, and the `Add a question` choices appear below the question list.
+- [ ] In Admin Users, confirm `Add internal note`, saved notes, and the open
+  note editor have clear spacing below the user's name and related details on
+  desktop and mobile.
+- [ ] Confirm login and all four role portals render with Nunito Sans across
+  headings, navigation, controls, tables, and body copy on desktop and mobile.
+  The global font is loaded through `next/font` in `src/app/layout.tsx` and the
+  shared font tokens in `src/app/globals.css`.
+- [ ] Confirm the student timetable and parent class schedule use the shared
+  frosted-glass calendar treatment on desktop and mobile. Month controls, the
+  calendar frame, day panes, today state, lesson chips, and reschedule menus
+  must remain clear and usable against every part of the portal background.
+- [ ] Confirm the `Permanent class time` section appears directly below the
+  student and parent calendars as a connected glass footer on desktop and
+  mobile. Open its request panel and confirm pending, unavailable, success,
+  and validation states remain readable.
 - [x] Tutor can open the `Weekly availability` slide-over and add and remove
   recurring weekly availability.
 - [x] Tutor can open the `Absence or leave request` slide-over and submit a
@@ -120,7 +165,8 @@ Last updated: 6 October 2026
   red/blue/green/amber topic labels; meaning must remain clear without relying
   only on colour.
 - [x] Confirm Terms is absent from admin navigation and `Manage terms` beside
-  `Create class` opens the existing term-management page.
+  `Create class` opens the existing term-management page. Confirm `Back to
+  classes` returns directly to Admin Classes.
 - [x] From tutor curriculum, create homework with and without an attachment.
   Confirm the form stays on the selected curriculum week, clears after success,
   and the new homework appears without opening the marking page.
@@ -336,6 +382,41 @@ Last updated: 6 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Connected calendar and permanent-class-time glass composition.
+  - Student timetable now places the permanent weekly class-move section below
+    the calendar inside the same outer glass card.
+  - The class-move section uses a translucent footer surface and a soft glass
+    divider rather than appearing as a separate solid card above the calendar.
+  - Parent class schedules reuse the same shared composition for role parity.
+
+- [x] Inline homework viewing and editable existing admin quizzes.
+  - Homework attachments, solutions, and supported student submissions now
+    use one shared in-portal viewer for PDFs, images, and videos.
+  - Unsupported browser document formats retain an explicit Open file fallback.
+  - Supabase signed PDF URLs are permitted by the portal frame policy.
+  - Admin curriculum now labels every existing quiz action `Edit quiz`, and
+    admins can modify approved quizzes without changing their published status.
+  - Tutor quiz editing restrictions remain tied to the review lifecycle.
+
+- [x] Empty-message drafts, tutor profile photos, and subject-only homework.
+  - Shared inbox queries now require a real first message, so opening and
+    abandoning a conversation does not add it to any role's inbox.
+  - Tutors can upload a validated private profile photo or switch back to a
+    controlled icon from `/tutor/profile`.
+  - Admins can prepare homework and its solution on a curriculum week before
+    any class exists; choosing a class retains the assignment and marking flow.
+
+- [x] Admin homework authoring, homework solutions, and quiz-builder layout.
+  - Admin can assign homework from a curriculum week to any class for that
+    subject; the assigned class tutor retains the marking workflow and the
+    creator is recorded separately.
+  - Admin and the assigned tutor share one solution uploader with private-file
+    validation, replacement, removal, and short-lived signed viewing links.
+  - Students only receive a solution link after the homework due date.
+  - The quiz builder now has one compact aligned header, an icon-sized back
+    action, a full-width question flow, question-type controls below the
+    questions, and a compact readiness row.
 
 - [x] Consistent class and subject labels across the portal.
   - A shared formatter removes a matching subject prefix from class names,
@@ -692,7 +773,8 @@ Last updated: 6 October 2026
 - [x] Add subject-only information as compact status badges; class schedule
   details remain available through the badge link.
 - [x] Move Reset and Deactivate actions into a labelled gear menu.
-- [x] Display short admin-only preference notes beneath the relevant user row.
+- [x] Display short admin-only preference notes beneath the relevant user row,
+  with clear separation from the user's name and related details.
 - [x] Display `In person` and/or `Online` delivery status for students.
 - [x] Display both delivery modes for tutors who teach both types.
 - [x] Add admin-configurable quick-search aliases in Settings, such as `e1/2`
@@ -752,7 +834,7 @@ Last updated: 6 October 2026
 - [x] Move admin quiz creation into `Classes → Curriculum`, attached to the
   relevant curriculum week.
 - [x] Move Terms from the main navigation into Classes as `Manage terms`, near
-  `Create new class`.
+  `Create new class`, with a clear `Back to classes` link on the Terms page.
 - [x] Student reschedules and cancellations generate in-app notifications for
   admin and the relevant tutor/family recipients.
 - [x] Release student curriculum one teaching week at a time. Future weeks are
@@ -853,6 +935,13 @@ Last updated: 6 October 2026
 
 ## Deployment required for the next larger workflow batch
 
+- [ ] Apply `supabase/migrations/0057_subject_homework_drafts.sql` and
+  `supabase/migrations/0058_tutor_profile_photos.sql` to Production.
+  Confirm the `profile-photos` bucket is private, then run the subject-only
+  homework and tutor photo smoke tests with non-client accounts.
+- [ ] Apply `supabase/migrations/0056_admin_homework_and_solutions.sql` to
+  Production after review, then smoke-test admin homework creation and
+  due-date-gated student solution access with non-client accounts.
 - [x] Apply `supabase/migrations/0045_account_pauses_and_class_moves.sql` to
   Production.
 - [x] Apply `supabase/migrations/0046_profile_postal_addresses.sql` and

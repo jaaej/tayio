@@ -51,15 +51,34 @@ const COLOURS: Record<ProfileAvatarKey, string> = {
 
 export function ProfileAvatar({
   avatarKey,
+  imageUrl,
   fallback,
   className,
   iconClassName,
 }: {
   avatarKey: string | null | undefined;
+  imageUrl?: string | null;
   fallback: string;
   className?: string;
   iconClassName?: string;
 }) {
+  if (imageUrl) {
+    return (
+      <span
+        className={cn(
+          "relative block overflow-hidden rounded-full bg-surface-2",
+          className,
+        )}
+      >
+        <img
+          src={imageUrl}
+          alt="Profile photo"
+          className="h-full w-full object-cover"
+        />
+      </span>
+    );
+  }
+
   if (!isProfileAvatarKey(avatarKey)) {
     return (
       <span

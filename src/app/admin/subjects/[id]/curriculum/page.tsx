@@ -4,6 +4,8 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { Hero, BackLink } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import {
+  classes,
+  homework,
   profiles,
   quizzes,
   quizQuestions,
@@ -15,6 +17,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
+import { signHomeworkAttachment } from "@/app/student/homework/_storage";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
   CurriculumRail,
@@ -104,7 +107,7 @@ export default async function AdminSubjectCurriculumPage({
     ? await signCurriculumUrl(selectedWeek.videoUrl)
     : null;
 
-  const [weekQuiz, tutorRows] = await Promise.all([
+  const [weekQuiz, tutorRows, classRows, weekHomeworkRows] = await Promise.all([
     selectedWeek
       ? db
           .select({
@@ -131,7 +134,44 @@ export default async function AdminSubjectCurriculumPage({
       .from(profiles)
       .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
+    db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        tutorFirstName: profiles.firstName,
+        tutorLastName: profiles.lastName,
+      })
+      .from(classes)
+      .innerJoin(profiles, eq(profiles.id, classes.tutorId))
+      .where(eq(classes.subjectId, subjectId))
+      .orderBy(asc(classes.name)),
+    selectedWeek
+      ? db
+          .select({
+            id: homework.id,
+            title: homework.title,
+            dueDate: homework.dueDate,
+            attachmentUrl: homework.attachmentUrl,
+            solutionUrl: homework.solutionUrl,
+            classId: homework.classId,
+            className: classes.name,
+          })
+          .from(homework)
+          .leftJoin(classes, eq(classes.id, homework.classId))
+          .where(eq(homework.weekId, selectedWeek.id))
+          .orderBy(asc(homework.dueDate))
+      : Promise.resolve([]),
   ]);
+
+  const weekHomework = await Promise.all(
+    weekHomeworkRows.map(async (item) => {
+      const [attachmentHref, solutionHref] = await Promise.all([
+        signHomeworkAttachment(item.attachmentUrl),
+        signHomeworkAttachment(item.solutionUrl),
+      ]);
+      return { ...item, attachmentHref, solutionHref };
+    }),
+  );
 
   const topicNameById = new Map(topics.map((t) => [t.id, t.name]));
   const railWeeks: RailWeek[] = weeks.map((w) => ({
@@ -183,6 +223,10 @@ export default async function AdminSubjectCurriculumPage({
               id: tutor.id,
               name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),
             }))}
+            homeworkClasses={classRows.map((row) => ({
+              id: row.id,
+              label: `${row.name} - ${row.tutorFirstName} ${row.tutorLastName}`.trim(),
+            }))}
           />
         ) : (
           <WeekEditor
@@ -199,6 +243,11 @@ export default async function AdminSubjectCurriculumPage({
               id: tutor.id,
               name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),
             }))}
+            homeworkClasses={classRows.map((row) => ({
+              id: row.id,
+              label: `${row.name} - ${row.tutorFirstName} ${row.tutorLastName}`.trim(),
+            }))}
+            homework={weekHomework}
             quizTarget={{
               id: selectedWeek.id,
               label: `${subject.name} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${selectedWeek.weekNumber}`,

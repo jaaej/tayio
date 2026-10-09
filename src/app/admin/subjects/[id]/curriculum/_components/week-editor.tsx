@@ -17,6 +17,9 @@ import { SidePanel } from "@/components/ui/side-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { HomeworkCreatePanel } from "@/components/homework/homework-create-panel";
+import { HomeworkSolutionEditor } from "@/components/homework/homework-solution-editor";
+import { FileViewerButton } from "@/components/ui/file-viewer";
 import {
   colorFamilyForSubject,
   getAccentTokens,
@@ -34,6 +37,7 @@ import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { NewQuizPanel } from "@/app/admin/quizzes/_components/new-quiz-panel";
 import { ApproveQuizButton } from "@/app/admin/quizzes/_components/approve-quiz-button";
 import { TopicsPanel } from "./topics-panel";
+import { formatDueDate } from "@/lib/format";
 
 export function WeekEditor({
   existing,
@@ -47,6 +51,8 @@ export function WeekEditor({
   quizTarget,
   bookletSignedUrl,
   videoSignedUrl,
+  homeworkClasses = [],
+  homework = [],
 }: {
   existing?: SubjectWeek;
   subjectId: string;
@@ -64,6 +70,18 @@ export function WeekEditor({
   quizTarget?: QuizTargetWeek;
   bookletSignedUrl?: string | null;
   videoSignedUrl?: string | null;
+  homeworkClasses?: Array<{ id: string; label: string }>;
+  homework?: Array<{
+    id: string;
+    title: string;
+    dueDate: Date;
+    attachmentUrl: string | null;
+    attachmentHref: string | null;
+    solutionUrl: string | null;
+    solutionHref: string | null;
+    classId: string | null;
+    className: string | null;
+  }>;
 }) {
   const router = useRouter();
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
@@ -387,7 +405,7 @@ export function WeekEditor({
                     href={`/admin/quizzes/${quiz.id}`}
                     className="inline-flex min-h-9 items-center rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink transition-colors hover:border-brand-400 hover:text-brand-700"
                   >
-                    {quiz.status === "approved" ? "Preview quiz" : "Open quiz builder"}
+                    Edit quiz
                   </a>
                 </div>
               ) : quizTarget ? (
@@ -395,6 +413,67 @@ export function WeekEditor({
                   No quiz has been attached to this week yet.
                 </p>
               ) : null}
+            </section>
+
+            <section className="space-y-4 p-4 lg:p-5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-brand-50 text-brand-700">
+                  <FileText className="h-4 w-4" aria-hidden />
+                </span>
+                <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
+                  Homework
+                </h3>
+              </div>
+
+              <HomeworkCreatePanel
+                actor="admin"
+                weekId={existing.id}
+                classes={homeworkClasses}
+              />
+
+              {homework.length === 0 ? (
+                <p className="text-[13px] italic text-muted">
+                  No homework assigned to this week yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {homework.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-[14px] border border-line bg-surface p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-[14px] font-extrabold text-ink">
+                            {item.title}
+                          </h4>
+                          <p className="mt-1 text-[12px] text-muted">
+                            {item.className ?? "Subject only"} · Due{" "}
+                            {formatDueDate(item.dueDate)}
+                          </p>
+                        </div>
+                        {item.attachmentHref && (
+                          <FileViewerButton
+                            url={item.attachmentHref}
+                            title={`${item.title} attachment`}
+                            className="shrink-0"
+                          >
+                            View homework
+                          </FileViewerButton>
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <HomeworkSolutionEditor
+                          homeworkId={item.id}
+                          hasSolution={Boolean(item.solutionUrl)}
+                          solutionHref={item.solutionHref}
+                          compact
+                        />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         ) : (

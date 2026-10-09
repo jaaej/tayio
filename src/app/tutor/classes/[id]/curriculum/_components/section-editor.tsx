@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import {
   BookOpen,
   Check,
@@ -20,9 +19,7 @@ import {
 import { promoteAttachment } from "@/app/_actions/resources";
 import {
   addTutorWeekLink,
-  createHomework,
   finalizeTutorWeekAttachmentUpload,
-  prepareTutorHomeworkAttachmentUpload,
   prepareTutorWeekAttachmentUpload,
   removeTutorWeekAttachment,
   upsertTutorWeekNote,
@@ -40,6 +37,7 @@ import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { HomeworkCreatePanel } from "@/components/homework/homework-create-panel";
 import type { TutorCurriculumWeek, TutorSectionAttachment } from "../_queries";
 
 type AttachmentWithUrl = TutorSectionAttachment & { url: string | null };
@@ -63,14 +61,10 @@ export function SectionEditor({
   bookletSignedUrl: string | null;
   attachmentsWithUrls: AttachmentWithUrl[];
 }) {
-  const router = useRouter();
-  const homeworkForm = useRef<HTMLFormElement>(null);
   // Reuse the learner palette for the hero and read-only overview.
   const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
   const [editing, setEditing] = useState(false);
-  const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [homeworkSaved, setHomeworkSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function submitNote(formData: FormData) {
@@ -133,53 +127,6 @@ export function SectionEditor({
     startTransition(async () => {
       const res = await addTutorWeekLink(formData);
       if (!res.ok) setError(res.error);
-    });
-  }
-
-  function submitHomework(formData: FormData) {
-    setError(null);
-    setHomeworkSaved(false);
-    startTransition(async () => {
-      try {
-        const file = formData.get("attachment");
-        if (file instanceof File && file.size > 0) {
-          const prepared = await prepareTutorHomeworkAttachmentUpload({
-            classId,
-            subjectWeekId: week.subjectWeekId,
-            fileName: file.name,
-            contentType: file.type,
-            sizeBytes: file.size,
-          });
-          if (!prepared.ok) {
-            setError(prepared.error);
-            return;
-          }
-
-          const supabase = createClient();
-          const { error: uploadError } = await supabase.storage
-            .from(prepared.value.bucket)
-            .uploadToSignedUrl(prepared.value.path, prepared.value.token, file, {
-              contentType: prepared.value.contentType,
-            });
-          if (uploadError) {
-            setError(uploadError.message);
-            return;
-          }
-          formData.set("uploadTicket", prepared.value.ticket);
-        }
-
-        // Never forward even an empty File through the Server Action request.
-        formData.delete("attachment");
-        await createHomework(formData);
-        homeworkForm.current?.reset();
-        setHomeworkSaved(true);
-        setHomeworkOpen(false);
-        router.refresh();
-      } catch (cause) {
-        setError(
-          cause instanceof Error ? cause.message : "Homework could not be saved.",
-        );
-      }
     });
   }
 
@@ -509,30 +456,21 @@ export function SectionEditor({
 
         {/* Homework */}
         <section className="p-4 lg:p-5 space-y-4">
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2.5">
             <span className="h-8 w-8 rounded-[10px] grid place-items-center shrink-0 bg-surface-2 text-muted">
               <FileText className="h-4 w-4" />
             </span>
             <h3 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
               Homework for this week
             </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setHomeworkSaved(false);
-                setHomeworkOpen((value) => !value);
-              }}
-              aria-expanded={homeworkOpen}
-              className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-bold text-white transition-colors hover:bg-brand-700"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {homeworkOpen ? "Close form" : "Add new homework"}
-            </button>
           </div>
-          <div className="text-[12px] text-muted">
-            Shared across all your {subjectName} classes.
-          </div>
+
+          <HomeworkCreatePanel
+            actor="tutor"
+            weekId={week.subjectWeekId}
+            classes={[{ id: classId, label: className }]}
+            initialClassId={classId}
+          />
 
           {week.homework.length === 0 ? (
             <div className="text-[13px] text-muted italic">
@@ -563,83 +501,6 @@ export function SectionEditor({
             </ul>
           )}
 
-          {homeworkSaved && (
-            <p
-              role="status"
-              className="rounded-[10px] border border-good/35 bg-good-bg px-3 py-2 text-[12px] font-semibold text-good"
-            >
-              Homework assigned. It now appears in this week.
-            </p>
-          )}
-
-          {homeworkOpen && (
-            <form
-              ref={homeworkForm}
-              action={submitHomework}
-              className="space-y-3 rounded-[14px] border border-line bg-surface-2 p-4"
-            >
-              <input type="hidden" name="classId" value={classId} />
-              <input type="hidden" name="weekId" value={week.subjectWeekId} />
-              <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
-                Add new homework
-              </div>
-              <input
-                name="title"
-                required
-                placeholder="e.g. Practice problems 1-10"
-                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
-              />
-              <div className="grid sm:grid-cols-2 gap-3">
-                <input
-                  name="dueDate"
-                  type="datetime-local"
-                  required
-                  className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink focus:outline-none focus:border-line-strong"
-                />
-                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                  <input
-                    type="checkbox"
-                    name="allowResubmission"
-                    className="accent-ink"
-                  />
-                  Allow resubmission
-                </label>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-                  <input type="checkbox" name="isTest" className="accent-ink" />
-                  Mark as test
-                </label>
-                <p className="mt-1 pl-6 text-[12px] text-muted">
-                  Counts toward anonymous student rankings for this subject.
-                </p>
-              </div>
-              <textarea
-                name="description"
-                rows={2}
-                placeholder="Description (optional)"
-                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong"
-              />
-              <input
-                name="attachment"
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                className="text-[13px] file:mr-2 file:rounded-md file:border file:border-line file:bg-surface file:px-2.5 file:py-1 file:text-[12px] file:font-bold file:text-ink file:cursor-pointer cursor-pointer"
-              />
-              <button
-                type="submit"
-                disabled={pending}
-                className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-700"
-              >
-                <ActionButtonLabel pending={pending} pendingLabel="Saving…">
-                  <>
-                    <Plus className="h-3.5 w-3.5" />
-                    Assign homework
-                  </>
-                </ActionButtonLabel>
-              </button>
-            </form>
-          )}
         </section>
       </div>
     </div>

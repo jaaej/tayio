@@ -41,7 +41,7 @@ export default async function AdminQuizDetailPage({
         quiz={quiz}
         questions={questions}
         attachments={content.attachments}
-        editable={quiz.status !== "approved"}
+        editable
         canEditTitle
         canSubmit={false}
         canApprove={

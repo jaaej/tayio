@@ -10,6 +10,7 @@ import type {
 } from "@/lib/class-moves";
 import { SidePanel } from "@/components/ui/side-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { cn } from "@/lib/utils";
 
 const STATUS_LABEL = {
   pending: "Waiting for office approval",
@@ -23,11 +24,13 @@ export function ClassMoveRequestPanel({
   studentName,
   classes,
   requests,
+  embedded = false,
 }: {
   studentId: string;
   studentName?: string;
   classes: ClassMoveOption[];
   requests: ClassMoveHistoryRow[];
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const current = classes.filter((item) => item.isCurrent);
@@ -73,7 +76,14 @@ export function ClassMoveRequestPanel({
   }
 
   return (
-    <section className="rounded-[16px] border border-line bg-surface overflow-hidden">
+    <section
+      className={cn(
+        "overflow-hidden",
+        embedded
+          ? "calendar-glass-footer rounded-b-[14px] border-t"
+          : "rounded-[16px] border border-line bg-surface",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[14px] font-extrabold text-ink">

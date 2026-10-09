@@ -37,12 +37,20 @@ Conventions referenced throughout:
 ### Timetable
 1. **What it is** - Month/week calendar of the student's upcoming (and past) lessons.
 2. **How it works** - `/student/timetable` (`src/app/student/timetable/`). Reads `lessons` joined via `enrollments` → `classes`. For `student_unrestricted`, the timetable is interactive (reschedule) via `interactive-timetable.tsx`. Guard: `requireRole("student")`.
+   The permanent weekly class-move request is a connected glass footer below the calendar rather than a separate panel above it.
 3. **Rationale:** Subject-colour map renders Maths as red, which reads like a "cancelled" state; the interactive timetable deliberately sidesteps this with a brand tint (per memory `project_role_tiers_spec1_2026_07_10.md`).
 
 ### Homework (view + submit)
-1. **What it is** - List of assigned homework with due dates; per-assignment detail with file/text submission, tutor feedback, and (for flagged tests) an anonymous rank.
-2. **How it works** - `/student/homework`, `/student/homework/[id]`. Submission uploads to Supabase Storage via the API route `src/app/api/student/homework/[id]/submit/`. Tables: `homework`, `homeworkAssignments` (`submissionUrl`, `submissionText`, `score`, `feedback`, `status`). Test rank query `getStudentTestRank` uses a `RANK()` window over `homework.is_test` submissions. Guard: `requireRole("student")` + assignment ownership (`studentId = user.id`).
-3. **Rationale:** Homework attachments are stored as a storage **path** (not a persisted public URL) and served through short-lived signed URLs (1h TTL); this keeps the `homework-attachments` bucket private so submissions aren't world-readable (per security-checklist E4/E5). Test ranking exposes *rank only* - no peer scores or names (per `docs/checklist.md` Student "Grade page").
+1. **What it is** - List of assigned homework with due dates; per-assignment detail with file/text submission, tutor feedback, a due-date-gated solution, and (for flagged tests) an anonymous rank.
+2. **How it works** - `/student/homework`, `/student/homework/[id]`.
+   Submission uploads to Supabase Storage via the API route `src/app/api/student/homework/[id]/submit/`.
+   PDFs, images, and browser-supported videos open in an in-portal viewer; formats the browser cannot reliably render use an Open file fallback.
+   Tables: `homework` (`attachmentUrl`, `solutionUrl`, `createdById`), `homeworkAssignments` (`submissionUrl`, `submissionText`, `score`, `feedback`, `status`).
+   Test rank query `getStudentTestRank` uses a `RANK()` window over `homework.is_test` submissions.
+   Guard: `requireRole("student")` + assignment ownership (`studentId = user.id`).
+3. **Rationale:** Homework worksheets and solutions are stored as private storage paths and served through short-lived signed URLs.
+   The student page does not sign or render a solution until the homework due date, preventing early answer exposure.
+   Test ranking exposes *rank only* - no peer scores or names (per `docs/checklist.md` Student "Grade page").
 
 ### Progress / grades
 1. **What it is** - Per-subject mastery, per-topic breakdown, and a detail page listing every submitted task's grade + tutor feedback, plus an overall anonymous per-subject rank.
@@ -76,7 +84,11 @@ Conventions referenced throughout:
 
 ### Direct messaging
 1. **What it is** - 1:1 DMs with the student's tutors and (for unrestricted students) the admin office.
-2. **How it works** - `/student/messages`, `/student/messages/[threadId]`, `/student/messages/with/[userId]`. Tables: `dmThreads`, `dmMessages`, `dmReads`. Actions in `src/app/_actions/dm.ts`. Permission via `canDM` in `src/lib/dm-permissions.ts`. Guard: `requireRole("student")` + `canDM`.
+2. **How it works** - `/student/messages`, `/student/messages/[threadId]`, `/student/messages/with/[userId]`.
+   Tables: `dmThreads`, `dmMessages`, `dmReads`.
+   Inbox queries require at least one message, so opening a composer and leaving without sending does not create a visible conversation.
+   Actions live in `src/app/_actions/dm.ts`; permission uses `canDM` in `src/lib/dm-permissions.ts`.
+   Guard: `requireRole("student")` + `canDM`.
 3. **Rationale:** `student_restricted ↔ admin` is blocked symmetrically - a young student's admin contact is their parent - while `student_unrestricted ↔ admin` is allowed; this is the one tier-sensitive rule in `canDM` (per code comment in `src/lib/dm-permissions.ts` and role-tiers spec §5.2). Threads persist one-per-pair with canonical `userAId < userBId` ordering so pair lookup is a single equality (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Payments (unrestricted only)
@@ -159,7 +171,10 @@ Conventions referenced throughout:
 
 ### Direct messaging
 1. **What it is** - 1:1 DMs with the child's tutors and the admin office.
-2. **How it works** - `/parent/messages` (+ `[threadId]`, `with/[userId]`). Tables `dmThreads`/`dmMessages`/`dmReads`; `canDM` gate. Parent↔Tutor allowed only when the tutor teaches a class the child is enrolled in (`family_links → enrollments → classes.tutorId`). Guard: `requireRole("parent")` + `canDM`.
+2. **How it works** - `/parent/messages` (+ `[threadId]`, `with/[userId]`).
+   Tables `dmThreads`/`dmMessages`/`dmReads`; inbox queries exclude threads with no messages.
+   Parent↔Tutor is allowed only when the tutor teaches a class the child is enrolled in (`family_links → enrollments → classes.tutorId`).
+   Guard: `requireRole("parent")` + `canDM`.
 3. **Rationale:** DM replaces scattered SMS/email/WhatsApp with a centralized channel; parent↔tutor requires a live shared-class relationship, but an existing thread stays readable if the relationship later lapses (humane, no surprise data loss) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Notifications inbox
@@ -202,8 +217,13 @@ Conventions referenced throughout:
 3. **Rationale:** Payroll uses an auditable snapshot rather than recalculating already approved pay from mutable schedules or rates. Missing/legacy zero rates reopen affected approval instead of silently paying `$0`, and stale owner edits are rejected to prevent lost updates.
 
 ### Homework marking
-1. **What it is** - Mark submissions, record scores/feedback, request resubmission.
-2. **How it works** - `/tutor/homework`, `/tutor/homework/[id]`. Writes `homeworkAssignments` (`score`, `feedback`, `status`, `markedBy`). The tutor dashboard's `Students to bump` action reloads current overdue tasks server-side and writes a task-specific DM plus one unread inbox notification. Guard: `requireRole("tutor")`, current-enrolment scope, DM relationship checks, and a per-tutor rate limit.
+1. **What it is** - Create homework, upload worksheets and solutions, mark submissions, record scores/feedback, and request resubmission.
+2. **How it works** - Tutors create class homework inside `/tutor/classes/[id]/curriculum` and manage it at `/tutor/homework/[id]`.
+   Homework attachments, solutions, and supported student submission files open in the shared in-portal viewer.
+   The shared solution editor writes `homework.solutionUrl`; students receive the signed file only after the due date.
+   Marking writes `homeworkAssignments` (`score`, `feedback`, `status`, `markedBy`).
+   The tutor dashboard's `Students to bump` action reloads current overdue tasks server-side and writes a task-specific DM plus one unread inbox notification.
+   Guard: `requireRole("tutor")`, homework/class ownership, current-enrolment scope, DM relationship checks, and a per-tutor rate limit.
 3. **Rationale:** Reminder text is generated from server-loaded homework titles rather than browser input, preventing a forged one-click action from sending arbitrary content or messaging an unrelated/withdrawn student.
 
 ### Lesson notes (parent-visible + internal split)
@@ -223,7 +243,11 @@ Conventions referenced throughout:
 
 ### Curriculum sections (per-tutor additive)
 1. **What it is** - A tutor can add a note + file attachments to any week of a subject they teach, layered on top of the locked admin base, visible only to their own students.
-2. **How it works** - `/tutor/classes/[id]/curriculum` mirrors the learner hierarchy with a subject-coloured Overview, separate lesson materials, tutor notes, quiz, and homework. Tutor note editing is opt-in and the new-homework form remains collapsed until requested. Tables: `tutorWeekSections` (unique `(tutorId, subjectWeekId)`), `tutorWeekAttachments` (`kind` = file/link, migration 0015). Actions `upsertTutorWeekNote`, `addTutorWeekAttachment`, `removeTutorWeekAttachment` in `src/app/tutor/_actions.ts`. Guard: `requireRole("tutor")` + `tutorTeachesSubjectWeek`.
+2. **How it works** - `/tutor/classes/[id]/curriculum` mirrors the learner hierarchy with a subject-coloured Overview, separate lesson materials, tutor notes, quiz, and homework.
+   Tutor note editing is opt-in and the shared new-homework form remains collapsed until requested.
+   Tutors can add a separately stored solution from the homework marking page.
+   Tables: `tutorWeekSections` (unique `(tutorId, subjectWeekId)`), `tutorWeekAttachments` (`kind` = file/link, migration 0015), and `homework`.
+   Guard: `requireRole("tutor")` + class/homework ownership.
 3. **Rationale:** Scoped per-`(tutor, subject-week)` (shared across all that tutor's classes of the subject, separate from other tutors) so additions are *additive* and never mutate the admin's locked base curriculum; this replaced the retired `class_week_overrides` "replace the base" model, which contradicted "base is locked" (per `docs/superpowers/specs/2026-07-01-tutor-sections-design.md`). Reads are scoped to the tutor's own students/parents at the query layer (commit `ed02764`).
 
 ### Discussions
@@ -233,7 +257,10 @@ Conventions referenced throughout:
 
 ### Direct messaging
 1. **What it is** - 1:1 DMs with admin, the tutor's students, and parents of taught students.
-2. **How it works** - `/tutor/messages` (+ `[threadId]`, `with/[userId]`). `canDM` allows tutor↔student and tutor↔parent only on a shared class. Guard: `requireRole("tutor")` + `canDM`.
+2. **How it works** - `/tutor/messages` (+ `[threadId]`, `with/[userId]`).
+   `canDM` allows tutor↔student and tutor↔parent only on a shared class.
+   Inbox queries exclude threads with no messages, so an unopened draft never appears as a conversation.
+   Guard: `requireRole("tutor")` + `canDM`.
 3. **Rationale:** Relationship clauses reuse existing joins (`classes.tutorId → enrollments`, `→ family_links`); same-role pairs are always denied (no tutor↔tutor) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Notifications inbox
@@ -241,10 +268,13 @@ Conventions referenced throughout:
 2. **How it works** - `/tutor/notifications` (`NotificationsInbox`). Table `notifications`.
 3. **Rationale:** The inbox is authoritative; only urgent targeted announcements use the optional email transport.
 
-### Profile icon
-1. **What it is** - Tutors choose a controlled profile icon from the top-right profile chip on desktop or mobile.
-2. **How it works** - `/tutor/profile`, `ProfileIconPicker`, and `setMyTutorProfileAvatar`; the selected `profiles.profileAvatarKey` is rendered by the shared tutor shell.
-3. **Rationale:** A controlled icon set keeps the interface consistent and avoids the moderation/storage burden of arbitrary profile-photo uploads.
+### Profile photo and icon
+1. **What it is** - Tutors can upload a profile photo or choose a controlled icon from the profile page reached through the top-right profile chip.
+2. **How it works** - `/tutor/profile` uses `ProfilePhotoUploader` and `ProfileIconPicker`.
+   Photos are validated as JPEG, PNG, or WebP up to 5 MB, stored in the private `profile-photos` bucket, and rendered through a short-lived signed URL.
+   Uploading a photo clears the icon choice; choosing an icon removes the stored photo.
+   The shared tutor shell renders the photo first, then the selected icon or initials as fallback.
+3. **Rationale:** Staff can use a recognisable photo while private storage, server-side role checks, strict image validation, and replacement cleanup prevent public or abandoned uploads.
 
 ### Resource Library (author + promote)
 1. **What it is** - Add a resource (booklet, past paper, worksheet, video) to the subject-wide library by direct file upload or link, plus a "promote" toggle that publishes an existing weekly curriculum attachment straight into the library.
@@ -315,8 +345,18 @@ Conventions referenced throughout:
 3. **Rationale:** Cover is placed at the top of the existing reschedule destination so urgent notification links land directly in the admin's schedule workflow. Tutor self-claims and admin assignments share one clash-checked mutation, preventing the two paths from drifting.
 
 ### Curriculum & terms management
-1. **What it is** - Define terms, subject topics, and the canonical week-by-week curriculum per subject.
-2. **How it works** - `/admin/terms`, `/admin/subjects/[id]/curriculum`. Existing weeks open in a learner-style reading view with a subject-coloured Overview and clear material cards. `Edit week` and `Manage topics` open focused side panels; a new-week route keeps the creation form visible until the first save. Tables: `terms`, `subjects`, `subjectTopics`, `subjectWeeks`. Actions in `actions-curriculum.ts` + `actions-topics.ts`. Guard: `requireAdmin()`.
+1. **What it is** - Define terms, subject topics, the canonical week-by-week curriculum, quizzes, and class homework.
+2. **How it works** - `/admin/terms`, reached from Classes via `Manage terms`, includes a direct `Back to classes` link.
+   `/admin/subjects/[id]/curriculum` contains the subject curriculum.
+   Admin may save homework as subject-only curriculum material before any class exists.
+   Selecting a class assigns active students and keeps the class tutor responsible for marking, while `homework.createdById` records the admin creator.
+   Admin can upload or replace a separate solution from the week, using the same shared solution editor as tutors.
+   Admin can open supported homework files in the portal and can edit existing quizzes in every status, including approved quizzes.
+   Curriculum quiz actions use the single label `Edit quiz` rather than presenting approved quizzes as preview-only.
+   Existing weeks open in a learner-style reading view with a subject-coloured Overview and clear material cards.
+   `Edit week` and `Manage topics` open focused side panels; a new-week route keeps the creation form visible until the first save.
+   Tables: `terms`, `subjects`, `subjectTopics`, `subjectWeeks`, `homework`, and `homeworkAssignments`.
+   Guard: `requireAdmin()`.
 3. **Rationale:** `subjectWeeks.topicId` is nullable with `onDelete: set null` so adding topics is non-destructive (existing weeks stay valid) and deleting a topic never deletes curriculum content - weeks fall back to "unassigned" (per `docs/superpowers/specs/2026-06-30-curriculum-topics-design.md`). Topics are subject-level (not term-level) because a topic like "Algebra" spans weeks across any term (same spec).
 
 ### Discussions oversight
@@ -326,7 +366,11 @@ Conventions referenced throughout:
 
 ### Direct messaging (admin)
 1. **What it is** - 1:1 DMs with anyone via a categorized directory.
-2. **How it works** - `/admin/messages` (+ `[threadId]`, `with/[userId]`). Directory categorized parents/tutors/students; "Message" button on `/admin/users/[id]`. `canDM` returns true for any admin↔non-admin pair. Guard: `requireAdmin()`.
+2. **How it works** - `/admin/messages` (+ `[threadId]`, `with/[userId]`).
+   The directory categorizes parents, tutors, and students; `/admin/users/[id]` provides the Message action.
+   Inbox queries exclude empty threads until the first message is sent.
+   `canDM` returns true for any admin↔non-admin pair.
+   Guard: `requireAdmin()`.
 3. **Rationale:** `getThreadForMe` scopes the admin messages UI to threads the admin *participates* in; RLS (migration 0012) permits admin read of all DMs, but no UI surfaces non-participant conversations - a safeguarding-oversight view would need an audit READ row + reason gate before exposing them (per security-checklist G3).
 
 ### Discontinued students
@@ -393,7 +437,7 @@ Conventions referenced throughout:
 
 ### Storage & file uploads
 1. **What it is** - Private Supabase Storage for homework attachments/submissions, curriculum media, discussion attachments, and the resource library.
-2. **How it works** - Buckets `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, and `resource-library`. Permission-checked server actions mint short-lived signed URLs. Upload validation lives in the storage/direct-upload helpers; database rows store object paths rather than public URLs. Supported PDFs and videos render through in-portal viewers with an Open separately fallback.
+2. **How it works** - Buckets `homework-attachments`, `homework-submissions`, `curriculum`, `discussion-attachments`, and `resource-library`. Permission-checked server actions mint short-lived signed URLs. Upload validation lives in the storage/direct-upload helpers; database rows store object paths rather than public URLs. Supported PDFs, images, and videos render through in-portal viewers with an Open separately fallback.
 3. **Rationale:** Private objects plus short-lived signed URLs keep student work and teaching material from becoming world-readable. Every replacement environment must create all five private buckets before runtime QA.
 
 ---

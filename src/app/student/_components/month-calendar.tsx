@@ -154,7 +154,7 @@ export function MonthCalendar({
           </h2>
           <Link
             href={navBase(today)}
-            className="text-[11px] uppercase tracking-[0.16em] text-brand-600 hover:text-brand-700 font-bold"
+            className="calendar-glass-control inline-flex min-h-9 items-center rounded-full border px-3.5 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700 transition-colors hover:text-brand-800"
           >
             Today
           </Link>
@@ -163,14 +163,14 @@ export function MonthCalendar({
           <Link
             href={navBase(prev)}
             aria-label="Previous month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className="calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors"
           >
             ‹
           </Link>
           <Link
             href={navBase(next)}
             aria-label="Next month"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line bg-surface text-lg text-ink-soft hover:border-brand-300 hover:text-ink transition-colors"
+            className="calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors"
           >
             ›
           </Link>

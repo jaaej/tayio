@@ -106,16 +106,7 @@ export default async function ParentClassesPage({
       )}
 
       <div className="rise" style={{ animationDelay: "30ms" }}>
-        <ClassMoveRequestPanel
-          studentId={selected.id}
-          studentName={selected.firstName}
-          classes={classMoves.classes}
-          requests={classMoves.requests}
-        />
-      </div>
-
-      <div className="rise" style={{ animationDelay: "40ms" }}>
-        <Card>
+        <Card className="calendar-glass-panel overflow-visible">
           <SectionHeader title={`${selected.firstName}'s schedule`} />
           <div className="p-4 lg:p-5">
             <InteractiveTimetable
@@ -132,6 +123,13 @@ export default async function ParentClassesPage({
               messageBase="/parent/messages/with"
             />
           </div>
+          <ClassMoveRequestPanel
+            studentId={selected.id}
+            studentName={selected.firstName}
+            classes={classMoves.classes}
+            requests={classMoves.requests}
+            embedded
+          />
         </Card>
       </div>
 
