@@ -6,7 +6,7 @@ import { initialOf, roleColor } from "./dm-visuals";
 
 /**
  * Shared conversation header: back link + role-coloured avatar + name/role.
- * Used across all portals' DM thread pages so the chat header is consistent.
+ * Rendered at the top of the shared ConversationPanel for every role.
  */
 export function ConversationHeader({
   otherName,
@@ -19,11 +19,11 @@ export function ConversationHeader({
 }) {
   const color = roleColor(otherRole);
   return (
-    <div className="flex items-center gap-3 rounded-[16px] border border-line bg-surface px-4 py-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
+    <div className="flex items-center gap-3 border-b border-white/60 px-4 py-3.5 sm:px-6">
       <Link
         href={backHref}
         aria-label="Back to messages"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-white/60 hover:text-ink"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden />
       </Link>

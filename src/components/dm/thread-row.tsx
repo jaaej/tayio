@@ -25,7 +25,7 @@ export function ThreadRow({
   return (
     <Link
       href={`${hrefPrefix}/${thread.threadId}`}
-      className="group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-surface-2"
+      className="group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-white/45"
     >
       <div className="relative shrink-0">
         <span
@@ -37,7 +37,7 @@ export function ThreadRow({
         {thread.unread && (
           <span
             aria-hidden
-            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface bg-brand-600"
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600"
           />
         )}
       </div>

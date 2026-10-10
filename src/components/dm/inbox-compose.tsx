@@ -49,7 +49,7 @@ export function InboxCompose({
           New message
         </div>
         {visibleGroups.length === 0 ? (
-          <div className="rounded-[14px] border border-line bg-surface px-4 py-6 text-[13px] text-muted">
+          <div className="portal-glass-panel rounded-[22px] border px-4 py-6 text-[13px] text-muted">
             No one to message yet.
           </div>
         ) : (
@@ -59,12 +59,12 @@ export function InboxCompose({
                 <div className="px-1 text-[12px] font-bold text-ink-soft">
                   {g.label}
                 </div>
-                <div className="max-h-80 divide-y divide-line overflow-y-auto rounded-[14px] border border-line bg-surface">
+                <div className="portal-glass-panel max-h-80 divide-y divide-white/60 overflow-y-auto rounded-[22px] border">
                   {g.contacts.map((c) => (
                     <Link
                       key={c.id}
                       href={`${hrefPrefix}/with/${c.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
+                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/45"
                     >
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-[12px] font-extrabold text-brand-ink">
                         {c.office ? (
@@ -108,8 +108,8 @@ export function InboxCompose({
           <Plus className="h-4 w-4" /> New message
         </button>
       </div>
-      <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
-        <ul className="divide-y divide-line">
+      <div className="portal-glass-panel overflow-hidden rounded-[22px] border">
+        <ul className="divide-y divide-white/60">
           {threads.map((t) => (
             <li key={t.threadId}>
               <ThreadRow thread={t} hrefPrefix={hrefPrefix} />

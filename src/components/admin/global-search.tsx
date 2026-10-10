@@ -113,7 +113,11 @@ export function AdminGlobalSearch({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search Taiyo Portal"
-                className="w-full max-w-2xl overflow-hidden rounded-[20px] border border-white/20 bg-surface shadow-2xl"
+                // Portalled outside the admin shell's theme wrapper: the theme
+                // class restores its white surface tokens, and the inline
+                // background replaces the page wash that class also paints.
+                className="theme-tutor w-full max-w-2xl overflow-hidden rounded-[20px] border border-white/20 shadow-2xl"
+                style={{ background: "var(--surface)" }}
               >
                 <div className="flex items-center gap-3 border-b border-line px-4 py-3">
                   <Search className="h-5 w-5 shrink-0 text-brand-600" aria-hidden />

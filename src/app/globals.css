@@ -224,10 +224,12 @@ body {
   background-attachment: fixed;
 }
 
-/* Frosted calendar surfaces. The translucent layers keep the portal's
- * diagonal colour wash visible while the blur and inset highlight preserve
- * readable boundaries over both the light and saturated parts of the page. */
-.calendar-glass-panel {
+/* Frosted calendar and shared portal surfaces (calendars, messaging). The
+ * translucent layers keep the portal's diagonal colour wash visible while the
+ * blur and inset highlight preserve readable boundaries over both the light
+ * and saturated parts of the page. */
+.calendar-glass-panel,
+.portal-glass-panel {
   border-color: rgba(255, 255, 255, 0.72);
   background: linear-gradient(
     145deg,
@@ -249,7 +251,8 @@ body {
   backdrop-filter: blur(18px) saturate(130%);
 }
 
-.calendar-glass-footer {
+.calendar-glass-footer,
+.portal-glass-footer {
   border-color: rgba(255, 255, 255, 0.7);
   background: linear-gradient(
     145deg,
@@ -277,7 +280,8 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
 }
 
-.calendar-glass-control {
+.calendar-glass-control,
+.portal-glass-control {
   border-color: rgba(255, 255, 255, 0.8);
   background: rgba(255, 255, 255, 0.62);
   box-shadow:
@@ -287,7 +291,8 @@ body {
   backdrop-filter: blur(14px) saturate(135%);
 }
 
-.calendar-glass-control:hover {
+.calendar-glass-control:hover,
+.portal-glass-control:hover {
   border-color: rgba(160, 191, 252, 0.9);
   background: rgba(255, 255, 255, 0.82);
 }
@@ -383,9 +388,15 @@ body::before {
     transparent 85%
   );
 }
-body > * {
-  position: relative;
-  z-index: 1;
+/* Lift page content above the dot field. Kept in the base layer so utility
+ * classes still win: body portals (search, file viewers, side panels) rely on
+ * `fixed` and their own z-index, which an unlayered rule here would override,
+ * dropping them into normal flow below the page. */
+@layer base {
+  body > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 /* Soft grain - gentler than before to match the calmer palette */

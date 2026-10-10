@@ -128,14 +128,11 @@ export function SidePanel({
 
   if (!mounted) return null;
 
-  // The layout is inline, not utilities, and must stay that way: portalling to
-  // <body> makes this root a direct child of <body>, where the UNLAYERED
-  // `body > * { position: relative; z-index: 1 }` rule in globals.css (the dot
-  // field's stacking fix) beats any Tailwind `@layer utilities` class no matter
-  // its specificity. As `fixed inset-0 z-[90]` utilities the panel collapsed
-  // into normal flow at the foot of the page and rendered nothing visible; as
-  // an inline style it outranks the unlayered rule. `background: transparent`
-  // is here for the same reason - the full-screen root must not paint.
+  // Portalling to <body> makes this root a direct child of <body>, which the
+  // `body > * { position: relative; z-index: 1 }` dot-field rule in
+  // globals.css targets. That rule now lives in `@layer base`, so utilities
+  // would also win; the inline layout is kept as a belt-and-braces guarantee.
+  // `background: transparent` keeps the full-screen root from painting.
   // z-index 90 sits below ConfirmDialog's z-[100]: a confirmation raised from
   // inside the panel is the higher-priority interruption and must cover it.
   return createPortal(

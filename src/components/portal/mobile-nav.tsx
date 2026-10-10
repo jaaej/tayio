@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isNavItemActive } from "@/lib/nav-active";
 
 export type MobilePortalNavItem = {
   label: string;
@@ -15,12 +16,6 @@ export type MobilePortalNavItem = {
   featured?: boolean;
 };
 
-function isActive(pathname: string, href: string) {
-  if (pathname === href) return true;
-  const routeDepth = href.split("/").filter(Boolean).length;
-  return routeDepth > 1 && pathname.startsWith(`${href}/`);
-}
-
 export function MobilePortalNav({
   items,
 }: {
@@ -29,7 +24,7 @@ export function MobilePortalNav({
   const pathname = usePathname();
   const panelId = useId();
   const [open, setOpen] = useState(false);
-  const active = items.find((item) => isActive(pathname, item.href));
+  const active = items.find((item) => isNavItemActive(pathname, item.href));
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -63,7 +58,7 @@ export function MobilePortalNav({
           className="mt-2 grid max-h-[min(60dvh,520px)] grid-cols-2 gap-1.5 overflow-y-auto rounded-[14px] border border-line bg-surface p-2 shadow-[0_16px_34px_-22px_rgba(31,40,90,0.45)]"
         >
           {items.map((item) => {
-            const itemActive = isActive(pathname, item.href);
+            const itemActive = isNavItemActive(pathname, item.href);
             return (
               <Link
                 key={item.href}

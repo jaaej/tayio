@@ -13,6 +13,20 @@ Last updated: 10 October 2026
 
 ## Manual QA required
 
+- [ ] As admin, tutor, student, and parent, open Messages, start a new
+  message, open a conversation, and send a reply on desktop and phone width.
+  Confirm the inbox, contact picker, and conversation use the frosted glass
+  treatment, both bubble styles stay readable, and the composer is reachable
+  without the page scrolling sideways.
+- [ ] As admin, scroll partway down Admin Users and open search from the
+  header button, `/`, and Command/Ctrl+K on desktop and phone. Confirm the
+  white dialog opens over a dimmed page without scrolling. Then open a
+  homework PDF, image, and video and confirm each viewer covers the screen
+  rather than appearing below the page.
+- [ ] In every role, visit a page other than the dashboard and confirm only
+  that destination is highlighted in the desktop sidebar and phone menu.
+  Confirm the 220px sidebar shows every label without truncation.
+
 - [ ] Open the admin dashboard on desktop and phone widths. Confirm each
   section header, including `Needs your attention`, retains its solid surface
   while the content below it uses the calendar-style frosted glass treatment.
@@ -408,6 +422,28 @@ Last updated: 10 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Glass messaging, narrower sidebar, and body-portal positioning fix
+  (10 October 2026).
+  - Messages inboxes, contact pickers, and conversations use the shared
+    `portal-glass-*` surfaces (aliases of the calendar glass values in
+    `src/app/globals.css`).
+  - All four roles render conversations through one shared
+    `src/components/dm/conversation-panel.tsx`; the per-role thread pages had
+    drifted to different card components and padding.
+  - A classmates strip was considered and declined: `canDM` blocks
+    student-to-student messages and that safeguarding rule is unchanged.
+  - The desktop sidebar is 220px (was 240px) in every role; 208px clipped
+    the tutor `Schedule & availability` label.
+  - The global `body > *` stacking rule now lives in `@layer base`.
+    As an unlayered rule it overrode Tailwind `fixed`/`z-*` on every body
+    portal, so admin search (and the PDF, video, and file viewers) rendered
+    below the page and focus scrolled the user down to them.
+    Admin search also carries its theme class so its dialog is white.
+  - Sidebar and phone-menu highlighting share `src/lib/nav-active.ts`; a
+    portal root such as `/admin` no longer stays highlighted on every page.
+  - The compact Admin Users note control has a 20px top margin and no
+    longer wraps its label.
 
 - [x] Admin dashboard glass content surfaces.
   - Section headers keep their existing solid treatment and hierarchy.
@@ -835,7 +871,6 @@ Last updated: 10 October 2026
   top-left wordmark and remove the duplicate centre logo and translation line.
 - [x] **Manual QA:** Open the production root URL while signed out and confirm it
   reaches `/login` without flashing the old landing page.
-
 ## Announcements and email delivery
 
 - [x] Add and publicly verify the portal CNAME plus Resend DKIM, SPF, and MX

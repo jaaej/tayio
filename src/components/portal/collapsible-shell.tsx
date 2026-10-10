@@ -55,7 +55,7 @@ export function CollapsiblePortalShell({
         "min-h-screen grid lg:grid-rows-[56px_1fr] transition-[grid-template-columns] duration-200 ease-out",
         collapsed
           ? "lg:grid-cols-[72px_minmax(0,1fr)]"
-          : "lg:grid-cols-[240px_minmax(0,1fr)]",
+          : "lg:grid-cols-[220px_minmax(0,1fr)]",
       )}
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
@@ -63,7 +63,7 @@ export function CollapsiblePortalShell({
         <div
           className={cn(
             "flex shrink-0 items-center transition-[width] duration-200 ease-out",
-            collapsed ? "w-10 justify-center" : "w-[224px] justify-between",
+            collapsed ? "w-10 justify-center" : "w-[204px] justify-between",
           )}
         >
           <div

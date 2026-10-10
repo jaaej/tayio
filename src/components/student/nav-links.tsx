@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobilePortalNav } from "@/components/portal/mobile-nav";
+import { isNavItemActive } from "@/lib/nav-active";
 
 export type NavItem = {
   label: string;
@@ -19,12 +20,6 @@ export type NavSection = {
   heading: string;
   items: NavItem[];
 };
-
-function isActive(pathname: string, href: string) {
-  if (pathname === href) return true;
-  if (href !== "/" && pathname.startsWith(href + "/")) return true;
-  return false;
-}
 
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   return (
@@ -76,7 +71,7 @@ export function StudentNavLinks({ sections }: { sections: NavSection[] }) {
               <NavRow
                 key={item.href}
                 item={item}
-                active={isActive(pathname, item.href)}
+                active={isNavItemActive(pathname, item.href)}
               />
             ))}
           </div>
