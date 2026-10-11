@@ -2,15 +2,12 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { terms } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import {
-  BackLink,
-  Card,
-  CardHead,
-  CardBody,
-  PageHeader,
-  Empty,
-} from "@/components/admin/ui";
-import { TermForm } from "./_components/term-form";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { Empty, PageHeader } from "@/components/admin/ui";
+import { GlassPanel } from "@/components/admin/ui/glass-panel";
+import { TermForm, TermRow } from "./_components/term-form";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminTermsPage() {
   await requireRole("admin");
@@ -18,39 +15,50 @@ export default async function AdminTermsPage() {
     .select()
     .from(terms)
     .orderBy(desc(terms.year), desc(terms.termNumber));
+  const today = melbourneDate(new Date());
 
   return (
-    <div className="space-y-6">
-      <BackLink href="/admin/classes">Back to classes</BackLink>
+    <div className="flex max-w-[1000px] flex-col gap-5">
+      <PageHeader title="Terms" />
 
-      <PageHeader
-        className="rise"
-        eyebrow="Academic Calendar"
-        title="Terms"
-        sub="Define academic terms. Curriculum is organised per subject per term."
-      />
-
-      <Card>
-        <CardHead title="Add term" />
-        <CardBody>
+      <GlassPanel title="Add a term" titleId="add-term-heading">
+        <div className="p-4">
           <TermForm />
-        </CardBody>
-      </Card>
+        </div>
+      </GlassPanel>
 
-      <Card>
-        <CardHead title="All terms" />
+      <GlassPanel
+        title="All terms"
+        titleId="all-terms-heading"
+        meta={allTerms.length > 0 ? allTerms.length : undefined}
+      >
         {allTerms.length === 0 ? (
           <Empty>No terms yet.</Empty>
         ) : (
-          <div className="divide-y divide-line">
+          <>
+            <div
+              aria-hidden
+              className="hidden grid-cols-[88px_120px_minmax(0,1fr)_minmax(0,1fr)_200px] gap-x-3 border-b border-line px-4 pb-2 pt-3 text-[12px] font-extrabold text-muted lg:grid"
+            >
+              <span>Year</span>
+              <span>Term</span>
+              <span>Starts</span>
+              <span>Ends</span>
+              <span />
+            </div>
             {allTerms.map((t) => (
-              <div key={t.id} className="px-5 py-4">
-                <TermForm existing={t} />
-              </div>
+              <TermRow
+                key={t.id}
+                term={t}
+                isCurrent={t.startDate <= today && today <= t.endDate}
+              />
             ))}
-          </div>
+            <p className="border-t border-line bg-surface-2/60 px-4 py-3 text-[12px] text-muted">
+              Deleting a term also deletes the curriculum weeks attached to it.
+            </p>
+          </>
         )}
-      </Card>
+      </GlassPanel>
     </div>
   );
 }

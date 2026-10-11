@@ -27,6 +27,13 @@ export function ApproveQuizButton({
         pendingLabel="Approving…"
         successLabel="Approved"
         errorLabel="Try again"
+        // Ink like every other primary action in the admin glass kit, at the
+        // kit's row (30px) and section (36px) heights.
+        className={
+          size === "sm"
+            ? "h-[30px] min-h-[30px] rounded-[9px] border-ink bg-ink px-2.5 text-white shadow-none hover:bg-[#2b2847]"
+            : "h-9 min-h-9 rounded-[10px] border-ink bg-ink px-3.5 text-[13px] text-white shadow-none hover:bg-[#2b2847]"
+        }
         onAction={async () => {
           setError(null);
           const res = await approveQuiz({ quizId });

@@ -13,7 +13,7 @@ import {
 } from "@/components/admin/ui";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
-import { formatTime, formatTimeRange, yearLevelLabel } from "@/lib/format";
+import { formatTime, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { subjectTone, type SubjectFamily } from "@/lib/subject-tone";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { CreateSubjectPanel } from "./_components/create-subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
+import { SubjectBlock } from "../_components/subject-block";
 
 export const dynamic = "force-dynamic";
 
@@ -271,23 +272,7 @@ export default async function ClassesPage({
           >
             {subjectList.map((s) => (
               <li key={s.id} className="min-w-0">
-                <Link
-                  href={`/admin/subjects/${s.id}/curriculum`}
-                  className="group flex min-h-11 min-w-0 items-center gap-3 rounded-[12px] border border-line bg-surface px-3 py-2.5 transition-[background-color,transform] duration-150 hover:-translate-y-[1px] hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                >
-                  <SubjectDot subject={s.name} className="h-2.5 w-2.5" />
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <span className="truncate text-[14px] font-bold text-ink" title={s.name}>
-                      {s.name}
-                    </span>
-                    <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">
-                      {s.yearLevel ? yearLevelLabel(s.yearLevel) : "No level set"}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[12px] font-bold text-brand-600 group-hover:text-brand-700">
-                    Curriculum
-                  </span>
-                </Link>
+                <SubjectBlock id={s.id} name={s.name} yearLevel={s.yearLevel} />
               </li>
             ))}
           </ul>

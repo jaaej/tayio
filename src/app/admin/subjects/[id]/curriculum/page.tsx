@@ -1,7 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { Hero, BackLink } from "@/components/admin/ui";
+import {
+  Empty,
+  PageHeader,
+  SubjectDot,
+  buttonVariants,
+} from "@/components/admin/ui";
+import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import { db } from "@/db/client";
 import {
   classes,
@@ -55,19 +62,28 @@ export default async function AdminSubjectCurriculumPage({
 
   if (!currentTerm) {
     return (
-      <div className="space-y-6">
-        <BackLink href="/admin/classes">Back to classes</BackLink>
-        <Hero
-          eyebrow="Curriculum"
+      <div className="flex flex-col gap-5">
+        <PageHeader
+          back={{ href: "/admin/subjects", label: "Back to curriculum" }}
+          eyebrow={
+            <>
+              <SubjectDot subject={subject.name} />
+              Curriculum
+            </>
+          }
           title={subject.name}
-          icon={subject.name.charAt(0).toUpperCase()}
         />
-        <p className="text-[13px] text-ink-soft">
-          No terms defined yet.{" "}
-          <Link href="/admin/terms" className="text-brand-ink font-semibold hover:underline">
-            Create one →
-          </Link>
-        </p>
+        <GlassPanel>
+          <Empty className="flex flex-col items-center gap-4">
+            No terms yet. Add a term to start planning weeks.
+            <Link
+              href="/admin/terms"
+              className={buttonVariants({ variant: "primary", size: "md" })}
+            >
+              Add a term
+            </Link>
+          </Empty>
+        </GlassPanel>
       </div>
     );
   }
@@ -183,13 +199,11 @@ export default async function AdminSubjectCurriculumPage({
   }));
 
   return (
-    <div className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16">
-      <h1 className="sr-only">{subject.name} - Curriculum</h1>
-
+    <div className="flex flex-col">
       <CurriculumLayout
         attached
+        framed
         subjectName={subject.name}
-        flushTabTop
         rail={
           <CurriculumRail
             basePath={`/admin/subjects/${subjectId}/curriculum`}
@@ -203,9 +217,10 @@ export default async function AdminSubjectCurriculumPage({
             footer={
               <Link
                 href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
-                className="mt-1.5 block rounded-[12px] border border-dashed border-brand-300 bg-brand-50/40 px-3 py-2.5 text-center text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-400 hover:bg-brand-100"
+                className="flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-line-strong bg-surface text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
               >
-                + Add week
+                <Plus className="h-4 w-4" aria-hidden />
+                Add week
               </Link>
             }
           />
