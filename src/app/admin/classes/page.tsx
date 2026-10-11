@@ -7,7 +7,7 @@ import { Empty } from "@/components/admin/ui";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
-import { formatTime, yearLevelLabel } from "@/lib/format";
+import { formatTime } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
@@ -15,6 +15,7 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { CreateSubjectPanel } from "./_components/create-subject-panel";
+import { SubjectBlock } from "../_components/subject-block";
 
 export const dynamic = "force-dynamic";
 
@@ -247,33 +248,14 @@ export default async function ClassesPage({
                 "repeat(auto-fill, minmax(min(230px, 100%), 1fr))",
             }}
           >
-            {subjectList.map((s) => {
-              const tokens = getAccentTokens(colorFamilyForSubject(s.name));
-              return (
-                <Link
-                  key={s.id}
-                  href={`/admin/subjects/${s.id}/curriculum`}
-                  className="group flex min-w-0 items-center gap-2.5 rounded-[14px] border border-line/70 bg-surface px-3.5 py-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)] transition-all duration-150 hover:-translate-y-[2px] hover:shadow-[0_10px_22px_-14px_rgba(31,40,90,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-                    style={{ backgroundColor: tokens.arrow }}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-bold text-ink" title={s.name}>
-                      {s.name}
-                    </span>
-                    <span className="block text-[11px] text-muted">
-                      {s.yearLevel ? yearLevelLabel(s.yearLevel) : "No level set"}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[12px] font-bold text-brand-700 group-hover:underline">
-                    Curriculum
-                  </span>
-                </Link>
-              );
-            })}
+            {subjectList.map((s) => (
+              <SubjectBlock
+                key={s.id}
+                id={s.id}
+                name={s.name}
+                yearLevel={s.yearLevel}
+              />
+            ))}
           </div>
         )}
       </GlassPanel>

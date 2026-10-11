@@ -989,6 +989,8 @@ Last updated: 10 October 2026
   relevant curriculum week.
 - [x] Move Terms from the main navigation into Classes as `Manage terms`, near
   `Create new class`, with a clear `Back to classes` link on the Terms page.
+  (11 October 2026: Terms is back in the sidebar under Curriculum, so the
+  page no longer has a back link.)
 - [x] Student reschedules and cancellations generate in-app notifications for
   admin and the relevant tutor/family recipients.
 - [x] Release student curriculum one teaching week at a time. Future weeks are
@@ -1026,6 +1028,36 @@ Last updated: 10 October 2026
   discussion thread, and the student timetable in pick mode on desktop and
   phone, and confirm each sticky element pins below the top bar without
   overlapping it.
+- [x] Admin glass redesign: Quizzes, quiz editor, Curriculum, and Terms
+  (11 October 2026).
+  - `/admin/subjects` is new: the sidebar's Curriculum home, listing every
+    subject as a block (dot, name, year level, weeks planned this term)
+    linking to its curriculum. The block is shared with `/admin/classes` via
+    `src/app/admin/_components/subject-block.tsx`.
+  - `/admin/quizzes`: glass header, "Waiting on you" review cards, and the
+    table with search, status segments, and subject filter on its title row
+    (`_components/quiz-filters.tsx`).
+  - The quiz editor (`src/components/quiz/quiz-maker.tsx`) is restyled in
+    place for admin and tutor: glass header with title, status, Send back
+    (admin, now a side panel needing a note) and Approve or Submit; a
+    question outline with ready markers; one bezel per question with lettered
+    options. The admin or tutor note is now an inline strip under the header;
+    the docked `quiz-instruction-strip.tsx` was removed.
+  - The shared curriculum rail and layout
+    (`src/components/subjects/curriculum-layout.tsx`, `curriculum-rail.tsx`)
+    are a glass bezel in every role. Admin passes `framed`, so the rail pins
+    20px from the top and bottom of the glass shell; other roles keep the
+    full-height rail under the top bar with the frame inset inside it.
+    The admin week editor uses the glass header, ink overview card, materials
+    tiles, and quiz and homework panels.
+  - `/admin/terms`: glass add form and editable term rows (year and term
+    number stay editable so a typo never forces a cascading delete), with a
+    Now badge on the running term.
+- [ ] **Manual QA:** Check `/admin/subjects`, `/admin/quizzes`, a quiz in
+  review, a subject's curriculum (rail open and closed), and `/admin/terms`
+  at 1440px and 390px. Then open the same curriculum rail as tutor, student,
+  and parent, and a tutor quiz with an admin note, and confirm they look
+  right in those shells.
 
 ## Automations
 

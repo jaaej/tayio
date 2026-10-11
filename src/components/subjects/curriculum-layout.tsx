@@ -2,43 +2,52 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "curriculum-weeks-open";
 
 /**
- * Shared two-column shell for the curriculum page: a weeks rail on the left and
- * the week content on the right.
+ * Shared two-column shell for the curriculum page in every role: a weeks rail
+ * on the left and the week content on the right. The rail is a glass bezel
+ * (glass frame, white panel inside), so it follows each portal's theme tokens.
  *
- * `attached` (full-bleed pages like student): on desktop the rail is a "Weeks"
- * tab you CLICK to open. Opening PUSHES - the grid's column track animates, so
- * the content column shrinks as the rail grows and grows back when it closes
- * (no overlay). The open/closed state persists so it survives navigating
- * between weeks. On mobile the rail stacks above the content at full width.
+ * `attached` (student, tutor, admin): on desktop the rail can collapse to a
+ * slim "Weeks" tab. Opening PUSHES - the grid's column track animates, so the
+ * content column shrinks as the rail grows (no overlay). The open/closed state
+ * persists so it survives navigating between weeks. While the page scrolls the
+ * rail stays pinned and runs to the bottom of the screen. On mobile the rail
+ * becomes a "Choose a week" toggle above the content.
+ *
+ * `framed`: the page sits inside a padded shell with no top bar (the admin
+ * glass shell). The rail pins at the shell's sticky offset and stops 20px
+ * short of the bottom, matching the shell gutter. Without it (pages that bleed
+ * to the edges of a top-bar shell) the rail column pins directly under the
+ * top bar and runs the full remaining height, with the glass frame inset
+ * inside it; the content column keeps the padding those pages' full-bleed
+ * week heroes are measured against.
  *
  * Non-attached (rail lives inside a card - parent): a plain always-visible
  * rail column next to the content.
  *
- * `subjectName` (optional, attached mode only) makes the tab carry the subject
- * identity - coloured initial tile plus name - in BOTH states, so a page that
- * has no standalone header still says which subject you are looking at.
+ * `subjectName` (optional) puts the subject identity - colour dot plus name -
+ * on the rail frame and the collapsed tab, so a page without its own header
+ * still says which subject you are looking at.
  */
 export function CurriculumLayout({
   rail,
   children,
   attached = false,
+  framed = false,
   subjectName,
   flushTabTop = false,
 }: {
   rail: React.ReactNode;
   children: React.ReactNode;
   attached?: boolean;
+  framed?: boolean;
   subjectName?: string;
-  /** Staff pages can align the collapsed subject tile directly to the hero. */
+  /** Drop the collapsed tab's top padding so its first mark sits on the edge. */
   flushTabTop?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -63,78 +72,70 @@ export function CurriculumLayout({
       return next;
     });
 
-  const subject = subjectName
-    ? {
-        name: subjectName,
-        initial: subjectName.charAt(0).toUpperCase(),
-        tokens: getAccentTokens(colorFamilyForSubject(subjectName)),
-      }
-    : null;
+  const dot = subjectName ? subjectTone(subjectName).dot : null;
 
-  // Sits directly on top of the rail block and shares its outline (same
-  // line-strong weight, no bottom edge) so the two read as one white unit
-  // divided by a hairline rather than two floating cards.
-  const subjectHeader = subject && (
-    <div className="flex shrink-0 items-center gap-2.5 border border-b-0 border-line-strong bg-surface px-2.5 py-2.5">
+  const subjectHeader = subjectName && (
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-2">
       <span
         aria-hidden
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold"
-        style={{ background: subject.tokens.bgFrom, color: subject.tokens.arrow }}
-      >
-        {subject.initial}
-      </span>
+        className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+        style={{ backgroundColor: dot ?? undefined }}
+      />
       <span
-        title={subject.name}
-        className="truncate text-[14px] font-extrabold tracking-[-0.01em]"
-        style={{ color: subject.tokens.title }}
+        title={subjectName}
+        className="truncate text-[14px] font-extrabold text-ink"
       >
-        {subject.name}
+        {subjectName}
       </span>
     </div>
   );
 
+  // The glass frame around the rail: title row on the glass, list inside.
+  const framedRail = (
+    <div className="glass flex h-full min-h-0 flex-col rounded-[24px] p-1.5">
+      {subjectHeader}
+      {rail}
+    </div>
+  );
+
   const mobileRail = (
-    <div className="lg:hidden">
+    // Edge-to-edge attached pages get the same 12px side inset as their
+    // content column so the toggle never touches the screen edge.
+    <div className={cn("lg:hidden", attached && !framed && "px-3 pt-3")}>
       <button
         type="button"
         onClick={() => setMobileOpen((current) => !current)}
         aria-expanded={mobileOpen}
-        className="flex min-h-12 w-full items-center gap-2.5 rounded-[12px] border border-line-strong bg-surface px-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+        className="glass flex min-h-12 w-full items-center gap-2.5 rounded-[16px] px-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       >
-        {subject ? (
+        {dot && (
           <span
             aria-hidden
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold"
-            style={{
-              background: subject.tokens.bgFrom,
-              color: subject.tokens.arrow,
-            }}
-          >
-            {subject.initial}
-          </span>
-        ) : null}
+            className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+            style={{ backgroundColor: dot }}
+          />
+        )}
         <span className="min-w-0 flex-1">
-          {subject ? (
-            <span
-              className="block truncate text-[13px] font-extrabold"
-              style={{ color: subject.tokens.title }}
-            >
-              {subject.name}
+          {subjectName && (
+            <span className="block truncate text-[14px] font-extrabold text-ink">
+              {subjectName}
             </span>
-          ) : null}
-          <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+          )}
+          <span className="block text-[12px] font-semibold text-ink-soft">
             {mobileOpen ? "Hide weeks" : "Choose a week"}
           </span>
         </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-muted transition-transform",
+            "h-4 w-4 shrink-0 text-ink-soft transition-transform",
             mobileOpen && "rotate-180",
           )}
           aria-hidden
         />
       </button>
-      {mobileOpen && <div className="mt-2">{rail}</div>}
+      {mobileOpen && (
+        <div className="glass mt-2 flex flex-col rounded-[24px] p-1.5">{rail}</div>
+      )}
     </div>
   );
 
@@ -142,8 +143,8 @@ export function CurriculumLayout({
     return (
       <div className="flex-1 grid grid-cols-1 items-start gap-3 px-3 py-3 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-4">
         {mobileRail}
-        <div className="hidden lg:sticky lg:top-2 lg:block lg:max-h-[calc(100vh-24px)] lg:self-start lg:overflow-y-auto">
-          {rail}
+        <div className="hidden lg:sticky lg:top-[var(--portal-sticky-top)] lg:flex lg:max-h-[calc(100vh-var(--portal-sticky-top)-20px)] lg:flex-col lg:self-start">
+          {framedRail}
         </div>
         <div className="min-w-0">{children}</div>
       </div>
@@ -153,118 +154,113 @@ export function CurriculumLayout({
   return (
     <div
       className={cn(
-        "flex-1 grid grid-cols-1 items-start gap-3 lg:gap-4",
+        "flex-1 grid grid-cols-1 items-start gap-3",
+        framed ? "lg:gap-5" : "lg:gap-4",
         "lg:transition-[grid-template-columns] lg:duration-300 lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:lg:transition-none",
-        // Closed track must match the closed tab's own w-[44px] below.
-        open
-          ? "lg:grid-cols-[248px_minmax(0,1fr)]"
-          : "lg:grid-cols-[44px_minmax(0,1fr)]",
+        // Tracks = rail width (260 open, 48 closed) plus the unframed inset.
+        framed
+          ? open
+            ? "lg:grid-cols-[260px_minmax(0,1fr)]"
+            : "lg:grid-cols-[48px_minmax(0,1fr)]"
+          : open
+            ? "lg:grid-cols-[272px_minmax(0,1fr)]"
+            : "lg:grid-cols-[60px_minmax(0,1fr)]",
       )}
     >
       {/* self-stretch gives the sticky rail room to travel; without it the
           column is exactly one viewport tall and sticky never engages. */}
       <div className="lg:relative lg:self-stretch">
-        {/* Pins directly under the 56px portal top bar while the page
-            scrolls, so the rail always reaches the bottom of the screen. */}
-        <div className="hidden lg:sticky lg:top-[var(--portal-header-h)] lg:z-20 lg:block lg:h-[calc(100vh-var(--portal-header-h))]">
-          {/* Full rail - clipped while closed; revealed when open. */}
-          <div className="h-full overflow-hidden">
-            <div
-              // opacity-0 alone leaves the hidden week links in the tab order.
-              inert={!open}
-              className={cn(
-                "flex h-full w-[248px] flex-col transition-opacity duration-200",
-                open ? "opacity-100" : "pointer-events-none opacity-0",
-              )}
-            >
-              {subjectHeader}
-              {/* min-h-full on the rail block keeps its white panel and
-                  outline running to the bottom of the column even when a
-                  term has only a week or two; longer lists still scroll. */}
-              <div className="min-h-0 flex-1 overflow-y-auto [&>*]:min-h-full">
-                {rail}
+        {/* Stays pinned while the page scrolls and always reaches the bottom
+            of the screen: under the top bar for the full remaining height,
+            or (framed) at the shell's sticky offset down to its gutter. */}
+        <div
+          className={cn(
+            "hidden lg:sticky lg:z-20 lg:block",
+            framed
+              ? "lg:top-[var(--portal-sticky-top)] lg:h-[calc(100vh-var(--portal-sticky-top)-20px)]"
+              : "lg:top-[var(--portal-header-h)] lg:h-[calc(100vh-var(--portal-header-h))] lg:py-3 lg:pl-3",
+          )}
+        >
+          <div className="relative h-full">
+            {/* Full rail - clipped while closed; revealed when open. */}
+            <div className="h-full overflow-hidden rounded-[24px]">
+              <div
+                // opacity-0 alone leaves the hidden week links in the tab order.
+                inert={!open}
+                className={cn(
+                  "h-full w-[260px] transition-opacity duration-200",
+                  open ? "opacity-100" : "pointer-events-none opacity-0",
+                )}
+              >
+                {framedRail}
               </div>
             </div>
+
+            {/* Closed: the "Weeks" tab - click to open. */}
+            {!open && (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Show weeks"
+                aria-expanded={false}
+                className={cn(
+                  "glass absolute inset-y-0 left-0 flex w-[48px] flex-col items-center gap-2.5 rounded-[18px] pb-4 text-ink-soft transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400",
+                  flushTabTop ? "pt-2" : "pt-3.5",
+                )}
+              >
+                {dot && (
+                  <span
+                    aria-hidden
+                    className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+                    style={{ backgroundColor: dot }}
+                  />
+                )}
+                <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                {subjectName && (
+                  // Long names would run off the strip - truncate down the
+                  // vertical inline axis and keep the full name on hover.
+                  <span
+                    aria-hidden
+                    title={subjectName}
+                    className="min-h-0 flex-1 truncate text-[12px] font-extrabold [writing-mode:vertical-rl]"
+                  >
+                    {subjectName}
+                  </span>
+                )}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "shrink-0 text-[11px] font-bold text-ink-soft [writing-mode:vertical-rl]",
+                    !subjectName && "mt-1",
+                  )}
+                >
+                  Weeks
+                </span>
+              </button>
+            )}
+
+            {/* Open: a close handle on the rail's right edge (sits in the gap). */}
+            {open && (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Hide weeks"
+                aria-expanded
+                className="absolute -right-3.5 top-3 z-40 grid h-7 w-7 place-items-center rounded-full border border-line-strong bg-surface text-ink-soft shadow-[0_2px_6px_-1px_rgba(15,17,30,0.2)] transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </button>
+            )}
           </div>
-
-          {/* Closed: the "Weeks" tab - click to open. */}
-          {!open && (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Show weeks"
-              aria-expanded={false}
-              // Square-cornered, like the rail it opens into - the two are the
-              // same block in two states, so the closed tab keeps no rounding.
-              className={cn(
-                "absolute inset-y-0 left-0 flex w-[44px] flex-col items-center gap-2 border border-l-0 border-line-strong bg-surface pb-4 text-ink shadow-[3px_0_16px_-5px_rgba(31,40,90,0.3)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400/50",
-                flushTabTop ? "pt-0" : "pt-3",
-              )}
-            >
-              {subject ? (
-                <>
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[15px] font-extrabold",
-                      flushTabTop && "rounded-t-none",
-                    )}
-                    style={{
-                      background: subject.tokens.bgFrom,
-                      color: subject.tokens.arrow,
-                    }}
-                  >
-                    {subject.initial}
-                  </span>
-                  <ChevronRight className="h-4 w-4 shrink-0" />
-                  {/* Long names would run off the strip - truncate down the
-                      vertical inline axis and keep the full name on hover. */}
-                  <span
-                    aria-hidden
-                    title={subject.name}
-                    className="min-h-0 flex-1 truncate text-[11px] font-bold [writing-mode:vertical-rl]"
-                    style={{ color: subject.tokens.title }}
-                  >
-                    {subject.name}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.28em] text-muted [writing-mode:vertical-rl]"
-                  >
-                    Weeks
-                  </span>
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="mt-2 h-4 w-4 shrink-0" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.28em] [writing-mode:vertical-rl]">
-                    Weeks
-                  </span>
-                </>
-              )}
-            </button>
-          )}
-
-          {/* Open: a close handle on the rail's right edge (sits in the gap). */}
-          {open && (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Hide weeks"
-              aria-expanded
-              className="absolute -right-3 top-3 z-40 inline-flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-muted shadow-[0_2px_6px_-1px_rgba(15,17,30,0.2)] transition-colors hover:text-ink"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
-        {/* Mobile: full rail, stacked above the content. */}
+        {/* Mobile: the rail as a toggle, stacked above the content. */}
         {mobileRail}
       </div>
-      {/* No pt on the content column: the weeks tab beside it is anchored to
-          the column top, so any top padding here left a square of page
-          background above the tab. Both columns now start on the same edge. */}
-      <div className="min-w-0 px-3 pb-3 lg:pl-0 lg:pr-4">{children}</div>
+      {/* No top padding on the content column: unframed pages' week heroes
+          bleed to its top and right edges with negative margins. */}
+      <div className={cn("min-w-0", !framed && "px-3 pb-3 lg:pl-0 lg:pr-4")}>
+        {children}
+      </div>
     </div>
   );
 }

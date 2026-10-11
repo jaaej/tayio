@@ -136,16 +136,15 @@ export function NewQuizPanel({
       {triggers === "both" && (
         <Button
           type="button"
-          variant="outline"
+          variant="glass"
           size={triggerSize}
           onClick={() => openWith("request")}
         >
           Request from tutor
         </Button>
       )}
-      {/* Default `md` height, matching every other admin PageHeader action.
-          The panel's own buttons stay `lg`: it goes full-width on mobile, so
-          those are real thumb targets in a way a desktop header action is not. */}
+      {/* `lg` in the page header, `md` in a section title row (the
+          curriculum week's quiz card), per the glass kit's button sizes. */}
       <Button
         type="button"
         variant="brand"

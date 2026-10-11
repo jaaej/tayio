@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type DragEvent } from "react";
 import {
-  ArrowLeft,
+  useState,
+  useTransition,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   FileText,
   GripVertical,
@@ -15,9 +20,8 @@ import {
   ListChecks,
   Paperclip,
   Plus,
-  Sparkles,
   Trash2,
-  Upload,
+  X,
 } from "lucide-react";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 import {
@@ -39,7 +43,8 @@ import type {
   QuizAttachmentView,
   QuizWithContent,
 } from "@/lib/quiz-queries";
-import { QUIZ_STATUS_LABEL } from "@/lib/quiz-status";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
+import { cn } from "@/lib/utils";
 
 type Question = QuizWithContent["questions"][number];
 type Option = Question["options"][number];
@@ -48,11 +53,34 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 const QUESTION_TYPE_LABEL: Record<string, string> = {
   multiple_choice: "Multiple choice",
   true_false: "True / False",
+  context: "Context set",
 };
 const ATTACHMENT_ACCEPT =
   ".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.ppt,.pptx,.txt";
 const MAX_ATTACHMENTS = 6;
 const MAX_UPLOAD_BATCH = 3;
+
+// Status chip colours from the shared status tokens, so the chip follows
+// whichever portal theme the maker renders in.
+const STATUS_CHIP: Record<string, string> = {
+  default: "bg-surface-3 text-muted",
+  info: "bg-info-bg text-info",
+  warn: "bg-warn-bg text-warn",
+  bad: "bg-bad-bg text-bad",
+  good: "bg-good-bg text-good",
+  brand: "bg-brand-50 text-brand-700",
+};
+
+// Shared control looks: glass buttons sit on a glass frame, line buttons on a
+// white panel. Heights follow the kit: 36px in title rows, 42px in headers.
+const GLASS_ICON_BTN =
+  "grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-40";
+const LINE_BTN =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3 text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50";
+const TEXT_BTN =
+  "inline-flex h-9 items-center gap-1.5 rounded-[9px] px-2.5 text-[13px] font-bold text-brand-600 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50";
+const FIELD =
+  "w-full rounded-[12px] border border-line-strong bg-surface text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 disabled:opacity-60";
 
 function useActionRunner() {
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +190,26 @@ function useReorder(quizId: string, parentId: string | null, ids: string[]) {
   return { pending, handlers };
 }
 
+/** A gradable question is ready when it has a prompt, at least two filled-in
+ *  options, and exactly one correct answer. */
+function isQuestionReady(question: Question): boolean {
+  return (
+    question.prompt.trim().length > 0 &&
+    question.options.length >= 2 &&
+    question.options.every((option) => option.text.trim().length > 0) &&
+    question.options.filter((option) => option.isCorrect).length === 1
+  );
+}
+
+function questionAnchor(id: string) {
+  return `quiz-question-${id}`;
+}
+
+/**
+ * The quiz editor shared by the admin and tutor portals: a glass header with
+ * the title, status and the one primary action; an outline of the questions
+ * beside the editor; one bezel per question. Role differences are props only.
+ */
 export function QuizMaker({
   quiz,
   questions,
@@ -171,12 +219,21 @@ export function QuizMaker({
   canSubmit,
   canApprove,
   hrefBack,
+  backLabel = "Back",
+  headerActions,
+  note,
 }: QuizWithContent & {
   editable: boolean;
   canEditTitle: boolean;
   canSubmit: boolean;
   canApprove: boolean;
   hrefBack: string;
+  /** Accessible name for the back button, e.g. "Back to quizzes". */
+  backLabel?: string;
+  /** Secondary actions shown before the primary action in the header. */
+  headerActions?: ReactNode;
+  /** Instructions or review feedback from the admin. */
+  note?: { label: string; text: string } | null;
 }) {
   const { error: actionError, pending: actionPending, run } = useActionRunner();
 
@@ -209,17 +266,7 @@ export function QuizMaker({
 
   // Readiness reflects only gradable leaves; context sets are containers.
   const gradable = questions.filter((q) => q.type !== "context");
-  const optionCount = gradable.reduce(
-    (total, question) => total + question.options.length,
-    0,
-  );
-  const completeQuestions = gradable.filter(
-    (question) =>
-      question.prompt.trim().length > 0 &&
-      question.options.length >= 2 &&
-      question.options.every((option) => option.text.trim().length > 0) &&
-      question.options.filter((option) => option.isCorrect).length === 1,
-  ).length;
+  const completeQuestions = gradable.filter(isQuestionReady).length;
 
   const topLevelIds = topLevel.map((q) => q.id);
   const topReorder = useReorder(quiz.id, null, topLevelIds);
@@ -238,73 +285,100 @@ export function QuizMaker({
         }
       : null;
 
+  const statusTone = QUIZ_STATUS_TONE[quiz.status] ?? "default";
+
   return (
-    <div className="space-y-4">
-      <section className="relative overflow-hidden rounded-[20px] border border-brand-200 bg-[linear-gradient(135deg,#F3F4FF_0%,#FFFFFF_52%,#EEF0FF_100%)] p-4 shadow-[0_14px_34px_-28px_rgba(31,40,90,0.38)]">
-        <div
-          aria-hidden
-          className="absolute -right-12 -top-20 h-40 w-40 rounded-full border-[28px] border-brand-200/35"
-        />
-        <div className="relative flex flex-wrap items-start gap-3">
+    <div className="flex flex-col gap-5">
+      <header className="glass flex flex-wrap items-center justify-between gap-3.5 rounded-[24px] px-3.5 py-3">
+        <div className="flex min-w-0 flex-[1_1_420px] items-center gap-3">
           <Link
             href={hrefBack}
-            aria-label="Back to quizzes"
-            title="Back to quizzes"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-brand-200 bg-white/85 text-brand-700 transition-colors hover:border-brand-400 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            aria-label={backLabel}
+            title={backLabel}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
           </Link>
-
-          <div className="min-w-0 flex-1 basis-[220px]">
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em]">
-              <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <TitleEditor
+                quizId={quiz.id}
+                title={quiz.title}
+                editable={canEditTitle}
+              />
+              <span
+                className={cn(
+                  "inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-extrabold",
+                  STATUS_CHIP[statusTone] ?? STATUS_CHIP.default,
+                )}
+              >
                 {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
               </span>
-              <span className="text-muted">
-                {quiz.subjectName} · {quiz.termYear} Term {quiz.termNumber} · Week {quiz.weekNumber}
-              </span>
             </div>
-            <TitleEditor
-              quizId={quiz.id}
-              title={quiz.title}
-              editable={canEditTitle}
-            />
-          </div>
-
-          <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[240px]">
-            <Metric value={gradable.length} label="Questions" />
-            <Metric value={optionCount} label="Options" />
-            <Metric
-              value={`${completeQuestions}/${gradable.length}`}
-              label="Ready"
-            />
+            <p className="text-[13px] font-semibold text-ink-soft">
+              {quiz.subjectName} · {quiz.termYear} Term {quiz.termNumber}, Week{" "}
+              {quiz.weekNumber}
+              {editable && (
+                <span className="font-medium text-muted">
+                  {" "}
+                  · Changes save when you leave a field
+                </span>
+              )}
+            </p>
           </div>
         </div>
-      </section>
-
-      <main className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink">
-            Questions
-          </h2>
-          <span className="text-[11px] font-semibold text-muted">
-            Changes save when you leave a field
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {headerActions}
+          {primaryAction ? (
+            <button
+              type="button"
+              disabled={actionPending}
+              onClick={() => run(primaryAction.run)}
+              className="inline-flex h-[42px] items-center justify-center gap-1.5 rounded-[12px] border border-ink bg-ink px-4 text-[14px] font-bold text-white transition-colors hover:bg-[#2b2847] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ActionButtonLabel
+                pending={actionPending}
+                pendingLabel={primaryAction.pendingLabel}
+              >
+                <>
+                  <Check className="h-4 w-4" aria-hidden />
+                  {primaryAction.label}
+                </>
+              </ActionButtonLabel>
+            </button>
+          ) : !editable ? (
+            <span className="inline-flex h-[42px] items-center rounded-[12px] border border-white/95 bg-white/65 px-4 text-[13px] font-bold text-ink-soft">
+              {quiz.status === "approved" ? "Approved and locked" : "Read only"}
+            </span>
+          ) : null}
         </div>
+        {actionError && (
+          <p
+            role="alert"
+            className="basis-full rounded-[10px] bg-bad-bg px-3 py-2 text-[13px] font-semibold text-bad"
+          >
+            {actionError}
+          </p>
+        )}
+      </header>
 
-        {topLevel.length === 0 ? (
-          <div className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-brand-200 bg-brand-50/50 p-6 text-center">
-            <div>
-              <span className="mx-auto grid h-12 w-12 place-items-center rounded-[14px] bg-brand-100 text-brand-700">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <h3 className="mt-3 text-[17px] font-extrabold text-ink">
-                Add the first question
-              </h3>
-            </div>
-          </div>
-        ) : (
-          topLevel.map((question, index) =>
+      {note && note.text.trim().length > 0 && (
+        <div className="rounded-[16px] bg-white/75 px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
+          <strong className="font-extrabold text-ink">{note.label}:</strong>{" "}
+          <span className="whitespace-pre-wrap">{note.text}</span>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <QuestionOutline
+          topLevel={topLevel}
+          childrenByParent={childrenByParent}
+          ready={completeQuestions}
+          total={gradable.length}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {topLevel.map((question, index) =>
             question.type === "context" ? (
               <ContextCard
                 key={question.id}
@@ -322,7 +396,6 @@ export function QuizMaker({
               <QuestionCard
                 key={question.id}
                 quizId={quiz.id}
-                index={index}
                 displayLabel={String(index + 1)}
                 question={question}
                 editable={editable}
@@ -331,93 +404,42 @@ export function QuizMaker({
                 reorder={topReorder.handlers(question.id, index)}
               />
             ),
-          )
-        )}
-
-        {generalAttachments.length > 0 && (
-          <section className="rounded-[18px] border border-line bg-surface p-4">
-            <div className="flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-brand-600" />
-              <h2 className="text-[13px] font-extrabold text-ink">
-                Quiz files (legacy)
-              </h2>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {generalAttachments.map((attachment) => (
-                <AttachmentRow
-                  key={attachment.id}
-                  attachment={attachment}
-                  editable={false}
-                  pending={false}
-                  onDelete={() => {}}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        <BuilderTools
-          quizId={quiz.id}
-          editable={editable}
-          pending={actionPending}
-          run={run}
-        />
-
-        <section className="flex flex-col gap-4 rounded-[18px] border border-line bg-surface p-4 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-brand-600" />
-              <h2 className="text-[13px] font-extrabold text-ink">
-                Quiz readiness
-              </h2>
-            </div>
-            <div className="mt-2 h-2 max-w-xl overflow-hidden rounded-full bg-surface-2">
-              <div
-                className="h-full rounded-full bg-brand-600 transition-[width] duration-200 motion-reduce:transition-none"
-                style={{
-                  width:
-                    gradable.length === 0
-                      ? "0%"
-                      : `${Math.round((completeQuestions / gradable.length) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-1.5 text-[11px] font-semibold text-muted">
-              {gradable.length === 0
-                ? "Add a question to begin."
-                : `${completeQuestions} of ${gradable.length} questions are ready.`}
-            </p>
-          </div>
-
-          {primaryAction ? (
-            <button
-              type="button"
-              disabled={actionPending}
-              onClick={() => run(primaryAction.run)}
-              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-brand-600 px-5 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ActionButtonLabel
-                pending={actionPending}
-                pendingLabel={primaryAction.pendingLabel}
-              >
-                <>
-                  <Check className="h-4 w-4" />
-                  {primaryAction.label}
-                </>
-              </ActionButtonLabel>
-            </button>
-          ) : !editable ? (
-            <span className="shrink-0 rounded-full bg-surface-2 px-4 py-2 text-[11px] font-bold text-muted">
-              {quiz.status === "approved" ? "Approved and locked" : "Read only"}
-            </span>
-          ) : null}
-          {actionError && (
-            <p role="alert" className="text-[12px] font-semibold text-bad">
-              {actionError}
-            </p>
           )}
-        </section>
-      </main>
+
+          {generalAttachments.length > 0 && (
+            <section
+              aria-labelledby={`quiz-files-${quiz.id}`}
+              className="glass rounded-[24px] p-1.5"
+            >
+              <h2
+                id={`quiz-files-${quiz.id}`}
+                className="px-3 pb-2.5 pt-2 text-[16px] font-extrabold text-ink"
+              >
+                Quiz files
+              </h2>
+              <div className="panel grid gap-2 p-3 sm:grid-cols-2">
+                {generalAttachments.map((attachment) => (
+                  <AttachmentRow
+                    key={attachment.id}
+                    attachment={attachment}
+                    editable={false}
+                    pending={false}
+                    onDelete={() => {}}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <BuilderTools
+            quizId={quiz.id}
+            editable={editable}
+            hasQuestions={topLevel.length > 0}
+            pending={actionPending}
+            run={run}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -433,49 +455,46 @@ function TitleEditor({
 }) {
   const { error, pending, run } = useActionRunner();
 
+  if (!editable) {
+    return (
+      <h1 className="min-w-0 truncate text-[20px] font-extrabold leading-tight text-ink">
+        {title}
+      </h1>
+    );
+  }
+
   return (
-    <div className="mt-2">
-      <label
-        htmlFor={`quiz-title-${quizId}`}
-        className="sr-only"
-      >
+    <div className="flex min-w-0 max-w-[460px] flex-1 flex-col">
+      <h1 className="sr-only">{title}</h1>
+      <label htmlFor={`quiz-title-${quizId}`} className="sr-only">
         Quiz name
       </label>
-      {editable ? (
-        <input
-          id={`quiz-title-${quizId}`}
-          defaultValue={title}
-          maxLength={200}
-          disabled={pending}
-          onBlur={(event) => {
-            const input = event.currentTarget;
-            const nextTitle = event.target.value.trim();
-            if (!nextTitle) {
+      <input
+        id={`quiz-title-${quizId}`}
+        defaultValue={title}
+        maxLength={200}
+        disabled={pending}
+        onBlur={(event) => {
+          const input = event.currentTarget;
+          const nextTitle = event.target.value.trim();
+          if (!nextTitle) {
+            input.value = title;
+            return;
+          }
+          input.value = nextTitle;
+          if (nextTitle === title) return;
+          run(
+            () => updateQuizTitle({ quizId, title: nextTitle }),
+            undefined,
+            () => {
               input.value = title;
-              return;
-            }
-            input.value = nextTitle;
-            if (nextTitle === title) return;
-            run(
-              () => updateQuizTitle({ quizId, title: nextTitle }),
-              undefined,
-              () => {
-                input.value = title;
-              },
-            );
-          }}
-          className="min-h-10 w-full max-w-3xl rounded-[11px] border border-brand-200 bg-white/90 px-3 py-1.5 text-[19px] font-extrabold tracking-[-0.02em] text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 sm:text-[21px]"
-        />
-      ) : (
-        <h1
-          id={`quiz-title-${quizId}`}
-          className="text-[21px] font-extrabold tracking-[-0.025em] text-ink sm:text-[23px]"
-        >
-          {title}
-        </h1>
-      )}
+            },
+          );
+        }}
+        className="-ml-2 h-8 min-w-0 rounded-[8px] border border-transparent bg-transparent px-2 text-[20px] font-extrabold text-ink outline-none transition-colors hover:bg-white/50 focus:border-white/95 focus:bg-white/80 focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-60"
+      />
       {error && (
-        <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
+        <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
@@ -483,95 +502,174 @@ function TitleEditor({
   );
 }
 
-function Metric({ value, label }: { value: string | number; label: string }) {
+/** Jump list of the questions with a ready marker each, plus overall
+ *  readiness. Every question stays on the page; the outline scrolls to it. */
+function QuestionOutline({
+  topLevel,
+  childrenByParent,
+  ready,
+  total,
+}: {
+  topLevel: Question[];
+  childrenByParent: Map<string, Question[]>;
+  ready: number;
+  total: number;
+}) {
+  const percent = total === 0 ? 0 : Math.round((ready / total) * 100);
+
   return (
-    <div className="rounded-[11px] border border-white/80 bg-white/75 px-2.5 py-2 text-center">
-      <div className="text-[16px] font-extrabold tracking-[-0.02em] text-ink tabular-nums">
-        {value}
+    <nav
+      aria-labelledby="quiz-outline-heading"
+      className="glass flex shrink-0 flex-col rounded-[24px] p-1.5 lg:sticky lg:top-[var(--portal-sticky-top)] lg:w-[260px]"
+    >
+      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2
+            id="quiz-outline-heading"
+            className="text-[16px] font-extrabold text-ink"
+          >
+            Questions
+          </h2>
+          {total > 0 && (
+            <span className="text-[12px] font-bold tabular-nums text-ink-soft">
+              {ready} of {total} ready
+            </span>
+          )}
+        </div>
+        <span
+          role="progressbar"
+          aria-label="Questions ready"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="block h-1.5 overflow-hidden rounded-full bg-white/80"
+        >
+          <span
+            className="block h-full rounded-full bg-ink transition-[width] duration-200 motion-reduce:transition-none"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
       </div>
-      <div className="mt-0.5 text-[8px] font-extrabold uppercase tracking-[0.12em] text-muted">
-        {label}
-      </div>
-    </div>
+      {topLevel.length === 0 ? (
+        <p className="panel px-3 py-4 text-[13px] text-muted">
+          No questions yet.
+        </p>
+      ) : (
+        <ol className="panel flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto p-1.5 lg:max-h-[calc(100vh-var(--portal-sticky-top)-140px)]">
+          {topLevel.map((question, index) => {
+            const isContext = question.type === "context";
+            const children = childrenByParent.get(question.id) ?? [];
+            const isReady = isContext
+              ? children.length > 0 && children.every(isQuestionReady)
+              : isQuestionReady(question);
+            const text =
+              question.prompt.trim() ||
+              (isContext ? "Context set" : "Untitled question");
+            return (
+              <li key={question.id}>
+                <a
+                  href={`#${questionAnchor(question.id)}`}
+                  className="flex items-center gap-2.5 rounded-[10px] p-2 text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                >
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] bg-surface-3 text-[12px] font-extrabold text-ink-soft">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                    {isContext && (
+                      <Layers
+                        className="mr-1 inline h-3.5 w-3.5 -translate-y-px text-muted"
+                        aria-hidden
+                      />
+                    )}
+                    {text}
+                  </span>
+                  <span
+                    className={cn(
+                      "h-2 w-2 shrink-0 rounded-full",
+                      isReady ? "bg-good" : "bg-warn",
+                    )}
+                    title={isReady ? "Ready" : "Needs work"}
+                  />
+                  <span className="sr-only">
+                    {isReady ? "Ready" : "Needs work"}
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </nav>
   );
 }
+
+const QUESTION_TYPES = [
+  {
+    type: "multiple_choice" as const,
+    name: "Multiple choice",
+    hint: "Two or more options",
+    icon: ListChecks,
+  },
+  {
+    type: "true_false" as const,
+    name: "True / False",
+    hint: "Two fixed answers",
+    icon: CheckCircle2,
+  },
+  {
+    type: "context" as const,
+    name: "Context set",
+    hint: "A passage with questions",
+    icon: Layers,
+  },
+];
 
 function BuilderTools({
   quizId,
   editable,
+  hasQuestions,
   pending,
   run,
 }: {
   quizId: string;
   editable: boolean;
+  hasQuestions: boolean;
   pending: boolean;
   run: ReturnType<typeof useActionRunner>["run"];
 }) {
   if (!editable) return null;
 
   return (
-    <section className="rounded-[18px] border border-line bg-surface p-4">
-      <div className="flex items-center gap-2">
-        <Plus className="h-4 w-4 text-brand-600" />
-        <h2 className="text-[14px] font-extrabold text-ink">Add a question</h2>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            run(() => addQuestion({ quizId, type: "multiple_choice" }))
-          }
-          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
-            <ListChecks className="h-4 w-4" />
-          </span>
-          <span>
-            <span className="block text-[12px] font-extrabold text-ink">
-              Multiple choice
+    <section aria-labelledby={`quiz-add-${quizId}`} className="flex flex-col gap-2.5">
+      <h2
+        id={`quiz-add-${quizId}`}
+        className="pl-1 text-[14px] font-extrabold text-ink-soft"
+      >
+        {hasQuestions ? "Add another question" : "Add the first question"}
+      </h2>
+      <div
+        className="grid gap-2.5"
+        style={{
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
+        }}
+      >
+        {QUESTION_TYPES.map(({ type, name, hint, icon: Icon }) => (
+          <button
+            key={type}
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => addQuestion({ quizId, type }))}
+            className="glass flex items-center gap-3 rounded-[16px] px-3.5 py-3 text-left text-ink transition-transform duration-150 hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:hover:translate-y-0"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-surface">
+              <Icon className="h-4 w-4" aria-hidden />
             </span>
-            <span className="block text-[10px] font-semibold text-muted">
-              Two or more options
+            <span className="flex flex-col">
+              <span className="text-[14px] font-extrabold">{name}</span>
+              <span className="text-[12px] text-ink-soft">{hint}</span>
             </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => addQuestion({ quizId, type: "true_false" }))}
-          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
-            <CheckCircle2 className="h-4 w-4" />
-          </span>
-          <span>
-            <span className="block text-[12px] font-extrabold text-ink">
-              True / False
-            </span>
-            <span className="block text-[10px] font-semibold text-muted">
-              Ready-made answer pair
-            </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => addQuestion({ quizId, type: "context" }))}
-          className="flex min-h-12 items-center gap-3 rounded-[12px] border border-line bg-background px-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-brand-100 text-brand-700">
-            <Layers className="h-4 w-4" />
-          </span>
-          <span>
-            <span className="block text-[12px] font-extrabold text-ink">
-              Context set
-            </span>
-            <span className="block text-[10px] font-semibold text-muted">
-              Passage with sub-questions
-            </span>
-          </span>
-        </button>
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -592,12 +690,12 @@ function DragHandle({
       draggable={!disabled}
       aria-hidden
       title="Drag to reorder"
-      className={
-        "grid h-11 w-5 shrink-0 touch-none place-items-center self-start transition-colors motion-reduce:transition-none " +
-        (disabled
+      className={cn(
+        "grid h-9 w-5 shrink-0 touch-none place-items-center transition-colors motion-reduce:transition-none",
+        disabled
           ? "cursor-not-allowed text-muted opacity-30"
-          : "cursor-grab text-muted hover:text-ink active:cursor-grabbing")
-      }
+          : "cursor-grab text-muted hover:text-ink active:cursor-grabbing",
+      )}
     >
       <GripVertical className="h-4 w-4" />
     </span>
@@ -607,9 +705,11 @@ function DragHandle({
 function MoveButtons({
   label,
   reorder,
+  buttonClassName,
 }: {
   label: string;
   reorder: ReorderHandlers;
+  buttonClassName: string;
 }) {
   return (
     <>
@@ -618,20 +718,57 @@ function MoveButtons({
         aria-label={`Move ${label} up`}
         disabled={reorder.disabled || !reorder.canMoveUp}
         onClick={reorder.onMoveUp}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30 motion-reduce:transition-none"
+        className={buttonClassName}
       >
-        <ChevronUp className="h-[18px] w-[18px]" />
+        <ChevronUp className="h-4 w-4" aria-hidden />
       </button>
       <button
         type="button"
         aria-label={`Move ${label} down`}
         disabled={reorder.disabled || !reorder.canMoveDown}
         onClick={reorder.onMoveDown}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30 motion-reduce:transition-none"
+        className={buttonClassName}
       >
-        <ChevronDown className="h-[18px] w-[18px]" />
+        <ChevronDown className="h-4 w-4" aria-hidden />
       </button>
     </>
+  );
+}
+
+/** Title row controls shared by question and context bezels. */
+function CardControls({
+  label,
+  reorder,
+  editable,
+  pending,
+  onDelete,
+  buttonClassName,
+}: {
+  label: string;
+  reorder?: ReorderHandlers;
+  editable: boolean;
+  pending: boolean;
+  onDelete: () => void;
+  buttonClassName: string;
+}) {
+  if (!reorder && !editable) return null;
+  return (
+    <div className="ml-auto flex shrink-0 items-center gap-1.5">
+      {reorder && (
+        <MoveButtons label={label} reorder={reorder} buttonClassName={buttonClassName} />
+      )}
+      {editable && (
+        <button
+          type="button"
+          disabled={pending}
+          aria-label={`Delete ${label}`}
+          onClick={onDelete}
+          className={cn(buttonClassName, "hover:text-bad")}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -653,6 +790,8 @@ function AttachmentManager({
   const [inputKey, setInputKey] = useState(0);
   const atLimit = totalCount >= MAX_ATTACHMENTS;
 
+  if (!editable && attachments.length === 0) return null;
+
   function upload(formData: FormData) {
     const selected = formData
       .getAll("files")
@@ -673,17 +812,9 @@ function AttachmentManager({
   }
 
   return (
-    <div className="mt-5 rounded-[14px] border border-line bg-background p-3">
-      <div className="flex items-center gap-2">
-        <Paperclip className="h-4 w-4 text-brand-600" />
-        <h3 className="text-[12px] font-extrabold text-ink">Attachments</h3>
-        <span className="ml-auto rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold text-muted tabular-nums">
-          {attachments.length}
-        </span>
-      </div>
-
+    <div className="flex flex-col gap-3 border-t border-line pt-3.5">
       {attachments.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {attachments.map((attachment) => (
             <AttachmentRow
               key={attachment.id}
@@ -704,11 +835,16 @@ function AttachmentManager({
       {editable && !atLimit && (
         <form
           action={upload}
-          className="mt-3 rounded-[12px] border-2 border-dashed border-brand-200 bg-brand-50/50 p-3"
+          className="flex flex-wrap items-center justify-between gap-2.5"
         >
-          <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[10px] text-[12px] font-bold text-brand-700 transition-colors hover:bg-brand-100 focus-within:ring-2 focus-within:ring-brand-500 motion-reduce:transition-none">
-            <Upload className="h-4 w-4" />
-            Add files to this question
+          <label
+            className={cn(
+              LINE_BTN,
+              "cursor-pointer focus-within:ring-2 focus-within:ring-brand-400",
+            )}
+          >
+            <Paperclip className="h-4 w-4" aria-hidden />
+            Attach a file
             <input
               key={inputKey}
               name="files"
@@ -723,34 +859,35 @@ function AttachmentManager({
               }
             />
           </label>
-          <p className="mt-2 text-center text-[10px] font-semibold text-muted">
-            Images, PDFs, Office files, or text. 10 MB per file.
-          </p>
-          {selectedNames.length > 0 && (
-            <div className="mt-2 space-y-2">
-              <p className="line-clamp-2 text-[10px] font-semibold text-muted">
+          {selectedNames.length > 0 ? (
+            <span className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+              <span className="min-w-0 truncate text-[12px] font-semibold text-ink-soft">
                 {selectedNames.join(", ")}
-              </p>
+              </span>
               <button
                 type="submit"
                 disabled={pending}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+                className="inline-flex h-9 items-center justify-center rounded-[10px] border border-ink bg-ink px-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[#2b2847] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ActionButtonLabel pending={pending} pendingLabel="Uploading…">
-                  Upload selected
+                  Upload
                 </ActionButtonLabel>
               </button>
-            </div>
+            </span>
+          ) : (
+            <span className="text-[12px] text-muted">
+              Images, PDFs, Office files or text · up to 10 MB each
+            </span>
           )}
         </form>
       )}
       {editable && atLimit && (
-        <p className="mt-3 rounded-[10px] bg-surface-2 px-3 py-2 text-[10px] font-bold text-muted">
+        <p className="text-[12px] font-semibold text-muted">
           Quiz attachment limit reached.
         </p>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-[11px] font-semibold text-bad">
+        <p role="alert" className="text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
@@ -771,7 +908,7 @@ function AttachmentRow({
 }) {
   const isImage = attachment.contentType.startsWith("image/");
   return (
-    <div className="flex items-center gap-2 rounded-[12px] border border-line bg-surface p-2">
+    <div className="flex items-center gap-2.5 rounded-[12px] border border-line bg-surface p-2">
       {isImage && attachment.url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -781,11 +918,11 @@ function AttachmentRow({
           loading="lazy"
         />
       ) : (
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[9px] bg-brand-100 text-brand-700">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[9px] bg-surface-3 text-ink-soft">
           {isImage ? (
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4" aria-hidden />
           ) : (
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4" aria-hidden />
           )}
         </span>
       )}
@@ -793,15 +930,15 @@ function AttachmentRow({
         href={attachment.url ?? undefined}
         target={attachment.url ? "_blank" : undefined}
         rel={attachment.url ? "noopener noreferrer" : undefined}
-        className={
-          "min-w-0 flex-1 " +
-          (attachment.url ? "hover:text-brand-700" : "pointer-events-none")
-        }
+        className={cn(
+          "min-w-0 flex-1",
+          attachment.url ? "hover:text-brand-600" : "pointer-events-none",
+        )}
       >
-        <span className="block truncate text-[11px] font-bold text-ink">
+        <span className="block truncate text-[13px] font-bold text-ink">
           {attachment.fileName}
         </span>
-        <span className="block text-[9px] font-semibold text-muted">
+        <span className="block text-[11px] font-semibold text-muted">
           {formatBytes(attachment.sizeBytes)}
         </span>
       </a>
@@ -811,9 +948,9 @@ function AttachmentRow({
           aria-label={`Remove ${attachment.fileName}`}
           disabled={pending}
           onClick={onDelete}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bad transition-colors hover:bg-bad-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-muted transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" aria-hidden />
         </button>
       )}
     </div>
@@ -823,65 +960,84 @@ function AttachmentRow({
 function QuestionCard({
   quizId,
   question,
-  index,
   displayLabel,
   editable,
   attachments,
   totalAttachmentCount,
   reorder,
+  nested = false,
 }: {
   quizId: string;
   question: Question;
-  index: number;
   displayLabel: string;
   editable: boolean;
   attachments: QuizAttachmentView[];
   totalAttachmentCount: number;
   reorder?: ReorderHandlers;
+  /** A sub-question inside a context set: a bordered card, not a bezel. */
+  nested?: boolean;
 }) {
   const { error, pending, run } = useActionRunner();
   const isTrueFalse = question.type === "true_false";
   const promptId = `quiz-prompt-${question.id}`;
-  // With reorder and/or delete controls present the header row cannot fit the
-  // prompt alongside them on a phone, so the prompt drops to its own full-width
-  // line and the 44px controls share a toolbar row with the number badge.
-  const hasSideControls = Boolean(reorder) || editable;
+  const headingId = `quiz-heading-${question.id}`;
+  const label = `question ${displayLabel}`;
+  const Heading = nested ? "h3" : "h2";
 
   return (
     <article
       {...(reorder?.dropZone ?? {})}
-      className={
-        "group relative overflow-hidden rounded-[22px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-24px_rgba(31,40,90,0.2)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-24px_rgba(31,40,90,0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6 " +
-        (reorder?.isDragging ? "opacity-60" : "")
-      }
+      id={questionAnchor(question.id)}
+      aria-labelledby={headingId}
+      className={cn(
+        "scroll-mt-[var(--portal-sticky-top)] transition-opacity",
+        nested
+          ? "rounded-[16px] border border-line bg-surface-2/60 p-1"
+          : "glass rounded-[24px] p-1.5",
+        reorder?.isDragging && "opacity-60",
+      )}
     >
-      <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="flex flex-wrap items-center gap-2.5 py-1.5 pl-3 pr-1.5">
         {reorder && (
           <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
         )}
-        <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-[12px] bg-brand-100 px-1 text-[13px] font-extrabold text-brand-ink">
-          {displayLabel}
-        </span>
-        <div
-          className={
-            "min-w-0 flex-1" +
-            (hasSideControls
-              ? " order-last basis-full sm:order-none sm:basis-0"
-              : "")
-          }
+        <Heading
+          id={headingId}
+          className={cn(
+            "font-extrabold text-ink",
+            nested ? "text-[14px]" : "text-[16px]",
+          )}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <label
-              htmlFor={promptId}
-              className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted"
-            >
-              Question prompt
-            </label>
-            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-ink">
-              {QUESTION_TYPE_LABEL[question.type] ?? question.type}
-            </span>
-          </div>
+          Question {displayLabel}
+        </Heading>
+        <span className="inline-flex h-6 items-center rounded-full bg-surface px-2.5 text-[12px] font-bold text-ink-soft">
+          {QUESTION_TYPE_LABEL[question.type] ?? question.type}
+        </span>
+        <CardControls
+          label={label}
+          reorder={reorder}
+          editable={editable}
+          pending={pending}
+          buttonClassName={nested ? LINE_ICON_BTN : GLASS_ICON_BTN}
+          onDelete={() => {
+            if (!confirm(`Delete question ${displayLabel}? This cannot be undone.`)) {
+              return;
+            }
+            run(() => deleteQuestion({ questionId: question.id }));
+          }}
+        />
+      </div>
+
+      <div
+        className={cn(
+          "flex flex-col gap-[18px] p-[18px]",
+          nested ? "rounded-[13px] bg-surface" : "panel",
+        )}
+      >
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={promptId} className="text-[13px] font-bold text-ink">
+            Question
+          </label>
           {editable ? (
             <textarea
               id={promptId}
@@ -897,47 +1053,28 @@ function QuestionCard({
                   updateQuestionPrompt({ questionId: question.id, prompt }),
                 );
               }}
-              className="mt-2 min-h-20 w-full resize-y rounded-[14px] border border-line bg-background px-4 py-3 text-[15px] font-semibold leading-relaxed text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
+              className={cn(
+                FIELD,
+                "min-h-20 resize-y px-3.5 py-3 text-[15px] font-medium leading-relaxed",
+              )}
             />
           ) : (
             <p
               id={promptId}
-              className="mt-2 min-h-12 py-2 text-[15px] font-semibold leading-relaxed text-ink"
+              className="text-[15px] font-medium leading-relaxed text-ink"
             >
               {question.prompt || <span className="text-muted">(no prompt)</span>}
             </p>
           )}
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          {reorder && <MoveButtons label={`question ${displayLabel}`} reorder={reorder} />}
-          {editable && (
-            <button
-              type="button"
-              disabled={pending}
-              aria-label={`Delete question ${displayLabel}`}
-              onClick={() => {
-                if (
-                  !confirm(
-                    `Delete question ${displayLabel}? This cannot be undone.`,
-                  )
-                ) {
-                  return;
-                }
-                run(() => deleteQuestion({ questionId: question.id }));
-              }}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bad transition-colors hover:bg-bad-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-            >
-              <Trash2 className="h-[18px] w-[18px]" />
-            </button>
-          )}
-        </div>
-      </div>
 
-      <fieldset className="mt-5">
-        <legend className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
-          Answers - choose the correct option
-        </legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="pb-1 text-[13px] font-bold text-ink">
+            Answers
+            {editable && (
+              <span className="font-medium text-muted"> · tick the correct one</span>
+            )}
+          </legend>
           {question.options.map((option, optionIndex) => (
             <OptionRow
               key={option.id}
@@ -949,26 +1086,29 @@ function QuestionCard({
               canDelete={!isTrueFalse && question.options.length > 2}
             />
           ))}
-        </div>
-        {editable && !isTrueFalse && <AddOptionButton questionId={question.id} />}
-      </fieldset>
+          {editable && !isTrueFalse && <AddOptionButton questionId={question.id} />}
+        </fieldset>
 
-      <AttachmentManager
-        quizId={quizId}
-        questionId={question.id}
-        attachments={attachments}
-        editable={editable}
-        totalCount={totalAttachmentCount}
-      />
+        <AttachmentManager
+          quizId={quizId}
+          questionId={question.id}
+          attachments={attachments}
+          editable={editable}
+          totalCount={totalAttachmentCount}
+        />
 
-      {error && (
-        <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p role="alert" className="text-[12px] font-semibold text-bad">
+            {error}
+          </p>
+        )}
+      </div>
     </article>
   );
 }
+
+const LINE_ICON_BTN =
+  "grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-line-strong bg-surface text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-40";
 
 // Sub-question labels stay letter-based (1a, 1b, ...) for the first 26
 // entries, then fall back to a numeric suffix so labels never spill past "z".
@@ -1000,8 +1140,8 @@ function ContextCard({
 }) {
   const { error, pending, run } = useActionRunner();
   const passageId = `quiz-passage-${context.id}`;
+  const headingId = `quiz-heading-${context.id}`;
   const contextNumber = index + 1;
-  const hasSideControls = Boolean(reorder) || editable;
 
   const childIds = subQuestions.map((child) => child.id);
   const childReorder = useReorder(quizId, context.id, childIds);
@@ -1009,91 +1149,75 @@ function ContextCard({
   return (
     <article
       {...(reorder?.dropZone ?? {})}
-      className={
-        "relative overflow-hidden rounded-[22px] border border-l-4 border-line border-l-brand-500 bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-24px_rgba(31,40,90,0.2)] transition-all duration-200 motion-reduce:transition-none " +
-        (reorder?.isDragging ? "opacity-60" : "")
-      }
+      id={questionAnchor(context.id)}
+      aria-labelledby={headingId}
+      className={cn(
+        "glass scroll-mt-[var(--portal-sticky-top)] rounded-[24px] p-1.5 transition-opacity",
+        reorder?.isDragging && "opacity-60",
+      )}
     >
-      <div className="border-b border-line bg-brand-50/40 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start gap-3">
-          {reorder && (
-            <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
-          )}
-          <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-[12px] bg-brand-600 px-1 text-[13px] font-extrabold text-white">
-            {contextNumber}
-          </span>
-          <div
-            className={
-              "min-w-0 flex-1" +
-              (hasSideControls
-                ? " order-last basis-full sm:order-none sm:basis-0"
-                : "")
+      <div className="flex flex-wrap items-center gap-2.5 py-1.5 pl-3 pr-1.5">
+        {reorder && (
+          <DragHandle handle={reorder.dragHandle} disabled={reorder.disabled} />
+        )}
+        <h2 id={headingId} className="text-[16px] font-extrabold text-ink">
+          Question {contextNumber}
+        </h2>
+        <span className="inline-flex h-6 items-center gap-1 rounded-full bg-surface px-2.5 text-[12px] font-bold text-ink-soft">
+          <Layers className="h-3.5 w-3.5" aria-hidden /> Context set
+        </span>
+        <CardControls
+          label={`context set ${contextNumber}`}
+          reorder={reorder}
+          editable={editable}
+          pending={pending}
+          buttonClassName={GLASS_ICON_BTN}
+          onDelete={() => {
+            if (
+              !confirm(
+                `Delete context set ${contextNumber} and its ${subQuestions.length} sub-question(s)? This cannot be undone.`,
+              )
+            ) {
+              return;
             }
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <label
-                htmlFor={passageId}
-                className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted"
-              >
-                Passage / context
-              </label>
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                <Layers className="h-3 w-3" /> Context set
-              </span>
-            </div>
-            {editable ? (
-              <textarea
-                id={passageId}
-                defaultValue={context.prompt}
-                rows={3}
-                maxLength={500}
-                placeholder="Paste the passage, scenario, or shared context for the sub-questions"
-                disabled={pending}
-                onBlur={(event) => {
-                  const prompt = event.target.value;
-                  if (prompt === context.prompt) return;
-                  run(() =>
-                    updateQuestionPrompt({ questionId: context.id, prompt }),
-                  );
-                }}
-                className="mt-2 min-h-24 w-full resize-y rounded-[14px] border border-line bg-white px-4 py-3 text-[15px] font-semibold leading-relaxed text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
-              />
-            ) : (
-              <p
-                id={passageId}
-                className="mt-2 min-h-12 py-2 text-[15px] font-semibold leading-relaxed text-ink"
-              >
-                {context.prompt || (
-                  <span className="text-muted">(no passage)</span>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            {reorder && (
-              <MoveButtons label={`context set ${contextNumber}`} reorder={reorder} />
-            )}
-            {editable && (
-              <button
-                type="button"
-                disabled={pending}
-                aria-label={`Delete context set ${contextNumber}`}
-                onClick={() => {
-                  if (
-                    !confirm(
-                      `Delete context set ${contextNumber} and its ${subQuestions.length} sub-question(s)? This cannot be undone.`,
-                    )
-                  ) {
-                    return;
-                  }
-                  run(() => deleteQuestion({ questionId: context.id }));
-                }}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bad transition-colors hover:bg-bad-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-              >
-                <Trash2 className="h-[18px] w-[18px]" />
-              </button>
-            )}
-          </div>
+            run(() => deleteQuestion({ questionId: context.id }));
+          }}
+        />
+      </div>
+
+      <div className="panel flex flex-col gap-[18px] p-[18px]">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={passageId} className="text-[13px] font-bold text-ink">
+            Passage
+          </label>
+          {editable ? (
+            <textarea
+              id={passageId}
+              defaultValue={context.prompt}
+              rows={3}
+              maxLength={500}
+              placeholder="Paste the passage, scenario, or shared context for the sub-questions"
+              disabled={pending}
+              onBlur={(event) => {
+                const prompt = event.target.value;
+                if (prompt === context.prompt) return;
+                run(() =>
+                  updateQuestionPrompt({ questionId: context.id, prompt }),
+                );
+              }}
+              className={cn(
+                FIELD,
+                "min-h-24 resize-y px-3.5 py-3 text-[15px] font-medium leading-relaxed",
+              )}
+            />
+          ) : (
+            <p
+              id={passageId}
+              className="whitespace-pre-wrap text-[15px] font-medium leading-relaxed text-ink"
+            >
+              {context.prompt || <span className="text-muted">(no passage)</span>}
+            </p>
+          )}
         </div>
 
         <AttachmentManager
@@ -1104,70 +1228,69 @@ function ContextCard({
           totalCount={totalAttachmentCount}
         />
         {error && (
-          <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
+          <p role="alert" className="text-[12px] font-semibold text-bad">
             {error}
           </p>
         )}
-      </div>
 
-      <div className="space-y-4 p-5 sm:p-6">
-        {subQuestions.length === 0 ? (
-          <p className="rounded-[14px] border border-dashed border-brand-200 bg-brand-50/40 px-4 py-5 text-center text-[12px] font-semibold text-muted">
-            No sub-questions yet. Add one below so students have something to
-            answer for this passage.
-          </p>
-        ) : (
-          subQuestions.map((child, childIndex) => (
-            <QuestionCard
-              key={child.id}
-              quizId={quizId}
-              index={childIndex}
-              displayLabel={`${contextNumber}${subQuestionLabel(childIndex)}`}
-              question={child}
-              editable={editable}
-              attachments={attachmentsByQuestion.get(child.id) ?? []}
-              totalAttachmentCount={totalAttachmentCount}
-              reorder={childReorder.handlers(child.id, childIndex)}
-            />
-          ))
-        )}
+        <div className="flex flex-col gap-3 border-t border-line pt-4">
+          {subQuestions.length === 0 ? (
+            <p className="rounded-[12px] border border-dashed border-line-strong px-4 py-4 text-center text-[13px] text-muted">
+              No sub-questions yet.
+            </p>
+          ) : (
+            subQuestions.map((child, childIndex) => (
+              <QuestionCard
+                key={child.id}
+                quizId={quizId}
+                displayLabel={`${contextNumber}${subQuestionLabel(childIndex)}`}
+                question={child}
+                editable={editable}
+                attachments={attachmentsByQuestion.get(child.id) ?? []}
+                totalAttachmentCount={totalAttachmentCount}
+                reorder={childReorder.handlers(child.id, childIndex)}
+                nested
+              />
+            ))
+          )}
 
-        {editable && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                run(() =>
-                  addQuestion({
-                    quizId,
-                    type: "multiple_choice",
-                    parentId: context.id,
-                  }),
-                )
-              }
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-brand-300 px-4 text-[12px] font-bold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-            >
-              <Plus className="h-4 w-4" /> Sub-question (multiple choice)
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                run(() =>
-                  addQuestion({
-                    quizId,
-                    type: "true_false",
-                    parentId: context.id,
-                  }),
-                )
-              }
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-brand-300 px-4 text-[12px] font-bold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-            >
-              <Plus className="h-4 w-4" /> Sub-question (true / false)
-            </button>
-          </div>
-        )}
+          {editable && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  run(() =>
+                    addQuestion({
+                      quizId,
+                      type: "multiple_choice",
+                      parentId: context.id,
+                    }),
+                  )
+                }
+                className={LINE_BTN}
+              >
+                <Plus className="h-4 w-4" aria-hidden /> Multiple choice sub-question
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  run(() =>
+                    addQuestion({
+                      quizId,
+                      type: "true_false",
+                      parentId: context.id,
+                    }),
+                  )
+                }
+                className={LINE_BTN}
+              >
+                <Plus className="h-4 w-4" aria-hidden /> True / False sub-question
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -1176,22 +1299,26 @@ function ContextCard({
 function AddOptionButton({ questionId }: { questionId: string }) {
   const { error, pending, run } = useActionRunner();
   return (
-    <div className="mt-3">
+    <div className="pl-10">
       <button
         type="button"
         disabled={pending}
         onClick={() => run(() => addOption({ questionId }))}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-brand-300 px-4 text-[12px] font-bold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+        className={TEXT_BTN}
       >
-        <Plus className="h-4 w-4" /> Add option
+        <Plus className="h-4 w-4" aria-hidden /> Add option
       </button>
       {error && (
-        <p role="alert" className="mt-2 text-[11px] font-semibold text-bad">
+        <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
     </div>
   );
+}
+
+function optionLetter(index: number): string {
+  return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
 }
 
 function OptionRow({
@@ -1211,19 +1338,18 @@ function OptionRow({
 }) {
   const { error, pending, run } = useActionRunner();
   const showTextInput = editable && !locked;
+  const letter = optionLetter(index);
 
   return (
     <div>
       <div
-        className={
-          "flex min-h-14 items-center gap-2 rounded-[14px] border px-2.5 py-2 transition-colors motion-reduce:transition-none " +
-          (option.isCorrect
-            ? "border-brand-300 bg-brand-50"
-            : "border-line bg-background")
-        }
+        className={cn(
+          "flex items-center gap-2.5 rounded-[12px] p-1 transition-colors motion-reduce:transition-none",
+          option.isCorrect && "bg-good-bg/70",
+        )}
       >
         {editable ? (
-          <label className="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full">
+          <label className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full">
             <input
               type="radio"
               name={`quiz-correct-${questionId}`}
@@ -1232,42 +1358,46 @@ function OptionRow({
               onChange={() =>
                 run(() => setCorrectOption({ questionId, optionId: option.id }))
               }
-              aria-label={`Mark option ${index + 1} as the correct answer`}
-              className="h-5 w-5 accent-brand-600 disabled:cursor-not-allowed"
+              aria-label={`Mark option ${letter} as the correct answer`}
+              className="h-5 w-5 accent-good disabled:cursor-not-allowed"
             />
           </label>
         ) : (
-          <span className="grid h-11 w-11 shrink-0 place-items-center">
+          <span className="grid h-9 w-9 shrink-0 place-items-center">
             {option.isCorrect ? (
-              <CheckCircle2
-                aria-label="Correct answer"
-                className="h-5 w-5 text-brand-600"
-              />
+              <CheckCircle2 aria-label="Correct answer" className="h-5 w-5 text-good" />
             ) : (
-              <span
-                aria-hidden
-                className="h-5 w-5 rounded-full border-2 border-line"
-              />
+              <span aria-hidden className="h-5 w-5 rounded-full border-2 border-line-strong" />
             )}
           </span>
         )}
+
+        <span
+          aria-hidden
+          className={cn(
+            "grid h-7 w-7 shrink-0 place-items-center rounded-[8px] text-[13px] font-extrabold",
+            option.isCorrect ? "bg-good text-white" : "bg-surface-3 text-ink-soft",
+          )}
+        >
+          {letter}
+        </span>
 
         {showTextInput ? (
           <input
             defaultValue={option.text}
             maxLength={500}
-            placeholder={`Option ${index + 1}`}
+            placeholder={`Option ${letter}`}
             disabled={pending}
-            aria-label={`Option ${index + 1} text`}
+            aria-label={`Option ${letter}`}
             onBlur={(event) => {
               const text = event.target.value;
               if (text === option.text) return;
               run(() => updateOption({ optionId: option.id, text }));
             }}
-            className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-transparent bg-transparent px-2.5 py-2 text-[13px] font-semibold text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-300 focus:bg-white disabled:opacity-60"
+            className={cn(FIELD, "h-[42px] min-w-0 flex-1 rounded-[10px] px-3 text-[15px]")}
           />
         ) : (
-          <span className="min-w-0 flex-1 px-2.5 py-2 text-[13px] font-semibold text-ink">
+          <span className="flex min-h-[42px] min-w-0 flex-1 items-center px-3 text-[15px] text-ink">
             {option.text || <span className="text-muted">(empty)</span>}
           </span>
         )}
@@ -1276,19 +1406,19 @@ function OptionRow({
           <button
             type="button"
             disabled={pending}
-            aria-label={`Delete option ${index + 1}`}
+            aria-label={`Remove option ${letter}`}
             onClick={() => {
-              if (!confirm(`Remove option ${index + 1}?`)) return;
+              if (!confirm(`Remove option ${letter}?`)) return;
               run(() => deleteOption({ optionId: option.id }));
             }}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bad transition-colors hover:bg-bad-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-muted transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Trash2 className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden />
           </button>
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-[10px] font-semibold text-bad">
+        <p role="alert" className="mt-1 pl-10 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}

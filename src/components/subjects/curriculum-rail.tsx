@@ -75,143 +75,136 @@ export function CurriculumRail({
   const showHeadings = groups.length > 1;
 
   return (
-    // One major RECTANGULAR (square-cornered) block, white so it matches the
-    // week content panel next to it. With no tinted fill to set the panel and
-    // its sub-cards apart, the separation is carried by outlines instead:
-    // line-strong on the panel edge (plus the existing shadow) and on each week
-    // card. Non-attached roles sit this panel inside a white Card, so that
-    // outline is the only thing holding the edge - do not weaken it to `line`.
-    <div className="space-y-2 border border-line-strong bg-surface p-2 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_14px_30px_-18px_rgba(31,40,90,0.24)]">
+    // Content of the glass rail frame (the frame itself comes from
+    // CurriculumLayout): the term switcher sits on the glass, the weeks on a
+    // white panel that fills the rest of the frame and scrolls on its own.
+    <div className="flex min-h-0 flex-1 flex-col gap-1.5">
       {showTermSelect && terms.length > 0 && (
-        <div className="relative">
-          <select
-            defaultValue={currentTermId}
-            onChange={(e) => {
-              window.location.href = `${basePath}?${qs({ term: e.target.value })}`;
-            }}
-            aria-label="Select term"
-            // line-field, not line: the panel behind it is white now, so a
-            // control outlined at 1.16:1 would read as white-on-white.
-            className="w-full appearance-none rounded-[10px] border border-line-field bg-surface pl-3 pr-8 py-2 text-[12px] font-bold text-ink cursor-pointer shadow-[0_1px_2px_rgba(15,17,30,0.05)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
-          >
-            {terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            aria-hidden
-            className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted"
-          />
+        <div className="px-1.5 pt-1.5">
+          <label className="relative flex h-[38px] items-center gap-2 rounded-[11px] bg-surface pl-2.5 text-[13px] font-bold text-ink focus-within:ring-2 focus-within:ring-brand-400">
+            Term
+            <select
+              defaultValue={currentTermId}
+              onChange={(e) => {
+                window.location.href = `${basePath}?${qs({ term: e.target.value })}`;
+              }}
+              className="h-full min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-8 text-right text-[13px] font-extrabold text-ink focus:outline-none"
+            >
+              {terms.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden
+              className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            />
+          </label>
         </div>
       )}
 
-      <div className="space-y-1">
+      <div className="panel flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2">
         {groups.map((g) => (
-          <div key={g.items[0].topicId ?? g.label}>
+          <div key={g.items[0].topicId ?? g.label} className="flex flex-col gap-0.5">
             {showHeadings && (
-              <div className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] font-extrabold text-muted">
+              <div className="px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted">
                 {g.label}
               </div>
             )}
-            <div className="space-y-1.5">
-              {g.items.map((w) => {
-                const isActive = w.id === active;
-                const isCurrent = w.id === currentWeekIdHint;
-                const content = (
-                  <>
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span
-                        className={cn(
-                          "text-[10px] uppercase tracking-[0.12em] font-extrabold",
-                          isActive ? "text-white/80" : "text-muted",
-                        )}
-                      >
-                        Week {w.weekNumber}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        {w.locked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.08em] text-muted ring-1 ring-inset ring-line">
-                            <LockKeyhole className="h-2.5 w-2.5" /> Locked
-                          </span>
-                        )}
-                        {isCurrent && !isActive && (
-                          <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.1em] text-white">
-                            Now
-                          </span>
-                        )}
-                        {w.complete && !isActive && (
-                          <Check className="h-3 w-3 text-good" strokeWidth={3} />
-                        )}
-                      </span>
-                    </div>
-                    <div
+            {g.items.map((w) => {
+              const isActive = w.id === active;
+              const isCurrent = w.id === currentWeekIdHint;
+              const content = (
+                <>
+                  <span className="flex items-center gap-2">
+                    <span
                       className={cn(
-                        "mt-0.5 text-[14px] font-bold leading-snug line-clamp-2",
-                        isActive ? "text-white" : "text-ink",
+                        "w-[26px] shrink-0 text-[12px] font-extrabold tabular-nums",
+                        isActive ? "text-white/80" : "text-ink-soft",
                       )}
                     >
-                      {w.title}
-                    </div>
-                    {w.pills && w.pills.length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {w.pills.map((p, i) => (
-                          <span
-                            key={i}
-                            className={cn(
-                              "inline-flex items-center rounded-full px-1.5 py-0 text-[9px] font-bold tabular-nums",
-                              isActive
-                                ? "bg-white/20 text-white"
-                                : p.tone === "good"
-                                  ? "bg-good-bg text-good"
-                                  : p.tone === "warn"
-                                    ? "bg-warn-bg text-warn"
-                                    : // A bg-surface chip on a bg-surface row
-                                      // has no edge at all - ring it so the
-                                      // chip shape survives rest AND hover.
-                                      "bg-surface-2 text-muted ring-1 ring-inset ring-line-strong",
-                            )}
-                          >
-                            {p.label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                );
-
-                if (w.locked) {
-                  return (
-                    <div
-                      key={w.id}
-                      aria-disabled="true"
-                      title={`Week ${w.weekNumber} unlocks when that teaching week begins`}
-                      className="block cursor-not-allowed rounded-[12px] border border-line bg-surface-2 px-3 py-2.5 opacity-65"
+                      W{w.weekNumber}
+                    </span>
+                    <span
+                      title={w.title}
+                      className="min-w-0 flex-1 truncate text-[13px] font-bold"
                     >
-                      {content}
-                    </div>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={w.id}
-                    href={`${basePath}?${qs({ term: currentTermId, week: w.id })}`}
-                    aria-current={isActive ? "true" : undefined}
-                    className={cn(
-                      "block rounded-[12px] border px-3 py-2.5 transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50",
-                      isActive
-                        ? "border-ink bg-ink text-white"
-                        : "border-line-strong bg-surface hover:border-line-field hover:bg-surface-2",
+                      {w.title}
+                    </span>
+                    {w.locked && (
+                      <LockKeyhole
+                        className="h-3.5 w-3.5 shrink-0 text-muted"
+                        aria-label="Locked"
+                      />
                     )}
+                    {isCurrent && !isActive && (
+                      <span className="shrink-0 rounded-full bg-ink px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                        Now
+                      </span>
+                    )}
+                    {w.complete && !isActive && (
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-good"
+                        strokeWidth={3}
+                        aria-label="Done"
+                      />
+                    )}
+                  </span>
+                  {w.pills && w.pills.length > 0 && (
+                    <span className="mt-1 flex flex-wrap gap-1 pl-[34px]">
+                      {w.pills.map((p, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "inline-flex h-[18px] items-center rounded-full px-1.5 text-[10px] font-bold tabular-nums",
+                            isActive
+                              ? "bg-white/20 text-white"
+                              : p.tone === "good"
+                                ? "bg-good-bg text-good"
+                                : p.tone === "warn"
+                                  ? "bg-warn-bg text-warn"
+                                  : "bg-surface-3 text-ink-soft",
+                          )}
+                        >
+                          {p.label}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </>
+              );
+
+              if (w.locked) {
+                return (
+                  <div
+                    key={w.id}
+                    aria-disabled="true"
+                    title={`Week ${w.weekNumber} unlocks when that teaching week begins`}
+                    className="block cursor-not-allowed rounded-[10px] p-2 text-muted opacity-70"
                   >
                     {content}
-                  </Link>
+                  </div>
                 );
-              })}
-            </div>
+              }
+
+              return (
+                <Link
+                  key={w.id}
+                  href={`${basePath}?${qs({ term: currentTermId, week: w.id })}`}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "block rounded-[10px] p-2 transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                    isActive
+                      ? "bg-ink text-white"
+                      : "text-ink hover:bg-surface-2",
+                  )}
+                >
+                  {content}
+                </Link>
+              );
+            })}
           </div>
         ))}
         {footer}
