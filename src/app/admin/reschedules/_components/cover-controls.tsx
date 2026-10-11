@@ -3,11 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { cn } from "@/lib/utils";
 import {
   adminAssignTutorCover,
   adminReopenTutorCover,
   decideTutorLeave,
 } from "@/app/_actions/tutor-cover";
+
+// LoadingButton's own palette is the older portal one; these align it with the
+// admin glass buttons (ink primary, hairline secondary) without forking it.
+const BTN = "min-h-9 rounded-[10px] px-3.5 text-[13px] shadow-none";
+const CARD_BTN = "min-h-[34px] rounded-[9px] px-3 text-[12px] shadow-none";
+const INK = "border-ink bg-ink text-white hover:bg-[#2b2847]";
+const LINE = "border-line-strong bg-surface text-ink hover:bg-surface-2";
 
 export function LeaveDecisionButtons({ leaveRequestId }: { leaveRequestId: string }) {
   const router = useRouter();
@@ -35,7 +43,7 @@ export function LeaveDecisionButtons({ leaveRequestId }: { leaveRequestId: strin
         disabled={busy}
         onAction={() => decide("reject")}
         size="sm"
-        variant="danger"
+        className={cn(BTN, LINE)}
         pendingLabel="Rejecting…"
         successLabel="Rejected"
         errorLabel="Try again"
@@ -46,14 +54,18 @@ export function LeaveDecisionButtons({ leaveRequestId }: { leaveRequestId: strin
         disabled={busy}
         onAction={() => decide("approve")}
         size="sm"
-        variant="brand"
+        className={cn(BTN, INK)}
         pendingLabel="Posting…"
         successLabel="Posted"
         errorLabel="Try again"
       >
         Approve & post classes
       </LoadingButton>
-      {error && <p className="w-full text-right text-[11px] text-bad">{error}</p>}
+      {error && (
+        <p role="alert" className="w-full text-right text-[11px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -95,14 +107,18 @@ export function AssignCoverForm({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-wrap justify-end gap-2 sm:w-auto sm:min-w-[260px]">
+    <div className="flex w-full min-w-0 flex-wrap gap-1.5">
       <select
         required
         value={selectedTutorId}
         onChange={(event) => setSelectedTutorId(event.target.value)}
         disabled={busy}
         aria-label="Replacement tutor"
-        className="min-h-9 max-w-44 rounded-[9px] border border-line bg-surface px-2.5 text-[12px] text-ink"
+        className={cn(
+          "h-[34px] min-w-0 flex-1 rounded-[9px] border border-line-strong bg-surface px-2 text-[12px] font-semibold",
+          "focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30",
+          selectedTutorId ? "text-ink" : "text-muted",
+        )}
       >
         <option value="" disabled>Choose tutor…</option>
         {tutors
@@ -117,14 +133,18 @@ export function AssignCoverForm({
         onAction={submit}
         disabled={busy || !selectedTutorId}
         size="sm"
-        variant="brand"
+        className={cn(CARD_BTN, currentReplacementTutorId ? LINE : INK)}
         pendingLabel={currentReplacementTutorId ? "Changing…" : "Assigning…"}
         successLabel={currentReplacementTutorId ? "Changed" : "Assigned"}
         errorLabel="Try again"
       >
-        {currentReplacementTutorId ? "Change tutor" : "Assign"}
+        {currentReplacementTutorId ? "Change" : "Assign"}
       </LoadingButton>
-      {error && <p className="w-full text-right text-[11px] text-bad">{error}</p>}
+      {error && (
+        <p role="alert" className="w-full text-[11px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -156,19 +176,26 @@ export function ReopenCoverButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col gap-1">
       <LoadingButton
         onAction={reopen}
         disabled={busy}
         size="sm"
-        variant="danger"
+        className={cn(
+          CARD_BTN,
+          "w-full border-transparent bg-bad-bg text-bad hover:brightness-95",
+        )}
         pendingLabel="Returning…"
         successLabel="Returned"
         errorLabel="Try again"
       >
         Return to board
       </LoadingButton>
-      {error && <p className="max-w-64 text-right text-[11px] text-bad">{error}</p>}
+      {error && (
+        <p role="alert" className="text-[11px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
