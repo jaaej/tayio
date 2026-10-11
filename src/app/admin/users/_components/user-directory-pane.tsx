@@ -129,7 +129,7 @@ export function UserDirectoryPane({
 
       <div
         ref={scroller}
-        className="panel flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5"
+        className="panel relative flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5"
       >
         {groups.length === 0 ? (
           <Empty>No one matches these filters.</Empty>

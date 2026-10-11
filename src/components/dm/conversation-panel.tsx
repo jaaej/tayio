@@ -40,7 +40,7 @@ export function ConversationPanel({
       <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* column-reverse keeps the scroller pinned to the newest message on
             load and after sending, with no scroll script. */}
-        <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-3.5 py-4 sm:p-5">
+        <div className="relative flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-3.5 py-4 sm:p-5">
           <MessageList messages={messages} meId={meId} otherName={otherName} />
         </div>
         {/* Keyed so a draft never carries over into another conversation. */}

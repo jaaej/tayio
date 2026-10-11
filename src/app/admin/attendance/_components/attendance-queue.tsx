@@ -82,7 +82,7 @@ export function AttendanceQueue({
         <DayPicker />
       </div>
 
-      <div className="panel min-h-0 flex-1 overflow-y-auto p-1.5">
+      <div className="panel relative min-h-0 flex-1 overflow-y-auto p-1.5">
         {items.length === 0 ? (
           <Empty>{EMPTY_TEXT[filters.view][filters.date ? "day" : "range"]}</Empty>
         ) : (

@@ -111,7 +111,7 @@ export function InboxCompose({
         </label>
       </div>
 
-      <div className="panel min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
+      <div className="panel relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
         {composing ? (
           !hasContacts ? (
             <PaneMessage>No one to message yet.</PaneMessage>

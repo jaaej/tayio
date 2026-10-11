@@ -104,7 +104,7 @@ export function CurriculumRail({
         </div>
       )}
 
-      <div className="panel flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2">
+      <div className="panel relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2">
         {groups.map((g) => (
           <div key={g.items[0].topicId ?? g.label} className="flex flex-col gap-0.5">
             {showHeadings && (

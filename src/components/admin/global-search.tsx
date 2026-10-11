@@ -163,7 +163,7 @@ export function AdminGlobalSearch({
                   </button>
                 </div>
 
-                <div className="max-h-[62vh] overflow-y-auto p-2">
+                <div className="relative max-h-[62vh] overflow-y-auto p-2">
                   <div className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                     {normalized ? "Matching pages" : "Portal pages"}
                   </div>
