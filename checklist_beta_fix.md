@@ -481,6 +481,36 @@ Last updated: 10 October 2026
   Week/Month switch. Year levels now render through `yearLevelLabel`, fixing
   "Year Year 10" and "Yr Year 11". Verified with Playwright at 1440px and
   390px on dev data.
+- [x] Admin Classes, New class panel, and class detail on the glass kit
+  (11 October 2026, handoff designs ClassesGlass / NewClassDrawer /
+  ClassDetailGlass). `/admin/classes` uses `PageHeader`, `buttonVariants`,
+  `SegmentedLinks` (Week/Month), `SubjectDot`/`subjectTone` (no more
+  `getAccentTokens`), and a subject-colour legend under the schedule; the
+  month view now defaults to the Melbourne month, not the server's UTC one.
+  The New class and class detail forms share
+  `src/app/admin/classes/_components/class-fields.tsx` (segmented class type,
+  capacity stepper, Repeats weekly switch, day picker, start/end with a live
+  "Every Tuesday, 4:00 - 5:30 pm · 1 h 30 m" summary and inline
+  `classTimeRangeError`). `/admin/classes/[id]` has a back-button header with
+  subject/schedule/enrolled/location chips, Enrolled students (add from the
+  title row, styled withdraw confirm) beside Class details. Automated checks
+  only (tsc, vitest); not yet viewed in a browser.
+- [x] Bug: New class defaulted start and end to the same (empty) value
+  (11 October 2026). Start now defaults to 4:00 pm and end to start + the
+  most common lesson length among existing classes (1 hour if none); moving
+  the start keeps the length. `src/app/admin/classes/_lib/class-time.ts`,
+  tested in `class-time.test.ts`.
+- [x] Bug: a class time showing "2:10am" for 2:10 pm (11 October 2026). The
+  formatters read 24h correctly (`formatTime`/new `formatTimeRange` tests in
+  `src/lib/format.test.ts`); the cause is a 12-hour time picker left on AM
+  storing 02:10. The forms now default to PM, always spell out am/pm in the
+  live summary, and the detail header uses `formatTimeRange`. Existing rows
+  saved as 02:10 still need correcting by hand.
+- [ ] **Manual QA (classes, 11 October 2026):** at 1440px and 390px open
+  `/admin/classes` (prev/next/Today, Tutor filter, Week/Month, "Without a
+  recurring slot"), `/admin/classes?new=1` (defaults, change start, day
+  toggle, capacity stepper, create), and a class detail page (add, delivery,
+  admin note, withdraw, save details).
 - [ ] **Known cross-role inconsistency, owner-approved preview:** the floating
   frosted sidebar (`sidebarVariant="floating"` on `CollapsiblePortalShell`),
   the dark active nav pill, `GlassPanel`, `WeekTimeGrid`, and the restyled

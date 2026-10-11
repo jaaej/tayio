@@ -3,18 +3,25 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, lessons, profiles, subjects } from "@/db/schema";
-import { Empty } from "@/components/admin/ui";
-import { GlassPanel } from "@/components/admin/ui/glass-panel";
+import {
+  Empty,
+  GlassPanel,
+  PageHeader,
+  SegmentedLinks,
+  SubjectDot,
+  buttonVariants,
+} from "@/components/admin/ui";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
-import { formatTime, yearLevelLabel } from "@/lib/format";
+import { formatTime, formatTimeRange, yearLevelLabel } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { subjectTone, type SubjectFamily } from "@/lib/subject-tone";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { CreateSubjectPanel } from "./_components/create-subject-panel";
+import { usualLessonMinutes } from "./_lib/class-time";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +39,24 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
-function isoLocal(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
 
-const BUTTON =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3.5 text-[13px] font-bold text-ink shadow-[0_1px_2px_rgba(15,17,30,0.05)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
+/**
+ * Legend order and labels for the subject colours on the schedule; `sample`
+ * is a subject name that resolves to the family's colour.
+ */
+const FAMILY_LEGEND: { family: SubjectFamily; label: string; sample: string }[] = [
+  { family: "maths", label: "Maths", sample: "Maths" },
+  { family: "english", label: "English", sample: "English" },
+  { family: "science", label: "Sciences", sample: "Science" },
+  { family: "senior", label: "VCE & senior maths", sample: "Methods" },
+  { family: "other", label: "Other", sample: "" },
+];
+
+/** Calendar arithmetic on ISO dates (UTC-safe, no server timezone). */
+function isoFromParts(y: number, monthIndex: number, day: number) {
+  return new Date(Date.UTC(y, monthIndex, day)).toISOString().slice(0, 10);
+}
 
 function weekRange(weekStart: string) {
   const end = addIsoDays(weekStart, 6);
@@ -172,17 +188,19 @@ export default async function ClassesPage({
     (c) => !c.isRecurring || c.weekday === null || !c.startTime || !c.endTime,
   );
 
-  // Month navigation keys.
-  const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth();
+  // Month navigation keys. The default month is Melbourne's, not the
+  // server's (UTC) - early on the 1st they differ.
+  let year = Number(todayIso.slice(0, 4));
+  let month = Number(todayIso.slice(5, 7)) - 1;
   if (m && /^\d{4}-\d{2}$/.test(m)) {
     const [y, mm] = m.split("-").map(Number);
-    year = y;
-    month = mm - 1;
+    if (mm >= 1 && mm <= 12) {
+      year = y;
+      month = mm - 1;
+    }
   }
-  const mKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const mKey = (y: number, monthIndex: number) =>
+    isoFromParts(y, monthIndex, 1).slice(0, 7);
 
   const href = (params: Record<string, string | undefined>) => {
     const qs = new URLSearchParams();
@@ -194,105 +212,114 @@ export default async function ClassesPage({
     return str ? `/admin/classes?${str}` : "/admin/classes";
   };
   const prevHref = isMonth
-    ? href({ view: "month", m: mKey(new Date(year, month - 1, 1)) })
+    ? href({ view: "month", m: mKey(year, month - 1) })
     : href({ w: addIsoDays(weekStart, -7) });
   const nextHref = isMonth
-    ? href({ view: "month", m: mKey(new Date(year, month + 1, 1)) })
+    ? href({ view: "month", m: mKey(year, month + 1) })
     : href({ w: addIsoDays(weekStart, 7) });
   const todayHref = isMonth ? href({ view: "month" }) : href({});
   const periodLabel = isMonth
     ? `${MONTH_NAMES[month]} ${year}`
     : weekRange(weekStart);
 
+  const lessonMinutes = usualLessonMinutes(allRows);
+  const shownSubjects = isMonth
+    ? rows.filter((r) => r.isRecurring && r.weekday !== null).map((r) => r.subject)
+    : weekLessons.map((l) => l.subjectName);
+  const shownFamilies = new Set(shownSubjects.map((name) => subjectTone(name).family));
+  const legend = FAMILY_LEGEND.filter((f) => shownFamilies.has(f.family));
+
   return (
-    <div className="space-y-5">
-      <header className="glass-frame rise flex flex-wrap items-center gap-3 rounded-[22px] px-5 py-4">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-ink">
-          Classes
-        </h1>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Link href="/admin/terms" className={BUTTON}>
-            Manage terms
-          </Link>
-          <CreateClassPanel
-            tutors={tutors}
-            subjects={subjectList}
-            defaultOpen={openCreate === "1"}
-          />
-        </div>
-      </header>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Classes"
+        actions={
+          <>
+            <Link
+              href="/admin/terms"
+              className={buttonVariants({ variant: "glass", size: "lg" })}
+            >
+              Manage terms
+            </Link>
+            <CreateClassPanel
+              tutors={tutors}
+              subjects={subjectList}
+              lessonMinutes={lessonMinutes}
+              triggerSize="lg"
+              defaultOpen={openCreate === "1"}
+            />
+          </>
+        }
+      />
 
       <GlassPanel
-        className="rise"
-        title={
-          <span className="inline-flex items-center gap-2">
-            Subjects
-            <span className="text-[12px] font-bold tabular-nums text-muted">
-              {subjectList.length}
-            </span>
-          </span>
-        }
+        title="Subjects"
+        titleId="subjects-heading"
+        meta={subjectList.length}
         action={<CreateSubjectPanel />}
-        bodyClassName="bg-transparent border-0 shadow-none"
+        bodyClassName="p-2"
       >
         {subjectList.length === 0 ? (
-          <div className="rounded-[16px] bg-surface">
-            <Empty>No subjects yet.</Empty>
-          </div>
+          <Empty>No subjects yet.</Empty>
         ) : (
-          <div
+          <ul
             className="grid gap-2"
             style={{
               gridTemplateColumns:
-                "repeat(auto-fill, minmax(min(230px, 100%), 1fr))",
+                "repeat(auto-fill, minmax(min(260px, 100%), 1fr))",
             }}
           >
-            {subjectList.map((s) => {
-              const tokens = getAccentTokens(colorFamilyForSubject(s.name));
-              return (
+            {subjectList.map((s) => (
+              <li key={s.id} className="min-w-0">
                 <Link
-                  key={s.id}
                   href={`/admin/subjects/${s.id}/curriculum`}
-                  className="group flex min-w-0 items-center gap-2.5 rounded-[14px] border border-line/70 bg-surface px-3.5 py-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)] transition-all duration-150 hover:-translate-y-[2px] hover:shadow-[0_10px_22px_-14px_rgba(31,40,90,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                  className="group flex min-h-11 min-w-0 items-center gap-3 rounded-[12px] border border-line bg-surface px-3 py-2.5 transition-[background-color,transform] duration-150 hover:-translate-y-[1px] hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
                 >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-                    style={{ backgroundColor: tokens.arrow }}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-bold text-ink" title={s.name}>
+                  <SubjectDot subject={s.name} className="h-2.5 w-2.5" />
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <span className="truncate text-[14px] font-bold text-ink" title={s.name}>
                       {s.name}
                     </span>
-                    <span className="block text-[11px] text-muted">
+                    <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">
                       {s.yearLevel ? yearLevelLabel(s.yearLevel) : "No level set"}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[12px] font-bold text-brand-700 group-hover:underline">
+                  <span className="shrink-0 text-[12px] font-bold text-brand-600 group-hover:text-brand-700">
                     Curriculum
                   </span>
                 </Link>
-              );
-            })}
-          </div>
+              </li>
+            ))}
+          </ul>
         )}
       </GlassPanel>
 
       <GlassPanel
-        className="rise"
         title={isMonth ? "Monthly schedule" : "Weekly schedule"}
+        titleId="schedule-heading"
         meta={
-          <span className="inline-flex items-center gap-1.5">
-            <Link href={prevHref} aria-label={isMonth ? "Previous month" : "Previous week"} className={cn(BUTTON, "min-h-9 w-9 justify-center px-0")}>
-              <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
+          <span className="inline-flex items-center gap-1">
+            <Link
+              href={prevHref}
+              aria-label={isMonth ? "Previous month" : "Previous week"}
+              className={GLASS_ICON}
+            >
+              <ChevronLeft className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
             </Link>
-            <Link href={todayHref} className={cn(BUTTON, "min-h-9 px-3 text-[12px]")}>
+            <Link
+              href={todayHref}
+              className={buttonVariants({ variant: "glass", size: "md" })}
+            >
               Today
             </Link>
-            <Link href={nextHref} aria-label={isMonth ? "Next month" : "Next week"} className={cn(BUTTON, "min-h-9 w-9 justify-center px-0")}>
-              <ChevronRight className="h-5 w-5" strokeWidth={2.25} />
+            <Link
+              href={nextHref}
+              aria-label={isMonth ? "Next month" : "Next week"}
+              className={GLASS_ICON}
+            >
+              <ChevronRight className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
             </Link>
-            <span className="ml-1.5 text-[14px] font-extrabold tabular-nums text-ink">
+            <span className="ml-2 text-[14px] font-bold tabular-nums text-ink">
               {periodLabel}
             </span>
           </span>
@@ -310,31 +337,13 @@ export default async function ClassesPage({
                 })),
               ]}
             />
-            <div
-              role="group"
-              aria-label="Schedule view"
-              className="inline-flex h-10 items-center rounded-[10px] border border-line-strong bg-surface p-1"
-            >
-              {[
-                { key: "week", label: "Week", to: href({}) },
-                { key: "month", label: "Month", to: href({ view: "month" }) },
-              ].map((option) => {
-                const active = (option.key === "month") === isMonth;
-                return (
-                  <Link
-                    key={option.key}
-                    href={option.to}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-8 items-center rounded-[8px] px-3 text-[12px] font-bold transition-colors",
-                      active ? "bg-ink text-white" : "text-ink-soft hover:text-ink",
-                    )}
-                  >
-                    {option.label}
-                  </Link>
-                );
-              })}
-            </div>
+            <SegmentedLinks
+              label="Schedule view"
+              items={[
+                { label: "Week", href: href({}), active: !isMonth },
+                { label: "Month", href: href({ view: "month" }), active: isMonth },
+              ]}
+            />
           </>
         }
       >
@@ -344,41 +353,67 @@ export default async function ClassesPage({
             <CreateClassPanel
               tutors={tutors}
               subjects={subjectList}
+              lessonMinutes={lessonMinutes}
               triggerSize="lg"
             />
           </Empty>
-        ) : isMonth ? (
-          <MonthView rows={rows} monthParam={m} />
         ) : (
           <>
-            <WeekTimeGrid
-              events={events}
-              weekStart={weekStart}
-              todayIso={todayIso}
-              detailed
-            />
-            {unscheduled.length > 0 && (
-              <div className="border-t border-line p-4">
-                <div className="mb-2 text-[12px] font-bold text-muted">
+            {isMonth ? (
+              <MonthView rows={rows} year={year} month={month} todayIso={todayIso} />
+            ) : (
+              <WeekTimeGrid
+                events={events}
+                weekStart={weekStart}
+                todayIso={todayIso}
+                detailed
+              />
+            )}
+            {legend.length > 0 && (
+              <ul
+                aria-label="Subject colours"
+                className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line px-[18px] py-3 text-[12px] font-semibold text-muted"
+              >
+                {legend.map((l) => (
+                  <li key={l.family} className="inline-flex items-center gap-1.5">
+                    <SubjectDot subject={l.sample} className="h-2.5 w-2.5" />
+                    {l.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!isMonth && unscheduled.length > 0 && (
+              <section
+                aria-labelledby="unscheduled-heading"
+                className="border-t border-line p-4"
+              >
+                <h3
+                  id="unscheduled-heading"
+                  className="mb-2.5 text-[13px] font-extrabold text-muted"
+                >
                   Without a recurring slot
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                </h3>
+                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {unscheduled.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`/admin/classes/${c.id}`}
-                      className="rounded-[12px] border border-line bg-surface p-3 transition-colors hover:bg-surface-2"
-                    >
-                      <div className="truncate text-[13px] font-bold text-ink">
-                        {c.name}
-                      </div>
-                      <div className="truncate text-[12px] text-ink-soft">
-                        {c.subject} · {c.tutorFirst} {c.tutorLast}
-                      </div>
-                    </Link>
+                    <li key={c.id} className="min-w-0">
+                      <Link
+                        href={`/admin/classes/${c.id}`}
+                        className="flex min-h-11 items-center gap-3 rounded-[12px] border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                      >
+                        <SubjectDot subject={c.subject} className="h-2.5 w-2.5" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-bold text-ink">
+                            {c.name}
+                          </span>
+                          <span className="block truncate text-[12px] text-muted">
+                            {c.subject} · {c.tutorFirst} {c.tutorLast}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              </section>
             )}
           </>
         )}
@@ -406,24 +441,21 @@ type ClassRow = {
 
 function MonthView({
   rows,
-  monthParam,
+  year,
+  month,
+  todayIso,
 }: {
   rows: ClassRow[];
-  monthParam: string | undefined;
+  year: number;
+  /** 0-based */
+  month: number;
+  /** Melbourne date */
+  todayIso: string;
 }) {
-  const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth();
-  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
-    const [y, mm] = monthParam.split("-").map(Number);
-    year = y;
-    month = mm - 1;
-  }
-  const firstOfMonth = new Date(year, month, 1);
-  const firstDow = firstOfMonth.getDay();
+  // JS weekday of the 1st (0 = Sun), on a UTC date so the server zone
+  // never shifts it.
+  const firstDow = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const mondayOffset = (firstDow + 6) % 7;
-  const gridStart = new Date(year, month, 1 - mondayOffset);
-  const todayIso = isoLocal(new Date());
 
   // Index classes by weekday (0=Sun..6=Sat)
   const classesByWeekday = new Map<number, ClassRow[]>();
@@ -442,19 +474,16 @@ function MonthView({
     weekday: number;
     inMonth: boolean;
     isToday: boolean;
-    isWeekend: boolean;
   }> = [];
   for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart);
-    d.setDate(gridStart.getDate() + i);
-    const iso = isoLocal(d);
+    const d = new Date(Date.UTC(year, month, 1 - mondayOffset + i));
+    const iso = d.toISOString().slice(0, 10);
     days.push({
       iso,
-      dayNum: d.getDate(),
-      weekday: d.getDay(),
-      inMonth: d.getMonth() === month,
+      dayNum: d.getUTCDate(),
+      weekday: d.getUTCDay(),
+      inMonth: d.getUTCMonth() === month,
       isToday: iso === todayIso,
-      isWeekend: d.getDay() === 0 || d.getDay() === 6,
     });
   }
   let usedRows = 6;
@@ -466,41 +495,45 @@ function MonthView({
   const visibleDays = days.slice(0, usedRows * 7);
 
   return (
-    <div>
-      <div className="p-4">
-        <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2">
+    <div className="overflow-x-auto overscroll-x-contain">
+      <div className="min-w-[760px] p-3">
+        <div className="mb-1 grid grid-cols-7 gap-1.5">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div key={d} className="text-center py-2">
+            <div
+              key={d}
+              className="py-2 text-center text-[12px] font-extrabold tracking-[0.04em] text-muted"
+            >
               {d}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5">
           {visibleDays.map((d) => {
             const dayClasses = classesByWeekday.get(d.weekday) ?? [];
             return (
               <div
                 key={d.iso}
                 className={cn(
-                  "rounded-xl border min-h-[140px] p-2 flex flex-col gap-1.5",
+                  "flex min-h-[132px] flex-col gap-1.5 rounded-[12px] border p-2",
                   d.isToday
-                    ? "bg-brand-50/70 border-brand-300"
+                    ? "border-brand-300 bg-brand-50"
                     : d.inMonth
-                      ? d.isWeekend
-                        ? "bg-brand-50/30 border-line"
-                        : "bg-surface border-line"
-                      : "bg-surface-2/50 border-line/60",
+                      ? "border-line bg-surface"
+                      : "border-line/60 bg-surface-2/60",
                 )}
               >
                 <div className="px-0.5">
                   {d.isToday ? (
-                    <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-ink text-white text-[12px] font-extrabold tabular-nums leading-none">
+                    <span
+                      aria-current="date"
+                      className="inline-grid h-[26px] min-w-[26px] place-items-center rounded-full bg-ink px-1 text-[13px] font-extrabold tabular-nums text-white"
+                    >
                       {d.dayNum}
                     </span>
                   ) : (
                     <span
                       className={cn(
-                        "text-[15px] tabular-nums font-bold leading-none",
+                        "inline-grid h-[26px] items-center text-[14px] font-extrabold tabular-nums",
                         d.inMonth ? "text-ink" : "text-muted-2",
                       )}
                     >
@@ -510,31 +543,33 @@ function MonthView({
                 </div>
                 <div className="space-y-1 overflow-hidden">
                   {dayClasses.slice(0, 3).map((c) => {
-                    const tokens = getAccentTokens(colorFamilyForSubject(c.subject));
+                    const tone = subjectTone(c.subject);
                     return (
-                    <Link
-                      key={c.id}
-                      href={`/admin/classes/${c.id}`}
-                      className="block rounded-lg px-1.5 py-1 text-[10px] leading-tight transition-shadow hover:shadow-[0_6px_16px_-10px_rgba(31,40,90,0.5)]"
-                      style={{ backgroundColor: tokens.pillBg, color: tokens.pillText }}
-                      title={`${classDisplayName(c.subject, c.name)} · ${c.tutorFirst} ${c.tutorLast} · ${c.startTime ?? ""}-${c.endTime ?? ""}`}
-                    >
-                      <div className="font-bold truncate">
-                        {c.subject}
-                      </div>
-                      <div className="truncate opacity-80">
-                        {c.tutorFirst} {c.tutorLast}
-                      </div>
-                      <div className="tabular-nums opacity-80">
-                        {c.startTime
-                          ? formatTime(c.startTime)
-                          : ""}
-                      </div>
-                    </Link>
+                      <Link
+                        key={c.id}
+                        href={`/admin/classes/${c.id}`}
+                        className="block rounded-[8px] px-1.5 py-1 text-[11px] leading-tight transition-[filter] hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                        style={{ backgroundColor: tone.bg, color: tone.fg }}
+                        title={`${classDisplayName(c.subject, c.name)} · ${c.tutorFirst} ${c.tutorLast}${
+                          c.startTime && c.endTime
+                            ? ` · ${formatTimeRange(c.startTime, c.endTime)}`
+                            : ""
+                        }`}
+                      >
+                        <div className="truncate font-extrabold">{c.subject}</div>
+                        {c.startTime && (
+                          <div className="font-semibold tabular-nums">
+                            {formatTime(c.startTime)}
+                          </div>
+                        )}
+                        <div className="truncate opacity-90">
+                          {c.tutorFirst} {c.tutorLast}
+                        </div>
+                      </Link>
                     );
                   })}
                   {dayClasses.length > 3 && (
-                    <div className="text-[10px] text-muted px-1">
+                    <div className="px-1 text-[11px] font-semibold text-muted">
                       +{dayClasses.length - 3} more
                     </div>
                   )}
