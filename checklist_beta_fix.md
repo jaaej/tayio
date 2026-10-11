@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 10 October 2026
+Last updated: 11 October 2026
 
 ## Status key
 
@@ -13,6 +13,17 @@ Last updated: 10 October 2026
 
 ## Manual QA required
 
+- [ ] As owner and as reception admin, open `/admin/users` at 1440px and
+  390px.
+  On desktop, click through people in each role tab and confirm the list
+  keeps its scroll position, the selected row is highlighted, and the URL
+  becomes `/admin/users/[id]` with the role, search, and filters kept.
+  Refresh on a profile and confirm the same person and list come back.
+  On phone, confirm the list shows alone, a profile shows alone with a back
+  button, and back returns to the same filtered list.
+  Check search, the Filters menu (Status, School, Sort), `?new=1`, the year
+  groups on the Students tab, row flags, quick facts, every profile tab, the
+  internal note edit, Message, and the More actions menu.
 - [ ] As admin, tutor, student, and parent, open Messages, start a new
   message, open a conversation, and send a reply on desktop and phone width.
   Confirm the inbox, contact picker, and conversation use the frosted glass
@@ -422,6 +433,46 @@ Last updated: 10 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin Users split view from the "UsersGlass" design (11 October 2026).
+  - `src/app/admin/users/layout.tsx` renders the list pane once
+    (`_components/user-directory-pane.tsx`) and keeps it mounted while the
+    admin moves between profiles; `/admin/users/[id]` renders the profile on
+    the right and `/admin/users` shows a "Select a person" resting pane.
+  - Below 1280px (xl) only one pane shows: the list on `/admin/users`, the
+    profile with a back button on `/admin/users/[id]`.
+    The split starts at xl rather than lg because at 1024px the profile pane
+    would be under 400px wide.
+  - Role tabs (All / Admins / Tutors / Parents / Students), search, and a
+    Filters menu (Status, School, Sort) stay in the URL
+    (`role`, `q`, `status`, `school`, `name`); every row, tab, back, and
+    family link carries them (`_lib/directory-list.ts`, `_components/list-link.tsx`).
+    Search and filters write the URL with `history.replaceState` and filter on
+    the client, so typing does not re-render the open profile.
+  - Students group by year through `normaliseYearLevel`, so "10", "Year 10",
+    and "Yr 10" share one "Year 10" group (fixes the duplicated year group and
+    "Yr Year 10" label); unit tests in `_lib/directory-list.test.ts`.
+    Everyone groups by role; a single non-student role groups by initial.
+  - Row flags come from real data only (`_lib/directory-data.ts`): absences
+    and overdue homework use the dashboard "Students to watch" thresholds,
+    plus current break/leave and current free trial.
+  - Profile header: role-coloured initials, name, role, Active /
+    Discontinued / Deactivated status, schedule and trial pills, year, school,
+    email, phone, and linked parents or children; Message
+    (`/admin/messages/with/[userId]`) and the account menu
+    (`_components/user-account-actions.tsx`, formerly `user-row-actions.tsx`).
+  - Quick facts (`_lib/profile-facts.ts`): students get Attendance and
+    Homework (last 30 days), Invoices (overdue or open count), and active
+    make-up Credits; tutors get Classes and Students; parents get Invoices;
+    admins get none.
+  - Every existing section stays reachable as a `?tab=` tab; the internal note
+    is the amber "admins only" block at the top of the Profile tab.
+  - Removed: `user-table-row.tsx`, `user-note-button.tsx`, `user-tabs.tsx`,
+    `at-a-glance.tsx` (the list no longer has row note or Open controls).
+  - Not built from the design: the Overview tab's "Recent activity" feed (no
+    per-person activity query exists) and its class list with Move / Add leave
+    buttons (those live on the Lessons & leave tab).
+  - Verified with `tsc --noEmit` and `vitest`; no browser QA yet.
 
 - [x] Glass messaging, narrower sidebar, and body-portal positioning fix
   (10 October 2026).
@@ -890,7 +941,9 @@ Last updated: 10 October 2026
 ## Admin users list
 
 - [x] Open a user by clicking anywhere on their row in `/admin/users`
-  (10 October 2026), not only `Open ->`. `UserTableRow`
+  (10 October 2026), not only `Open ->`.
+  Superseded on 11 October 2026 by the split view: each list row is now a
+  single link and `user-table-row.tsx` was removed. `UserTableRow`
   (`src/app/admin/users/_components/user-table-row.tsx`) ignores clicks on
   links, buttons, the note editor, the settings menu, portaled panels, and
   text selection; Cmd/Ctrl-click opens a new tab. The name link remains the
@@ -916,6 +969,8 @@ Last updated: 10 October 2026
 - [x] Move Reset and Deactivate actions into a labelled gear menu.
 - [x] Display short admin-only preference notes beneath the relevant user row,
   with clear separation from the user's name and related details.
+  Since 11 October 2026 the note shows on the selected person's Profile tab
+  in the split view rather than on the list row.
 - [x] Display `In person` and/or `Online` delivery status for students.
 - [x] Display both delivery modes for tutors who teach both types.
 - [x] Add admin-configurable quick-search aliases in Settings, such as `e1/2`

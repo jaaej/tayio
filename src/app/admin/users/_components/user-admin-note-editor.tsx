@@ -2,34 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, StickyNote, X } from "lucide-react";
+import { Pencil, StickyNote } from "lucide-react";
 import { setUserAdminNote } from "@/app/admin/_lib/actions-users";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
+/** Amber "admins only" note block on a user's profile; click to edit. */
 export function UserAdminNoteEditor({
   userId,
   initialNote,
   canEdit,
-  compact = false,
-  autoEdit = false,
-  inPanel = false,
 }: {
   userId: string;
   initialNote: string | null;
   canEdit: boolean;
-  compact?: boolean;
-  /** Open straight into the editor, e.g. inside the directory's note panel. */
-  autoEdit?: boolean;
-  /** Hosted in a titled side panel: skip the editor's own title and close. */
-  inPanel?: boolean;
 }) {
   const router = useRouter();
   const normalizedInitial = initialNote?.trim() ?? "";
   const [saved, setSaved] = useState(normalizedInitial);
   const [value, setValue] = useState(normalizedInitial);
-  const [editing, setEditing] = useState(autoEdit && canEdit);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,6 +29,12 @@ export function UserAdminNoteEditor({
     setSaved(next);
     setValue(next);
   }, [initialNote]);
+
+  // A different person was selected: drop any half-written edit.
+  useEffect(() => {
+    setEditing(false);
+    setError(null);
+  }, [userId]);
 
   function beginEditing() {
     if (!canEdit) return;
@@ -67,57 +65,38 @@ export function UserAdminNoteEditor({
 
   if (!editing) {
     if (saved) {
-      const content = (
-        <>
-          <span className="flex items-center gap-1.5 font-extrabold">
-            <StickyNote className="h-3.5 w-3.5" aria-hidden />
-            Internal admin note
-            {canEdit && <Pencil className="ml-auto h-3 w-3" aria-hidden />}
-          </span>
-          <span className={cn("mt-1 block whitespace-pre-wrap", compact && "line-clamp-2")}>
-            {saved}
-          </span>
-        </>
+      const text = (
+        <span className="block whitespace-pre-wrap">{saved}</span>
       );
-
       return canEdit ? (
         <button
           type="button"
           onClick={beginEditing}
-          aria-label="Edit internal admin note"
-          className={cn(
-            "block w-full rounded-[9px] border border-warn/25 bg-warn-bg text-left text-[11px] font-medium leading-snug text-warn transition-colors hover:border-warn/45 hover:bg-warn-bg/80",
-            compact ? "mt-5 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
-          )}
+          aria-label="Edit internal note"
+          className="group relative block w-full rounded-[12px] bg-[#FFF8EC] p-3 pr-10 text-left text-[13px] leading-[1.5] text-ink transition-colors hover:bg-warn-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
         >
-          {content}
+          {text}
+          <Pencil
+            className="absolute right-3 top-3 h-3.5 w-3.5 text-warn opacity-60 transition-opacity group-hover:opacity-100"
+            aria-hidden
+          />
         </button>
       ) : (
-        <div
-          className={cn(
-            "rounded-[9px] border border-warn/25 bg-warn-bg text-[11px] font-medium leading-snug text-warn",
-            compact ? "mt-5 max-w-[300px] px-2.5 py-2" : "px-4 py-3",
-          )}
-        >
-          {content}
+        <div className="rounded-[12px] bg-[#FFF8EC] p-3 text-[13px] leading-[1.5] text-ink">
+          {text}
         </div>
       );
     }
 
     if (!canEdit) {
-      return compact ? null : (
-        <p className="text-[13px] text-muted">No internal note has been added.</p>
-      );
+      return <p className="text-[13px] text-muted">No internal note.</p>;
     }
 
     return (
       <button
         type="button"
         onClick={beginEditing}
-        className={cn(
-          "flex w-fit items-center gap-1.5 whitespace-nowrap rounded-[8px] border border-dashed border-line-strong font-bold text-muted transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700",
-          compact ? "mt-5 px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]",
-        )}
+        className="flex w-fit items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-dashed border-line-strong px-3 py-2 text-[12px] font-bold text-muted transition-colors hover:border-warn/40 hover:bg-[#FFF8EC] hover:text-warn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       >
         <StickyNote className="h-3.5 w-3.5" aria-hidden />
         Add internal note
@@ -126,46 +105,25 @@ export function UserAdminNoteEditor({
   }
 
   return (
-    <div
-      className={cn(
-        "rounded-[10px] border border-warn/30 bg-warn-bg/55 p-3",
-        compact ? "mt-5 w-[300px] max-w-full" : "w-full",
-      )}
-    >
-      <div className={cn("mb-2 flex items-center justify-between gap-2", inPanel && "hidden")}>
-        <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-warn">
-          <StickyNote className="h-3.5 w-3.5" aria-hidden />
-          Internal admin note
-        </span>
-        <button
-          type="button"
-          onClick={cancelEditing}
-          aria-label="Close note editor"
-          className="grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-surface hover:text-ink"
-        >
-          <X className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      </div>
+    <div className="rounded-[12px] bg-[#FFF8EC] p-3">
       <Textarea
         autoFocus
+        aria-label="Internal note"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         maxLength={2000}
         placeholder="Private context for admins only"
-        className={cn(
-          "border-warn/25 bg-surface text-[13px]",
-          compact ? "min-h-[92px] px-3 py-2" : "min-h-[120px]",
-        )}
+        className="min-h-[120px] border-warn/25 bg-surface text-[13px]"
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold text-muted">
-          {value.length}/2000 · Not visible to this user
+        <span className="text-[11px] font-semibold tabular-nums text-muted">
+          {value.length}/2000
         </span>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={cancelEditing}
-            className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-surface hover:text-ink"
+            className="min-h-[30px] rounded-[9px] px-2.5 text-[12px] font-bold text-muted hover:bg-surface hover:text-ink"
           >
             Cancel
           </button>
@@ -181,7 +139,11 @@ export function UserAdminNoteEditor({
           </LoadingButton>
         </div>
       </div>
-      {error && <p className="mt-2 text-[11px] font-semibold text-bad">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

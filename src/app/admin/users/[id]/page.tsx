@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { ChevronLeft } from "lucide-react";
+import { eq, inArray, isNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { familyLinks, profiles, type UserRole } from "@/db/schema";
+import { enrollments, familyLinks, profiles, type UserRole } from "@/db/schema";
 import {
   STUDENT_TIERS,
   canAdminManageAccount,
@@ -19,20 +22,20 @@ import {
   accountScheduleStatusLabel,
   freeTrialDirectoryState,
 } from "@/lib/account-schedule-status";
-import { alias } from "drizzle-orm/pg-core";
 import {
-  Card,
-  CardHead,
-  CardBody,
-  Hero,
-  BackLink,
   Empty,
+  MetricTile,
+  Pill,
+  buttonVariants,
+  initialsOf,
 } from "@/components/admin/ui";
 import {
+  getReportTerms,
   getStudentLeave,
   getStudentLessonsInRange,
-  getTutorRecord,
+  getStudentTrial,
   getTutorAvailabilityForTutor,
+  getTutorRecord,
   getUserSchedulePeriod,
 } from "@/app/admin/_lib/queries";
 import {
@@ -40,40 +43,58 @@ import {
   getStudentAllowanceSummary,
   getStudentEnrolledSubjects,
 } from "@/lib/admin-credits";
+import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
+import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
+import { parseTabParam, tabsForRole, type UserTab } from "@/lib/user-detail-tabs";
+import {
+  monthBounds,
+  parseMonthParam,
+} from "@/app/student/_components/month-calendar";
+import { getClassMoveData } from "@/lib/class-moves";
+import { getStudentCurriculumAccessOverview } from "@/app/admin/_lib/curriculum-access";
+import { cn } from "@/lib/utils";
+import { UserAdminNoteEditor } from "../_components/user-admin-note-editor";
+import { UserAccountActions } from "../_components/user-account-actions";
+import { ROLE_AVATAR } from "../_components/role-style";
+import { normaliseYearLevel } from "../_lib/directory-list";
+import { ListLink, ProfileTabLinks } from "../_components/list-link";
+import { getProfileFacts } from "../_lib/profile-facts";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
 import { StudentLeaveManager } from "./_components/student-leave-manager";
 import { StudentReportControls } from "./_components/student-report-controls";
 import { StudentTrialManager } from "./_components/student-trial-manager";
-import { getReportTerms, getStudentTrial } from "@/app/admin/_lib/queries";
-import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
-import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
-import { parseTabParam, type UserTab } from "@/lib/user-detail-tabs";
-import { UserTabs } from "./_components/user-tabs";
-import { AtAGlance } from "./_components/at-a-glance";
 import { AdminLessonCalendar } from "./_components/lesson-calendar";
-import {
-  monthBounds,
-  parseMonthParam,
-} from "@/app/student/_components/month-calendar";
-import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveManager } from "./_components/class-move-manager";
-import { UserAdminNoteEditor } from "../_components/user-admin-note-editor";
-import { getStudentCurriculumAccessOverview } from "@/app/admin/_lib/curriculum-access";
 import { CurriculumAccessManager } from "./_components/curriculum-access-manager";
+import { ProfileSection } from "./_components/profile-section";
 
 export const dynamic = "force-dynamic";
 
+type SearchParams = Record<string, string | string[] | undefined>;
+
+const STATUS_STYLE = {
+  active: { label: "Active", text: "text-good", dot: "bg-good" },
+  discontinued: { label: "Discontinued", text: "text-muted", dot: "bg-muted" },
+  deactivated: { label: "Deactivated", text: "text-bad", dot: "bg-bad" },
+} as const;
+
+/**
+ * The right pane of the users split view (the list comes from the layout):
+ * the person's header, quick facts, and every profile section as a tab.
+ */
 export default async function UserDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; month?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const { id } = await params;
-  const { tab, month } = await searchParams;
+  const sp = await searchParams;
+  const tab = typeof sp.tab === "string" ? sp.tab : undefined;
+  const month = typeof sp.month === "string" ? sp.month : undefined;
 
   const [[user], me] = await Promise.all([
     db.select().from(profiles).where(eq(profiles.id, id)),
@@ -84,21 +105,22 @@ export default async function UserDetailPage({
   // Parsed against the role, so a stale cross-role link falls back to Profile
   // instead of rendering an empty panel.
   const activeTab = parseTabParam(tab, user.role);
+  const role = coarseRole(user.role);
+  const isStudent = role === "student";
+  const isTutor = role === "tutor";
 
-  const canManageRoles = isUnrestrictedAdmin(
-    me?.app_metadata?.role as UserRole | undefined,
-  );
-  const canEditProfile = canAdminManageAccount(
-    me?.app_metadata?.role as UserRole | undefined,
-    user.role,
-  );
+  const myRole = me?.app_metadata?.role as UserRole | undefined;
+  const canManageRoles = isUnrestrictedAdmin(myRole);
+  const canEditProfile = canAdminManageAccount(myRole, user.role);
 
-  const isStudent = coarseRole(user.role) === "student";
+  const basePath = `/admin/users/${id}`;
+
   const today = melbourneDate(new Date());
   const { year: calendarYear, month: calendarMonth } = parseMonthParam(month);
   const { fromIso } = monthBounds(calendarYear, calendarMonth);
   const calendarEnd = new Date(calendarYear, calendarMonth + 1, 0);
   const toIso = `${calendarEnd.getFullYear()}-${String(calendarEnd.getMonth() + 1).padStart(2, "0")}-${String(calendarEnd.getDate()).padStart(2, "0")}`;
+
   const [
     creditActivity,
     allowanceSummary,
@@ -124,9 +146,7 @@ export default async function UserDetailPage({
         activeTab === "lessons"
           ? getStudentLessonsInRange(id, fromIso, toIso)
           : Promise.resolve([]),
-        activeTab === "lessons"
-          ? getClassMoveData(id)
-          : Promise.resolve(null),
+        activeTab === "lessons" ? getClassMoveData(id) : Promise.resolve(null),
         activeTab === "curriculum"
           ? getStudentCurriculumAccessOverview(id)
           : Promise.resolve([]),
@@ -135,43 +155,52 @@ export default async function UserDetailPage({
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
-  const isTutor = coarseRole(user.role) === "tutor";
   const [tutorRecord, tutorAvailability] = isTutor
     ? await Promise.all([
         getTutorRecord(id, canManageRoles),
         getTutorAvailabilityForTutor(id),
       ])
     : [null, null];
-  const schedulePeriod =
-    isStudent || isTutor
-      ? await getUserSchedulePeriod(id, user.role)
-      : null;
-  const trialState = freeTrialDirectoryState(trial, today);
 
-  const [allStudents, allParents] = await Promise.all([
-    user.role === "parent"
-      ? db
-          .select({
-            id: profiles.id,
-            firstName: profiles.firstName,
-            lastName: profiles.lastName,
-            email: profiles.email,
-          })
-          .from(profiles)
-          .where(inArray(profiles.role, STUDENT_TIERS))
-      : Promise.resolve([]),
-    isStudent
-      ? db
-          .select({
-            id: profiles.id,
-            firstName: profiles.firstName,
-            lastName: profiles.lastName,
-            email: profiles.email,
-          })
-          .from(profiles)
-          .where(eq(profiles.role, "parent"))
-      : Promise.resolve([]),
-  ]);
+  const [schedulePeriod, facts, enrolmentTotals, allStudents, allParents] =
+    await Promise.all([
+      isStudent || isTutor
+        ? getUserSchedulePeriod(id, user.role)
+        : Promise.resolve(null),
+      getProfileFacts(id, user.role),
+      isStudent
+        ? db
+            .select({
+              active: sql<number>`count(*) filter (where ${isNull(enrollments.withdrawnAt)})::int`,
+              withdrawn: sql<number>`count(*) filter (where ${enrollments.withdrawnAt} is not null)::int`,
+            })
+            .from(enrollments)
+            .where(eq(enrollments.studentId, id))
+        : Promise.resolve([]),
+      user.role === "parent"
+        ? db
+            .select({
+              id: profiles.id,
+              firstName: profiles.firstName,
+              lastName: profiles.lastName,
+              email: profiles.email,
+            })
+            .from(profiles)
+            .where(inArray(profiles.role, STUDENT_TIERS))
+        : Promise.resolve([]),
+      isStudent
+        ? db
+            .select({
+              id: profiles.id,
+              firstName: profiles.firstName,
+              lastName: profiles.lastName,
+              email: profiles.email,
+            })
+            .from(profiles)
+            .where(eq(profiles.role, "parent"))
+        : Promise.resolve([]),
+    ]);
+  const trialState = freeTrialDirectoryState(trial, today);
 
   type LinkedPerson = {
     id: string;
@@ -180,12 +209,10 @@ export default async function UserDetailPage({
     email: string;
     isPrimaryContact: boolean;
   };
-  let parents: LinkedPerson[] = [];
-  let children: LinkedPerson[] = [];
-
-  if (coarseRole(user.role) === "student") {
+  let family: LinkedPerson[] = [];
+  if (isStudent) {
     const linkedParent = alias(profiles, "linked_parent");
-    parents = await db
+    family = await db
       .select({
         id: linkedParent.id,
         firstName: linkedParent.firstName,
@@ -196,11 +223,9 @@ export default async function UserDetailPage({
       .from(familyLinks)
       .innerJoin(linkedParent, eq(linkedParent.id, familyLinks.parentId))
       .where(eq(familyLinks.studentId, user.id));
-  }
-
-  if (user.role === "parent") {
+  } else if (user.role === "parent") {
     const linkedStudent = alias(profiles, "linked_student");
-    children = await db
+    family = await db
       .select({
         id: linkedStudent.id,
         firstName: linkedStudent.firstName,
@@ -213,147 +238,109 @@ export default async function UserDetailPage({
       .where(eq(familyLinks.parentId, user.id));
   }
 
-  const initials =
-    `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const name = `${user.firstName} ${user.lastName}`.trim();
+  const totals = enrolmentTotals[0];
+  const status: keyof typeof STATUS_STYLE = !user.isActive
+    ? "deactivated"
+    : totals && totals.withdrawn > 0 && totals.active === 0
+      ? "discontinued"
+      : "active";
+  const statusStyle = STATUS_STYLE[status];
+  const scheduleLabel = schedulePeriod
+    ? accountScheduleStatusLabel(schedulePeriod, today)
+    : null;
 
-  const profileCard = (
-    <section className="rise" style={{ animationDelay: "80ms" }}>
-      <Card>
-        <CardHead title="Profile" />
-        <CardBody>
-          <EditUserForm
-            id={user.id}
-            firstName={user.firstName}
-            lastName={user.lastName}
-            email={user.email}
-            phone={user.phone ?? ""}
-            addressLine1={user.addressLine1 ?? ""}
-            addressLine2={user.addressLine2 ?? ""}
-            suburb={user.suburb ?? ""}
-            state={user.state ?? ""}
-            postcode={user.postcode ?? ""}
-            yearLevel={user.yearLevel ?? ""}
-            school={user.school ?? ""}
-            role={user.role}
-            canManageRoles={canManageRoles}
-            canEditProfile={canEditProfile}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const subParts = [
+    isStudent && user.yearLevel ? normaliseYearLevel(user.yearLevel).label : null,
+    isStudent ? user.school : null,
+    user.email,
+    user.phone,
+  ].filter((part): part is string => !!part);
+
+  // ---- Sections -----------------------------------------------------------
+
+  const noteSection = (
+    <ProfileSection title="Internal note" note="admins only">
+      <UserAdminNoteEditor
+        userId={user.id}
+        initialNote={user.adminNotes}
+        canEdit={canEditProfile}
+      />
+    </ProfileSection>
   );
 
-  const adminNoteCard = (
-    <section className="rise" style={{ animationDelay: "90ms" }}>
-      <Card>
-        <CardHead
-          title="Internal admin note"
-          eyebrow="Private · admins only"
-        />
-        <CardBody>
-          <p className="mb-3 text-[12px] leading-relaxed text-muted">
-            Keep useful account context here. This note appears on the user
-            directory and is never shown to the account holder.
-          </p>
-          <UserAdminNoteEditor
-            userId={user.id}
-            initialNote={user.adminNotes}
-            canEdit={canEditProfile}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const familySection = (isStudent || user.role === "parent") && (
+    <ProfileSection title={isStudent ? "Parents" : "Children"}>
+      <FamilyLinksManager
+        viewer={isStudent ? "student" : "parent"}
+        userId={user.id}
+        existing={family.map((p) => ({
+          id: p.id,
+          name: `${p.firstName} ${p.lastName}`,
+          email: p.email,
+          isPrimaryContact: p.isPrimaryContact,
+        }))}
+        options={(isStudent ? allParents : allStudents).map((p) => ({
+          id: p.id,
+          name: `${p.firstName} ${p.lastName}`,
+          email: p.email,
+        }))}
+      />
+    </ProfileSection>
   );
 
-  const lessonCalendar = isStudent && (
-    <section className="rise" style={{ animationDelay: "100ms" }}>
-      <Card>
-        <CardBody>
-          <AdminLessonCalendar
-            studentId={id}
-            year={calendarYear}
-            month={calendarMonth}
-            lessons={calendarLessons}
-            leavePeriods={leavePeriods ?? []}
-            basePath={`/admin/users/${id}`}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const profileSection = (
+    <ProfileSection title="Profile">
+      <EditUserForm
+        id={user.id}
+        firstName={user.firstName}
+        lastName={user.lastName}
+        email={user.email}
+        phone={user.phone ?? ""}
+        addressLine1={user.addressLine1 ?? ""}
+        addressLine2={user.addressLine2 ?? ""}
+        suburb={user.suburb ?? ""}
+        state={user.state ?? ""}
+        postcode={user.postcode ?? ""}
+        yearLevel={user.yearLevel ?? ""}
+        school={user.school ?? ""}
+        role={user.role}
+        canManageRoles={canManageRoles}
+        canEditProfile={canEditProfile}
+      />
+    </ProfileSection>
   );
 
-  const classMoveCard = isStudent && classMoveData && (
-    <section className="rise" style={{ animationDelay: "90ms" }}>
-      <ClassMoveManager
-        studentId={user.id}
-        studentName={`${user.firstName} ${user.lastName}`.trim()}
-        data={classMoveData}
+  const trialSection = isStudent && (
+    <ProfileSection title="Free trial" note="tutors see a trial pill">
+      <StudentTrialManager studentId={user.id} trial={trial ?? null} />
+    </ProfileSection>
+  );
+
+  const classMoveSection = isStudent && classMoveData && (
+    <ClassMoveManager studentId={user.id} studentName={name} data={classMoveData} />
+  );
+
+  const calendarSection = isStudent && (
+    <section className="px-4 py-5 sm:px-5">
+      <AdminLessonCalendar
+        studentId={id}
+        year={calendarYear}
+        month={calendarMonth}
+        lessons={calendarLessons}
+        leavePeriods={leavePeriods ?? []}
+        basePath={basePath}
       />
     </section>
   );
 
-  const leaveCard = isStudent && (
-    <section className="rise" style={{ animationDelay: "110ms" }}>
-      <Card>
-        <CardHead
-          title="Leave / holidays"
-          action={
-            <span className="text-[12px] text-muted">
-              Away from all classes
-            </span>
-          }
-        />
-        <CardBody>
-          <StudentLeaveManager
-            studentId={user.id}
-            periods={leavePeriods ?? []}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const leaveSection = isStudent && (
+    <ProfileSection title="Leave / holidays" note="away from all classes">
+      <StudentLeaveManager studentId={user.id} periods={leavePeriods ?? []} />
+    </ProfileSection>
   );
 
-  const trialCard = isStudent && (
-    <section className="rise" style={{ animationDelay: "115ms" }}>
-      <Card>
-        <CardHead
-          title="Free trial"
-          action={
-            <span className="text-[12px] text-muted">
-              Tutors see a trial pill
-            </span>
-          }
-        />
-        <CardBody>
-          <StudentTrialManager studentId={user.id} trial={trial ?? null} />
-        </CardBody>
-      </Card>
-    </section>
-  );
-
-  const reportsCard = isStudent && (
-    <section className="rise" style={{ animationDelay: "120ms" }}>
-      <Card>
-        <CardHead
-          title="Term reports"
-          action={
-            <span className="text-[12px] text-muted">PDF + notify family</span>
-          }
-        />
-        <CardBody>
-          <StudentReportControls
-            studentId={user.id}
-            terms={(reportTerms ?? []).map((t) => ({
-              id: t.id,
-              label: t.label,
-            }))}
-          />
-        </CardBody>
-      </Card>
-    </section>
-  );
-
-  const creditsCard = isStudent &&
+  const creditsSection = isStudent &&
     creditActivity &&
     allowanceSummary &&
     enrolledSubjects && (
@@ -365,240 +352,220 @@ export default async function UserDetailPage({
       />
     );
 
-  const curriculumAccessCard = isStudent && (
-    <section className="rise" style={{ animationDelay: "90ms" }}>
-      <Card>
-        <CardHead
-          title="Curriculum access"
-          action={
-            <span className="text-[12px] text-muted">
-              Earlier terms require an admin grant
-            </span>
-          }
-        />
-        <CardBody>
-          <CurriculumAccessManager
-            studentId={user.id}
-            subjects={curriculumAccess ?? []}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const curriculumSection = isStudent && (
+    <ProfileSection
+      title="Curriculum access"
+      note="earlier terms need an admin grant"
+    >
+      <CurriculumAccessManager
+        studentId={user.id}
+        subjects={curriculumAccess ?? []}
+      />
+    </ProfileSection>
   );
 
-  // Lives in the rail, not a tab: on a student record the linked parents are
-  // reference information you want beside whatever you are editing.
-  const familyCard = (coarseRole(user.role) === "parent" ||
-    coarseRole(user.role) === "student") && (
-    <section className="rise" style={{ animationDelay: "120ms" }}>
-      <Card>
-        <CardHead title={user.role === "parent" ? "Children" : "Parents"} />
-        <CardBody>
-          <FamilyLinksManager
-            viewer={coarseRole(user.role) as "parent" | "student"}
-            userId={user.id}
-            existing={
-              user.role === "parent"
-                ? children.map((c) => ({
-                    id: c.id,
-                    name: `${c.firstName} ${c.lastName}`,
-                    email: c.email,
-                    isPrimaryContact: c.isPrimaryContact,
-                  }))
-                : parents.map((p) => ({
-                    id: p.id,
-                    name: `${p.firstName} ${p.lastName}`,
-                    email: p.email,
-                    isPrimaryContact: p.isPrimaryContact,
-                  }))
-            }
-            options={
-              user.role === "parent"
-                ? allStudents.map((s) => ({
-                    id: s.id,
-                    name: `${s.firstName} ${s.lastName}`,
-                    email: s.email,
-                  }))
-                : allParents.map((p) => ({
-                    id: p.id,
-                    name: `${p.firstName} ${p.lastName}`,
-                    email: p.email,
-                  }))
-            }
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const reportsSection = isStudent && (
+    <ProfileSection title="Term reports" note="PDF + notify family">
+      <StudentReportControls
+        studentId={user.id}
+        terms={(reportTerms ?? []).map((t) => ({ id: t.id, label: t.label }))}
+      />
+    </ProfileSection>
   );
 
-  const tutorClassesCard = tutorRecord && (
-    <section className="rise" style={{ animationDelay: "80ms" }}>
-      <Card>
-        <CardHead title="Classes" />
-        {tutorRecord.classes.length === 0 ? (
-          <Empty>Not assigned to any classes yet.</Empty>
-        ) : (
-          <div className="divide-y divide-line">
-            {tutorRecord.classes.map((c) => (
+  const tutorClassesSection = tutorRecord && (
+    <ProfileSection title="Classes" flush>
+      {tutorRecord.classes.length === 0 ? (
+        <Empty>Not assigned to any classes yet.</Empty>
+      ) : (
+        <ul className="divide-y divide-line border-y border-line">
+          {tutorRecord.classes.map((c) => (
+            <li key={c.id}>
               <Link
-                key={c.id}
                 href={`/admin/classes/${c.id}`}
-                className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-surface-2"
+                className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2 sm:px-5"
               >
-                <div className="min-w-0">
-                  <div className="truncate text-[14px] font-bold text-ink">
-                    {classDisplayName(c.subjectName, c.name)}
-                  </div>
-                </div>
-                <span className="shrink-0 text-[12px] font-semibold text-ink-soft tabular-nums">
-                  {c.studentCount}{" "}
-                  {c.studentCount === 1 ? "student" : "students"}
+                <span className="min-w-0 truncate text-[14px] font-bold text-ink">
+                  {classDisplayName(c.subjectName, c.name)}
+                </span>
+                <span className="shrink-0 text-[12px] font-semibold tabular-nums text-ink-soft">
+                  {c.studentCount} {c.studentCount === 1 ? "student" : "students"}
                 </span>
               </Link>
-            ))}
-          </div>
-        )}
-      </Card>
-    </section>
+            </li>
+          ))}
+        </ul>
+      )}
+    </ProfileSection>
   );
 
   // Owner-only: tutor_bank_details is payroll PII. Reception gets nothing here
   // rather than a locked placeholder - gate, don't dangle.
-  const tutorBankCard = tutorRecord && canManageRoles && (
-    <section className="rise" style={{ animationDelay: "100ms" }}>
-      <Card>
-        <CardHead title="Payroll details" />
-        <CardBody>
-          <TutorBankForm tutorId={id} initial={tutorRecord.bank} />
-        </CardBody>
-      </Card>
-    </section>
+  const tutorBankSection = tutorRecord && canManageRoles && (
+    <ProfileSection title="Payroll details">
+      <TutorBankForm tutorId={id} initial={tutorRecord.bank} />
+    </ProfileSection>
   );
 
-  const tutorAvailabilityCard = tutorAvailability && (
-    <section className="rise" style={{ animationDelay: "80ms" }}>
-      <Card>
-        <CardHead title="Weekly availability" />
-        <CardBody>
-          <TutorAvailabilityEditor
-            tutorId={id}
-            subjects={tutorAvailability.subjects}
-            slots={tutorAvailability.slots}
-          />
-        </CardBody>
-      </Card>
-    </section>
+  const availabilitySection = tutorAvailability && (
+    <ProfileSection title="Weekly availability">
+      <TutorAvailabilityEditor
+        tutorId={id}
+        subjects={tutorAvailability.subjects}
+        slots={tutorAvailability.slots}
+      />
+    </ProfileSection>
   );
 
-  const panels: Record<UserTab, ReactNode> = {
-    profile: (
-      <>
-        {profileCard}
-        {adminNoteCard}
-        {trialCard}
-      </>
-    ),
-    lessons: (
-      <>
-        {classMoveCard}
-        {lessonCalendar}
-        {leaveCard}
-      </>
-    ),
-    credits: creditsCard,
-    curriculum: curriculumAccessCard,
-    reports: reportsCard,
-    tutor: (
-      <>
-        {tutorClassesCard}
-        {tutorBankCard}
-      </>
-    ),
-    availability: tutorAvailabilityCard,
+  const panels: Record<UserTab, ReactNode[]> = {
+    profile: [noteSection, familySection, profileSection, trialSection],
+    lessons: [classMoveSection, calendarSection, leaveSection],
+    credits: [creditsSection],
+    curriculum: [curriculumSection],
+    reports: [reportsSection],
+    tutor: [tutorClassesSection, tutorBankSection],
+    availability: [availabilitySection],
   };
 
-  return (
-    <div className="space-y-6">
-      <BackLink href="/admin/users">All users</BackLink>
+  const tabs = tabsForRole(user.role);
 
-      <Hero
-        className="rise"
-        eyebrow="User profile"
-        icon={initials}
-        title={`${user.firstName} ${user.lastName}`}
-        right={
-          <a
+  return (
+    <section
+      aria-labelledby="user-profile-name"
+      className="glass flex min-w-0 flex-col gap-1.5 rounded-[24px] p-1.5"
+    >
+      <div className="flex flex-wrap items-center gap-3.5 px-2.5 pb-2 pt-2.5 sm:pl-3.5">
+        <ListLink
+          href="/admin/users"
+          aria-label="All users"
+          title="All users"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 xl:hidden"
+        >
+          <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
+        </ListLink>
+        <span
+          aria-hidden
+          className={cn(
+            "grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full text-[18px] font-extrabold",
+            ROLE_AVATAR[role],
+          )}
+        >
+          {initialsOf(name)}
+        </span>
+        <div className="flex min-w-0 flex-1 basis-[240px] flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2
+              id="user-profile-name"
+              className="text-[20px] font-extrabold leading-tight text-ink"
+            >
+              {name}
+            </h2>
+            <span className="inline-flex h-[22px] items-center rounded-full bg-white px-[9px] text-[11px] font-extrabold text-ink">
+              {roleLabel(user.role)}
+            </span>
+            <span
+              className={cn(
+                "inline-flex items-center gap-[5px] text-[12px] font-extrabold",
+                statusStyle.text,
+              )}
+            >
+              <span aria-hidden className={cn("h-[7px] w-[7px] rounded-full", statusStyle.dot)} />
+              {statusStyle.label}
+            </span>
+            {scheduleLabel && schedulePeriod && (
+              <span
+                title={`${formatDateLong(schedulePeriod.startDate)} - ${formatDateLong(schedulePeriod.endDate)}`}
+              >
+                <Pill tone={schedulePeriod.approval === "pending" ? "warn" : "info"}>
+                  {scheduleLabel}
+                </Pill>
+              </span>
+            )}
+            {trialState && trialState !== "ended" && trial && (
+              <span
+                title={`Free trial: ${formatDateLong(trial.startDate)} - ${formatDateLong(trial.endDate)}`}
+              >
+                <Pill tone={trialState === "current" ? "good" : "brand"}>
+                  {trialState === "current" ? "Free trial" : "Trial scheduled"}
+                </Pill>
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] font-semibold text-ink-soft [overflow-wrap:anywhere]">
+            {subParts.join(" · ")}
+            {family.length > 0 && (
+              <>
+                {" · "}
+                {isStudent ? (family.length === 1 ? "Parent" : "Parents") : "Children"}:{" "}
+                {family.map((person, index) => (
+                  <Fragment key={person.id}>
+                    {index > 0 && ", "}
+                    <ListLink
+                      href={`/admin/users/${person.id}`}
+                      className="font-bold text-brand-600 hover:text-brand-700 hover:underline"
+                    >
+                      {`${person.firstName} ${person.lastName}`.trim()}
+                    </ListLink>
+                  </Fragment>
+                ))}
+              </>
+            )}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link
             href={`/admin/messages/with/${user.id}`}
-            className="inline-flex items-center rounded-full bg-white/[0.18] border border-white/30 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.14em] text-white hover:bg-white/25 transition-colors"
+            className={cn(
+              buttonVariants({ variant: "glass", size: "md" }),
+              "h-[38px] rounded-[11px]",
+            )}
           >
             Message
-          </a>
-        }
-      />
-
-      <UserTabs
-        active={activeTab}
-        role={user.role}
-        basePath={`/admin/users/${id}`}
-      />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-6">{panels[activeTab]}</div>
-        <aside className="space-y-6">
-          <AtAGlance
-            rows={[
-              { label: "Status", value: user.isActive ? "Active" : "Inactive" },
-              ...(schedulePeriod
-                ? [
-                    {
-                      label: "Schedule status",
-                      value:
-                        `${accountScheduleStatusLabel(schedulePeriod, today)} · ` +
-                        `${formatDateLong(schedulePeriod.startDate)}–${formatDateLong(schedulePeriod.endDate)}`,
-                    },
-                  ]
-                : []),
-              { label: "Role", value: roleLabel(user.role) },
-              ...(isStudent
-                ? [
-                    { label: "Year level", value: user.yearLevel ?? "Not set" },
-                    { label: "School", value: user.school ?? "Not set" },
-                  ]
-                : []),
-              { label: "Phone", value: user.phone ?? "Not provided" },
-              {
-                label: "Postal address",
-                value:
-                  [
-                    user.addressLine1,
-                    user.addressLine2,
-                    [user.suburb, user.state, user.postcode]
-                      .filter(Boolean)
-                      .join(" "),
-                  ]
-                    .filter(Boolean)
-                    .join(", ") || "Not provided",
-              },
-              ...(isStudent
-                ? [
-                    {
-                      label: "Free trial",
-                      value:
-                        trialState === "current"
-                          ? `On trial · ${formatDateLong(trial!.startDate)}–${formatDateLong(trial!.endDate)}`
-                          : trialState === "scheduled"
-                            ? `Scheduled · ${formatDateLong(trial!.startDate)}–${formatDateLong(trial!.endDate)}`
-                            : trialState === "ended"
-                              ? `Ended · ${formatDateLong(trial!.endDate)}`
-                              : "Not on trial",
-                    },
-                  ]
-                : []),
-            ]}
-          />
-          {familyCard}
-        </aside>
+          </Link>
+          {canEditProfile && (
+            <UserAccountActions
+              id={user.id}
+              email={user.email}
+              isActive={user.isActive}
+              name={name}
+              canManageAccount={canEditProfile}
+              canHardDelete={canManageRoles}
+            />
+          )}
+        </div>
       </div>
-    </div>
+
+      {facts.length > 0 && (
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          {facts.map((fact) => (
+            <MetricTile
+              key={fact.label}
+              label={fact.label}
+              value={fact.value}
+              sub={fact.sub}
+              tone={fact.tone}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="panel min-w-0 overflow-hidden">
+        {tabs.length > 1 && (
+          <ProfileTabLinks
+            basePath={basePath}
+            tabs={tabs.map((t) => ({
+              key: t.key,
+              label: t.label,
+              active: t.key === activeTab,
+            }))}
+          />
+        )}
+        <div className="divide-y divide-line">
+          {panels[activeTab].map((section, index) => (
+            <Fragment key={index}>{section || null}</Fragment>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

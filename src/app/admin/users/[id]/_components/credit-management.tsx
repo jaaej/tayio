@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/select";
-import { Card, CardHead, CardBody, Button, Empty, Pill } from "@/components/admin/ui";
+import { Button, Empty, Pill } from "@/components/admin/ui";
+import { ProfileSection } from "./profile-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   grantAllowanceToStudent,
@@ -181,12 +182,7 @@ export function CreditManagement({
 
   return (
     <>
-      <section className="rise" style={{ animationDelay: "130ms" }}>
-        <Card>
-          <CardHead
-            title="Reschedule and cancellation activity"
-            eyebrow="Undo"
-          />
+      <ProfileSection title="Reschedule and cancellation activity" flush>
           {noActivity ? (
             <Empty>No reschedules or cancellations on record.</Empty>
           ) : (
@@ -194,7 +190,7 @@ export function CreditManagement({
               {activity.reschedules.map((r) => (
                 <div
                   key={r.id}
-                  className="px-5 py-3.5 flex items-start gap-3 flex-wrap"
+                  className="px-4 py-3.5 flex items-start gap-3 flex-wrap sm:px-5"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -245,7 +241,7 @@ export function CreditManagement({
                 return (
                   <div
                     key={c.id}
-                    className="px-5 py-3.5 flex items-start gap-3 flex-wrap"
+                    className="px-4 py-3.5 flex items-start gap-3 flex-wrap sm:px-5"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -341,16 +337,13 @@ export function CreditManagement({
               })}
             </div>
           )}
-        </Card>
-      </section>
+      </ProfileSection>
 
-      <section className="rise" style={{ animationDelay: "150ms" }}>
-        <Card>
-          <CardHead
-            title="Admin actions"
-            eyebrow={summary.termLabel ?? "No active term"}
-          />
-          <CardBody className="space-y-5">
+      <ProfileSection
+        title="Admin actions"
+        note={summary.termLabel ?? "No active term"}
+      >
+          <div className="space-y-5">
             <div className="flex flex-wrap gap-2.5">
               <Pill tone="default">
                 Reschedules: {summary.reschedulesUsed} of {summary.rescheduleCap}
@@ -441,9 +434,8 @@ export function CreditManagement({
                 {actionMsg.text}
               </div>
             )}
-          </CardBody>
-        </Card>
-      </section>
+          </div>
+      </ProfileSection>
       {confirmDialog}
     </>
   );

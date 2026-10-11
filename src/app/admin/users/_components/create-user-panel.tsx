@@ -117,18 +117,19 @@ export function CreateUserPanel({
 
   return (
     <>
-      {/* Default `md` height, matching every other admin PageHeader action.
-          The panel's own buttons stay `lg`: it goes full-width on mobile, so
-          those are real thumb targets in a way a desktop header action is not. */}
+      {/* `md` (36px) to sit in the list pane header. The panel's own buttons
+          stay `lg`: it goes full-width on mobile, so those are real thumb
+          targets in a way a header action is not. */}
       <Button
         type="button"
+        variant="primary"
+        size="md"
         onClick={() => {
           blank();
           setOpen(true);
         }}
-        className="min-h-10 rounded-[10px] border-ink bg-ink px-4 font-bold text-white shadow-[0_8px_20px_-10px_rgba(14,17,22,0.6)] hover:border-ink hover:bg-ink/90"
       >
-        <Plus className="h-4 w-4" aria-hidden />
+        <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
         New user
       </Button>
 
