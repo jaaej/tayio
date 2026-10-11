@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { withListQuery } from "../../_lib/directory-list";
 import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
 import { Button } from "@/components/admin/ui";
 import { SidePanel } from "@/components/ui/side-panel";
@@ -55,6 +56,13 @@ export function AdminLessonCalendar({
   basePath: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Month links keep the user list's params so the list never resets.
+  const monthHref = (y: number, m: number) =>
+    withListQuery(basePath, searchParams, {
+      tab: "lessons",
+      month: monthKey(y, m),
+    });
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [slotMode, setSlotMode] = useState<"same-subject" | "all-tutors">(
     "same-subject",
@@ -148,9 +156,7 @@ export function AdminLessonCalendar({
 
   function navigate(delta: number) {
     const next = new Date(year, month + delta, 1);
-    router.push(
-      `${basePath}?tab=lessons&month=${monthKey(next.getFullYear(), next.getMonth())}`,
-    );
+    router.push(monthHref(next.getFullYear(), next.getMonth()));
   }
 
   function closePanel() {
@@ -181,16 +187,14 @@ export function AdminLessonCalendar({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-4">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.02em] tabular-nums text-ink">
+          <h3 className="text-[20px] font-extrabold tracking-[-0.02em] tabular-nums text-ink">
             {MONTH_NAMES[month]} {year}
-          </h2>
+          </h3>
           <button
             type="button"
             onClick={() => {
               const now = new Date();
-              router.push(
-                `${basePath}?tab=lessons&month=${monthKey(now.getFullYear(), now.getMonth())}`,
-              );
+              router.push(monthHref(now.getFullYear(), now.getMonth()));
             }}
             className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600 hover:text-brand-700"
           >

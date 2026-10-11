@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
+import { buttonVariants } from "@/components/admin/ui";
 import { useRouter } from "next/navigation";
 import {
   adminMoveStudent,
@@ -84,17 +85,11 @@ export function ClassMoveManager({
   }
 
   return (
-    <section id="class-moves" className="scroll-mt-24 rounded-[16px] border border-line bg-surface overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
-        <div>
-          <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-ink">
-            <CalendarClock className="h-[18px] w-[18px] text-brand-600" aria-hidden />
-            Recurring classes and permanent moves
-          </h3>
-          <p className="mt-1 text-[12px] text-muted">
-            Review family requests or relocate this student directly.
-          </p>
-        </div>
+    <section id="class-moves" className="scroll-mt-6 py-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5">
+        <h3 className="text-[14px] font-extrabold text-ink">
+          Recurring classes and permanent moves
+        </h3>
         <button
           type="button"
           disabled={!hasAlternative}
@@ -103,7 +98,7 @@ export function ClassMoveManager({
             setError(null);
             setSuccess(null);
           }}
-          className="min-h-11 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
+          className={buttonVariants({ variant: "outline", size: "md" })}
         >
           Move student
         </button>
@@ -112,7 +107,7 @@ export function ClassMoveManager({
       {(error || success) && (
         <p
           role={error ? "alert" : "status"}
-          className={`border-b px-5 py-3 text-[12px] font-semibold ${
+          className={`mx-4 mb-3 rounded-[10px] border px-4 py-3 text-[12px] font-semibold sm:mx-5 ${
             error
               ? "border-bad/20 bg-bad-bg text-bad"
               : "border-good/20 bg-good-bg text-good"
@@ -122,7 +117,7 @@ export function ClassMoveManager({
         </p>
       )}
 
-      <div className="grid gap-5 p-5 lg:grid-cols-2">
+      <div className="grid gap-5 px-4 sm:px-5 2xl:grid-cols-2">
         <div>
           <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
             Current recurring classes
