@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { AlertTriangle, Megaphone } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { db } from "@/db/client";
 import {
   announcementRecipients,
@@ -9,14 +9,7 @@ import {
   profiles,
   subjects,
 } from "@/db/schema";
-import {
-  Card,
-  CardBody,
-  CardHead,
-  Empty,
-  PageHeader,
-  Pill,
-} from "@/components/admin/ui";
+import { Empty, GlassPanel, PageHeader, Pill } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
 import {
   ANNOUNCEMENT_ROLES,
@@ -28,6 +21,11 @@ import { AnnouncementReviewActions } from "./_components/announcement-review-act
 import { DeleteAnnouncementButton } from "./_components/delete-announcement-button";
 
 export const dynamic = "force-dynamic";
+
+// Title row of a glass bezel whose body is several panels, matching GlassPanel.
+const BEZEL_HEAD =
+  "flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 py-1.5 pl-3 pr-1.5";
+const BEZEL_TITLE = "text-[16px] font-extrabold text-ink";
 
 export default async function AnnouncementsPage() {
   const author = alias(profiles, "author");
@@ -120,57 +118,87 @@ export default async function AnnouncementsPage() {
   const historyRows = rows.filter((row) => row.status !== "pending");
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        className="rise"
-        eyebrow="Communications"
         title="Announcements"
+        actions={
+          pendingRows.length > 0 ? (
+            <a
+              href="#awaiting-approval"
+              className="inline-flex h-[34px] items-center gap-2 rounded-[11px] bg-surface px-3 text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              <span aria-hidden className="h-2 w-2 rounded-full bg-[#E8890C]" />
+              {pendingRows.length} tutor{" "}
+              {pendingRows.length === 1 ? "announcement" : "announcements"} to approve
+            </a>
+          ) : null
+        }
       />
 
-      {pendingRows.length > 0 ? (
-        <section className="rise space-y-3" style={{ animationDelay: "40ms" }}>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-warn" aria-hidden />
-            <h2 className="text-[15px] font-extrabold text-ink">
-              Tutor announcements awaiting approval ({pendingRows.length})
+      <div className="flex flex-wrap items-start gap-5">
+        <section
+          id="compose"
+          aria-labelledby="compose-heading"
+          className="glass relative z-10 flex min-w-0 flex-[999_1_520px] scroll-mt-5 flex-col rounded-[24px] p-1.5"
+        >
+          <div className={BEZEL_HEAD}>
+            <h2 id="compose-heading" className={BEZEL_TITLE}>
+              New announcement
             </h2>
           </div>
-          {pendingRows.map((row) => (
-            <AnnouncementCard
-              key={row.id}
-              row={row}
-              audience={describeAudience(row, labelMaps)}
-              review
-            />
-          ))}
+          <CreateAnnouncementForm options={options} />
         </section>
-      ) : null}
 
-      <section id="compose" className="rise scroll-mt-20" style={{ animationDelay: "80ms" }}>
-        <Card accent="brand">
-          <CardHead title="Send announcement" eyebrow="Compose" />
-          <CardBody>
-            <CreateAnnouncementForm options={options} />
-          </CardBody>
-        </Card>
-      </section>
+        <aside
+          aria-label="Approvals and history"
+          className="flex min-w-0 flex-[1_1_320px] flex-col gap-5 lg:max-w-[420px]"
+        >
+          {pendingRows.length > 0 ? (
+            <section
+              id="awaiting-approval"
+              aria-labelledby="awaiting-approval-heading"
+              className="glass flex scroll-mt-5 flex-col rounded-[24px] p-1.5"
+            >
+              <div className={BEZEL_HEAD}>
+                <h2 id="awaiting-approval-heading" className={BEZEL_TITLE}>
+                  Awaiting approval
+                </h2>
+                <Pill tone="warn" className="ml-auto">
+                  {pendingRows.length} from {pendingRows.length === 1 ? "a tutor" : "tutors"}
+                </Pill>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {pendingRows.map((row) => (
+                  <PendingCard
+                    key={row.id}
+                    row={row}
+                    audience={describeAudience(row, labelMaps)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-      <section className="rise space-y-4" style={{ animationDelay: "120ms" }}>
-        <h2 className="text-[15px] font-extrabold text-ink">Announcement history</h2>
-        {historyRows.length === 0 ? (
-          <Card>
-            <Empty>No announcements yet. Write your first above.</Empty>
-          </Card>
-        ) : (
-          historyRows.map((row) => (
-            <AnnouncementCard
-              key={row.id}
-              row={row}
-              audience={describeAudience(row, labelMaps)}
-            />
-          ))
-        )}
-      </section>
+          <GlassPanel
+            title="History"
+            titleId="history-heading"
+          >
+            {historyRows.length === 0 ? (
+              <Empty>No announcements yet.</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {historyRows.map((row) => (
+                  <HistoryRow
+                    key={row.id}
+                    row={row}
+                    audience={describeAudience(row, labelMaps)}
+                  />
+                ))}
+              </ul>
+            )}
+          </GlassPanel>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -203,67 +231,76 @@ async function getRowType() {
   };
 }
 
-function AnnouncementCard({
-  row,
-  audience,
-  review = false,
-}: {
-  row: AnnouncementRow;
-  audience: string;
-  review?: boolean;
-}) {
+function formatStamp(date: Date) {
+  return new Date(date).toLocaleString("en-AU", {
+    timeZone: "Australia/Melbourne",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function PendingCard({ row, audience }: { row: AnnouncementRow; audience: string }) {
   return (
-    <Card key={row.id} accent={review ? "warn" : undefined}>
-      <div id={`announcement-${row.id}`} className="p-5 scroll-mt-20">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill tone={row.status === "rejected" ? "bad" : review ? "warn" : "brand"} dot>
-                {row.status === "pending"
-                  ? "Pending approval"
-                  : row.status === "rejected"
-                    ? "Rejected"
-                    : "Published"}
-              </Pill>
-              {row.isUrgent ? <Pill tone="bad">Urgent + email</Pill> : null}
-              {row.status === "published" ? (
-                <Pill tone="default">{row.recipientCount} recipients</Pill>
-              ) : null}
-              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-2">
-                {new Date(row.publishedAt).toLocaleString("en-AU", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-            <p className="mt-2 text-[12px] font-semibold text-brand-700">{audience}</p>
-            <h3 className="mt-2 text-[16px] font-extrabold tracking-[-0.01em] text-ink">
-              {row.title}
-            </h3>
-            <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-soft">
-              {row.body}
-            </p>
-            {row.rejectedReason ? (
-              <p className="mt-3 rounded-[10px] bg-bad-bg px-3 py-2 text-[12px] text-bad">
-                Rejection reason: {row.rejectedReason}
-              </p>
-            ) : null}
-            <div className="mt-3 flex items-center gap-1.5 text-[12px] text-muted">
-              <Megaphone className="h-3.5 w-3.5" aria-hidden />
-              by {row.authorFirst} {row.authorLast}
-            </div>
-          </div>
-          {!review ? <DeleteAnnouncementButton id={row.id} title={row.title} /> : null}
-        </div>
-        {review ? (
-          <div className="mt-4 border-t border-line pt-4">
-            <AnnouncementReviewActions id={row.id} />
-          </div>
-        ) : null}
+    <article
+      id={`announcement-${row.id}`}
+      className="panel flex scroll-mt-5 flex-col gap-2.5 p-4"
+    >
+      <p className="text-[12px] font-semibold text-muted">
+        {row.authorFirst} {row.authorLast} · to {audience} · {formatStamp(row.publishedAt)}
+      </p>
+      <h3 className="text-[15px] font-extrabold text-ink">{row.title}</h3>
+      <p className="whitespace-pre-wrap text-[13px] leading-normal text-ink-soft">{row.body}</p>
+      {row.isUrgent ? (
+        <span>
+          <Pill tone="bad">Urgent + email</Pill>
+        </span>
+      ) : null}
+      <AnnouncementReviewActions id={row.id} />
+    </article>
+  );
+}
+
+function HistoryRow({ row, audience }: { row: AnnouncementRow; audience: string }) {
+  const rejected = row.status === "rejected";
+  return (
+    <li id={`announcement-${row.id}`} className="flex scroll-mt-5 flex-col gap-1.5 px-4 py-3.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Pill tone={rejected ? "bad" : "good"}>{rejected ? "Rejected" : "Published"}</Pill>
+        {row.isUrgent ? <Pill tone="bad">Urgent + email</Pill> : null}
+        <span className="ml-auto text-[12px] tabular-nums text-muted">
+          {formatStamp(row.publishedAt)}
+        </span>
       </div>
-    </Card>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-start gap-1.5 rounded-[6px] text-[14px] font-extrabold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 flex-1 break-words">{row.title}</span>
+          <ChevronDown
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted transition-transform group-open:rotate-180"
+            aria-hidden
+          />
+        </summary>
+        <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-normal text-ink-soft">
+          {row.body}
+        </p>
+      </details>
+      {row.rejectedReason ? (
+        <p className="rounded-[10px] bg-bad-bg px-3 py-2 text-[12px] text-bad">
+          Rejection reason: {row.rejectedReason}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-[12px] text-muted">
+          {audience}
+          {row.status === "published"
+            ? ` · ${row.recipientCount} ${row.recipientCount === 1 ? "recipient" : "recipients"}`
+            : ""}
+          {` · by ${row.authorFirst} ${row.authorLast}`}
+        </p>
+        <DeleteAnnouncementButton id={row.id} title={row.title} />
+      </div>
+    </li>
   );
 }
 

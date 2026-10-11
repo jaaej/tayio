@@ -19,10 +19,6 @@ export default async function StudentBoardPage({
   if (!(await canSeeBoard(user.id, "student", board))) notFound();
 
   const threads = await listThreadsForBoard(board);
-  const userFirstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "you";
 
   return (
     <DiscussionBoardDetail
@@ -30,7 +26,6 @@ export default async function StudentBoardPage({
       boardSegment={boardId}
       threads={threads}
       rolePrefix="student"
-      userFirstName={userFirstName}
     />
   );
 }

@@ -14,7 +14,7 @@ export const MAX_ATTACHMENTS = 3;
  */
 export function AttachmentList({
   attachments,
-  accent = "#4f5bd5",
+  accent = "var(--brand-600)",
 }: {
   attachments: DiscussionAttachmentView[];
   accent?: string;
@@ -83,7 +83,7 @@ export function AttachmentList({
  * list of chosen filenames. Server enforces the type/size/count limits; this
  * is the affordance + a soft client-side warning past the max.
  */
-export function AttachmentPicker({ accent = "#4f5bd5" }: { accent?: string }) {
+export function AttachmentPicker({ accent = "var(--brand-600)" }: { accent?: string }) {
   const [names, setNames] = useState<string[]>([]);
   const tooMany = names.length > MAX_ATTACHMENTS;
 

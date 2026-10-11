@@ -17,12 +17,6 @@ export default async function TutorDiscussionsPage() {
       boards={boards}
       recentThreads={recentThreads}
       hrefPrefix="/tutor/discussions"
-      title="Answer & guide."
-      userFirstName={
-        (user.user_metadata?.first_name as string | undefined) ??
-        user.email?.split("@")[0] ??
-        "you"
-      }
       rolePrefix="tutor"
     />
   );

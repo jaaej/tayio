@@ -9,8 +9,17 @@ import {
   type AdminResourceStatus,
 } from "@/lib/resources";
 import { RESOURCE_TYPES, resourceTypeLabel } from "@/lib/resource-types";
-import { Card, Empty, PageHeader, Pill, type PillTone } from "@/components/admin/ui";
-import { ResourceFilters } from "./_components/resource-filters";
+import Link from "next/link";
+import {
+  Empty,
+  GlassPanel,
+  PageHeader,
+  Pill,
+  SubjectDot,
+  type PillTone,
+} from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
+import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { ResourceRowActions } from "./_components/resource-row-actions";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +37,12 @@ const STATUS_TONE: Record<AdminResourceStatus, PillTone> = {
   live: "good",
   unpublished: "warn",
   removed: "bad",
+};
+
+const STATUS_DOT: Record<AdminResourceStatus, string> = {
+  live: "bg-[#16A34A]",
+  unpublished: "bg-[#E8890C]",
+  removed: "bg-[#D92D20]",
 };
 
 function resourceStatus(row: {
@@ -52,99 +67,166 @@ export default async function AdminResourcesPage({
   await requireRole("admin");
   const sp = await searchParams;
 
+  // Status is applied in memory so the header counts reflect the subject and
+  // type filters without a second query.
   const filter: AdminResourceFilter = {};
   if (sp.subjectId) filter.subjectId = sp.subjectId;
   if (sp.type && TYPE_VALUES.has(sp.type as (typeof RESOURCE_TYPES)[number]["value"])) {
     filter.type = sp.type as AdminResourceFilter["type"];
   }
-  if (sp.status && STATUS_VALUES.includes(sp.status as AdminResourceStatus)) {
-    filter.status = sp.status as AdminResourceStatus;
-  }
+  const statusFilter =
+    sp.status && STATUS_VALUES.includes(sp.status as AdminResourceStatus)
+      ? (sp.status as AdminResourceStatus)
+      : null;
 
-  const [subjectList, rows] = await Promise.all([
+  const [subjectList, allRows] = await Promise.all([
     db.select({ id: subjects.id, name: subjects.name }).from(subjects).orderBy(asc(subjects.name)),
     listAllResourcesForAdmin(filter),
   ]);
+  const withStatus = allRows.map((row) => ({ ...row, status: resourceStatus(row) }));
+  const counts = Object.fromEntries(
+    STATUS_VALUES.map((status) => [
+      status,
+      withStatus.filter((row) => row.status === status).length,
+    ]),
+  ) as Record<AdminResourceStatus, number>;
+  const rows = statusFilter
+    ? withStatus.filter((row) => row.status === statusFilter)
+    : withStatus;
+
+  function statusHref(status: AdminResourceStatus) {
+    const params = new URLSearchParams();
+    if (sp.subjectId) params.set("subjectId", sp.subjectId);
+    if (filter.type) params.set("type", filter.type);
+    if (statusFilter !== status) params.set("status", status);
+    const qs = params.toString();
+    return qs ? `/admin/resources?${qs}` : "/admin/resources";
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        className="rise"
-        eyebrow="Resource library"
         title="Resource moderation"
+        actions={
+          <nav aria-label="Filter by status" className="flex flex-wrap gap-2">
+            {STATUS_VALUES.map((status) => {
+              const active = statusFilter === status;
+              return (
+                <Link
+                  key={status}
+                  href={statusHref(status)}
+                  scroll={false}
+                  aria-current={active ? "true" : undefined}
+                  className={cn(
+                    "inline-flex h-[34px] items-center gap-2 rounded-[11px] px-3 text-[13px] font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                    active ? "bg-ink text-white" : "bg-surface text-ink hover:bg-surface-2",
+                  )}
+                >
+                  <span aria-hidden className={cn("h-2 w-2 rounded-full", STATUS_DOT[status])} />
+                  {counts[status]} {STATUS_LABEL[status].toLowerCase()}
+                </Link>
+              );
+            })}
+          </nav>
+        }
       />
 
-      <section className="rise" style={{ animationDelay: "60ms" }}>
-        <ResourceFilters subjects={subjectList} />
-      </section>
-
-      <section className="rise" style={{ animationDelay: "100ms" }}>
-        <Card>
-          {rows.length === 0 ? (
-            <Empty>No resources match this filter.</Empty>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]">
-                <thead>
-                  <tr className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-muted font-bold">
-                    <th className="text-left px-5 py-2.5">Title</th>
-                    <th className="text-left px-5 py-2.5">Subject</th>
-                    <th className="text-left px-5 py-2.5">Type</th>
-                    <th className="text-left px-5 py-2.5">Source</th>
-                    <th className="text-left px-5 py-2.5">Uploader</th>
-                    <th className="text-left px-5 py-2.5">Status</th>
-                    <th className="text-right px-5 py-2.5">Actions</th>
+      <GlassPanel
+        title="Library"
+        titleId="library-heading"
+        action={
+          <>
+            <UrlLabelledSelect
+              label="Subject"
+              param="subjectId"
+              options={[
+                { value: "", label: "All subjects" },
+                ...subjectList.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+            <UrlLabelledSelect
+              label="Type"
+              param="type"
+              options={[
+                { value: "", label: "All types" },
+                ...RESOURCE_TYPES.map((t) => ({ value: t.value, label: t.label })),
+              ]}
+            />
+          </>
+        }
+        bodyClassName="overflow-x-auto"
+      >
+        {rows.length === 0 ? (
+          <Empty>No resources match this filter.</Empty>
+        ) : (
+          <table className="w-full min-w-[980px] border-collapse text-[13px]">
+            <thead>
+              <tr className="text-left text-[12px] text-muted">
+                <th scope="col" className="px-4 py-3 font-extrabold">Title</th>
+                <th scope="col" className="px-2.5 py-3 font-extrabold">Subject</th>
+                <th scope="col" className="px-2.5 py-3 font-extrabold">Type</th>
+                <th scope="col" className="px-2.5 py-3 font-extrabold">Uploaded by</th>
+                <th scope="col" className="px-2.5 py-3 font-extrabold">Status</th>
+                <th scope="col" className="px-4 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const Icon = r.kind === "link" ? LinkIcon : FileText;
+                return (
+                  <tr
+                    key={r.id}
+                    className="border-t border-line align-middle transition-colors hover:bg-[#F8F9FC]"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-surface-3 text-ink-soft">
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="text-[14px] font-bold text-ink">{r.title}</span>
+                          {r.source === "promoted" ? (
+                            <span className="text-[12px] text-muted">Promoted from homework</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-2.5 py-3 text-ink">
+                      <span className="inline-flex items-center gap-2">
+                        <SubjectDot subject={r.subjectName} />
+                        {r.subjectName}
+                      </span>
+                    </td>
+                    <td className="px-2.5 py-3">
+                      <span className="inline-flex h-6 items-center whitespace-nowrap rounded-[8px] bg-surface-3 px-2.5 text-[12px] font-semibold text-ink">
+                        {resourceTypeLabel(r.type)}
+                      </span>
+                    </td>
+                    <td className="px-2.5 py-3 text-ink-soft">{r.uploaderName}</td>
+                    <td className="px-2.5 py-3">
+                      <div className="flex flex-col items-start gap-[3px]">
+                        <Pill tone={STATUS_TONE[r.status]} dot>
+                          {STATUS_LABEL[r.status]}
+                        </Pill>
+                        {r.status === "removed" && r.removedReason ? (
+                          <span className="max-w-[220px] text-[12px] text-muted">
+                            {r.removedReason}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ResourceRowActions id={r.id} status={r.status} title={r.title} />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => {
-                    const status = resourceStatus(r);
-                    const Icon = r.kind === "link" ? LinkIcon : FileText;
-                    return (
-                      <tr
-                        key={r.id}
-                        className="border-b border-line hover:bg-surface-2 transition-colors align-top"
-                      >
-                        <td className="px-5 py-3 text-[13px]">
-                          <div className="flex items-center gap-1.5 font-bold text-ink">
-                            <Icon className="h-3.5 w-3.5 shrink-0 text-muted" />
-                            {r.title}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-[13px] text-ink-soft">
-                          {r.subjectName}
-                        </td>
-                        <td className="px-5 py-3 text-[12px] text-ink-soft">
-                          {resourceTypeLabel(r.type)}
-                        </td>
-                        <td className="px-5 py-3">
-                          <Pill tone={r.source === "promoted" ? "info" : "default"}>
-                            {r.source}
-                          </Pill>
-                        </td>
-                        <td className="px-5 py-3 text-[13px] text-ink-soft">
-                          {r.uploaderName}
-                        </td>
-                        <td className="px-5 py-3">
-                          <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
-                          {status === "removed" && r.removedReason && (
-                            <div className="mt-1 text-[11px] text-muted max-w-[220px]">
-                              “{r.removedReason}”
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <ResourceRowActions id={r.id} status={status} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      </section>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </GlassPanel>
     </div>
   );
 }
