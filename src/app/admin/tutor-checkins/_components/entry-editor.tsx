@@ -7,10 +7,11 @@ import {
   adminCorrectTutorCheckin,
   adminSetTutorCheckinEntryRemoved,
 } from "@/app/_actions/tutor-checkins";
+import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 const FIELD =
-  "h-10 w-full rounded-[9px] border border-line bg-surface px-3 text-[12px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+  "h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[13px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
 
 type Entry = {
   id: string;
@@ -25,7 +26,14 @@ type Entry = {
   updatedAt: Date | string;
 };
 
-export function CheckinEntryEditor({ entry }: { entry: Entry }) {
+export function CheckinEntryEditor({
+  entry,
+  defaultOpen = false,
+}: {
+  entry: Entry;
+  /** Start expanded, e.g. when it is the only row in the panel. */
+  defaultOpen?: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -75,16 +83,17 @@ export function CheckinEntryEditor({ entry }: { entry: Entry }) {
   }
 
   return (
-    <details className="group border-t border-line bg-surface-2/50">
-      <summary className="cursor-pointer list-none px-5 py-2.5 text-right text-[11px] font-bold text-brand-700 hover:text-ink [&::-webkit-details-marker]:hidden">
-        Edit payroll row
+    <details open={defaultOpen} className="group mt-3">
+      <summary className="inline-flex h-[30px] cursor-pointer list-none items-center rounded-[9px] border border-line-strong bg-surface px-2.5 text-[12px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 group-open:mb-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="group-open:hidden">Correct this row</span>
+        <span className="hidden group-open:inline">Close</span>
       </summary>
-      <form action={save} className="space-y-3 border-t border-line px-5 py-4">
-        <p className="text-[11px] leading-relaxed text-muted">
+      <form action={save} className="space-y-3 rounded-[12px] bg-surface-2 p-3.5">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
           This changes the payroll snapshot only. To change the actual class
           timetable, edit the class or lesson separately.
         </p>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Subject">
             <input
               name="subjectName"
@@ -142,8 +151,8 @@ export function CheckinEntryEditor({ entry }: { entry: Entry }) {
               className={FIELD}
             />
           </Field>
-          <label className="space-y-1 md:col-span-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+          <label className="space-y-1 sm:col-span-2">
+            <span className="block text-[12px] font-bold text-ink-soft">
               Admin note
             </span>
             <input
@@ -156,29 +165,23 @@ export function CheckinEntryEditor({ entry }: { entry: Entry }) {
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="submit"
-            disabled={pending}
-            className="min-h-9 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={pending}>
             <ActionButtonLabel pending={pending} pendingLabel="Saving…">
               Save correction
             </ActionButtonLabel>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={entry.isRemoved ? "outline" : "danger"}
             disabled={pending}
             onClick={() => setRemoved(!entry.isRemoved)}
-            className={`min-h-9 rounded-full border px-4 text-[12px] font-bold disabled:opacity-50 ${
-              entry.isRemoved
-                ? "border-good/40 bg-surface text-good"
-                : "border-bad/40 bg-surface text-bad"
-            }`}
           >
             {entry.isRemoved ? "Restore to pay" : "Remove from pay"}
-          </button>
-          {saved && <span className="text-[11px] font-bold text-good">Saved</span>}
-          {error && <span className="text-[11px] font-bold text-bad">{error}</span>}
+          </Button>
+          <span role="status" aria-live="polite" className="text-[12px] font-bold">
+            {saved && <span className="text-good">Saved</span>}
+            {error && <span className="text-bad">{error}</span>}
+          </span>
         </div>
       </form>
     </details>
@@ -194,7 +197,7 @@ function Field({
 }) {
   return (
     <label className="space-y-1">
-      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+      <span className="block text-[12px] font-bold text-ink-soft">
         {label}
       </span>
       {children}

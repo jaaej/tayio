@@ -6,6 +6,7 @@ import {
   addTutorAvailabilityRule,
   removeTutorAvailabilityRule,
 } from "@/app/admin/_lib/actions-availability";
+import { Button } from "@/components/admin/ui";
 
 const DAYS = [
   { code: 1, label: "Mon" },
@@ -24,7 +25,8 @@ function hhmm(t: string): string {
 }
 
 const INPUT =
-  "h-9 rounded-[10px] border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+  "h-[38px] rounded-[10px] border border-line-strong bg-surface px-2 text-[13px] font-medium text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+const LABEL = "flex flex-col gap-[5px] text-[12px] font-bold text-ink";
 
 /** Sentinel for the "any subject" scope, which is stored as subject_id NULL. */
 const ANY = "any";
@@ -127,16 +129,16 @@ export function TutorAvailabilityEditor({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3.5">
       {options.length === 1 ? (
         <p className="text-[13px] text-muted">
           No classes assigned yet, so these slots apply to any subject.
         </p>
       ) : (
-        <div>
+        <div className="flex flex-col gap-2">
           <span
             id={labelId}
-            className="block text-[11px] font-bold text-muted"
+            className="text-[12px] font-extrabold text-muted"
           >
             Subject
           </span>
@@ -146,17 +148,17 @@ export function TutorAvailabilityEditor({
           <div
             role="radiogroup"
             aria-labelledby={labelId}
-            className="mt-1.5 flex flex-wrap gap-2"
+            className="flex flex-wrap gap-1.5"
           >
             {options.map((option) => {
               const active = scope === option.id;
               return (
                 <label
                   key={option.id}
-                  className={`inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3.5 text-[12px] font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 has-[:focus-visible]:ring-offset-1 ${
+                  className={`inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 text-[12px] font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400 has-[:focus-visible]:ring-offset-1 ${
                     active
-                      ? "border-brand-500 bg-brand-500 text-white"
-                      : "border-line-strong bg-surface text-ink hover:border-brand-500 hover:text-brand-700"
+                      ? "border-ink bg-ink text-white"
+                      : "border-line-strong bg-surface text-ink-soft hover:bg-surface-2 hover:text-ink"
                   }`}
                 >
                   <input
@@ -182,27 +184,29 @@ export function TutorAvailabilityEditor({
           {sorted.map((s, i) => (
             <span
               key={`${s.weekday}-${s.startTime}-${s.endTime}-${i}`}
-              className="inline-flex min-h-9 items-center gap-1 rounded-full bg-brand-50 pl-3 pr-1 text-[12px] font-semibold text-brand-700"
+              className="inline-flex h-[38px] items-center gap-0.5 rounded-[10px] border border-line-strong bg-surface pl-3 text-[12px] font-bold tabular-nums text-ink"
             >
-              {DAY_LABEL.get(s.weekday) ?? "?"} {hhmm(s.startTime)}–
+              {DAY_LABEL.get(s.weekday) ?? "?"} {hhmm(s.startTime)} -{" "}
               {hhmm(s.endTime)}
               <button
                 type="button"
                 onClick={() => remove(s)}
                 disabled={pending}
                 aria-label={`Remove ${DAY_LABEL.get(s.weekday) ?? ""} ${hhmm(s.startTime)} to ${hhmm(s.endTime)}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-brand-700/70 hover:text-bad focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50"
+                className="group/remove grid h-9 w-9 place-items-center rounded-[9px] text-ink-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-50"
               >
-                <X className="h-3.5 w-3.5" aria-hidden />
+                <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] bg-surface-3 transition-colors group-hover/remove:bg-bad-bg group-hover/remove:text-bad">
+                  <X className="h-3 w-3" aria-hidden />
+                </span>
               </button>
             </span>
           ))}
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="space-y-1">
-          <span className="block text-[11px] font-bold text-muted">Day</span>
+      <div className="flex flex-wrap items-end gap-2.5">
+        <label className={LABEL}>
+          Day
           <select
             className={INPUT}
             value={weekday}
@@ -215,8 +219,8 @@ export function TutorAvailabilityEditor({
             ))}
           </select>
         </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] font-bold text-muted">From</span>
+        <label className={LABEL}>
+          From
           <input
             type="time"
             className={INPUT}
@@ -224,8 +228,8 @@ export function TutorAvailabilityEditor({
             onChange={(e) => setStart(e.target.value)}
           />
         </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] font-bold text-muted">To</span>
+        <label className={LABEL}>
+          To
           <input
             type="time"
             className={INPUT}
@@ -233,14 +237,9 @@ export function TutorAvailabilityEditor({
             onChange={(e) => setEnd(e.target.value)}
           />
         </label>
-        <button
-          type="button"
-          onClick={add}
-          disabled={pending}
-          className="h-9 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"
-        >
+        <Button type="button" onClick={add} disabled={pending} className="h-[38px]">
           Add slot
-        </button>
+        </Button>
       </div>
       {error && (
         <p role="alert" className="text-[12px] font-semibold text-bad">

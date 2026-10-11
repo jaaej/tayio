@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { setTutorBankDetails } from "@/app/admin/_lib/actions-tutor-bank";
+import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 const INPUT =
-  "h-9 w-full rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+  "h-[38px] w-full rounded-[10px] border border-line-strong bg-surface px-2.5 text-[13px] font-medium text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+const LABEL = "flex flex-col gap-[5px] text-[12px] font-bold text-ink";
 
 type Bank = {
   accountName: string | null;
@@ -36,6 +38,14 @@ export function TutorBankForm({
   function save() {
     setStatus("idle");
     setSaveNote("");
+    const rate = hourlyRate === "" ? null : Number(hourlyRate);
+    // Mirrors the server schema so a bad rate gets a specific message instead
+    // of a generic failure.
+    if (rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 10000)) {
+      setStatus("error");
+      setSaveNote("Hourly rate must be between $0 and $10,000.");
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await setTutorBankDetails({
@@ -43,7 +53,7 @@ export function TutorBankForm({
           accountName,
           bsb,
           accountNumber,
-          hourlyRate: hourlyRate === "" ? null : Number(hourlyRate),
+          hourlyRate: rate,
           note,
         });
         setStatus("saved");
@@ -56,15 +66,16 @@ export function TutorBankForm({
         );
       } catch {
         setStatus("error");
+        setSaveNote("Couldn't save - try again.");
       }
     });
   }
 
   return (
-    <div className="space-y-2.5">
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-1">
-          <span className="text-[11px] font-bold text-muted">Account name</span>
+    <div className="flex flex-col gap-2.5">
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <label className={LABEL}>
+          Account name
           <input
             className={INPUT}
             value={accountName}
@@ -75,8 +86,8 @@ export function TutorBankForm({
             placeholder="e.g. Jane Smith"
           />
         </label>
-        <label className="space-y-1">
-          <span className="text-[11px] font-bold text-muted">Hourly rate (AUD)</span>
+        <label className={LABEL}>
+          Hourly rate (AUD)
           <input
             className={INPUT}
             value={hourlyRate}
@@ -90,8 +101,8 @@ export function TutorBankForm({
             placeholder="e.g. 35.00"
           />
         </label>
-        <label className="space-y-1">
-          <span className="text-[11px] font-bold text-muted">BSB</span>
+        <label className={LABEL}>
+          BSB
           <input
             className={INPUT}
             value={bsb}
@@ -103,10 +114,8 @@ export function TutorBankForm({
             inputMode="numeric"
           />
         </label>
-        <label className="space-y-1">
-          <span className="text-[11px] font-bold text-muted">
-            Account number
-          </span>
+        <label className={LABEL}>
+          Account number
           <input
             className={INPUT}
             value={accountNumber}
@@ -119,8 +128,8 @@ export function TutorBankForm({
           />
         </label>
       </div>
-      <label className="block space-y-1">
-        <span className="text-[11px] font-bold text-muted">Note</span>
+      <label className={LABEL}>
+        Note
         <input
           className={INPUT}
           value={note}
@@ -131,25 +140,19 @@ export function TutorBankForm({
           placeholder="Optional - e.g. pay cycle, super fund"
         />
       </label>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          className="h-9 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700 disabled:opacity-60"
+      <div className="flex flex-wrap-reverse items-center justify-end gap-3">
+        <span
+          role="status"
+          aria-live="polite"
+          className={`min-w-0 flex-1 text-[12px] font-semibold ${status === "error" ? "text-bad" : "text-good"}`}
         >
+          {status !== "idle" && saveNote}
+        </span>
+        <Button type="button" onClick={save} disabled={pending}>
           <ActionButtonLabel pending={pending} pendingLabel="Saving…">
             Save details
           </ActionButtonLabel>
-        </button>
-        {status === "saved" && (
-          <span className="text-[12px] font-semibold text-good">{saveNote}</span>
-        )}
-        {status === "error" && (
-          <span className="text-[12px] font-semibold text-bad">
-            Couldn&apos;t save - try again
-          </span>
-        )}
+        </Button>
       </div>
     </div>
   );
