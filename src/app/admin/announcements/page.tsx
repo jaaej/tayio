@@ -146,7 +146,7 @@ export default async function AnnouncementsPage() {
         </section>
       ) : null}
 
-      <section className="rise" style={{ animationDelay: "80ms" }}>
+      <section id="compose" className="rise scroll-mt-20" style={{ animationDelay: "80ms" }}>
         <Card accent="brand">
           <CardHead title="Send announcement" eyebrow="Compose" />
           <CardBody>

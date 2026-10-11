@@ -322,7 +322,7 @@ export function InteractiveTimetable({
       )}
 
       {picking && (
-        <div className="calendar-glass-panel sticky top-4 z-30 flex items-center justify-between gap-3 rounded-[16px] border px-4 py-2.5">
+        <div className="calendar-glass-panel sticky top-[72px] lg:top-[76px] z-30 flex items-center justify-between gap-3 rounded-[16px] border px-4 py-2.5">
           <div className="text-[13px] font-bold text-brand-800">
             {picking.picked ? (
               <>

@@ -170,6 +170,7 @@ export async function AdminShell({
       <CoverAlertPoller />
       <CollapsiblePortalShell
         themeClassName="theme-tutor"
+        sidebarVariant="floating"
         desktopBrand={<BrandMark />}
         desktopActions={
           <>

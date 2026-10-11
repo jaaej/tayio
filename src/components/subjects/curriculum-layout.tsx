@@ -20,7 +20,7 @@ const STORAGE_KEY = "curriculum-weeks-open";
  * (no overlay). The open/closed state persists so it survives navigating
  * between weeks. On mobile the rail stacks above the content at full width.
  *
- * Non-attached (rail lives inside a card - parent/admin): a plain always-visible
+ * Non-attached (rail lives inside a card - parent): a plain always-visible
  * rail column next to the content.
  *
  * `subjectName` (optional, attached mode only) makes the tab carry the subject
@@ -164,7 +164,9 @@ export function CurriculumLayout({
       {/* self-stretch gives the sticky rail room to travel; without it the
           column is exactly one viewport tall and sticky never engages. */}
       <div className="lg:relative lg:self-stretch">
-        <div className="hidden lg:sticky lg:top-0 lg:z-30 lg:block lg:h-[calc(100vh-56px)]">
+        {/* Pins directly under the 56px portal top bar while the page
+            scrolls, so the rail always reaches the bottom of the screen. */}
+        <div className="hidden lg:sticky lg:top-[56px] lg:z-20 lg:block lg:h-[calc(100vh-56px)]">
           {/* Full rail - clipped while closed; revealed when open. */}
           <div className="h-full overflow-hidden">
             <div
@@ -176,7 +178,12 @@ export function CurriculumLayout({
               )}
             >
               {subjectHeader}
-              <div className="min-h-0 flex-1 overflow-y-auto">{rail}</div>
+              {/* min-h-full on the rail block keeps its white panel and
+                  outline running to the bottom of the column even when a
+                  term has only a week or two; longer lists still scroll. */}
+              <div className="min-h-0 flex-1 overflow-y-auto [&>*]:min-h-full">
+                {rail}
+              </div>
             </div>
           </div>
 

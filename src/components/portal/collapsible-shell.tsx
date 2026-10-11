@@ -13,6 +13,7 @@ export function CollapsiblePortalShell({
   desktopActions,
   desktopSidebar,
   mobileHeader,
+  sidebarVariant = "flat",
   children,
 }: {
   themeClassName: string;
@@ -20,8 +21,15 @@ export function CollapsiblePortalShell({
   desktopActions: ReactNode;
   desktopSidebar: ReactNode;
   mobileHeader: ReactNode;
+  /**
+   * "floating" frames the menu in the frosted panel used by the redesigned
+   * admin dashboard. Admin-only while that design is being reviewed; the
+   * other roles keep "flat" until it is rolled out to them.
+   */
+  sidebarVariant?: "flat" | "floating";
   children: ReactNode;
 }) {
+  const floating = sidebarVariant === "floating";
   const [collapsed, setCollapsed] = useState(false);
   const [preferenceLoaded, setPreferenceLoaded] = useState(false);
 
@@ -98,19 +106,45 @@ export function CollapsiblePortalShell({
       <aside
         id="portal-desktop-sidebar"
         className={cn(
-          "portal-desktop-sidebar hidden lg:flex flex-col bg-surface border-r border-line overflow-x-hidden overflow-y-auto pb-2 transition-[padding] duration-200 ease-out",
-          collapsed ? "px-2 pt-3" : "p-3",
+          // Sticky under the 56px top bar so the menu stays put while the page
+          // scrolls; it scrolls internally only if it outgrows the screen.
+          "portal-desktop-sidebar hidden lg:sticky lg:top-[56px] lg:flex lg:h-[calc(100vh-56px)] lg:self-start flex-col overflow-x-hidden overflow-y-auto pb-2 transition-[padding] duration-200 ease-out",
+          floating ? "bg-transparent" : "bg-surface border-r border-line",
+          floating
+            ? collapsed
+              ? "pl-2 pr-0 pt-3 pb-3"
+              : "pl-3 pr-0 pt-3 pb-3"
+            : collapsed
+              ? "px-2 pt-3"
+              : "p-3",
           !preferenceLoaded && "[&_*]:duration-0",
           collapsed &&
             "[&_.portal-nav-heading]:hidden [&_.portal-nav-label]:hidden [&_.portal-nav-item]:justify-center [&_.portal-nav-item]:gap-0 [&_.portal-nav-item]:px-2 [&_.portal-nav-badge]:absolute [&_.portal-nav-badge]:right-0 [&_.portal-nav-badge]:top-0 [&_.portal-nav-badge]:ml-0 [&_.portal-nav-badge]:h-4 [&_.portal-nav-badge]:min-w-4 [&_.portal-nav-badge]:px-1 [&_.portal-nav-badge]:text-[8px] [&_.portal-sidebar-feature-copy]:hidden [&_.portal-sidebar-feature]:p-2.5 [&_.portal-sidebar-feature]:rounded-[14px] [&_.portal-sidebar-feature-row]:justify-center [&_.portal-sidebar-footer]:hidden",
         )}
       >
-        {desktopSidebar}
+        {floating ? (
+          <div className="glass-frame flex min-h-full flex-col rounded-[22px] p-1.5">
+            <div
+              className={cn(
+                "flex flex-1 flex-col rounded-[16px] border border-line/70 bg-surface py-3 shadow-[0_1px_2px_rgba(15,17,30,0.04)]",
+                collapsed ? "px-1" : "px-2",
+              )}
+            >
+              {desktopSidebar}
+            </div>
+          </div>
+        ) : (
+          desktopSidebar
+        )}
       </aside>
 
       {mobileHeader}
 
-      <main className="min-w-0 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:pb-16">
+      {/* The window is the page scroller (scroll restoration, mobile browser
+          chrome). overflow-x-clip still stops wide content from pushing the
+          page sideways but, unlike overflow-*-auto, creates no scroll
+          container - so position: sticky inside pages pins to the viewport. */}
+      <main className="min-w-0 overflow-x-clip px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:pb-16">
         {children}
       </main>
     </div>

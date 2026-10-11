@@ -16,8 +16,8 @@ export function CreateSubjectPanel() {
 
   return (
     <>
-      {/* Outline against the header's brand "Create New Class": both open a
-          panel, but only one is the page's primary action. */}
+      {/* Outline against the header's dark "New class": both open a panel,
+          but only one is the page's primary action. */}
       <Button
         type="button"
         variant="outline"

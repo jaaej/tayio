@@ -26,10 +26,13 @@ type Created = {
 
 export function CreateUserPanel({
   canManagePrivilegedRoles,
+  defaultOpen = false,
 }: {
   canManagePrivilegedRoles: boolean;
+  /** Open on arrival, for links such as the dashboard's "Add user". */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
@@ -119,14 +122,14 @@ export function CreateUserPanel({
           those are real thumb targets in a way a desktop header action is not. */}
       <Button
         type="button"
-        variant="brand"
         onClick={() => {
           blank();
           setOpen(true);
         }}
+        className="min-h-10 rounded-[10px] border-ink bg-ink px-4 font-bold text-white shadow-[0_8px_20px_-10px_rgba(14,17,22,0.6)] hover:border-ink hover:bg-ink/90"
       >
         <Plus className="h-4 w-4" aria-hidden />
-        Create a New User
+        New user
       </Button>
 
       <SidePanel

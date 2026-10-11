@@ -4,9 +4,9 @@ Last updated: 10 October 2026
 
 ## Status key
 
-- `[x]` — implemented in the current codebase
-- `[ ]` — not fully implemented
-- **Partial** — some supporting behaviour exists, but the full requirement is
+- `[x]` - implemented in the current codebase
+- `[ ]` - not fully implemented
+- **Partial** - some supporting behaviour exists, but the full requirement is
   still open
 - Every implemented feature still requires a separate manual QA check by the
   owner before deployment. Automated checks do not close manual QA items.
@@ -445,13 +445,58 @@ Last updated: 10 October 2026
   - The compact Admin Users note control has a 20px top margin and no
     longer wraps its label.
 
-- [x] Admin dashboard glass content surfaces.
-  - Section headers keep their existing solid treatment and hierarchy.
-  - Attention items, the weekly calendar, at-risk students, recent activity,
-    and announcements now sit on frosted content surfaces matched to the
-    calendar glass system.
-  - Dividers and hover states remain translucent so the background treatment
-    is preserved throughout each content block.
+- [x] Admin dashboard redesign from the owner's "Admin dashboard - Glass"
+  reference (10 October 2026). `src/app/admin/page.tsx` now has a greeting
+  header with quick actions (`/admin/announcements#compose`,
+  `/admin/users?new=1`, `/admin/classes?new=1`, which open the existing create
+  panels), a To do list built from real backlogs in
+  `src/app/admin/_lib/dashboard-queries.ts` (unmarked attendance, overdue
+  invoices, pending reschedules, tutor announcements to approve, last week's
+  unapproved tutor check-ins for the owner, lessons without notes), a six-month
+  revenue chart, a time-grid week calendar with week navigation and a live
+  Melbourne "now" line (`src/components/data/week-time-grid.tsx`), Students to
+  watch (2+ absences in the last four marked lessons, or 2+ overdue homework
+  tasks), and the existing announcements and activity lists. Sections use the
+  frosted `GlassPanel` frame with solid white content. Money stays behind the
+  revenue PIN: locked reception sees a locked revenue card, overdue counts
+  without totals, and no payment amounts in activity. Unused
+  `getAtRiskStudents`, `getTutorsWithPendingNotes`, and `getOverdueInvoices`
+  were removed. Verified with Playwright at 1440px and 390px on dev data.
+- [x] Admin Users and Classes pages restyled to the same frosted design
+  (11 October 2026). `/admin/users`: role stat tiles are the role filter
+  (`?role=`, kept with search/status/school/sort), a single "All people"
+  panel with search, Status, School, and Sort controls
+  (`user-directory-controls.tsx`, shared `LabelledSelect` in
+  `src/components/admin/ui/labelled-select.tsx`), rows with initials, email,
+  year/school, family links, class chips, delivery, and status, and row
+  actions of internal note (`user-note-button.tsx`, opens the existing note
+  editor in a side panel), account menu, and Open. No CSV import, subtitle,
+  or "Showing X of Y" (microcopy rule). The old column-header filters and
+  mobile filter sheet were removed. `/admin/classes`: header keeps Manage
+  terms and New class (Tutor availability removed from the header; it stays
+  in the sidebar), subjects are mini blocks with their calendar colour and a
+  Curriculum link, and the weekly schedule is now built from the week's real
+  lessons on `WeekTimeGrid` (detailed mode: time range, tutor, enrolled /
+  capacity) with Today, week/month navigation, a Tutor filter, and a
+  Week/Month switch. Year levels now render through `yearLevelLabel`, fixing
+  "Year Year 10" and "Yr Year 11". Verified with Playwright at 1440px and
+  390px on dev data.
+- [ ] **Known cross-role inconsistency, owner-approved preview:** the floating
+  frosted sidebar (`sidebarVariant="floating"` on `CollapsiblePortalShell`),
+  the dark active nav pill, `GlassPanel`, `WeekTimeGrid`, and the restyled
+  dashboard, Users, and Classes pages are admin-only while the owner reviews
+  the design. Tutor, student, and parent still use the
+  flat sidebar and `MiniWeekCalendar`. Roll out to all roles or revert once
+  the owner decides.
+- [ ] **Manual QA:** Sign in as Admin - reception without the PIN and confirm
+  the revenue card is locked and no dollar figure appears anywhere on the
+  dashboard; then unlock and confirm the figures appear.
+- [x] Admin dashboard glass content surfaces - reverted 10 October 2026 at
+  the owner's request. The dashboard cards are back to solid white surfaces,
+  `divide-line` dividers, and `hover:bg-surface-2` rows, with the calendar's
+  original faint brand gradient; the `.admin-dashboard-glass-*` classes were
+  removed from `src/app/globals.css`. The phone layout from the same commit
+  (`21a3d98`) is kept. The shared calendar and messaging glass is unchanged.
 
 - [x] Phone-compatible portal layout without desktop layout changes.
   - Admin, tutor, student, and parent portals share a compact expandable mobile
@@ -844,6 +889,21 @@ Last updated: 10 October 2026
 
 ## Admin users list
 
+- [x] Open a user by clicking anywhere on their row in `/admin/users`
+  (10 October 2026), not only `Open ->`. `UserTableRow`
+  (`src/app/admin/users/_components/user-table-row.tsx`) ignores clicks on
+  links, buttons, the note editor, the settings menu, portaled panels, and
+  text selection; Cmd/Ctrl-click opens a new tab. The name link remains the
+  keyboard path. `Open ->` no longer wraps onto two lines. Verified with
+  Playwright: email and empty-cell clicks open the profile; the settings
+  menu, class pills, and drag-to-select do not.
+- [ ] Dev only: authenticated `/admin/users` intermittently hangs for
+  minutes on the local dev server while `/admin` stays fast. Two dev DB
+  connections sat in `ClientRead` mid-query with no locks. The same server
+  rendered the page in under 2s earlier. Investigate `getUserDirectory`'s
+  parallel queries over the transaction pooler before assuming production
+  is unaffected.
+
 - [x] Add an admin header search (button, `/`, or Command/Ctrl+K) for portal
   pages, users, classes, and subjects; directory searches keep existing role
   permissions and subject aliases.
@@ -871,6 +931,20 @@ Last updated: 10 October 2026
   top-left wordmark and remove the duplicate centre logo and translation line.
 - [x] **Manual QA:** Open the production root URL while signed out and confirm it
   reaches `/login` without flashing the old landing page.
+- [x] Add a flowing wave field and rotating quotes to the right half of
+  `/login` (desktop `lg+` only; mobile stays form-only). 10 October 2026.
+  Waves are pure SVG + CSS in
+  `src/app/(auth)/login/_components/login-waves.tsx` (no image asset, unlike
+  the reverted Great Wave PNG); loop styles are `.login-wave*` in
+  `src/app/globals.css`. Quotes rotate every 7s with word-by-word
+  `TextSlideUp` (`src/components/ui/text-slide-up.tsx`) in
+  `quote-rotator.tsx`, pause on hover, and skip while the tab is hidden.
+  Reduced motion stops the waves and removes the slide transforms.
+  The previous "Be That Cousin" line was replaced by the quote set.
+  Verified with Playwright at 1440, 1280, 1024 and 390px wide.
+- [ ] **Manual QA:** Watch `/login` on a real desktop browser through a full
+  quote cycle and confirm the wave motion feels calm, not distracting.
+
 ## Announcements and email delivery
 
 - [x] Add and publicly verify the portal CNAME plus Resend DKIM, SPF, and MX
@@ -930,6 +1004,28 @@ Last updated: 10 October 2026
   download.
 - [x] Add manual payment editing controls with an audit trail and clear
   permissions.
+- [x] Keep the curriculum weeks rail full height (10 October 2026).
+  With only a week or two, the open rail stopped after `+ Add week` and left
+  empty page background below it; on long pages it scrolled away instead of
+  staying pinned. The rail block now fills its column
+  (`src/components/subjects/curriculum-layout.tsx`) and pins under the 56px
+  top bar. This is the shared admin, tutor, and student layout; the parent
+  view keeps its rail inside the page card.
+- [x] Restore `position: sticky` across every portal page (10 October 2026).
+  Since `ad0af71` (20 Sep 2026) the portal `<main>` had `overflow-y-auto`
+  while the window did the scrolling, so every sticky element pinned to a
+  container that never scrolled. `<main>` now uses `overflow-x-clip`
+  (still no sideways page scroll, no scroll container), and the sticky
+  offsets that assumed the old container now clear the top bar at 76px:
+  student progress aside, discussion question card, and the student
+  timetable picking banner (72px on mobile). The desktop sidebar is now
+  sticky under the top bar too, so the menu no longer scrolls away and
+  leaves an empty white column. Offsets use explicit px: the app's 17px root
+  font makes rem utilities such as `top-14` land at 59.5px, not 56px.
+- [ ] **Manual QA:** Scroll the admin dashboard, student progress, a
+  discussion thread, and the student timetable in pick mode on desktop and
+  phone, and confirm each sticky element pins below the top bar without
+  overlapping it.
 
 ## Automations
 
@@ -951,6 +1047,25 @@ Last updated: 10 October 2026
 - [x] Keep tutor and admin check-in records synchronized and auditable.
 - [x] Calculate total tutor pay owed from approved hours and pay rates.
 - [x] Retain weekly and monthly check-in history for payroll records.
+- [x] Stop invalid class times from breaking Admin -> Tutor check-ins
+  (10 October 2026). Production `/admin/tutor-checkins` crashed with
+  "Finish time must be after start time." because class `ENG` (Mondays,
+  Liam Tran) was saved as 12:00 to 02:10, and all 19 generated lessons copied
+  it. Fix: `classTimeRangeError` in `src/lib/recurring-lesson-rules.ts` is
+  returned (not thrown, so the message survives production) by
+  `createClass` / `updateClass` and shown in both class forms;
+  `supabase/migrations/0059_time_range_guards.sql` adds
+  `end_time > start_time` checks on classes, lessons, tutor availability, and
+  check-in entries. The ENG class and its 19 lessons were corrected to end at
+  14:10 in Production; the admin should confirm that is the real finish time.
+- [ ] **Manual QA:** Open Admin -> Tutor check-ins in Production for the weeks
+  of 21 Sep, 28 Sep, and 5 Oct 2026 and confirm Liam Tran's ENG rows show
+  2h 10m each.
+- [ ] Editing a recurring class's time does not update its already generated
+  upcoming lessons (`ensureRecurringLessons` only inserts missing dates), so
+  an admin cannot repair a wrong class time from the form alone. Decide how
+  edits should propagate to future upcoming lessons without overwriting
+  one-off lesson changes.
 
 ## Student portal
 
@@ -1015,13 +1130,16 @@ Last updated: 10 October 2026
 
 ## Deployment required for the next larger workflow batch
 
-- [ ] Apply `supabase/migrations/0057_subject_homework_drafts.sql` and
-  `supabase/migrations/0058_tutor_profile_photos.sql` to Production.
-  Confirm the `profile-photos` bucket is private, then run the subject-only
-  homework and tutor photo smoke tests with non-client accounts.
-- [ ] Apply `supabase/migrations/0056_admin_homework_and_solutions.sql` to
-  Production after review, then smoke-test admin homework creation and
-  due-date-gated student solution access with non-client accounts.
+- [x] Apply `supabase/migrations/0053` through `0059` to Production
+  (10 October 2026). Production had been deployed at `21a3d98` without them,
+  so `/admin/subjects/[id]/curriculum` was failing with
+  `column homework.solution_url does not exist`. `npm run db:status` against
+  Production now reports up to date and `db:check-rls` passes.
+  Dev had the 0054 index without a ledger row; it was stamped.
+- [ ] Confirm the `profile-photos` bucket is private, then run the
+  subject-only homework and tutor photo smoke tests with non-client accounts.
+- [ ] Smoke-test admin homework creation and due-date-gated student solution
+  access with non-client accounts.
 - [x] Apply `supabase/migrations/0045_account_pauses_and_class_moves.sql` to
   Production.
 - [x] Apply `supabase/migrations/0046_profile_postal_addresses.sql` and

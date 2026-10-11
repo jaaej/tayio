@@ -29,14 +29,14 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "portal-nav-item group relative flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-[13px] font-semibold w-full text-left",
         active
-          ? "bg-brand-50 text-brand-700"
+          ? "bg-ink text-white shadow-[0_6px_14px_-8px_rgba(14,17,22,0.55)]"
           : "text-ink-soft hover:bg-surface-2",
       )}
     >
       <span
         className={cn(
           "shrink-0 transition-colors",
-          active ? "text-brand-500" : "text-muted",
+          active ? "text-white" : "text-muted",
         )}
       >
         {item.icon}

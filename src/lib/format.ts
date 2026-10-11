@@ -101,3 +101,13 @@ export function weekRangeLabel(weekStartIso: string): string {
   end.setDate(end.getDate() + 6);
   return `${dateShort.format(start)} – ${dateShort.format(end)}`;
 }
+
+/**
+ * Year levels are stored as free text ("Year 10", "VCE") or a bare number
+ * ("10"). Prefix "Year" only to a bare number so labels never read
+ * "Year Year 10".
+ */
+export function yearLevelLabel(value: string): string {
+  const v = value.trim();
+  return /^\d+$/.test(v) ? `Year ${v}` : v;
+}

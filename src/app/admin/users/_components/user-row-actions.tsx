@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, TriangleAlert } from "lucide-react";
+import { MoreHorizontal, TriangleAlert } from "lucide-react";
 import {
   hardDeleteUser,
   sendPasswordReset,
@@ -58,21 +58,15 @@ export function UserRowActions({
   }
 
   return (
-    <div className="inline-flex items-center gap-2 justify-end">
-      <Link
-        href={`/admin/users/${id}`}
-        className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600 hover:text-brand-700 transition-colors"
-      >
-        Open →
-      </Link>
+    <div className="inline-flex items-center gap-1.5 justify-end">
       {canManageAccount && (
         <details ref={menuRef} className="group relative">
           <summary
             aria-label={`Account actions for ${name}`}
             title="Account actions"
-            className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-[9px] border border-line-strong bg-surface text-muted transition-colors hover:border-brand-400 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden"
+            className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-[9px] text-muted transition-colors hover:bg-surface-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden"
           >
-            <Settings className="h-4 w-4" aria-hidden />
+            <MoreHorizontal className="h-[18px] w-[18px]" aria-hidden />
             <span className="sr-only">Account actions</span>
           </summary>
           <div className="absolute right-0 top-full z-30 mt-1.5 w-44 overflow-hidden rounded-[10px] border border-line bg-surface p-1.5 text-left shadow-lg">
@@ -131,6 +125,12 @@ export function UserRowActions({
           </div>
         </details>
       )}
+      <Link
+        href={`/admin/users/${id}`}
+        className="inline-flex min-h-9 items-center rounded-[10px] border border-line-strong bg-surface px-3.5 text-[13px] font-bold text-ink shadow-[0_1px_2px_rgba(15,17,30,0.05)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      >
+        Open
+      </Link>
 
       <SidePanel
         open={deleteOpen}

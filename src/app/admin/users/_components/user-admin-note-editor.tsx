@@ -13,17 +13,23 @@ export function UserAdminNoteEditor({
   initialNote,
   canEdit,
   compact = false,
+  autoEdit = false,
+  inPanel = false,
 }: {
   userId: string;
   initialNote: string | null;
   canEdit: boolean;
   compact?: boolean;
+  /** Open straight into the editor, e.g. inside the directory's note panel. */
+  autoEdit?: boolean;
+  /** Hosted in a titled side panel: skip the editor's own title and close. */
+  inPanel?: boolean;
 }) {
   const router = useRouter();
   const normalizedInitial = initialNote?.trim() ?? "";
   const [saved, setSaved] = useState(normalizedInitial);
   const [value, setValue] = useState(normalizedInitial);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(autoEdit && canEdit);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,7 +132,7 @@ export function UserAdminNoteEditor({
         compact ? "mt-5 w-[300px] max-w-full" : "w-full",
       )}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className={cn("mb-2 flex items-center justify-between gap-2", inPanel && "hidden")}>
         <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-warn">
           <StickyNote className="h-3.5 w-3.5" aria-hidden />
           Internal admin note

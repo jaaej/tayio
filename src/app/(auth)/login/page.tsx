@@ -2,17 +2,21 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
 import { LoginForm } from "./form";
+import { LoginWaves } from "./_components/login-waves";
+import { QuoteRotator } from "./_components/quote-rotator";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen brand-field grain">
-      <div className="mx-auto max-w-6xl px-6 lg:px-10 pt-8">
+    <div className="relative min-h-screen overflow-hidden brand-field grain">
+      <LoginWaves />
+
+      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 pt-8">
         <Link href="/">
           <Wordmark portalPlacement="inline" />
         </Link>
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 lg:px-10 py-12 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-center">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-12 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-center">
         {/* Form on a white card */}
         <div className="bg-card rounded-3xl border border-hairline/40 shadow-[0_2px_4px_rgba(29,41,81,0.04),0_24px_60px_-24px_rgba(29,41,81,0.25)] px-8 py-10 lg:px-12 lg:py-14">
           <div className="w-full max-w-sm mx-auto">
@@ -47,14 +51,12 @@ export default function LoginPage() {
         </div>
 
         {/* Editorial quote panel */}
-        <div className="hidden min-h-[570px] items-center justify-center px-10 text-center lg:flex">
-          <p className="max-w-72 text-3xl leading-snug text-ink">
-            "Be That Cousin"
-          </p>
+        <div className="hidden min-h-[570px] items-start justify-center px-6 pt-16 text-center lg:flex">
+          <QuoteRotator />
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 lg:px-10 py-8 text-[11px] text-ink-soft tracking-wide">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-8 text-[11px] text-ink-soft tracking-wide">
         © Taiyo Tuition · Mount Waverley, VIC
       </div>
     </div>

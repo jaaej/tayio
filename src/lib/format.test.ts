@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { relativeTime } from "./format";
+import { relativeTime, yearLevelLabel } from "./format";
 
 describe("relativeTime", () => {
   const now = new Date("2026-09-20T05:00:00.000Z");
@@ -23,5 +23,13 @@ describe("relativeTime", () => {
     expect(relativeTime(new Date("2026-09-20T00:01:00.000Z"), now)).toBe(
       "4h ago",
     );
+  });
+});
+
+describe("yearLevelLabel", () => {
+  it("prefixes only bare numbers", () => {
+    expect(yearLevelLabel("10")).toBe("Year 10");
+    expect(yearLevelLabel("Year 10")).toBe("Year 10");
+    expect(yearLevelLabel("VCE")).toBe("VCE");
   });
 });
