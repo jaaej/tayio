@@ -11,6 +11,8 @@ import {
   profiles,
   rescheduleRequests,
   subjects,
+  tutorCoverRequests,
+  tutorLeaveRequests,
   tutorWeeklyCheckins,
 } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
@@ -364,4 +366,20 @@ export async function getStudentsToWatch(limit = 5): Promise<StudentToWatch[]> {
       },
     ];
   });
+}
+
+/**
+ * Sidebar badge for Reschedules: everything on that page still waiting on an
+ * admin - parent reschedule requests, tutor leave requests, and lessons that
+ * still need a cover tutor.
+ */
+export async function getRescheduleBadgeCount(): Promise<number> {
+  const [row] = await db.execute<{ count: number }>(sql`
+    select
+      (select count(*) from ${rescheduleRequests} where ${rescheduleRequests.status} = 'pending')
+      + (select count(*) from ${tutorLeaveRequests} where ${tutorLeaveRequests.status} = 'pending')
+      + (select count(*) from ${tutorCoverRequests} where ${tutorCoverRequests.status} = 'open')
+      as count
+  `);
+  return Number(row?.count ?? 0);
 }

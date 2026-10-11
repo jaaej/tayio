@@ -4,30 +4,43 @@ import { cn } from "@/lib/utils";
 import { ActionSpinner } from "@/components/ui/loading-button";
 
 /**
- * Admin button - the reference `.btn`. Variant/size names are kept compatible
- * with the shared `@/components/ui/button` so usages can be swapped 1:1.
+ * Admin button (glass redesign). Variant/size names stay compatible with the
+ * shared `@/components/ui/button` so usages can be swapped 1:1.
+ *
+ * - primary / brand: ink fill, the one main action on a surface.
+ * - glass: translucent fill for buttons sitting directly on a glass frame or
+ *   page header.
+ * - outline: white with a hairline border, for buttons on a white panel.
+ * - ghost: no chrome until hover.
+ *
+ * Sizes: sm (30px) in table rows, md (36px) in section headers, lg (42px) in
+ * page headers. `buttonVariants` styles links the same way.
  */
-const button = cva(
-  "inline-flex items-center justify-center gap-1.5 font-bold transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap",
+export const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-1.5 font-bold transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1",
   {
     variants: {
       variant: {
-        primary: "bg-brand-500 text-white border border-brand-500 hover:bg-brand-600 hover:border-brand-600",
-        brand: "bg-brand-500 text-white border border-brand-500 hover:bg-brand-600 hover:border-brand-600",
+        primary: "bg-ink text-white border border-ink hover:bg-[#2b2847]",
+        brand: "bg-ink text-white border border-ink hover:bg-[#2b2847]",
+        glass: "bg-white/65 text-ink border border-white/95 hover:bg-white",
         outline: "bg-surface text-ink border border-line-strong hover:bg-surface-2",
-        ghost: "bg-transparent text-muted border border-transparent hover:bg-surface-2 hover:text-ink",
+        ghost: "bg-transparent text-ink-soft border border-transparent hover:bg-surface-2 hover:text-ink",
         danger: "bg-bad-bg text-bad border border-transparent hover:brightness-95",
-        link: "text-brand-600 underline-offset-4 hover:underline",
+        link: "text-brand-600 underline-offset-4 hover:underline hover:text-brand-700",
       },
       size: {
-        sm: "h-8 px-3 text-[12px] rounded-full",
-        md: "h-9 px-4 text-[13px] rounded-full",
-        lg: "h-11 px-5 text-sm rounded-full",
+        sm: "h-[30px] px-2.5 text-[12px] rounded-[9px]",
+        md: "h-9 px-3.5 text-[13px] rounded-[10px]",
+        lg: "h-[42px] px-4 text-[14px] rounded-[12px]",
+        icon: "h-9 w-9 rounded-[10px]",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },
   },
 );
+
+const button = buttonVariants;
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,

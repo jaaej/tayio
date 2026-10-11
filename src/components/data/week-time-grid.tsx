@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 
 /**
  * Week view on a time axis: hours down the side, one column per day, each
@@ -156,22 +156,29 @@ export function WeekTimeGrid({
 
   return (
     <div className="overflow-x-auto overscroll-x-contain">
-      <div className="min-w-[760px]">
+      <div className="min-w-[820px]">
         {/* Day header */}
-        <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-line">
+        <div className="grid grid-cols-[60px_repeat(7,minmax(0,1fr))] border-b border-line">
           <div />
           {days.map((d) => (
             <div
               key={d.iso}
               className={cn(
-                "flex items-center gap-2 border-l border-line px-2.5 py-3",
+                "flex items-center gap-2 border-l border-line px-2.5 pb-2.5 pt-3",
                 d.isToday && "bg-brand-50/70",
               )}
             >
-              <span className="text-[12px] font-bold text-muted">{d.label}</span>
               <span
                 className={cn(
-                  "grid h-7 min-w-7 place-items-center rounded-full px-1 text-[13px] font-extrabold tabular-nums",
+                  "text-[12px] font-extrabold tracking-[0.04em]",
+                  d.isToday ? "text-ink" : "text-muted",
+                )}
+              >
+                {d.label}
+              </span>
+              <span
+                className={cn(
+                  "grid h-[26px] min-w-[26px] place-items-center rounded-full px-1 text-[14px] font-extrabold tabular-nums",
                   d.isToday ? "bg-ink text-white" : "text-ink",
                 )}
                 aria-current={d.isToday ? "date" : undefined}
@@ -183,15 +190,15 @@ export function WeekTimeGrid({
         </div>
 
         {/* Body */}
-        <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))]">
+        <div className="grid grid-cols-[60px_repeat(7,minmax(0,1fr))]">
           {/* Hour gutter */}
           <div className="relative" style={{ height: bodyHeight }}>
             {hours.map((h, i) => (
               <span
                 key={h}
-                className="absolute right-2 -translate-y-1/2 text-[10px] font-semibold tabular-nums text-muted"
+                className="absolute right-2.5 -translate-y-1/2 whitespace-nowrap text-[11px] font-bold tabular-nums text-muted"
                 // Keep the first and last labels inside the grid's edges.
-                style={{ top: Math.min(Math.max(i * HOUR_PX, 7), bodyHeight - 7) }}
+                style={{ top: Math.min(Math.max(i * HOUR_PX, 9), bodyHeight - 9) }}
               >
                 {hourLabel(h)}
               </span>
@@ -208,14 +215,14 @@ export function WeekTimeGrid({
               }}
             >
               {placeDay(byDay.get(d.iso) ?? []).map((e) => {
-                const tokens = getAccentTokens(colorFamilyForSubject(e.subject ?? e.label));
+                const tone = subjectTone(e.subject ?? e.label);
                 const top = ((e.start - startHour * 60) / 60) * HOUR_PX;
                 const height = Math.max(((e.end - e.start) / 60) * HOUR_PX - 4, 30);
                 const width = 100 / e.lanes;
                 const block = (
                   <div
-                    className="h-full overflow-hidden rounded-[8px] px-2 py-1.5 transition-shadow hover:shadow-[0_6px_16px_-10px_rgba(31,40,90,0.5)]"
-                    style={{ backgroundColor: tokens.pillBg, color: tokens.pillText }}
+                    className="h-full overflow-hidden rounded-[9px] px-2 py-[5px] transition-shadow hover:shadow-[0_6px_16px_-10px_rgba(60,62,150,0.5)]"
+                    style={{ backgroundColor: tone.bg, color: tone.fg }}
                   >
                     {detailed ? (
                       <>
@@ -240,12 +247,12 @@ export function WeekTimeGrid({
                       </>
                     ) : (
                       <>
-                        <div className="text-[10px] font-bold tabular-nums leading-tight">
+                        <div className="text-[11px] font-extrabold tabular-nums leading-tight">
                           {timeLabel(e.startTime)}
                         </div>
                         <div
                           className={cn(
-                            "mt-0.5 text-[11px] font-bold leading-tight",
+                            "mt-0.5 text-[12px] font-bold leading-[1.2]",
                             // Under ~45 minutes there is room for one line only.
                             height < 46 ? "line-clamp-1" : "line-clamp-2",
                           )}
@@ -282,10 +289,10 @@ export function WeekTimeGrid({
               {d.isToday && now?.date === d.iso && nowTop !== null && (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-bad"
+                  className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-[#E5484D]"
                   style={{ top: nowTop }}
                 >
-                  <span className="absolute -left-1 -top-[4px] h-2.5 w-2.5 rounded-full bg-bad" />
+                  <span className="absolute -left-1 -top-[4px] h-2.5 w-2.5 rounded-full bg-[#E5484D]" />
                 </div>
               )}
             </div>

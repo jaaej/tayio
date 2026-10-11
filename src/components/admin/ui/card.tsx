@@ -24,7 +24,11 @@ const ACCENT_BAR: Record<Accent, string> = {
   bad: "bg-bad",
 };
 
-/** Chunky white card on the cornflower wash - the reference `.card`. */
+/**
+ * Solid white panel. In the glass redesign a panel normally sits inside a
+ * GlassPanel frame; use Card on its own only inside an existing frame or
+ * side panel.
+ */
 export function Card({
   accent,
   interactive,
@@ -41,10 +45,9 @@ export function Card({
   return (
     <div
       className={cn(
-        "relative bg-surface border border-line rounded-[14px] overflow-hidden",
-        "shadow-[0_1px_2px_rgba(15,17,30,0.05),0_8px_24px_-12px_rgba(31,40,90,0.10)]",
+        "panel relative overflow-hidden",
         interactive &&
-          "transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[0_24px_50px_-22px_rgba(31,40,90,0.30)]",
+          "transition-all duration-150 hover:-translate-y-[2px] hover:shadow-[0_12px_30px_-16px_rgba(60,62,150,0.35)]",
         className,
       )}
     >
@@ -90,7 +93,7 @@ export function CardHead({
             {eyebrow}
           </div>
         )}
-        <h3 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
+        <h3 className="text-[16px] font-extrabold text-ink truncate">
           {title}
         </h3>
       </div>

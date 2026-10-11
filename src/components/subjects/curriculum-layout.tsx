@@ -166,7 +166,7 @@ export function CurriculumLayout({
       <div className="lg:relative lg:self-stretch">
         {/* Pins directly under the 56px portal top bar while the page
             scrolls, so the rail always reaches the bottom of the screen. */}
-        <div className="hidden lg:sticky lg:top-[56px] lg:z-20 lg:block lg:h-[calc(100vh-56px)]">
+        <div className="hidden lg:sticky lg:top-[var(--portal-header-h)] lg:z-20 lg:block lg:h-[calc(100vh-var(--portal-header-h))]">
           {/* Full rail - clipped while closed; revealed when open. */}
           <div className="h-full overflow-hidden">
             <div

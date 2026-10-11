@@ -43,17 +43,17 @@ export function RevenueBars({ months }: { months: Month[] }) {
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
             >
-              <span className="mb-1 text-[10px] font-bold tabular-nums text-ink-soft">
+              <span className="mb-1.5 text-[11px] font-extrabold tabular-nums text-muted">
                 {compact(m.total)}
               </span>
               <div
                 className={cn(
-                  "w-full max-w-[38px] rounded-t-[4px] transition-colors",
+                  "w-full max-w-[36px] rounded-t-[8px] transition-colors",
                   i === last
                     ? "bg-ink"
                     : hover === i
-                      ? "bg-brand-300"
-                      : "bg-brand-200",
+                      ? "bg-[#AEB1E6]"
+                      : "bg-[#C9CBEE]",
                 )}
                 style={{ height: `${Math.max(pct, m.total > 0 ? 2 : 0)}%` }}
               />
@@ -71,7 +71,7 @@ export function RevenueBars({ months }: { months: Month[] }) {
           <span
             key={m.key}
             className={cn(
-              "flex-1 text-center text-[11px] font-bold",
+              "flex-1 text-center text-[12px] font-bold",
               i === last ? "text-ink" : "text-muted",
             )}
           >

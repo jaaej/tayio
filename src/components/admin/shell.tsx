@@ -18,6 +18,9 @@ import {
   Settings,
   LogOut,
   FolderOpen,
+  ListChecks,
+  Layers,
+  CalendarDays,
 } from "lucide-react";
 import { ToriiMark } from "@/components/brand/wordmark";
 import { signOutAction } from "@/app/auth/actions";
@@ -28,7 +31,8 @@ import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
 import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
 import { CoverAlertPoller } from "./cover-alert-poller";
-import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
+import { GlassPortalShell } from "./glass-shell";
+import { getRescheduleBadgeCount } from "@/app/admin/_lib/dashboard-queries";
 import {
   AdminGlobalSearch,
   type AdminSearchDestination,
@@ -39,7 +43,7 @@ import {
 // Revenue is NOT here: reception can open it and enter the PIN to view figures.
 const OWNER_ONLY_HREFS = new Set(["/admin/settings", "/admin/tutor-checkins"]);
 
-const IC = "h-[18px] w-[18px]";
+const IC = "h-[17px] w-[17px]";
 
 const SECTIONS: NavSection[] = [
   {
@@ -78,6 +82,14 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    heading: "Curriculum",
+    items: [
+      { label: "Curriculum", href: "/admin/subjects", icon: <Layers className={IC} /> },
+      { label: "Quizzes", href: "/admin/quizzes", icon: <ListChecks className={IC} /> },
+      { label: "Terms", href: "/admin/terms", icon: <CalendarDays className={IC} /> },
+    ],
+  },
+  {
     heading: "Insight",
     items: [
       { label: "Reports", href: "/admin/reports", icon: <BarChart3 className={IC} /> },
@@ -90,33 +102,29 @@ const SECTIONS: NavSection[] = [
 
 function BrandMark() {
   return (
-    <Link href="/admin" className="flex items-center gap-2.5">
-      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center">
-        <ToriiMark width={24} />
-      </div>
-      <div className="leading-tight">
-        <div className="text-[13px] font-extrabold tracking-[0.04em] uppercase text-ink">
-          Taiyo
-        </div>
-        <div className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-muted-2 -mt-0.5">
+    <Link
+      href="/admin"
+      aria-label="Taiyo Tuition dashboard"
+      className="flex items-center gap-2.5 rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+    >
+      {/* The mark asset is navy; brightness-0 + invert turns it white on ink. */}
+      <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] bg-ink [&_img]:brightness-0 [&_img]:invert">
+        <ToriiMark width={22} />
+      </span>
+      <span className="portal-brand-text flex flex-col leading-[1.1]">
+        <span className="text-[15px] font-extrabold text-ink">Taiyo</span>
+        <span className="text-[11px] uppercase tracking-[0.12em] text-ink-soft">
           Tuition
-        </div>
-      </div>
+        </span>
+      </span>
     </Link>
   );
 }
 
 /**
- * AdminShell - admin's own portal chrome, mirroring StudentShell / TutorShell.
- *
- * Wrapped in `.theme-tutor` so the admin subtree inherits the cornflower v2
- * token scope already defined in globals.css (brand-* / surface / ink / line).
- * There is no `.theme-admin` class and globals.css is out of scope to edit, so
- * admin reuses the existing staff-portal cornflower scope - same tokens, no new
- * ones, no globals.css change. This is the same mechanism student/tutor use.
- *
- * The shared `src/components/portal/shell.tsx` is intentionally NOT touched
- * (parent depends on it); this is a fresh admin-local shell.
+ * AdminShell - admin portal chrome in the glass redesign: the floating
+ * sidebar holds brand, search, menu and the signed-in person (no top bar).
+ * `.theme-admin` (globals.css) scopes the redesign's palette and font.
  */
 export async function AdminShell({
   userName,
@@ -128,16 +136,19 @@ export async function AdminShell({
   const user = await getCurrentUser();
   let unread = 0;
   let notifUnread = 0;
+  let reschedulesWaiting = 0;
   if (user) {
     try {
-      [unread, notifUnread] = await Promise.all([
+      [unread, notifUnread, reschedulesWaiting] = await Promise.all([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
+        getRescheduleBadgeCount(),
       ]);
     } catch (err) {
       console.error("[admin-shell] badge counts failed:", err);
       unread = 0;
       notifUnread = 0;
+      reschedulesWaiting = 0;
     }
   }
   const canSeeOwnerNav = isUnrestrictedAdmin(
@@ -149,6 +160,9 @@ export async function AdminShell({
       .filter((item) => canSeeOwnerNav || !OWNER_ONLY_HREFS.has(item.href))
       .map((item) => {
         if (item.href === "/admin/messages") return { ...item, badge: unread };
+        if (item.href === "/admin/reschedules") {
+          return { ...item, badge: reschedulesWaiting };
+        }
         if (item.href === "/admin/notifications") {
           return { ...item, badge: notifUnread, badgeTone: "danger" as const };
         }
@@ -164,79 +178,44 @@ export async function AdminShell({
       })),
   );
   const initial = userName.charAt(0).toUpperCase();
+  const roleLabel = canSeeOwnerNav ? "Owner" : "Reception";
 
   return (
     <>
       <CoverAlertPoller />
-      <CollapsiblePortalShell
-        themeClassName="theme-tutor"
-        sidebarVariant="floating"
-        desktopBrand={<BrandMark />}
-        desktopActions={
-          <>
-            <AdminGlobalSearch destinations={searchDestinations} />
-            <Link
-              href="/admin/notifications"
-              className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
-              aria-label={
-                notifUnread > 0
-                  ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
-                  : "Notifications"
-              }
+      <GlassPortalShell
+        brand={<BrandMark />}
+        search={
+          <AdminGlobalSearch destinations={searchDestinations} variant="sidebar" />
+        }
+        nav={<AdminNavLinks sections={sections} />}
+        account={
+          <div className="portal-account flex items-center gap-2.5 pb-1.5 pl-2.5 pr-1.5 pt-2">
+            <span
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-[13px] font-extrabold text-white"
+              aria-hidden
             >
-              <Bell className="h-[18px] w-[18px]" />
-              {notifUnread > 0 && (
-                <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
-                  {notifUnread > 99 ? "99+" : notifUnread}
-                </span>
-              )}
-            </Link>
-            <Link
-              href="/admin/messages"
-              className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-              aria-label="Messages"
-            >
-              <MessageCircle className="h-[18px] w-[18px]" />
-              {unread > 0 && (
-                <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
-              )}
-            </Link>
-            <div className="flex items-center gap-2.5 pr-2.5 pl-1 py-1 rounded-full border border-line bg-surface">
-              <div className="h-7 w-7 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold">
-                {initial}
-              </div>
-              <div className="leading-tight">
-                <div className="text-[13px] font-bold text-ink whitespace-nowrap">
-                  {userName}
-                </div>
-                <div className="text-[11px] text-muted capitalize">Admin</div>
-              </div>
-            </div>
+              {initial}
+            </span>
+            <span className="portal-account-text flex min-w-0 flex-1 flex-col leading-[1.2]">
+              <span className="truncate text-[13px] font-bold text-ink">{userName}</span>
+              <span className="text-[12px] text-ink-soft">{roleLabel}</span>
+            </span>
             <form action={signOutAction}>
               <button
                 type="submit"
                 aria-label="Sign out"
-                className="h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
+                title="Sign out"
+                className="grid h-9 w-9 place-items-center rounded-[10px] text-ink-soft transition-colors hover:bg-white/70 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
               >
-                <LogOut className="h-[18px] w-[18px]" />
+                <LogOut className="h-[17px] w-[17px]" aria-hidden />
               </button>
             </form>
-          </>
-        }
-        desktopSidebar={
-          <>
-            <div className="flex-1">
-              <AdminNavLinks sections={sections} />
-            </div>
-            <div className="portal-sidebar-footer mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
-              <div>Taiyo Tuition · v0.4 preview</div>
-              <div>© 2026 Taiyo Pty Ltd</div>
-            </div>
-          </>
+          </div>
         }
         mobileHeader={
-          <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-            <div className="h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
+          <header className="glass sticky top-0 z-40 rounded-b-[20px] border-t-0 lg:hidden">
+            <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-5">
               <BrandMark />
               <div className="flex items-center gap-1.5">
                 <AdminGlobalSearch
@@ -248,7 +227,7 @@ export async function AdminShell({
                   <button
                     type="submit"
                     aria-label="Sign out"
-                    className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
+                    className="grid h-9 w-9 place-items-center rounded-[10px] text-ink-soft hover:bg-white/70 hover:text-ink"
                   >
                     <LogOut className="h-[18px] w-[18px]" />
                   </button>
@@ -260,7 +239,7 @@ export async function AdminShell({
         }
       >
         {children}
-      </CollapsiblePortalShell>
+      </GlassPortalShell>
     </>
   );
 }

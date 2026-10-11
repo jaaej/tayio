@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Nunito_Sans } from "next/font/google";
+import { Figtree, Nunito_Sans } from "next/font/google";
 import { GlobalNavigationIndicator } from "@/components/ui/navigation-loading-indicator";
 import "./globals.css";
 
@@ -9,6 +9,16 @@ const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
+});
+
+// Admin portal only (the glass redesign); applied through .theme-admin in
+// globals.css. Not preloaded, so the other portals never download it.
+const figtree = Figtree({
+  variable: "--font-figtree",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -25,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunitoSans.variable} h-full antialiased`}
+      className={`${nunitoSans.variable} ${figtree.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-ink">
         <Suspense fallback={null}>

@@ -14,10 +14,13 @@ export type AdminSearchDestination = {
 export function AdminGlobalSearch({
   destinations,
   compact = false,
+  variant = "toolbar",
   shortcutEnabled = true,
 }: {
   destinations: AdminSearchDestination[];
   compact?: boolean;
+  /** "sidebar" is the full-width glass field at the top of the side menu. */
+  variant?: "toolbar" | "sidebar";
   shortcutEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -83,22 +86,38 @@ export function AdminGlobalSearch({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Search the portal"
-        className={`inline-flex h-[34px] items-center justify-center gap-2 rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand-300 hover:bg-surface-2 hover:text-ink ${compact ? "w-[34px]" : "px-2.5"}`}
-      >
-        <Search className="h-[17px] w-[17px]" aria-hidden />
-        {!compact ? (
-          <>
-            <span className="hidden text-[12px] font-bold xl:inline">Search</span>
-            <kbd className="hidden rounded border border-line bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold text-muted 2xl:inline">
-              ⌘K
-            </kbd>
-          </>
-        ) : null}
-      </button>
+      {variant === "sidebar" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Search the portal"
+          title="Search (⌘K)"
+          className="portal-sidebar-search flex h-10 w-full items-center gap-2 rounded-[12px] border border-white/95 bg-white/65 px-2.5 text-[13px] font-semibold text-ink-soft transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        >
+          <Search className="h-[15px] w-[15px] shrink-0" aria-hidden />
+          <span className="portal-nav-label flex-1 text-left">Search</span>
+          <kbd className="portal-nav-label rounded-[6px] border border-[#E2E4EE] bg-white px-1.5 py-px text-[11px] font-bold text-ink-soft">
+            ⌘K
+          </kbd>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Search the portal"
+          className={`inline-flex h-[34px] items-center justify-center gap-2 rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand-300 hover:bg-surface-2 hover:text-ink ${compact ? "w-[34px]" : "px-2.5"}`}
+        >
+          <Search className="h-[17px] w-[17px]" aria-hidden />
+          {!compact ? (
+            <>
+              <span className="hidden text-[12px] font-bold xl:inline">Search</span>
+              <kbd className="hidden rounded border border-line bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold text-muted 2xl:inline">
+                ⌘K
+              </kbd>
+            </>
+          ) : null}
+        </button>
+      )}
 
       {open && typeof document !== "undefined"
         ? createPortal(

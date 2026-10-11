@@ -1,52 +1,56 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Frosted section frame: the title row sits on a translucent, blurred frame
- * and the content sits on a solid white card inset 6px inside it, so text
- * never reads over a see-through surface. Admin dashboard only for now; it
- * moves to the other roles once the look is approved.
+ * The bezel used for every section in the glass redesign: the title row sits
+ * on a translucent frame and the content sits on a solid white panel inset
+ * 6px inside it, so text never reads over a see-through surface.
  */
 export function GlassPanel({
   title,
+  titleId,
   meta,
   action,
   children,
   className,
   bodyClassName,
+  as: Tag = "section",
 }: {
-  title: React.ReactNode;
-  /** Small secondary text beside the title. */
+  title?: React.ReactNode;
+  titleId?: string;
+  /** Small secondary text or a count beside the title. */
   meta?: React.ReactNode;
   /** Right-aligned controls in the title row. */
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  as?: "section" | "div" | "nav" | "aside";
 }) {
   return (
-    <section
-      className={cn(
-        "glass-frame flex min-w-0 flex-col rounded-[22px] p-1.5",
-        className,
-      )}
+    <Tag
+      aria-labelledby={title && titleId ? titleId : undefined}
+      className={cn("glass flex min-w-0 flex-col rounded-[24px] p-1.5", className)}
     >
-      <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 pt-2">
-        <h2 className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
-          {title}
-        </h2>
-        {meta && (
-          <span className="text-[12px] font-semibold text-ink-soft">{meta}</span>
-        )}
-        {action && <div className="ml-auto flex items-center gap-2">{action}</div>}
-      </div>
-      <div
-        className={cn(
-          "min-w-0 flex-1 overflow-hidden rounded-[16px] border border-line/70 bg-surface shadow-[0_1px_2px_rgba(15,17,30,0.04)]",
-          bodyClassName,
-        )}
-      >
+      {(title || action) && (
+        <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 py-1.5 pl-3 pr-1.5">
+          {title && (
+            <h2 id={titleId} className="text-[16px] font-extrabold text-ink">
+              {title}
+            </h2>
+          )}
+          {meta && (
+            <span className="text-[13px] font-semibold tabular-nums text-ink-soft">
+              {meta}
+            </span>
+          )}
+          {action && (
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">{action}</div>
+          )}
+        </div>
+      )}
+      <div className={cn("panel min-w-0 flex-1 overflow-hidden", bodyClassName)}>
         {children}
       </div>
-    </section>
+    </Tag>
   );
 }

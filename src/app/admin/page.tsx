@@ -16,7 +16,7 @@ import {
   WeekTimeGrid,
   type TimeGridEvent,
 } from "@/components/data/week-time-grid";
-import { Empty } from "@/components/admin/ui";
+import { Empty, PageHeader, buttonVariants } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/auth";
 import { isUnrestrictedAdmin } from "@/lib/roles";
@@ -51,8 +51,8 @@ const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
   notes: { icon: <NotebookPen className="h-4 w-4" />, tone: "bg-surface-2 text-ink-soft" },
 };
 
-const BUTTON =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3.5 text-[13px] font-bold text-ink shadow-[0_1px_2px_rgba(15,17,30,0.05)] transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
+const LINE_SM = buttonVariants({ variant: "outline", size: "md" });
+const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
 
 function greeting(now: Date) {
   const hour = Number(
@@ -159,33 +159,33 @@ export default async function AdminDashboard({
 
   return (
     <div className="space-y-5">
-      {/* Greeting + quick actions */}
-      <header className="glass-frame rise flex flex-wrap items-center gap-x-6 gap-y-3 rounded-[22px] px-5 py-4">
-        <div className="min-w-0">
-          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-ink">
-            {greeting(now)}, {firstName}
-          </h1>
-          <p className="mt-0.5 text-[13px] font-semibold text-ink-soft">
-            {dateLabel}
-            {termLabel ? ` · ${termLabel}` : ""}
-          </p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Link href="/admin/announcements#compose" className={BUTTON}>
-            New announcement
-          </Link>
-          <Link href="/admin/users?new=1" className={BUTTON}>
-            Add user
-          </Link>
-          <Link
-            href="/admin/classes?new=1"
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] bg-ink px-4 text-[13px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(14,17,22,0.6)] transition-colors hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            New class
-          </Link>
-        </div>
-      </header>
+      <PageHeader
+        title={`${greeting(now)}, ${firstName}`}
+        sub={`${dateLabel}${termLabel ? ` · ${termLabel}` : ""}`}
+        actions={
+          <>
+            <Link
+              href="/admin/announcements#compose"
+              className={buttonVariants({ variant: "glass", size: "lg" })}
+            >
+              New announcement
+            </Link>
+            <Link
+              href="/admin/users?new=1"
+              className={buttonVariants({ variant: "glass", size: "lg" })}
+            >
+              Add user
+            </Link>
+            <Link
+              href="/admin/classes?new=1"
+              className={buttonVariants({ variant: "primary", size: "lg" })}
+            >
+              <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
+              New class
+            </Link>
+          </>
+        }
+      />
 
       {/* To do + Revenue */}
       <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]" style={{ animationDelay: "40ms" }}>
@@ -206,18 +206,18 @@ export default async function AdminDashboard({
           ) : (
             <ul className="divide-y divide-line">
               {todo.map((item) => (
-                <li key={item.kind} className="flex items-center gap-3.5 px-4 py-3">
+                <li key={item.kind} className="flex items-center gap-3.5 px-4 py-[13px] transition-colors hover:bg-[#F8F9FC]">
                   <span
                     aria-hidden
-                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] ${TODO_ICON[item.kind].tone}`}
+                    className={`grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[11px] ${TODO_ICON[item.kind].tone}`}
                   >
                     {TODO_ICON[item.kind].icon}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-bold text-ink">{item.title}</div>
-                    <div className="text-[12px] text-ink-soft">{item.detail}</div>
+                    <div className="text-[14px] font-bold text-ink">{item.title}</div>
+                    <div className="text-[13px] text-muted">{item.detail}</div>
                   </div>
-                  <Link href={item.href} className={cn(BUTTON, "min-h-9 shrink-0 px-3 text-[12px]")}>
+                  <Link href={item.href} className={cn(LINE_SM, "shrink-0")}>
                     {item.action}
                   </Link>
                 </li>
@@ -229,10 +229,10 @@ export default async function AdminDashboard({
         <GlassPanel title="Revenue" meta={revenue ? "Last 6 months" : undefined}>
           {revenue && thisMonth ? (
             <div className="p-4">
-              <div className="text-[28px] font-extrabold tabular-nums tracking-[-0.02em] text-ink">
+              <div className="text-[26px] font-extrabold tabular-nums text-ink">
                 {money(thisMonth.total)}
               </div>
-              <div className="mb-4 text-[12px] font-semibold text-ink-soft">
+              <div className="mb-4 text-[13px] text-muted">
                 {monthName} so far
               </div>
               <RevenueBars months={revenue} />
@@ -246,7 +246,7 @@ export default async function AdminDashboard({
               <p className="text-[12px] text-ink-soft">
                 Enter the admin PIN on the Revenue page to see figures.
               </p>
-              <Link href="/admin/revenue" className={cn(BUTTON, "mt-1")}>
+              <Link href="/admin/revenue" className={cn(LINE_SM, "mt-1")}>
                 Unlock revenue
               </Link>
             </div>
@@ -264,20 +264,20 @@ export default async function AdminDashboard({
             <Link
               href={`/admin?week=${addIsoDays(weekStart, -7)}`}
               aria-label="Previous week"
-              className={cn(BUTTON, "min-h-9 w-9 justify-center px-0")}
+              className={GLASS_ICON}
             >
-              <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
+              <ChevronLeft className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
             </Link>
             <Link
               href={`/admin?week=${addIsoDays(weekStart, 7)}`}
               aria-label="Next week"
-              className={cn(BUTTON, "min-h-9 w-9 justify-center px-0")}
+              className={GLASS_ICON}
             >
-              <ChevronRight className="h-5 w-5" strokeWidth={2.25} />
+              <ChevronRight className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
             </Link>
             <Link
               href={`/admin/classes?w=${weekStart}`}
-              className={cn(BUTTON, "min-h-9 px-3 text-[12px] text-brand-700")}
+              className={buttonVariants({ variant: "glass", size: "md" })}
             >
               Open schedule
             </Link>
@@ -292,7 +292,7 @@ export default async function AdminDashboard({
         className="rise"
         title="Students to watch"
         action={
-          <Link href="/admin/users?role=student" className="text-[12px] font-bold text-brand-700 hover:underline">
+          <Link href="/admin/users?role=student" className="pr-1.5 text-[13px] font-bold text-brand-600 hover:text-brand-700">
             All students
           </Link>
         }

@@ -25,28 +25,26 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       aria-label={item.label}
+      aria-current={active ? "page" : undefined}
       title={item.label}
       className={cn(
-        "portal-nav-item group relative flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-[13px] font-semibold w-full text-left",
+        "portal-nav-item group relative flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-left text-[14px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
         active
-          ? "bg-ink text-white shadow-[0_6px_14px_-8px_rgba(14,17,22,0.55)]"
-          : "text-ink-soft hover:bg-surface-2",
+          ? "bg-ink font-bold text-white"
+          : "font-medium text-ink-soft hover:bg-[#F1F2F7]",
       )}
     >
-      <span
-        className={cn(
-          "shrink-0 transition-colors",
-          active ? "text-white" : "text-muted",
-        )}
-      >
-        {item.icon}
-      </span>
-      <span className="portal-nav-label truncate">{item.label}</span>
+      <span className="shrink-0">{item.icon}</span>
+      <span className="portal-nav-label flex-1 truncate">{item.label}</span>
       {item.badge && item.badge > 0 ? (
         <span
           className={cn(
-            "portal-nav-badge ml-auto inline-flex items-center justify-center rounded-full text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1.5 tabular-nums",
-            item.badgeTone === "danger" ? "bg-bad" : "bg-brand-500",
+            "portal-nav-badge inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums",
+            item.badgeTone === "danger"
+              ? "bg-[#D92D20] text-white"
+              : active
+                ? "bg-white text-ink"
+                : "bg-surface-3 text-ink",
           )}
         >
           {item.badge > 99 ? "99+" : item.badge}
@@ -59,21 +57,19 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 export function AdminNavLinks({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
   return (
-    <nav className="space-y-5">
+    <nav aria-label="Main" className="flex flex-col gap-3.5">
       {sections.map((section) => (
-        <div key={section.heading}>
-          <h6 className="portal-nav-heading px-3 mb-1.5 text-[10px] uppercase tracking-[0.12em] text-muted-2 font-bold">
+        <div key={section.heading} className="flex flex-col gap-px">
+          <h2 className="portal-nav-heading px-2.5 pb-[5px] text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">
             {section.heading}
-          </h6>
-          <div className="space-y-0.5">
-            {section.items.map((item) => (
-              <NavRow
-                key={item.href}
-                item={item}
-                active={isNavItemActive(pathname, item.href)}
-              />
-            ))}
-          </div>
+          </h2>
+          {section.items.map((item) => (
+            <NavRow
+              key={item.href}
+              item={item}
+              active={isNavItemActive(pathname, item.href)}
+            />
+          ))}
         </div>
       ))}
     </nav>

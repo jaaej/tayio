@@ -79,7 +79,7 @@ export function DiscussionThreadDetail({
 
         <div className="grid lg:grid-cols-2 gap-6 items-start">
           {/* LEFT: question + composer (sticky on desktop) */}
-          <div className="space-y-5 min-w-0 lg:sticky lg:top-[76px] lg:self-start">
+          <div className="space-y-5 min-w-0 lg:sticky lg:top-[var(--portal-sticky-top)] lg:self-start">
             <article
               className="relative overflow-hidden rounded-[24px] border border-line"
               style={{

@@ -281,7 +281,7 @@ export default async function ProgressPage() {
           </div>
 
           {/* SIDEBAR */}
-          <aside className="space-y-4 min-w-0 lg:sticky lg:top-[76px] lg:self-start">
+          <aside className="space-y-4 min-w-0 lg:sticky lg:top-[var(--portal-sticky-top)] lg:self-start">
             {/* Focus next - sun-themed card */}
             <section
               className="relative overflow-hidden rounded-[22px] border border-sun-200 p-5"

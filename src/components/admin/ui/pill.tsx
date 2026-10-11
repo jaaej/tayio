@@ -15,7 +15,7 @@ export type PillTone =
   | "sun";
 
 const TONE: Record<PillTone, string> = {
-  default: "bg-surface-2 text-ink-soft border-line",
+  default: "bg-surface-3 text-muted border-transparent",
   brand: "bg-brand-50 text-brand-700 border-transparent",
   good: "bg-good-bg text-good border-transparent",
   warn: "bg-warn-bg text-warn border-transparent",
@@ -28,7 +28,7 @@ const TONE: Record<PillTone, string> = {
   sun: "bg-sun-100 text-sun-600 border-transparent",
 };
 
-/** Pill / chip - the reference `.pill`. */
+/** Status pill: tinted fill, bold text, no border (glass redesign). */
 export function Pill({
   tone = "default",
   dot,
@@ -44,7 +44,7 @@ export function Pill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold tabular-nums",
+        "inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[12px] font-extrabold tabular-nums",
         TONE[tone],
         className,
       )}
