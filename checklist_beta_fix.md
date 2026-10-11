@@ -13,6 +13,11 @@ Last updated: 11 October 2026
 
 ## Manual QA required
 
+- [ ] Admin glass redesign (12 October 2026): sign in as owner and as
+  reception, at 1440px and 390px; walk every sidebar item, open and close the
+  sidebar collapse, use ⌘K search, open a side panel (New class, New invoice),
+  and confirm reception still sees no revenue figures without the PIN.
+
 - [ ] Admin Attendance (11 October 2026): on desktop and at 390px, switch
   queue tabs and pick a day, mark a lesson with "All present" and a note, use
   "Save & next lesson" through to the end of the queue, and open "View lesson
@@ -472,6 +477,41 @@ Last updated: 11 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin glass redesign foundation (12 October 2026, from the
+  `taiyo-admin-design` handoff). Admin only while it is reviewed; tutor,
+  student and parent keep their current shell. Known cross-role
+  inconsistency: the admin shell, Figtree font, palette and glass side panel
+  differ from the other roles until the redesign is rolled out to them.
+  - Shell: `src/components/admin/glass-shell.tsx` (no desktop top bar; the
+    glass sidebar holds brand, search, menu and the signed-in person; only the
+    menu scrolls, with scroll shadows, and the current item scrolls into view).
+    Sidebar adds a Curriculum group (Curriculum `/admin/subjects`, Quizzes,
+    Terms) and a Reschedules badge (`getRescheduleBadgeCount`: pending
+    reschedule requests + pending tutor leave + open cover requests).
+  - Tokens: `.theme-admin` in `globals.css`, also applied through
+    `body:has(.theme-admin)` so portalled overlays match. `--portal-header-h`,
+    `--portal-sticky-top` and `--portal-fill-h` replace hard-coded sticky
+    offsets (0 / 20px / 100dvh-40px in admin). `.glass` and `.panel` live in
+    `@layer components` so utilities can override them.
+  - Kit (`src/components/admin/ui`): `PageHeader` (glass bar, optional back
+    button), `GlassPanel` (bezel), `buttonVariants` (primary ink / glass /
+    outline / ghost), `Pill`, `SegmentedLinks`, `TabLinks`, `MetricTile`,
+    `Avatar`, `SubjectDot`; subject colours in `src/lib/subject-tone.ts`.
+  - Shared `SidePanel` renders as a floating glass sheet in admin only
+    (`.side-panel-*` rules); `sections` lets a form supply its own white panels.
+  - Inputs use the `line-field` border (3:1) instead of the design's
+    `#DCDEE9`, which is only about 1.3:1 on white.
+  - Availability and tutor bank-detail actions now return
+    `{ ok: false, error }` instead of throwing, so production shows the real
+    message.
+  - Verified: `tsc`, 270 unit tests, production build, and 1440px screenshots
+    of every admin page. Scroll panes now contain their `sr-only` labels
+    (they had stretched the attendance page to 2600px).
+  - Dev note: the dev database pooler intermittently stalls under parallel
+    queries from this laptop (raw `postgres` queries, no app code, stalled for
+    minutes and then reset). The intermittent `/admin/users` hang is that,
+    not the page: the same loaders return in about 300ms when it is healthy.
 
 - [x] Admin Attendance glass split view (11 October 2026).
   - `/admin/attendance` and `/admin/attendance/[lessonId]` share one queue

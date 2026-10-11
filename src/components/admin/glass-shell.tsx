@@ -114,7 +114,7 @@ export function GlassPortalShell({
             content pushing the page sideways without creating a scroll
             container, so position: sticky inside pages still pins to the
             viewport. */}
-        <main className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-clip px-4 py-4 sm:px-5 lg:p-0 lg:pb-12">
+        <main className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-clip px-4 py-4 sm:px-5 lg:p-0">
           {children}
         </main>
       </div>

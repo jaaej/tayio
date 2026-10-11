@@ -350,8 +350,8 @@ body:has(.theme-admin) .theme-tutor {
 
   --portal-header-h: 0px;
   --portal-sticky-top: 20px;
-  /* Glass shell: 20px top padding + 48px bottom padding. */
-  --portal-fill-h: calc(100dvh - 68px);
+  /* Glass shell: 20px page padding top and bottom. */
+  --portal-fill-h: calc(100dvh - 40px);
 
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
