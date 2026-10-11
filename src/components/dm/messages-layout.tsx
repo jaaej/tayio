@@ -28,7 +28,7 @@ export function MessagesLayout({
   return (
     // Desktop: fill the viewport below the portal's top offset so each pane
     // scrolls on its own; phones use normal page flow.
-    <div className="flex min-w-0 items-stretch gap-5 lg:h-[calc(100dvh-var(--portal-sticky-top)-20px)] lg:min-h-[540px]">
+    <div className="flex min-w-0 items-stretch gap-5 lg:h-[var(--portal-fill-h)] lg:min-h-[540px]">
       <InboxCompose
         threads={threads}
         groups={groups}

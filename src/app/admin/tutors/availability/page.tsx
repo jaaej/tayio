@@ -11,7 +11,7 @@ import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { getTutorWeeklyAvailabilityBoard } from "@/app/admin/_lib/queries";
 import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatTime } from "@/lib/format";
+import { formatTimeRange } from "@/lib/format";
 import { isUnrestrictedAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { boardSubjects, freeTutorCount, slotsForSubject } from "./_lib/board";
@@ -61,7 +61,6 @@ export default async function AdminTutorAvailabilityPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Tutor availability"
-        sub="Recurring weekly slots"
         actions={
           isOwner && (
             <Link
@@ -176,7 +175,7 @@ export default async function AdminTutorAvailabilityPage({
                                     className="flex flex-col gap-px rounded-[8px] bg-info-bg px-[7px] py-[5px] text-info"
                                   >
                                     <span className="text-[12px] font-extrabold tabular-nums">
-                                      {formatTime(s.startTime)} - {formatTime(s.endTime)}
+                                      {formatTimeRange(s.startTime, s.endTime)}
                                     </span>
                                     <span className="text-[11px] font-semibold">
                                       {s.subjectName ?? "Any subject"}

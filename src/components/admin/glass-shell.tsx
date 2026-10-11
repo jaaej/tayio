@@ -101,7 +101,7 @@ export function GlassPortalShell({
             className={cn(
               // Only the menu scrolls on short screens; brand, search and the
               // account row stay in view.
-              "panel min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-3",
+              "panel scroll-fade min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-3",
               collapsed ? "px-1.5" : "px-2",
             )}
           >

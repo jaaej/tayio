@@ -332,7 +332,12 @@ export function WhenFields({
                 </>
               ) : null}
               {formatTimeRange(start, end)}
-              {length ? ` · ${length}` : ""}
+              {length ? (
+                <>
+                  {" · "}
+                  <span className="whitespace-nowrap">{length}</span>
+                </>
+              ) : null}
             </span>
           )}
         </div>

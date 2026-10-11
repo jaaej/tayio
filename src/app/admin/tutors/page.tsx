@@ -40,7 +40,6 @@ export default async function AdminTutorsPage() {
             </span>
           </span>
         }
-        sub="Reception can't see this page."
         actions={
           <Link
             href="/admin/tutors/availability"

@@ -83,6 +83,10 @@
    * admin glass shell has no top bar, so .theme-admin overrides both. */
   --portal-header-h: 56px;
   --portal-sticky-top: 76px;
+  /* Height that exactly fills the viewport below the page's top padding and
+   * above its bottom padding (header 56 + pt 24 + pb 64 in the staff shell),
+   * for full-height two-pane pages that must not scroll the window. */
+  --portal-fill-h: calc(100dvh - 144px);
 
   --radius-sm: 9px;
   --radius:    14px;
@@ -328,7 +332,9 @@ body:has(.theme-admin) .theme-tutor {
   --brand-200: #d9d3fb;
   --brand-300: #b5a9f5;
   --brand-400: #7c62f0;
-  --brand-500: #5b3fd9;
+  /* Primary fills are ink in the redesign; shared components that paint
+   * their main action with brand-500 follow that inside admin. */
+  --brand-500: #17152b;
   --brand-600: #3a1aa8;
   --brand-700: #21106b;
 
@@ -344,6 +350,8 @@ body:has(.theme-admin) .theme-tutor {
 
   --portal-header-h: 0px;
   --portal-sticky-top: 20px;
+  /* Glass shell: 20px top padding + 48px bottom padding. */
+  --portal-fill-h: calc(100dvh - 68px);
 
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
@@ -381,6 +389,18 @@ body:has(.theme-admin) .theme-tutor {
     border-radius: 16px;
     box-shadow: 0 1px 2px rgba(23, 21, 43, 0.06);
   }
+}
+
+/* Scroll shadows for a white scroll area: a soft shade appears at the top or
+ * bottom edge only while there is more content that way (the white "covers"
+ * scroll with the content and hide the shades at either end). */
+.scroll-fade {
+  background:
+    linear-gradient(#ffffff 30%, rgba(255, 255, 255, 0)) top / 100% 28px no-repeat local,
+    linear-gradient(rgba(255, 255, 255, 0), #ffffff 70%) bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(23, 21, 43, 0.12), transparent) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(23, 21, 43, 0.12), transparent) bottom / 100% 10px no-repeat scroll,
+    #ffffff;
 }
 
 /* Side panel in the admin glass theme: a floating glass sheet inset 16px,

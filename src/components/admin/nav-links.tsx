@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MobilePortalNav } from "@/components/portal/mobile-nav";
 import { isNavItemActive } from "@/lib/nav-active";
@@ -56,8 +56,18 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 
 export function AdminNavLinks({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+
+  // The menu scrolls on short screens; keep the current page's item in view
+  // so the highlight is never hidden below the fold.
+  useEffect(() => {
+    navRef.current
+      ?.querySelector<HTMLElement>('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [pathname]);
+
   return (
-    <nav aria-label="Main" className="flex flex-col gap-3.5">
+    <nav ref={navRef} aria-label="Main" className="flex flex-col gap-3.5">
       {sections.map((section) => (
         <div key={section.heading} className="flex flex-col gap-px">
           <h2 className="portal-nav-heading px-2.5 pb-[5px] text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">
