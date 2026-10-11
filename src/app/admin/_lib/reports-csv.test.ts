@@ -6,6 +6,7 @@ function r(over: Partial<ClassReportRow> = {}): ClassReportRow {
   return {
     classId: "c",
     className: "Maths",
+    subjectName: "Maths",
     tutorName: "Chen",
     attendancePct: 80,
     homeworkPct: 75,

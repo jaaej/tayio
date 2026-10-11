@@ -1,28 +1,17 @@
 "use client";
 
 import { useId, useState, useTransition, type ReactNode } from "react";
-import { Pencil } from "lucide-react";
 import { Button, SidePanel } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { updateInvoice } from "@/app/admin/_lib/actions-invoices";
+import {
+  INVOICE_STATUSES,
+  STATUS_LABEL,
+  type InvoiceStatus as Status,
+} from "../_lib/families";
 
-type Status =
-  | "unpaid"
-  | "paid"
-  | "overdue"
-  | "partially_paid"
-  | "refunded"
-  | "cancelled";
-
-const STATUSES: { value: Status; label: string }[] = [
-  { value: "unpaid", label: "Unpaid" },
-  { value: "paid", label: "Paid" },
-  { value: "overdue", label: "Overdue" },
-  { value: "partially_paid", label: "Partially paid" },
-  { value: "refunded", label: "Refunded" },
-  { value: "cancelled", label: "Cancelled" },
-];
+const STATUSES = INVOICE_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] }));
 
 export type EditableInvoice = {
   id: string;
@@ -40,8 +29,11 @@ export function EditInvoicePanel({
   invoice,
   parents,
   students,
+  label,
 }: {
   invoice: EditableInvoice;
+  /** Names the invoice for screen readers, e.g. "Term 4 · Sarah Student". */
+  label?: string;
   parents: { id: string; name: string; email: string }[];
   students: { id: string; name: string; parentIds: string[] }[];
 }) {
@@ -66,14 +58,15 @@ export function EditInvoicePanel({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
+        aria-label={label ? `Edit ${label}` : undefined}
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-soft transition hover:border-brand-400 hover:text-brand-700"
       >
-        <Pencil className="h-3.5 w-3.5" aria-hidden />
         Edit
-      </button>
+      </Button>
       <SidePanel
         open={open}
         onClose={close}

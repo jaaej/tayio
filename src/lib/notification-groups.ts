@@ -45,6 +45,7 @@ export function notificationGroupFor(
     title.includes("changes required") ||
     title.includes("changes requested") ||
     title.includes("overdue") ||
+    title.startsWith("payment reminder") ||
     title.includes("declined") ||
     title.includes("cancelled") ||
     title.includes("canceled")

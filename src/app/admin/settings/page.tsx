@@ -1,4 +1,4 @@
-import { Card, CardHead, PageHeader, Pill } from "@/components/admin/ui";
+import { GlassPanel, PageHeader, Pill } from "@/components/admin/ui";
 import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { PinSettingsForm } from "./_components/pin-settings-form";
@@ -15,40 +15,45 @@ export default async function AdminSettingsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader className="rise" eyebrow="Settings" title="Settings" />
+    <div className="flex max-w-[980px] flex-col gap-5">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            Settings
+            <span className="inline-flex h-[22px] items-center rounded-full bg-white px-2 text-[11px] font-extrabold uppercase tracking-[0.04em] text-ink">
+              Owner only
+            </span>
+          </span>
+        }
+      />
 
-      <Card className="rise">
-        <CardHead
-          title="Admin PIN"
-          action={
-            <Pill tone={pinSet ? "good" : "warn"}>
-              {pinSet ? "Set" : "Not set"}
-            </Pill>
-          }
-        />
-        <div className="p-5 space-y-4">
-          <p className="text-[13px] text-muted">
-            The PIN gates reception staff from the Revenue page - they must enter
-            it to view financial figures. You (the owner) are never asked for it;
-            set or change it here. One reception unlock lasts about 30 minutes.
+      <GlassPanel
+        title="Admin PIN"
+        titleId="settings-pin"
+        action={
+          <Pill tone={pinSet ? "good" : "warn"} className="mr-1.5">
+            {pinSet ? "Set" : "Not set"}
+          </Pill>
+        }
+      >
+        <div className="flex flex-col gap-4 p-[18px]">
+          <p className="text-[13px] leading-relaxed text-muted">
+            Reception admins must enter this PIN to see revenue figures and
+            payment totals. You are never asked for it. One unlock lasts about
+            30 minutes.
           </p>
           <PinSettingsForm pinSet={pinSet} />
         </div>
-      </Card>
+      </GlassPanel>
 
-      <Card className="rise">
-        <CardHead title="User search shortcuts" />
-        <div className="border-b border-line px-5 py-4">
-          <p className="max-w-3xl text-[13px] leading-5 text-muted">
-            Assign a short key to a subject, such as <strong>e1/2</strong>.
-            Typing that exact key in Admin Users will find everyone studying or
-            teaching the subject. The full subject and class names continue to
-            work normally.
-          </p>
-        </div>
+      <GlassPanel title="User search shortcuts" titleId="settings-shortcuts">
+        <p className="border-b border-line px-4 py-3.5 text-[13px] leading-relaxed text-muted">
+          Type a shortcut like <strong className="text-ink">e1/2</strong> in
+          the user search to find everyone studying or teaching that subject.
+          Full subject and class names still work.
+        </p>
         <SubjectAliasesForm subjects={subjectAliases} />
-      </Card>
+      </GlassPanel>
     </div>
   );
 }

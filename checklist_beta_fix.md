@@ -22,6 +22,18 @@ Last updated: 10 October 2026
   change and return a cover, and confirm a cover under 24 hours sits in its
   own column.
 
+- [ ] (11 October 2026) As owner, open Admin Payments on desktop and phone.
+  Click each status tile and confirm it filters and clicking again clears it.
+  Search a child's name, create an invoice from the side panel, change a
+  status from the pill, mark one paid, and edit one.
+  Send a reminder to a family, confirm a second send the same day is refused,
+  and confirm the parent sees "Payment reminder" under Action needed.
+  As reception without the PIN, confirm the tiles show counts, not dollars.
+- [ ] (11 October 2026) As reception, confirm Admin Revenue is locked and
+  unlocks with the PIN; as owner, confirm the tiles match the six-month chart
+  and the dashboard, and the PDF downloads.
+  Open Admin Reports and Settings on desktop and phone and confirm term
+  switching, CSV export, PIN change, and shortcut saving still work.
 - [ ] As admin, tutor, student, and parent, open Messages, start a new
   message, open a conversation, and send a reply on desktop and phone width.
   Confirm the inbox, contact picker, and conversation use the frosted glass
@@ -455,6 +467,37 @@ Last updated: 10 October 2026
   - Any still-pending student reschedule request (retired queue, but counted
     in the sidebar badge) is listed for approve/decline above the tabs.
 
+- [x] Admin glass redesign: Payments, Revenue, Reports, Settings
+  (11 October 2026).
+  - Payments (`src/app/admin/payments/page.tsx`): status tiles (`MetricTile`)
+    filter by `?status=`; All / Refunded / Cancelled sit beside the Families
+    heading; `?q=` searches parent, email, and children.
+    Invoices are grouped by billed parent (`invoices.parent_id` is NOT NULL,
+    so every invoice has a family) by the tested pure
+    `src/app/admin/payments/_lib/families.ts`.
+    Each family shows its open balance and one "Send reminder".
+    "New invoice" opens a side panel whose student list is filtered to the
+    chosen parent's linked children; `createInvoice` now runs the same
+    parent/student link validation as `updateInvoice`.
+    The status pill is the status select; Mark paid and Edit stay per row.
+  - Payment reminders: `sendPaymentReminder` in
+    `src/app/admin/_lib/actions-invoices.ts` sends an in-app "Payment
+    reminder" to the parent (`/parent/payments`), one per family per
+    Melbourne day via `dedupe_key` `payment-reminder:<parentId>:<date>`.
+    "Last reminded" is read from those notifications.
+    The type is classified as Action needed in `src/lib/notification-groups.ts`.
+  - Locked reception sees invoice counts, not money totals, on the Payments
+    tiles; individual invoice amounts and family balances stay visible for
+    taking payments.
+  - Revenue keeps the PIN gate unchanged; tiles and a new six-month
+    `RevenueBars` chart both use Melbourne-month `getMonthlyRevenue`, so they
+    agree with the dashboard. `getRevenueSummary` became `getOverdueSummary`
+    (Melbourne today). Recent payments show student and description.
+  - Reports: meters per tile and per class, subject dots (class rows now carry
+    `subjectName`), class names link to the class page.
+  - Settings stays owner only (`requireUnrestrictedAdmin`); PIN form is one
+    row, shortcut rows carry subject dots.
+  - Verified with `tsc` and `vitest` only; manual QA below is open.
 - [x] Glass messaging, narrower sidebar, and body-portal positioning fix
   (10 October 2026).
   - Messages inboxes, contact pickers, and conversations use the shared

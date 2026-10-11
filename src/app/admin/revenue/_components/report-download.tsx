@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Download } from "lucide-react";
+import { buttonVariants } from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
 
 export type ReportTerm = {
   id: string;
@@ -18,7 +20,9 @@ function iso(d: Date): string {
 }
 
 const INPUT =
-  "h-9 rounded-[10px] border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+  "h-[42px] w-full rounded-[11px] border border-[#DCDEE9] bg-surface px-2.5 text-[14px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+const LABEL = "flex min-w-0 flex-1 basis-full flex-col gap-1.5 text-[13px] font-bold text-ink";
+const DATE_LABEL = "flex min-w-[140px] flex-1 flex-col gap-1.5 text-[13px] font-bold text-ink";
 
 export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
   const [mode, setMode] = useState<Mode>("this_month");
@@ -54,9 +58,9 @@ export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
   const invalid = mode === "custom" && from && to && to < from;
 
   return (
-    <div className="flex flex-wrap items-end gap-2.5">
-      <label className="space-y-1">
-        <span className="block text-[11px] font-bold text-muted">Period</span>
+    <div className="flex flex-wrap gap-3">
+      <label className={LABEL}>
+        Period
         <select
           className={INPUT}
           value={mode}
@@ -70,8 +74,8 @@ export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
       </label>
 
       {mode === "term" && (
-        <label className="space-y-1">
-          <span className="block text-[11px] font-bold text-muted">Term</span>
+        <label className={LABEL}>
+          Term
           <select
             className={INPUT}
             value={termId}
@@ -88,8 +92,8 @@ export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
 
       {mode === "custom" && (
         <>
-          <label className="space-y-1">
-            <span className="block text-[11px] font-bold text-muted">From</span>
+          <label className={DATE_LABEL}>
+            From
             <input
               type="date"
               className={INPUT}
@@ -97,8 +101,8 @@ export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
               onChange={(e) => setFrom(e.target.value)}
             />
           </label>
-          <label className="space-y-1">
-            <span className="block text-[11px] font-bold text-muted">To</span>
+          <label className={DATE_LABEL}>
+            To
             <input
               type="date"
               className={INPUT}
@@ -114,13 +118,16 @@ export function RevenueReportDownload({ terms }: { terms: ReportTerm[] }) {
           href={href}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
+          className={cn(buttonVariants({ variant: "primary", size: "lg" }), "w-full")}
         >
           <Download className="h-4 w-4" aria-hidden />
           Download PDF
         </a>
       ) : (
-        <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-[12px] font-bold text-muted">
+        <span
+          aria-disabled="true"
+          className="inline-flex h-[42px] w-full items-center justify-center gap-1.5 rounded-[12px] bg-surface-2 px-4 text-[14px] font-bold text-muted"
+        >
           <Download className="h-4 w-4" aria-hidden />
           {invalid ? "Check dates" : "Download PDF"}
         </span>
