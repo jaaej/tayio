@@ -1,8 +1,5 @@
-import { relativeTime } from "@/lib/format";
-import {
-  notificationGroupFor,
-  notificationTimeBucket,
-} from "@/lib/notification-groups";
+import { inboxStamp } from "@/lib/format";
+import { notificationGroupFor } from "@/lib/notification-groups";
 import { getNotifications } from "@/lib/notifications";
 import {
   NotificationsInboxView,
@@ -17,9 +14,8 @@ export async function NotificationsInbox({
   showUnreadCallout?: boolean;
 }) {
   const rows = await getNotifications(userId, 100);
-  // One clock for the whole render: bucketing every row against the same `now`
-  // stops a row landing in "Today" and its neighbour in "This week" because the
-  // day rolled over mid-loop.
+  // One clock for the whole render so neighbouring rows never straddle a
+  // day boundary that rolled over mid-loop.
   const now = new Date();
 
   const items: InboxItem[] = rows.map((row) => {
@@ -32,9 +28,8 @@ export async function NotificationsInbox({
       isUnread: !row.readAt,
       isUrgent: row.title.toUpperCase().startsWith("URGENT:"),
       group: notificationGroupFor(row),
-      bucket: notificationTimeBucket(createdAt, now),
       createdAtIso: createdAt.toISOString(),
-      timeLabel: relativeTime(createdAt),
+      timeLabel: inboxStamp(createdAt, now),
     };
   });
 

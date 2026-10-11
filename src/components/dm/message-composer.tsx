@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useTransition } from "react";
-import { Send } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
 import { sendMessage } from "@/app/_actions/dm";
+import { buttonVariants } from "@/components/admin/ui/button";
+import { cn } from "@/lib/utils";
 
 export function MessageComposer({
   threadId,
@@ -12,53 +13,71 @@ export function MessageComposer({
   rolePrefix: "parent" | "student" | "tutor" | "admin";
 }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      formRef.current?.requestSubmit();
+      if (!pending) formRef.current?.requestSubmit();
     }
   }
 
   return (
     <form
       ref={formRef}
-      action={(fd) => {
+      // onSubmit rather than a form action: React resets a form as soon as its
+      // action returns, which would wipe the draft when the send fails.
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (pending) return;
+        const fd = new FormData(e.currentTarget);
         fd.append("threadId", threadId);
         fd.append("rolePrefix", rolePrefix);
+        setError(null);
         startTransition(async () => {
-          await sendMessage(fd);
-          formRef.current?.reset();
+          try {
+            await sendMessage(fd);
+            formRef.current?.reset();
+          } catch {
+            // Keep the draft so nothing typed is lost.
+            setError("Message not sent. Please try again in a moment.");
+          }
         });
       }}
-      className="portal-glass-footer border-t px-4 py-3 sm:px-6"
+      className="border-t border-line p-2.5"
     >
-      <div className="portal-glass-control flex items-end gap-2 rounded-[18px] border px-3 py-2 transition-colors focus-within:border-brand-300 focus-within:bg-white/90">
+      <div className="flex items-end gap-2">
         <textarea
           name="body"
           required
           maxLength={4000}
           rows={1}
           placeholder="Write a message…"
+          aria-label="Write a message"
           onKeyDown={handleKey}
-          className="max-h-32 min-h-[24px] flex-1 resize-none bg-transparent border-0 outline-none text-[15px] leading-relaxed text-ink placeholder:text-muted py-1"
+          className="max-h-36 min-h-11 flex-1 resize-none rounded-[13px] border border-line-field bg-white px-3.5 py-[11px] text-[14px] leading-normal text-ink outline-none transition-colors [field-sizing:content] placeholder:text-muted focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/40"
         />
         <button
           type="submit"
           disabled={pending}
-          aria-label="Send message"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white shadow-[0_6px_16px_-8px_rgba(31,40,90,0.6)] transition-transform disabled:opacity-50 motion-safe:hover:-translate-y-[1px] motion-safe:active:scale-95"
-          style={{
-            background: "linear-gradient(135deg, var(--brand-500), var(--brand-600))",
-          }}
+          className={cn(
+            buttonVariants({ variant: "primary" }),
+            "h-11 rounded-[13px] px-[18px] text-[14px]",
+          )}
         >
-          <Send className="h-4 w-4" aria-hidden />
+          {pending ? "Sending…" : "Send"}
         </button>
       </div>
-      <div className="mt-1.5 pl-1 text-[10px] text-muted-2">
-        Enter to send · Shift + Enter for a new line
-      </div>
+      {error ? (
+        <p role="alert" className="mt-1.5 pl-1 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      ) : (
+        <p className="mt-1.5 hidden pl-1 text-[11px] text-muted sm:block">
+          Enter to send · Shift + Enter for a new line
+        </p>
+      )}
     </form>
   );
 }

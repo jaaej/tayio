@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { ConversationPanel } from "@/components/dm/conversation-panel";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
+import { loadParentMessagesInbox } from "../_lib/inbox";
 
 export default async function ParentThreadPage({
   params,
@@ -19,14 +21,24 @@ export default async function ParentThreadPage({
   fd.append("rolePrefix", "parent");
   await markThreadRead(fd);
 
+  // Loaded after marking read so the list shows this thread as read.
+  const { threads, groups } = await loadParentMessagesInbox(user.id);
+
   return (
-    <ConversationPanel
-      threadId={thread.threadId}
-      meId={user.id}
-      otherName={thread.otherName}
-      otherRole={thread.otherRole}
-      messages={thread.messages}
-      rolePrefix="parent"
-    />
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/parent/messages"
+      activeThreadId={thread.threadId}
+    >
+      <ConversationPanel
+        threadId={thread.threadId}
+        meId={user.id}
+        otherName={thread.otherName}
+        otherRole={thread.otherRole}
+        messages={thread.messages}
+        rolePrefix="parent"
+      />
+    </MessagesLayout>
   );
 }

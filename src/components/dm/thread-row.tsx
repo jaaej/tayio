@@ -1,14 +1,17 @@
 import Link from "next/link";
 import type { ThreadInboxRow } from "@/lib/dm-queries";
-import { roleLabel } from "@/lib/roles";
-import { initialOf, roleColor } from "./dm-visuals";
+import { inboxStamp } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { initialsOf, roleAvatarClass, shortRoleLabel } from "./dm-visuals";
 
 export function ThreadRow({
   thread,
   hrefPrefix,
+  active,
 }: {
   thread: ThreadInboxRow;
   hrefPrefix: string;
+  active: boolean;
 }) {
   // React Server Components serialize Date values before this client-side row
   // receives them. Normalise both the server Date and browser ISO-string forms.
@@ -16,66 +19,68 @@ export function ThreadRow({
     thread.lastActivityAt instanceof Date
       ? thread.lastActivityAt
       : new Date(thread.lastActivityAt);
-  const stamp = lastActivityAt.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-  });
-  const color = roleColor(thread.otherRole);
+  // The open thread has just been marked read; never show it as unread.
+  const unread = thread.unread && !active;
 
   return (
     <Link
       href={`${hrefPrefix}/${thread.threadId}`}
-      className="group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-white/45"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex gap-2.5 rounded-[12px] p-2.5 text-ink transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400",
+        active ? "bg-surface-3" : "hover:bg-surface-2",
+      )}
     >
-      <div className="relative shrink-0">
-        <span
-          className="grid h-11 w-11 place-items-center rounded-full text-[15px] font-bold text-white shadow-[0_4px_12px_-5px_rgba(31,40,90,0.5)]"
-          style={{ background: color }}
-        >
-          {initialOf(thread.otherName)}
-        </span>
-        {thread.unread && (
-          <span
-            aria-hidden
-            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600"
-          />
+      <span
+        aria-hidden
+        className={cn(
+          "grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-[12px] font-extrabold",
+          roleAvatarClass(thread.otherRole),
         )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+      >
+        {initialsOf(thread.otherName)}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 items-baseline gap-1.5">
           <span
-            className={
-              "truncate text-[15px] text-ink " +
-              (thread.unread ? "font-extrabold" : "font-semibold")
-            }
+            className={cn(
+              "truncate text-[14px]",
+              unread ? "font-extrabold" : "font-bold",
+            )}
           >
             {thread.otherName}
           </span>
-          <span
-            className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
-            style={{ background: `${color}1a`, color }}
-          >
-            {roleLabel(thread.otherRole)}
+          <span className="shrink-0 text-[11px] text-muted">
+            {shortRoleLabel(thread.otherRole)}
           </span>
-          <span
-            className={
-              "ml-auto shrink-0 text-[11px] tabular-nums " +
-              (thread.unread ? "font-bold text-brand-700" : "text-muted")
-            }
+          <time
+            dateTime={lastActivityAt.toISOString()}
+            suppressHydrationWarning
+            className="ml-auto shrink-0 text-[11px] tabular-nums text-muted"
           >
-            {stamp}
+            {inboxStamp(lastActivityAt)}
+          </time>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-[13px]",
+              unread ? "font-semibold text-ink" : "text-muted",
+            )}
+          >
+            {thread.lastMessagePreview ?? "No messages yet"}
           </span>
-        </div>
-        <div
-          className={
-            "mt-0.5 truncate text-[13px] " +
-            (thread.unread ? "font-semibold text-ink-soft" : "text-muted")
-          }
-        >
-          {thread.lastMessagePreview ?? "No messages yet"}
-        </div>
-      </div>
+          {unread && (
+            <>
+              <span
+                aria-hidden
+                className="h-[9px] w-[9px] shrink-0 rounded-full bg-brand-500"
+              />
+              <span className="sr-only">Unread</span>
+            </>
+          )}
+        </span>
+      </span>
     </Link>
   );
 }

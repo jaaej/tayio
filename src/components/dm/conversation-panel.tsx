@@ -5,8 +5,8 @@ import { MessageComposer } from "./message-composer";
 import { MessageList } from "./message-list";
 
 /**
- * Shared conversation surface for every role's DM thread page: one frosted
- * glass card holding the header, the scrolling message list, and the composer.
+ * Right pane of the shared messaging workspace for every role: the title row
+ * on glass, then one white panel holding the message history and composer.
  */
 export function ConversationPanel({
   threadId,
@@ -15,6 +15,7 @@ export function ConversationPanel({
   otherRole,
   messages,
   rolePrefix,
+  profileHref,
 }: {
   threadId: string;
   meId: string;
@@ -22,23 +23,29 @@ export function ConversationPanel({
   otherRole: UserRole;
   messages: MessageRow[];
   rolePrefix: "parent" | "student" | "tutor" | "admin";
+  profileHref?: string;
 }) {
   return (
-    <section className="portal-glass-panel flex h-[calc(100dvh-160px)] min-h-[420px] flex-col overflow-hidden rounded-[22px] border">
+    <section
+      aria-labelledby="conversation-title"
+      className="glass flex h-[calc(100dvh-160px)] min-h-[420px] w-full min-w-0 flex-col rounded-[24px] p-1.5 lg:h-full lg:min-h-0"
+    >
       <ConversationHeader
         otherName={otherName}
         otherRole={otherRole}
         backHref={`/${rolePrefix}/messages`}
+        profileHref={profileHref}
+        titleId="conversation-title"
       />
-      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-        <MessageList
-          messages={messages}
-          meId={meId}
-          otherName={otherName}
-          otherRole={otherRole}
-        />
+      <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* column-reverse keeps the scroller pinned to the newest message on
+            load and after sending, with no scroll script. */}
+        <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-3.5 py-4 sm:p-5">
+          <MessageList messages={messages} meId={meId} otherName={otherName} />
+        </div>
+        {/* Keyed so a draft never carries over into another conversation. */}
+        <MessageComposer key={threadId} threadId={threadId} rolePrefix={rolePrefix} />
       </div>
-      <MessageComposer threadId={threadId} rolePrefix={rolePrefix} />
     </section>
   );
 }

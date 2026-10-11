@@ -1,51 +1,21 @@
-import { PageHero } from "@/components/ui/page-hero";
-import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { requireRole } from "@/lib/auth";
-import { listMyThreads } from "@/lib/dm-queries";
-import { getAdminContactForStudent, getStudentTutors } from "../_lib/queries";
+import { loadStudentMessagesInbox } from "./_lib/inbox";
 
 export default async function StudentMessagesPage() {
   const user = await requireRole("student");
   const isUnrestricted =
     (user.app_metadata?.role as string | undefined) === "student_unrestricted";
-  const [threads, tutors, adminContact] = await Promise.all([
-    listMyThreads(user.id),
-    getStudentTutors(user.id),
-    isUnrestricted ? getAdminContactForStudent() : Promise.resolve(null),
-  ]);
-
-  const groups: DmGroup[] = [
-    {
-      label: "Tutors",
-      contacts: tutors.map((t) => ({
-        id: t.id,
-        name: `${t.firstName} ${t.lastName}`.trim(),
-        meta: t.subjects.join(" · "),
-      })),
-    },
-  ];
-  if (adminContact) {
-    groups.push({
-      label: "Admin office",
-      contacts: [
-        {
-          id: adminContact.id,
-          name: `${adminContact.firstName} ${adminContact.lastName}`.trim(),
-          meta: "Billing, enrolment & general questions",
-          office: true,
-        },
-      ],
-    });
-  }
+  const { threads, groups } = await loadStudentMessagesInbox(
+    user.id,
+    isUnrestricted,
+  );
 
   return (
-    <div className="space-y-6">
-      <PageHero eyebrow="Messages" title="Direct messages" />
-      <InboxCompose
-        threads={threads}
-        hrefPrefix="/student/messages"
-        groups={groups}
-      />
-    </div>
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/student/messages"
+    />
   );
 }

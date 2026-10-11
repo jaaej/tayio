@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   NOTIFICATION_GROUPS,
   notificationGroupFor,
-  notificationTimeBucket,
+  notificationSections,
+  type NotificationGroupKey,
 } from "./notification-groups";
 
 describe("notificationGroupFor", () => {
@@ -122,39 +123,46 @@ describe("NOTIFICATION_GROUPS", () => {
   });
 });
 
-describe("notificationTimeBucket", () => {
-  // Wednesday 13 Aug 2026, 9am local.
-  const now = new Date(2026, 7, 13, 9, 0, 0);
+describe("notificationSections", () => {
+  const row = (id: string, group: NotificationGroupKey) => ({ id, group });
 
-  it("puts anything from the current calendar day in today", () => {
-    expect(notificationTimeBucket(new Date(2026, 7, 13, 0, 5), now)).toBe(
-      "today",
-    );
-    expect(notificationTimeBucket(new Date(2026, 7, 13, 8, 59), now)).toBe(
-      "today",
-    );
+  it("puts messages and action items above announcements and updates", () => {
+    // Newest-first input where the passive rows happen to be the newest.
+    const sections = notificationSections([
+      row("u1", "updates"),
+      row("a1", "announcements"),
+      row("x1", "action"),
+      row("l1", "learning"),
+      row("m1", "messages"),
+      row("x2", "action"),
+    ]);
+    expect(sections.map((s) => s.key)).toEqual([
+      "messages",
+      "action",
+      "learning",
+      "announcements",
+      "updates",
+    ]);
+    expect(sections.map((s) => s.label)).toEqual([
+      "Messages",
+      "Action needed",
+      "Learning updates",
+      "Announcements",
+      "Other updates",
+    ]);
   });
 
-  it("puts the previous six days in this week", () => {
-    expect(notificationTimeBucket(new Date(2026, 7, 12, 23, 59), now)).toBe(
-      "week",
-    );
-    expect(notificationTimeBucket(new Date(2026, 7, 7, 0, 0), now)).toBe("week");
+  it("keeps the incoming order inside a section and drops empty sections", () => {
+    const sections = notificationSections([
+      row("x2", "action"),
+      row("u1", "updates"),
+      row("x1", "action"),
+    ]);
+    expect(sections.map((s) => s.key)).toEqual(["action", "updates"]);
+    expect(sections[0].items.map((i) => i.id)).toEqual(["x2", "x1"]);
   });
 
-  it("rolls the window rather than resetting it on Monday", () => {
-    // Monday 17 Aug: yesterday (Sunday) belongs to the previous calendar week
-    // but must still read as "This week", not "Earlier".
-    const monday = new Date(2026, 7, 17, 9, 0, 0);
-    expect(notificationTimeBucket(new Date(2026, 7, 16, 20, 0), monday)).toBe(
-      "week",
-    );
-  });
-
-  it("puts anything older than the window in earlier", () => {
-    expect(notificationTimeBucket(new Date(2026, 7, 6, 23, 59), now)).toBe(
-      "earlier",
-    );
-    expect(notificationTimeBucket(new Date(2026, 6, 1), now)).toBe("earlier");
+  it("returns no sections for an empty inbox", () => {
+    expect(notificationSections([])).toEqual([]);
   });
 });

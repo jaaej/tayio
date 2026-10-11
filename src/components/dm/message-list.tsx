@@ -1,96 +1,92 @@
 import { MessagesSquare } from "lucide-react";
-import type { UserRole } from "@/db/schema";
 import type { MessageRow } from "@/lib/dm-queries";
-import { initialOf, roleColor } from "./dm-visuals";
+import {
+  conversationDayLabel,
+  formatClockTime,
+  melbourneDayKey,
+} from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function MessageList({
   messages,
   meId,
-  otherName = "",
-  otherRole = "student",
+  otherName,
 }: {
   messages: MessageRow[];
   meId: string;
-  otherName?: string;
-  otherRole?: UserRole;
+  /** Read out before the other person's messages for screen readers. */
+  otherName: string;
 }) {
   if (messages.length === 0) {
     return (
-      <div className="grid place-items-center py-12 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-white/60 text-muted">
-          <MessagesSquare className="h-6 w-6" aria-hidden />
+      <div className="grid flex-1 place-items-center py-12 text-center">
+        <div>
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-surface-2 text-muted">
+            <MessagesSquare className="h-6 w-6" aria-hidden />
+          </div>
+          <div className="mt-3 text-[14px] font-bold text-ink">
+            No messages yet
+          </div>
+          <div className="text-[13px] text-muted">Say hi to get started.</div>
         </div>
-        <div className="mt-3 text-[14px] font-semibold text-ink">
-          No messages yet
-        </div>
-        <div className="text-[13px] text-muted">Say hi to get started.</div>
       </div>
     );
   }
 
-  const otherColor = roleColor(otherRole);
+  const now = new Date();
 
   return (
-    <div className="space-y-1.5">
+    <ol className="flex flex-col gap-2.5">
       {messages.map((m, i) => {
         const isMe = m.senderId === meId;
         const prev = messages[i - 1];
-        const startOfGroup = !prev || prev.senderId !== m.senderId;
-        const stamp = m.createdAt.toLocaleTimeString("en-AU", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
+        const next = messages[i + 1];
+        const day = melbourneDayKey(m.createdAt);
+        const newDay = !prev || melbourneDayKey(prev.createdAt) !== day;
+        const clock = formatClockTime(m.createdAt);
+        // One stamp per burst: skip it while the same sender keeps writing
+        // within the same minute.
+        const showTime =
+          !next ||
+          next.senderId !== m.senderId ||
+          formatClockTime(next.createdAt) !== clock;
 
         return (
-          <div
-            key={m.id}
-            className={
-              "flex items-end gap-2 " +
-              (isMe ? "justify-end" : "justify-start") +
-              (startOfGroup ? " mt-3 first:mt-0" : "")
-            }
-          >
-            {!isMe &&
-              (startOfGroup ? (
-                <span
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
-                  style={{ background: otherColor }}
-                >
-                  {initialOf(otherName)}
-                </span>
-              ) : (
-                <span aria-hidden className="w-7 shrink-0" />
-              ))}
-
+          <li key={m.id} className="flex flex-col gap-2.5">
+            {newDay && (
+              <span className="self-center rounded-[10px] bg-surface-2 px-2.5 py-1 text-[12px] font-bold text-muted">
+                {conversationDayLabel(m.createdAt, now)}
+              </span>
+            )}
             <div
-              className={
-                "max-w-[78%] px-3.5 py-2 text-[15px] leading-relaxed whitespace-pre-wrap shadow-[0_1px_2px_rgba(15,17,30,0.05)] " +
-                (isMe
-                  ? "rounded-2xl rounded-br-md text-white"
-                  : "rounded-2xl rounded-bl-md border border-white/80 bg-white/75 text-ink backdrop-blur-sm")
-              }
-              style={
-                isMe
-                  ? {
-                      background:
-                        "linear-gradient(135deg, var(--brand-500), var(--brand-600))",
-                    }
-                  : undefined
-              }
+              className={cn(
+                "flex max-w-[85%] flex-col gap-[3px] sm:max-w-[70%]",
+                isMe ? "items-end self-end" : "items-start self-start",
+              )}
             >
-              <p>{m.body}</p>
-              <div
-                className={
-                  "mt-0.5 text-[10px] tabular-nums " +
-                  (isMe ? "text-white/70" : "text-muted")
-                }
+              <p
+                className={cn(
+                  "whitespace-pre-wrap break-words rounded-[16px] px-3.5 py-2.5 text-[14px] leading-normal",
+                  isMe
+                    ? "rounded-br-[4px] bg-ink text-white"
+                    : "rounded-bl-[4px] bg-surface-3 text-ink",
+                )}
               >
-                {stamp}
-              </div>
+                <span className="sr-only">{isMe ? "You" : otherName}: </span>
+                {m.body}
+              </p>
+              {showTime && (
+                <time
+                  dateTime={m.createdAt.toISOString()}
+                  className="text-[11px] tabular-nums text-muted"
+                >
+                  {clock}
+                </time>
+              )}
             </div>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }

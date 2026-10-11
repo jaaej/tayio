@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { ConversationPanel } from "@/components/dm/conversation-panel";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
+import { loadStudentMessagesInbox } from "../_lib/inbox";
 
 export default async function StudentThreadPage({
   params,
@@ -19,14 +21,29 @@ export default async function StudentThreadPage({
   fd.append("rolePrefix", "student");
   await markThreadRead(fd);
 
+  const isUnrestricted =
+    (user.app_metadata?.role as string | undefined) === "student_unrestricted";
+  // Loaded after marking read so the list shows this thread as read.
+  const { threads, groups } = await loadStudentMessagesInbox(
+    user.id,
+    isUnrestricted,
+  );
+
   return (
-    <ConversationPanel
-      threadId={thread.threadId}
-      meId={user.id}
-      otherName={thread.otherName}
-      otherRole={thread.otherRole}
-      messages={thread.messages}
-      rolePrefix="student"
-    />
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/student/messages"
+      activeThreadId={thread.threadId}
+    >
+      <ConversationPanel
+        threadId={thread.threadId}
+        meId={user.id}
+        otherName={thread.otherName}
+        otherRole={thread.otherRole}
+        messages={thread.messages}
+        rolePrefix="student"
+      />
+    </MessagesLayout>
   );
 }

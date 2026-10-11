@@ -1,38 +1,16 @@
-import { PageHero } from "@/components/ui/page-hero";
-import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { requireRole } from "@/lib/auth";
-import { listMyThreads } from "@/lib/dm-queries";
-import { getTutorDmContacts } from "../_data";
+import { loadTutorMessagesInbox } from "./_lib/inbox";
 
 export default async function TutorMessagesPage() {
   const user = await requireRole("tutor");
-  const [threads, contacts] = await Promise.all([
-    listMyThreads(user.id),
-    getTutorDmContacts(user.id),
-  ]);
-
-  const groups: DmGroup[] = [];
-  if (contacts.students.length > 0) {
-    groups.push({ label: "Students", contacts: contacts.students });
-  }
-  if (contacts.parents.length > 0) {
-    groups.push({ label: "Parents", contacts: contacts.parents });
-  }
-  if (contacts.admin) {
-    groups.push({
-      label: "Admin office",
-      contacts: [{ id: contacts.admin.id, name: contacts.admin.name, office: true }],
-    });
-  }
+  const { threads, groups } = await loadTutorMessagesInbox(user.id);
 
   return (
-    <div className="space-y-6">
-      <PageHero eyebrow="Messages" title="Direct messages" />
-      <InboxCompose
-        threads={threads}
-        hrefPrefix="/tutor/messages"
-        groups={groups}
-      />
-    </div>
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/tutor/messages"
+    />
   );
 }

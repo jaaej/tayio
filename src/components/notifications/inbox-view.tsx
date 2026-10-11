@@ -1,36 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Bell,
-  CheckCheck,
+  BookOpen,
   ChevronDown,
-  ChevronRight,
+  Megaphone,
+  MessageCircle,
+  type LucideIcon,
 } from "lucide-react";
 import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/app/_actions/notifications";
-import { PageHero } from "@/components/ui/page-hero";
+import { buttonVariants } from "@/components/admin/ui/button";
+import { GlassPanel } from "@/components/admin/ui/glass-panel";
+import { PageHeader } from "@/components/admin/ui/page-header";
 import {
   NOTIFICATION_GROUPS,
-  NOTIFICATION_TIME_BUCKETS,
+  notificationSections,
   type NotificationGroupKey,
-  type NotificationTimeBucket,
 } from "@/lib/notification-groups";
 import { cn } from "@/lib/utils";
-import { relativeTime } from "@/lib/format";
 import {
   finishNavigationLoading,
   startNavigationLoading,
 } from "@/lib/navigation-loading";
 
 /**
- * One row as the server hands it over. Everything time-dependent (the bucket,
- * the "2h ago" label) is resolved server-side so the client never re-derives it
- * against a different clock or timezone and desyncs on hydration.
+ * One row as the server hands it over. The time label is resolved on the
+ * server in Melbourne time, so the client never re-derives it against a
+ * different clock or timezone and desyncs on hydration.
  */
 export type InboxItem = {
   id: string;
@@ -40,21 +42,35 @@ export type InboxItem = {
   isUnread: boolean;
   isUrgent: boolean;
   group: NotificationGroupKey;
-  bucket: NotificationTimeBucket;
   createdAtIso: string;
   timeLabel: string;
 };
 
 type FilterKey = "all" | "unread" | "urgent" | NotificationGroupKey;
 
+/** Section dot, row icon tile and icon per group. Theme tokens only. */
+const GROUP_STYLE: Record<
+  NotificationGroupKey,
+  { dot: string; tile: string; Icon: LucideIcon }
+> = {
+  messages: { dot: "bg-info", tile: "bg-info-bg text-info", Icon: MessageCircle },
+  action: { dot: "bg-sun-500", tile: "bg-warn-bg text-warn", Icon: AlertCircle },
+  learning: { dot: "bg-good", tile: "bg-good-bg text-good", Icon: BookOpen },
+  announcements: {
+    dot: "bg-brand-400",
+    tile: "bg-brand-100 text-brand-600",
+    Icon: Megaphone,
+  },
+  updates: { dot: "bg-muted-2", tile: "bg-surface-3 text-ink-soft", Icon: Bell },
+};
+
 /**
  * Shared notification inbox for all four portals.
  *
- * Sections are chronological (Today / This week / Earlier) because that is how
- * an inbox is read; the kind of notification is a filter instead of a section,
- * so Messages and Action needed stay one tap away without splintering the list
- * into five short stacks. Action items also carry an inline chip so they stay
- * identifiable inside a mixed, time-ordered list.
+ * One labelled section per kind, in NOTIFICATION_GROUPS order: direct messages
+ * and action items always sit above learning updates, announcements and other
+ * updates; each section is newest first. The filter pills narrow the list
+ * (unread, urgent, one kind) without changing that order.
  *
  * Filtering is client-side: every row is already in the payload, so a pill tap
  * is instant and costs no extra query.
@@ -108,12 +124,9 @@ export function NotificationsInboxView({
         ? displayedItems.filter((item) => item.isUnread)
         : filter === "urgent"
           ? displayedItems.filter((item) => item.isUrgent)
-        : displayedItems.filter((item) => item.group === filter);
+          : displayedItems.filter((item) => item.group === filter);
 
-  const sections = NOTIFICATION_TIME_BUCKETS.map((bucket) => ({
-    ...bucket,
-    items: visible.filter((item) => item.bucket === bucket.key),
-  })).filter((section) => section.items.length > 0);
+  const sections = notificationSections(visible);
 
   function toggleExpanded(id: string) {
     setExpandedIds((current) => {
@@ -172,256 +185,224 @@ export function NotificationsInboxView({
   }
 
   return (
-    <div className="w-full space-y-6">
-      <PageHero
-        eyebrow="Notifications"
-        title="Inbox"
+    <div className="flex w-full max-w-[980px] flex-col gap-5">
+      <PageHeader
+        title="Notifications"
         actions={
           unread > 0 ? (
-            <form action={markAllNotificationsRead}>
-              <button
-                type="submit"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-[13px] font-bold text-brand-800 shadow-[0_10px_24px_-14px_rgba(15,20,60,0.8)] transition-transform duration-150 hover:-translate-y-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-              >
-                <CheckCheck className="h-4 w-4" aria-hidden />
-                Mark all read
-              </button>
-            </form>
+            <>
+              {showUnreadCallout && filter !== "unread" && (
+                <button
+                  type="button"
+                  onClick={() => setFilter("unread")}
+                  className="inline-flex h-[42px] items-center gap-2 rounded-[12px] bg-bad px-4 text-[14px] font-bold text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-1"
+                >
+                  <Bell className="h-4 w-4" aria-hidden />
+                  New notifications
+                  <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-extrabold tabular-nums text-bad">
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                </button>
+              )}
+              <form action={markAllNotificationsRead}>
+                <button
+                  type="submit"
+                  className={buttonVariants({ variant: "glass", size: "lg" })}
+                >
+                  Mark all read
+                </button>
+              </form>
+            </>
           ) : undefined
         }
       />
 
-      {showUnreadCallout && unread > 0 && (
-        <button
-          type="button"
-          onClick={() => setFilter("unread")}
-          aria-pressed={filter === "unread"}
-          className="inline-flex min-h-11 items-center gap-2.5 rounded-full bg-bad px-5 text-[13px] font-extrabold text-white shadow-[0_12px_26px_-16px_rgba(190,35,55,0.9)] transition-transform hover:-translate-y-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      {displayedItems.length > 0 && (
+        <div
+          role="group"
+          aria-label="Filter notifications"
+          className="flex flex-wrap items-center gap-1.5"
         >
-          <Bell className="h-4 w-4" aria-hidden />
-          New notifications
-          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-extrabold tabular-nums text-bad">
-            {unread > 99 ? "99+" : unread}
-          </span>
-        </button>
-      )}
-
-      {/* Filters sit with the list they act on, not with the hero: the tighter
-          gap here than above is what tells you which one they belong to. */}
-      <div className="space-y-4">
-        {displayedItems.length > 0 && (
-          <div
-            role="group"
-            aria-label="Filter notifications"
-            className="flex flex-wrap items-center gap-1.5 px-1"
-          >
-            {pills.map((pill) => {
-              const isActive = pill.key === filter;
-              return (
-                <button
-                  key={pill.key}
-                  type="button"
-                  onClick={() => setFilter(pill.key)}
-                  aria-pressed={isActive}
+          {pills.map((pill) => {
+            const isActive = pill.key === filter;
+            return (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => setFilter(pill.key)}
+                aria-pressed={isActive}
+                className={cn(
+                  "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1",
+                  isActive
+                    ? "border-ink bg-ink text-white"
+                    : "border-white/95 bg-white/70 text-ink hover:bg-white",
+                )}
+              >
+                {pill.label}
+                <span
                   className={cn(
-                    "inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-[12px] font-bold transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1",
+                    "text-[11px] tabular-nums",
                     isActive
-                      ? "border-ink bg-ink text-white"
-                      : "border-line-strong bg-surface text-ink hover:border-brand-500 hover:text-brand-700",
+                      ? "text-white/75"
+                      : pill.key === "action" && counts.action > 0
+                        ? "font-extrabold text-bad"
+                        : "text-muted",
                   )}
                 >
-                  {pill.label}
-                  <span
-                    className={cn(
-                      "text-[11px] font-extrabold tabular-nums",
-                      isActive
-                        ? "text-white/70"
-                        : pill.key === "action" && counts.action > 0
-                          ? "text-bad"
-                          : "text-muted",
-                    )}
-                  >
-                    {counts[pill.key]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {displayedItems.length === 0 ? (
-          <EmptyState
-            title="Nothing here yet"
-            message="New messages and updates will appear here."
-          />
-        ) : sections.length === 0 ? (
-          <EmptyState
-            title="Nothing in this filter"
-            message="Try another filter to see the rest of your notifications."
-            action={
-              <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className="mt-3 inline-flex min-h-9 items-center rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink transition-colors hover:border-brand-500 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                Show all
+                  {counts[pill.key]}
+                </span>
               </button>
-            }
-          />
-        ) : (
-          <div className="space-y-6">
-            {sections.map((section) => (
-              <section key={section.key} aria-labelledby={`notifications-${section.key}`}>
-                <div className="mb-2.5 flex items-center gap-3 px-1">
-                  <h2
-                    id={`notifications-${section.key}`}
-                    className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-ink-soft"
-                  >
-                    {section.label}
-                  </h2>
-                  <div aria-hidden className="h-px min-w-8 flex-1 bg-line" />
-                </div>
+            );
+          })}
+        </div>
+      )}
 
-                <div className="overflow-hidden rounded-[18px] border border-line bg-surface shadow-[0_12px_30px_-26px_rgba(31,40,90,0.34)]">
-                  <ul className="divide-y divide-line">
-                    {section.items.map((item) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => openNotification(item)}
-                          disabled={pendingIds.has(item.id)}
-                          aria-label={`${item.isUnread ? "Open unread" : "Open"} notification: ${item.title}`}
-                          aria-expanded={
-                            item.href ? undefined : expandedIds.has(item.id)
-                          }
-                          className="block w-full text-left transition-colors duration-200 hover:bg-brand-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-70 motion-reduce:transition-none"
-                        >
-                          <Row
-                            item={item}
-                            expanded={expandedIds.has(item.id)}
-                          />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
+      {displayedItems.length === 0 ? (
+        <EmptyState
+          title="Nothing here yet"
+          message="New messages and updates will appear here."
+        />
+      ) : sections.length === 0 ? (
+        <EmptyState
+          title="Nothing in this filter"
+          message="Try another filter to see the rest of your notifications."
+          action={
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "md" }),
+                "mt-3",
+              )}
+            >
+              Show all
+            </button>
+          }
+        />
+      ) : (
+        sections.map((section) => {
+          const style = GROUP_STYLE[section.key];
+          return (
+            <GlassPanel
+              key={section.key}
+              titleId={`notifications-${section.key}`}
+              title={
+                <span className="inline-flex items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className={cn("h-[9px] w-[9px] rounded-full", style.dot)}
+                  />
+                  {section.label}
+                </span>
+              }
+            >
+              <ul className="divide-y divide-line">
+                {section.items.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => openNotification(item)}
+                      disabled={pendingIds.has(item.id)}
+                      aria-label={`${item.isUnread ? "Open unread" : "Open"} notification: ${item.title}`}
+                      aria-expanded={
+                        item.href ? undefined : expandedIds.has(item.id)
+                      }
+                      className={cn(
+                        "block w-full text-left transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-70 motion-reduce:transition-none",
+                        item.isUnread && "bg-brand-50/60",
+                      )}
+                    >
+                      <Row
+                        item={item}
+                        expanded={expandedIds.has(item.id)}
+                        tile={item.isUrgent ? "bg-bad-bg text-bad" : style.tile}
+                        Icon={item.isUrgent ? AlertCircle : style.Icon}
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </GlassPanel>
+          );
+        })
+      )}
     </div>
   );
 }
 
-function Row({ item, expanded }: { item: InboxItem; expanded: boolean }) {
+function Row({
+  item,
+  expanded,
+  tile,
+  Icon,
+}: {
+  item: InboxItem;
+  expanded: boolean;
+  tile: string;
+  Icon: LucideIcon;
+}) {
   return (
-    <div
-      className={cn(
-        "flex min-h-[76px] items-start gap-3 px-4 py-3.5 sm:px-5",
-        item.isUrgent && "border-l-4 border-bad bg-bad-bg/45",
-      )}
-    >
-      {(item.isUrgent || item.isUnread) && (
-        <span
-          aria-hidden
-          className={cn(
-            "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-            item.isUrgent ? "bg-bad" : "bg-brand-500",
-          )}
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "text-[14px] leading-snug",
-            item.isUnread
-              ? "font-extrabold text-ink"
-              : "font-semibold text-ink-soft",
-          )}
-        >
-          {item.isUnread && <span className="sr-only">Unread. </span>}
-          {item.title}
-        </div>
-        {item.body && (
-          <p
+    <span className="flex items-start gap-3 px-4 py-3.5">
+      <span
+        aria-hidden
+        className={cn(
+          "grid h-9 w-9 shrink-0 place-items-center rounded-[11px]",
+          tile,
+        )}
+      >
+        <Icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span
             className={cn(
-              "mt-1 text-[12px] font-medium leading-relaxed text-muted",
+              "text-[14px] leading-snug text-ink",
+              item.isUnread ? "font-extrabold" : "font-semibold",
+            )}
+          >
+            {item.isUnread && <span className="sr-only">Unread. </span>}
+            {item.title}
+          </span>
+          {item.isUrgent && (
+            <span className="inline-flex h-5 items-center rounded-full bg-bad-bg px-2 text-[11px] font-extrabold text-bad">
+              Urgent
+            </span>
+          )}
+        </span>
+        {item.body && (
+          <span
+            className={cn(
+              "text-[13px] leading-relaxed text-muted",
               !expanded && "line-clamp-2",
             )}
           >
             {item.body}
-          </p>
+          </span>
         )}
-        {item.isUrgent ? (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-bad px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-white">
-            <AlertCircle className="h-3 w-3" aria-hidden />
-            Urgent
-          </span>
-        ) : item.group === "action" ? (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-bad-bg px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-bad">
-            <AlertCircle className="h-3 w-3" aria-hidden />
-            Action needed
-          </span>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5 pt-0.5 text-muted">
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
         <time
           dateTime={item.createdAtIso}
-          className="text-[10px] font-bold uppercase tracking-[0.08em] tabular-nums"
+          className="whitespace-nowrap text-[12px] tabular-nums text-muted"
         >
-          <LiveRelativeTime
-            createdAtIso={item.createdAtIso}
-            initialLabel={item.timeLabel}
-          />
+          {item.timeLabel}
         </time>
-        {item.href ? (
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-        ) : (
+        {item.isUnread && (
+          <span aria-hidden className="h-[9px] w-[9px] rounded-full bg-brand-500" />
+        )}
+        {!item.href && (
           <ChevronDown
             className={cn(
-              "h-3.5 w-3.5 transition-transform",
+              "h-3.5 w-3.5 text-muted transition-transform",
               expanded && "rotate-180",
             )}
             aria-hidden
           />
         )}
-      </div>
-    </div>
+      </span>
+    </span>
   );
-}
-
-function LiveRelativeTime({
-  createdAtIso,
-  initialLabel,
-}: {
-  createdAtIso: string;
-  initialLabel: string;
-}) {
-  const [label, setLabel] = useState(initialLabel);
-
-  useEffect(() => {
-    const update = () => setLabel(relativeTime(new Date(createdAtIso)));
-    update();
-
-    // Align the first tick to the next wall-clock minute, then update once per
-    // minute. That makes 5m become 6m at the correct boundary rather than up
-    // to a minute late based on when the page happened to mount.
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const delay = 60_000 - (Date.now() % 60_000) + 25;
-    const timeout = setTimeout(() => {
-      update();
-      interval = setInterval(update, 60_000);
-    }, delay);
-
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-    };
-  }, [createdAtIso]);
-
-  return label;
 }
 
 function EmptyState({
@@ -434,15 +415,15 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-56 place-items-center rounded-[20px] border-2 border-dashed border-line bg-surface p-6 text-center">
+    <GlassPanel bodyClassName="grid min-h-56 place-items-center p-6 text-center">
       <div>
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-[14px] bg-surface-2 text-muted">
-          <Bell className="h-5 w-5" />
+          <Bell className="h-5 w-5" aria-hidden />
         </span>
         <h2 className="mt-3 text-[16px] font-extrabold text-ink">{title}</h2>
-        <p className="mt-1 text-[12px] font-semibold text-muted">{message}</p>
+        <p className="mt-1 text-[13px] font-medium text-muted">{message}</p>
         {action}
       </div>
-    </div>
+    </GlassPanel>
   );
 }

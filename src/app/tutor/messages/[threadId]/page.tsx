@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getThreadForMe } from "@/lib/dm-queries";
 import { ConversationPanel } from "@/components/dm/conversation-panel";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
+import { loadTutorMessagesInbox } from "../_lib/inbox";
 
 export default async function TutorThreadPage({
   params,
@@ -19,14 +21,24 @@ export default async function TutorThreadPage({
   fd.append("rolePrefix", "tutor");
   await markThreadRead(fd);
 
+  // Loaded after marking read so the list shows this thread as read.
+  const { threads, groups } = await loadTutorMessagesInbox(user.id);
+
   return (
-    <ConversationPanel
-      threadId={thread.threadId}
-      meId={user.id}
-      otherName={thread.otherName}
-      otherRole={thread.otherRole}
-      messages={thread.messages}
-      rolePrefix="tutor"
-    />
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/tutor/messages"
+      activeThreadId={thread.threadId}
+    >
+      <ConversationPanel
+        threadId={thread.threadId}
+        meId={user.id}
+        otherName={thread.otherName}
+        otherRole={thread.otherRole}
+        messages={thread.messages}
+        rolePrefix="tutor"
+      />
+    </MessagesLayout>
   );
 }
