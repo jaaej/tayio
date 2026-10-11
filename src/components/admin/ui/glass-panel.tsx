@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
  * 6px inside it, so text never reads over a see-through surface.
  */
 export function GlassPanel({
+  id,
   title,
   titleId,
   meta,
@@ -15,6 +16,8 @@ export function GlassPanel({
   bodyClassName,
   as: Tag = "section",
 }: {
+  /** Anchor target, e.g. for `#compose` links. */
+  id?: string;
   title?: React.ReactNode;
   titleId?: string;
   /** Small secondary text or a count beside the title. */
@@ -28,6 +31,7 @@ export function GlassPanel({
 }) {
   return (
     <Tag
+      id={id}
       aria-labelledby={title && titleId ? titleId : undefined}
       className={cn("glass flex min-w-0 flex-col rounded-[24px] p-1.5", className)}
     >

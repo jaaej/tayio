@@ -115,6 +115,7 @@ export function CreateClassPanel({
         onClose={() => setOpen(false)}
         title="New class"
         footer={footer}
+        sections={!blocker}
       >
         {blocker ? (
           <p className="text-[14px] text-ink-soft">{blocker}</p>

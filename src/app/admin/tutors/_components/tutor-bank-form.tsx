@@ -56,6 +56,11 @@ export function TutorBankForm({
           hourlyRate: rate,
           note,
         });
+        if (!result.ok) {
+          setStatus("error");
+          setSaveNote(result.error);
+          return;
+        }
         setStatus("saved");
         setSaveNote(
           result.reopenedWeeks > 0

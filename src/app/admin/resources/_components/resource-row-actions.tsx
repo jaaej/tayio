@@ -80,7 +80,7 @@ export function ResourceRowActions({
             <input
               name="reason"
               maxLength={500}
-              className="h-9 rounded-[9px] border border-[#DCDEE9] bg-surface px-2.5 text-[12px] font-medium text-ink focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+              className="h-9 rounded-[9px] border border-line-field bg-surface px-2.5 text-[12px] font-medium text-ink focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
             />
           </label>
           <Button type="submit" variant="danger" size="sm" className="h-8">

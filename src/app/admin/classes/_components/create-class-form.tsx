@@ -60,9 +60,9 @@ export function CreateClassForm({
   return (
     <form
       id={formId}
-      // Cancel the panel body's padding so the sections sit as white cards on
-      // a tinted ground, like the glass bezel elsewhere in admin.
-      className="-m-4 flex min-h-[calc(100%+2rem)] flex-col gap-1.5 bg-surface-2 p-1.5 sm:-m-5 sm:min-h-[calc(100%+2.5rem)]"
+      // Rendered in a SidePanel with `sections`: each Section is its own white
+      // panel sitting on the glass sheet.
+      className="flex flex-col gap-1.5"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);

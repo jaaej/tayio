@@ -20,7 +20,7 @@ function iso(d: Date): string {
 }
 
 const INPUT =
-  "h-[42px] w-full rounded-[11px] border border-[#DCDEE9] bg-surface px-2.5 text-[14px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+  "h-[42px] w-full rounded-[11px] border border-line-field bg-surface px-2.5 text-[14px] text-ink focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
 const LABEL = "flex min-w-0 flex-1 basis-full flex-col gap-1.5 text-[13px] font-bold text-ink";
 const DATE_LABEL = "flex min-w-[140px] flex-1 flex-col gap-1.5 text-[13px] font-bold text-ink";
 

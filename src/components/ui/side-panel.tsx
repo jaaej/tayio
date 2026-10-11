@@ -22,9 +22,10 @@ const FOCUSABLE = [
  * otherwise need its own page. Portals to `document.body` so no ancestor's
  * `overflow: hidden` or transform can clip it.
  *
- * The portal root re-applies `.theme-tutor`: the admin palette is scoped to
- * that class by `components/admin/shell.tsx`, so a panel rendered outside the
- * shell would silently fall back to the default (non-cornflower) brand tokens.
+ * The portal root re-applies `.theme-tutor` so a panel rendered outside a
+ * portal shell keeps the staff palette. In the admin glass theme the sheet is
+ * restyled as a floating glass frame by the `.side-panel-*` rules in
+ * globals.css (admin-only while that redesign is reviewed).
  */
 export function SidePanel({
   open,
@@ -34,6 +35,7 @@ export function SidePanel({
   footer,
   children,
   size = "default",
+  sections = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,6 +44,12 @@ export function SidePanel({
   footer?: ReactNode;
   children: ReactNode;
   size?: "default" | "wide";
+  /**
+   * The children render their own white section panels. In the admin glass
+   * theme the body is then left transparent so the sections sit on the glass
+   * sheet; elsewhere it changes nothing.
+   */
+  sections?: boolean;
 }) {
   /** In the DOM - stays true through the exit transition. */
   const [mounted, setMounted] = useState(false);
@@ -149,7 +157,7 @@ export function SidePanel({
         aria-hidden
         onClick={onClose}
         className={cn(
-          "absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out motion-reduce:transition-none",
+          "side-panel-scrim absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out motion-reduce:transition-none",
           shown ? "opacity-100" : "opacity-0",
         )}
       />
@@ -160,9 +168,9 @@ export function SidePanel({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "absolute inset-y-0 right-0 flex w-full flex-col bg-surface outline-none",
+          "side-panel-sheet absolute inset-y-0 right-0 flex w-full flex-col bg-surface outline-none",
           size === "wide"
-            ? "sm:w-[640px] lg:w-[720px]"
+            ? "side-panel-wide sm:w-[640px] lg:w-[720px]"
             : "sm:w-[440px]",
           "shadow-[0_24px_60px_-20px_rgba(31,40,90,0.45)]",
           "motion-reduce:transition-none",
@@ -171,11 +179,11 @@ export function SidePanel({
             : "translate-x-full transition-transform duration-[140ms] ease-in",
         )}
       >
-        <div className="flex shrink-0 items-start gap-2 border-b border-line-strong bg-surface-2 px-4 py-4 sm:px-5">
+        <div className="side-panel-head flex shrink-0 items-start gap-2 border-b border-line-strong bg-surface-2 px-4 py-4 sm:px-5">
           <div className="min-w-0 flex-1">
             <h2
               id={titleId}
-              className="text-[15px] font-extrabold tracking-[-0.01em] text-ink"
+              className="side-panel-title text-[15px] font-extrabold tracking-[-0.01em] text-ink"
             >
               {title}
             </h2>
@@ -185,16 +193,21 @@ export function SidePanel({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-my-1.5 -mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-3 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="side-panel-close -my-1.5 -mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-3 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <X className="h-[18px] w-[18px]" aria-hidden />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
+        <div
+          className="side-panel-body flex-1 overflow-y-auto p-4 sm:p-5"
+          data-sections={sections ? "true" : undefined}
+        >
+          {children}
+        </div>
 
         {footer && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line-strong bg-surface p-4">
+          <div className="side-panel-foot flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line-strong bg-surface p-4">
             {footer}
           </div>
         )}

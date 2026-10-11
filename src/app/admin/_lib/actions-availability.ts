@@ -17,13 +17,20 @@ const schema = z.object({
   subjectId: z.string().uuid().nullish(),
 });
 
-async function assertTutor(tutorId: string) {
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+// Expected failures come back as { ok: false, error } rather than throwing:
+// production masks thrown server-action messages, so a thrown "Tutor not
+// found" would reach the admin as a generic error.
+const INVALID = "Check the day and times, then try again.";
+
+async function isTutor(tutorId: string) {
   const [row] = await db
     .select({ id: profiles.id })
     .from(profiles)
     .where(and(eq(profiles.id, tutorId), eq(profiles.role, "tutor")))
     .limit(1);
-  if (!row) throw new Error("Tutor not found");
+  return Boolean(row);
 }
 
 /**
@@ -31,13 +38,13 @@ async function assertTutor(tutorId: string) {
  * client sends the subject id, so it is re-derived from the tutor's classes
  * here rather than trusted.
  */
-async function assertTutorTeachesSubject(tutorId: string, subjectId: string) {
+async function tutorTeachesSubject(tutorId: string, subjectId: string) {
   const [row] = await db
     .select({ id: classes.id })
     .from(classes)
     .where(and(eq(classes.tutorId, tutorId), eq(classes.subjectId, subjectId)))
     .limit(1);
-  if (!row) throw new Error("This tutor doesn't teach that subject.");
+  return Boolean(row);
 }
 
 /** eq() when the slot is scoped to a subject, IS NULL when it is not. */
@@ -53,16 +60,22 @@ function subjectMatch(subjectId: string | null) {
  * of the subjects that tutor teaches. Admin-only. No-op if an identical rule
  * already exists for the same subject scope.
  */
-export async function addTutorAvailabilityRule(input: z.infer<typeof schema>) {
+export async function addTutorAvailabilityRule(
+  input: z.infer<typeof schema>,
+): Promise<ActionResult> {
   await requireAdmin();
-  const data = schema.parse(input);
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: INVALID };
+  const data = parsed.data;
   if (data.endTime <= data.startTime) {
-    throw new Error("End time must be after the start time.");
+    return { ok: false, error: "End time must be after the start time." };
   }
-  await assertTutor(data.tutorId);
+  if (!(await isTutor(data.tutorId))) {
+    return { ok: false, error: "That tutor no longer exists." };
+  }
   const subjectId = data.subjectId ?? null;
-  if (subjectId !== null) {
-    await assertTutorTeachesSubject(data.tutorId, subjectId);
+  if (subjectId !== null && !(await tutorTeachesSubject(data.tutorId, subjectId))) {
+    return { ok: false, error: "This tutor doesn't teach that subject." };
   }
 
   // Subject is part of the identity of a slot: the same window may exist once
@@ -93,7 +106,7 @@ export async function addTutorAvailabilityRule(input: z.infer<typeof schema>) {
   }
 
   revalidatePath("/admin/tutors/availability");
-  return { ok: true as const };
+  return { ok: true };
 }
 
 /**
@@ -103,9 +116,11 @@ export async function addTutorAvailabilityRule(input: z.infer<typeof schema>) {
  */
 export async function removeTutorAvailabilityRule(
   input: z.infer<typeof schema>,
-) {
+): Promise<ActionResult> {
   await requireAdmin();
-  const data = schema.parse(input);
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: INVALID };
+  const data = parsed.data;
   await db
     .delete(tutorAvailability)
     .where(
@@ -120,5 +135,5 @@ export async function removeTutorAvailabilityRule(
     );
 
   revalidatePath("/admin/tutors/availability");
-  return { ok: true as const };
+  return { ok: true };
 }

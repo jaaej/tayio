@@ -26,7 +26,7 @@ type Student = {
 
 /** Compact native select for the title row and the enrolment rows. */
 const SMALL_SELECT =
-  "min-w-0 cursor-pointer rounded-[10px] border border-[#DCDEE9] bg-surface px-2.5 text-[13px] font-semibold text-ink transition-colors focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-50";
+  "min-w-0 cursor-pointer rounded-[10px] border border-line-field bg-surface px-2.5 text-[13px] font-semibold text-ink transition-colors focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-50";
 
 export function EnrollmentsManager({
   classId,
@@ -256,7 +256,7 @@ function AdminNotesField({
         aria-label={`Admin note for ${studentName}`}
         aria-describedby={statusId}
         placeholder="Admin note for this enrolment (not visible to student or parent)"
-        className="min-h-9 w-full resize-y rounded-[10px] border border-[#DCDEE9] bg-[#FAFBFD] px-3 py-[7px] text-[13px] leading-5 text-ink placeholder:text-muted focus:border-ink focus:bg-surface focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60"
+        className="min-h-9 w-full resize-y rounded-[10px] border border-line-field bg-[#FAFBFD] px-3 py-[7px] text-[13px] leading-5 text-ink placeholder:text-muted focus:border-ink focus:bg-surface focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60"
       />
       <span id={statusId} role="status" className="text-[12px] font-semibold">
         {status === "saving" && <span className="text-muted">Saving…</span>}

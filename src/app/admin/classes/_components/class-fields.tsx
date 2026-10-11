@@ -13,7 +13,7 @@ import { durationLabel, endTimeAfterStartChange } from "../_lib/class-time";
  */
 
 export const FIELD =
-  "h-11 w-full min-w-0 rounded-[12px] border border-[#DCDEE9] bg-surface px-3.5 text-[15px] text-ink transition-colors placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60";
+  "h-11 w-full min-w-0 rounded-[12px] border border-line-field bg-surface px-3.5 text-[15px] text-ink transition-colors placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60";
 
 export type ClassTypeValue = "group" | "one_on_one";
 
@@ -143,7 +143,7 @@ export function CapacityStepper({
     "grid h-full w-11 shrink-0 place-items-center text-[18px] font-bold text-ink transition-colors hover:bg-[#F1F2F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:opacity-40";
   return (
     <Field id={id} label="Capacity">
-      <div className="flex h-11 items-center overflow-hidden rounded-[12px] border border-[#DCDEE9] bg-surface focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10">
+      <div className="flex h-11 items-center overflow-hidden rounded-[12px] border border-line-field bg-surface focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10">
         <button
           type="button"
           aria-label="Decrease capacity"
@@ -251,7 +251,7 @@ export function WhenFields({
                   "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400 has-[:focus-visible]:ring-offset-1",
                   on
                     ? "border-ink bg-ink text-white"
-                    : "border-[#DCDEE9] bg-surface text-ink hover:border-[#B9BCD0]",
+                    : "border-line-field bg-surface text-ink hover:border-[#B9BCD0]",
                 )}
               >
                 <input

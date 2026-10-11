@@ -26,7 +26,7 @@ const ROLES: { value: Role; label: string }[] = [
 const DEFAULT_ROLES: Role[] = ["student"];
 
 const FIELD =
-  "w-full rounded-[12px] border border-[#DCDEE9] bg-surface px-3.5 text-[15px] font-medium text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10";
+  "w-full rounded-[12px] border border-line-field bg-surface px-3.5 text-[15px] font-medium text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10";
 
 export function CreateAnnouncementForm({
   options,
@@ -344,7 +344,7 @@ function MultiPick({
           "flex h-10 items-center gap-2 rounded-[10px] border px-2.5 text-left text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:text-muted",
           value.length > 0
             ? "border-ink bg-[#F6F5FB] text-ink"
-            : "border-[#DCDEE9] bg-surface text-ink hover:bg-[#F8F9FC]",
+            : "border-line-field bg-surface text-ink hover:bg-[#F8F9FC]",
         )}
       >
         <span className="min-w-0 flex-1 truncate">{face}</span>

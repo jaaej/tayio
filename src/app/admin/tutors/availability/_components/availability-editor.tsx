@@ -98,15 +98,16 @@ export function TutorAvailabilityEditor({
     }
     startTransition(async () => {
       try {
-        await addTutorAvailabilityRule({
+        const res = await addTutorAvailabilityRule({
           tutorId,
           weekday,
           startTime: start,
           endTime: end,
           subjectId,
         });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Couldn't add the slot.");
+        if (!res.ok) setError(res.error);
+      } catch {
+        setError("Couldn't add the slot. Try again.");
       }
     });
   }
@@ -115,13 +116,14 @@ export function TutorAvailabilityEditor({
     setError(null);
     startTransition(async () => {
       try {
-        await removeTutorAvailabilityRule({
+        const res = await removeTutorAvailabilityRule({
           tutorId,
           weekday: s.weekday,
           startTime: hhmm(s.startTime),
           endTime: hhmm(s.endTime),
           subjectId: s.subjectId,
         });
+        if (!res.ok) setError(res.error);
       } catch {
         setError("Couldn't remove the slot.");
       }

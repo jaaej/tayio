@@ -29,7 +29,7 @@ export function AnnouncementReviewActions({ id }: { id: string }) {
           onChange={(event) => setReason(event.target.value)}
           rows={3}
           maxLength={1000}
-          className="mt-1.5 w-full rounded-[10px] border border-[#DCDEE9] bg-surface px-3 py-2 text-[13px] text-ink focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+          className="mt-1.5 w-full rounded-[10px] border border-line-field bg-surface px-3 py-2 text-[13px] text-ink focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
           placeholder="Explain what needs changing…"
         />
         <div className="flex flex-wrap items-center gap-2">

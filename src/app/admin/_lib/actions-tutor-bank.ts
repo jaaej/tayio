@@ -34,7 +34,15 @@ function clean(v: string | undefined): string | null {
  */
 export async function setTutorBankDetails(input: z.infer<typeof schema>) {
   const user = await requireUnrestrictedAdmin();
-  const data = schema.parse(input);
+  // Returned, not thrown: production masks thrown server-action messages.
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: "Check the details: hourly rate must be $0 to $10,000 and text fields must not be too long.",
+    };
+  }
+  const data = parsed.data;
 
   const values = {
     tutorId: data.tutorId,
