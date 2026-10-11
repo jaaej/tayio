@@ -10,13 +10,16 @@ export function CreateClassPanel({
   tutors,
   subjects,
   triggerSize = "md",
+  defaultOpen = false,
 }: {
   tutors: { id: string; firstName: string; lastName: string }[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
   /** `lg` for the empty-state trigger, where the button is the whole surface. */
   triggerSize?: "md" | "lg";
+  /** Open on arrival, for links such as the dashboard's "New class". */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // The page can mount this panel twice (header + empty state), so the id that
@@ -36,7 +39,11 @@ export function CreateClassPanel({
     setError(null);
     start(async () => {
       try {
-        await createClass(values);
+        const res = await createClass(values);
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
         // `createClass` revalidates /admin/classes, so closing is enough - the
         // new class appears in the schedule behind the panel.
         setOpen(false);
@@ -82,15 +89,15 @@ export function CreateClassPanel({
     <>
       <Button
         type="button"
-        variant="brand"
         size={triggerSize}
         onClick={() => {
           setError(null);
           setOpen(true);
         }}
+        className="rounded-[10px] border-ink bg-ink px-4 font-bold text-white shadow-[0_8px_20px_-10px_rgba(14,17,22,0.6)] hover:border-ink hover:bg-ink/90"
       >
         <Plus className="h-4 w-4" aria-hidden />
-        Create New Class
+        New class
       </Button>
 
       <SidePanel

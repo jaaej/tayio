@@ -64,6 +64,7 @@ export function EditClassForm({
               endTime: String(fd.get("endTime") || "") || null,
             });
             if (res.ok) setOk(true);
+            else setError(res.error);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Failed");
           }

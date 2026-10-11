@@ -11,6 +11,7 @@ import { ensureRecurringLessons } from "@/lib/recurring-lessons";
 import { ADMIN_TIERS } from "@/lib/roles";
 import { classDisplayName } from "@/lib/class-display";
 import { formatTime } from "@/lib/format";
+import { classTimeRangeError } from "@/lib/recurring-lesson-rules";
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
@@ -52,6 +53,8 @@ const classSchema = z.object({
 export async function createClass(input: z.infer<typeof classSchema>) {
   const user = await requireAdmin();
   const data = classSchema.parse(input);
+  const timeError = classTimeRangeError(data.startTime, data.endTime);
+  if (timeError) return { ok: false as const, error: timeError };
   const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
     const [[context], adminRows] = await Promise.all([
       tx
@@ -154,6 +157,8 @@ const updateClassSchema = classSchema.extend({ id: z.string().uuid() });
 export async function updateClass(input: z.infer<typeof updateClassSchema>) {
   const user = await requireAdmin();
   const data = updateClassSchema.parse(input);
+  const timeError = classTimeRangeError(data.startTime, data.endTime);
+  if (timeError) return { ok: false as const, error: timeError };
   await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
       .update(classes)
