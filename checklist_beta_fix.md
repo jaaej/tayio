@@ -481,6 +481,24 @@ Last updated: 10 October 2026
   Week/Month switch. Year levels now render through `yearLevelLabel`, fixing
   "Year Year 10" and "Yr Year 11". Verified with Playwright at 1440px and
   390px on dev data.
+- [x] Admin Tutor check-ins glass redesign (2026-10-11).
+  `/admin/tutor-checkins` is now a week matrix (tutors x Mon-Sun) inside its own horizontal scroller, with the tutor column sticky on phones.
+  Cells are coloured by status (approved, waiting on tutor, issue reported, admin corrected, removed from pay), derived by the tested pure helpers in `src/app/admin/tutor-checkins/_lib/matrix.ts`, which also compute row totals, rate labels, and the header's approved pay and awaiting count.
+  Clicking a cell opens a `SidePanel` with that tutor's rows for the day and the existing correction editor (`_components/entry-editor.tsx`, restyled); disputed weeks show in a "Needs your decision" card and a row Review button that open the whole week with the tutor's note.
+  Tutor and Class filters are `UrlLabelledSelect` (`?tutor=`, `?class=`); week navigation, the missing-rate link, and monthly payroll history (`?month=`) are unchanged.
+  Approval stays with the tutor: the design's per-row "Approve" and "Keep / Approve" buttons were not built because no admin approval action exists, and adding one would remove the tutor's sign-off on their own hours.
+  Verified with `tsc` and `vitest` only.
+- [ ] **Manual QA (tutor check-ins matrix):** At 1440px and 390px, open a week with approved, pending, disputed, corrected, and removed rows.
+  Confirm the cell colours, row totals, header approved pay, and awaiting count match the rows, the matrix scrolls inside its card on a phone, and correcting or removing a row from a cell's panel refreshes the cell and keeps the row visible in the panel.
+- [x] Admin Tutors and Tutor availability glass redesign (2026-10-11).
+  `/admin/tutors` (still `requireUnrestrictedAdmin`) is one "Active tutors" panel of expandable rows with initials, contact, subject chips, and Details / Close; the expanded row holds the class schedule and the restyled `TutorBankForm`, which now checks the hourly rate range before saving and shows the reason when it is rejected.
+  `/admin/tutors/availability` keeps the read-only week board and per-tutor editors, adds a Subject filter (`?subject=`; shows that subject's slots plus any-subject slots, logic in `_lib/board.ts` with tests), colours each day's free count, and shows the "All tutors" link to owners only.
+  Verified with `tsc` and `vitest` only.
+- [ ] **Manual QA (tutors and availability):** As owner and as reception, open both pages at 1440px and 390px.
+  Confirm reception is bounced from `/admin/tutors` and sees no "All tutors" link, saving bank details still reports reopened weeks, the Subject filter narrows the board and its free counts, and adding and removing slots still works.
+- [ ] **Known gap:** `addTutorAvailabilityRule`, `removeTutorAvailabilityRule` (`src/app/admin/_lib/actions-availability.ts`), and `setTutorBankDetails` (`actions-tutor-bank.ts`) still throw on validation errors, which production masks into a generic message.
+  Convert them to return `{ ok: false, error }` like the check-in actions.
+- [ ] **Known gap:** a tutor's "incorrect hours" report can only be cleared by an admin correction (which sends the week back to the tutor) or by the tutor approving; there is no admin "no change needed" reply.
 - [ ] **Known cross-role inconsistency, owner-approved preview:** the floating
   frosted sidebar (`sidebarVariant="floating"` on `CollapsiblePortalShell`),
   the dark active nav pill, `GlassPanel`, `WeekTimeGrid`, and the restyled

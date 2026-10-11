@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Card, CardBody, CardHead, Empty, PageHeader, Pill } from "@/components/admin/ui";
+import { GlassPanel, PageHeader, buttonVariants } from "@/components/admin/ui";
+import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { db } from "@/db/client";
 import { classes, profiles, subjects } from "@/db/schema";
@@ -18,7 +19,18 @@ import {
   getTutorCheckinWeeks,
 } from "@/lib/tutor-checkins";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
-import { CheckinEntryEditor } from "./_components/entry-editor";
+import {
+  buildMatrixRow,
+  hoursLabel,
+  rateLabel,
+  weekDates,
+  weekSummary,
+} from "./_lib/matrix";
+import {
+  CheckinMatrix,
+  type MatrixDay,
+  type MatrixTutor,
+} from "./_components/checkin-matrix";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +40,23 @@ type SearchParams = Promise<{
   tutor?: string;
   class?: string;
 }>;
+
+const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
+const GLASS_MD = buttonVariants({ variant: "glass", size: "md" });
+
+// ISO dates are calendar dates; format them in UTC so the server's zone never
+// shifts the day.
+const dayShort = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const dayLong = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
 
 function safeWeek(value: string | undefined) {
   try {
@@ -41,12 +70,6 @@ function safeMonth(value: string | undefined, week: string) {
   return value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)
     ? value
     : week.slice(0, 7);
-}
-
-function hoursLabel(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
 function money(value: number) {
@@ -76,6 +99,7 @@ export default async function AdminTutorCheckinsPage({
 }) {
   await requireUnrestrictedAdmin();
   const params = await searchParams;
+  const today = melbourneDate();
   const week = safeWeek(params.week);
   const month = safeMonth(params.month, week);
   const [tutors, classRows] = await Promise.all([
@@ -123,33 +147,57 @@ export default async function AdminTutorCheckinsPage({
         view.entries.some((entry) => entry.classId === selectedClass),
       )
     : views;
-  const weeklyApprovedPay = filteredViews.reduce(
-    (sum, row) => {
-      if (row.view.status !== "approved") return sum;
-      const entries = row.view.entries.filter(
-        (entry) =>
-          !entry.isRemoved &&
-          (!selectedClass || entry.classId === selectedClass),
-      );
-      return (
-        sum +
-        entries.reduce(
-          (entrySum, entry) =>
-            entrySum + checkinPay(entry.minutes, entry.hourlyRate),
-          0,
-        )
-      );
-    },
-    0,
-  );
-  const weeklyPending = filteredViews.filter(({ view }) => {
-    if (view.status === "approved") return false;
-    return view.entries.some(
-      (entry) =>
-        !entry.isRemoved &&
-        (!selectedClass || entry.classId === selectedClass),
-    );
-  }).length;
+
+  const matrixTutors: MatrixTutor[] = filteredViews.map(({ tutor, view }) => {
+    const matrix = buildMatrixRow(view, week, selectedClass || undefined);
+    const ids = new Set(matrix.entryIds);
+    return {
+      tutorId: tutor.id,
+      name: `${tutor.firstName} ${tutor.lastName}`.trim(),
+      rateLabel: rateLabel(matrix.rates, matrix.hasMissingRate),
+      totalHours: hoursLabel(matrix.totalMinutes),
+      totalPay: money(matrix.totalPay),
+      matrix,
+      cellHours: matrix.cells.map((cell) => hoursLabel(cell.minutes)),
+      disputeMessage: view.status === "disputed" ? view.disputeMessage : null,
+      entries: view.entries
+        .filter((entry) => ids.has(entry.id))
+        .map((entry) => ({
+          id: entry.id,
+          label: checkinEntryLabel(entry),
+          when: `${formatDateLong(entry.workDate)} · ${formatTime(entry.startTime)} - ${formatTime(entry.endTime)}`,
+          hours: hoursLabel(entry.minutes),
+          payLine: `${money(checkinPay(entry.minutes, entry.hourlyRate))} · ${money(Number(entry.hourlyRate))}/hr`,
+          note: entry.note,
+          isRemoved: entry.isRemoved,
+          isManualOverride: entry.isManualOverride,
+          editor: {
+            id: entry.id,
+            subjectName: entry.subjectName,
+            className: entry.className,
+            workDate: entry.workDate,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            hourlyRate: entry.hourlyRate,
+            note: entry.note,
+            isRemoved: entry.isRemoved,
+            updatedAt: entry.updatedAt.toISOString(),
+          },
+        })),
+    };
+  });
+  const summary = weekSummary(matrixTutors.map((row) => row.matrix));
+
+  const days: MatrixDay[] = weekDates(week).map((date) => {
+    const instant = new Date(`${date}T00:00:00Z`);
+    return {
+      date,
+      label: dayShort.format(instant),
+      longLabel: dayLong.format(instant),
+      isToday: date === today,
+    };
+  });
+
   const monthSummary = await getTutorCheckinMonthSummary(month, {
     tutorId: selectedTutor || undefined,
     classId: selectedClass || undefined,
@@ -159,233 +207,141 @@ export default async function AdminTutorCheckinsPage({
     0,
   );
 
+  const weekLabel = weekRangeLabel(week);
+  const headerSub = [
+    weekLabel,
+    `${money(summary.approvedPay)} approved`,
+    summary.awaiting > 0 ? `${summary.awaiting} awaiting approval` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        className="rise"
-        eyebrow="Owner payroll"
         title="Tutor check-ins"
-        sub="Review approved hours, resolve tutor questions, and keep a dated payroll record."
+        sub={headerSub}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Link
               href={hrefFor(addIsoDays(week, -7), month, selectedTutor, selectedClass)}
               aria-label="Previous week"
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-surface text-ink hover:border-brand-400"
+              className={GLASS_ICON}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.2} aria-hidden />
             </Link>
             <Link
-              href={hrefFor(weekStartForIsoDate(melbourneDate()), month, selectedTutor, selectedClass)}
-              className="inline-flex h-10 items-center rounded-full border border-line bg-surface px-4 text-[12px] font-bold text-ink hover:border-brand-400"
+              href={hrefFor(weekStartForIsoDate(today), month, selectedTutor, selectedClass)}
+              aria-current={week === weekStartForIsoDate(today) ? "date" : undefined}
+              className={GLASS_MD}
             >
               This week
             </Link>
             <Link
               href={hrefFor(addIsoDays(week, 7), month, selectedTutor, selectedClass)}
               aria-label="Next week"
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-surface text-ink hover:border-brand-400"
+              className={GLASS_ICON}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" strokeWidth={2.2} aria-hidden />
             </Link>
           </div>
         }
       />
 
-      <Card>
-        <CardBody className="space-y-3">
-          <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto]" method="get">
-            <input type="hidden" name="week" value={week} />
-            <input type="hidden" name="month" value={month} />
-            <label className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Tutor</span>
-              <select name="tutor" defaultValue={selectedTutor} className="h-10 w-full rounded-[9px] border border-line bg-surface px-3 text-[12px] text-ink">
-                <option value="">All tutors</option>
-                {tutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {tutor.firstName} {tutor.lastName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Class</span>
-              <select name="class" defaultValue={selectedClass} className="h-10 w-full rounded-[9px] border border-line bg-surface px-3 text-[12px] text-ink">
-                <option value="">All classes</option>
-                {classRows.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {classDisplayName(row.subjectName, row.className)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="self-end h-10 rounded-full bg-ink px-5 text-[12px] font-bold text-white">
-              Apply filters
-            </button>
-          </form>
-        </CardBody>
-      </Card>
+      <CheckinMatrix
+        tutors={matrixTutors}
+        days={days}
+        weekLabel={weekLabel}
+        filters={
+          <>
+            <UrlLabelledSelect
+              label="Tutor"
+              param="tutor"
+              options={[
+                { value: "", label: "All" },
+                ...tutors.map((tutor) => ({
+                  value: tutor.id,
+                  label: `${tutor.firstName} ${tutor.lastName}`.trim(),
+                })),
+              ]}
+            />
+            <UrlLabelledSelect
+              label="Class"
+              param="class"
+              options={[
+                { value: "", label: "All" },
+                ...classRows.map((row) => ({
+                  value: row.id,
+                  label: classDisplayName(row.subjectName, row.className),
+                })),
+              ]}
+            />
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Selected week" value={weekRangeLabel(week)} />
-        <Metric label="Approved pay this week" value={money(weeklyApprovedPay)} />
-        <Metric label="Awaiting approval" value={`${weeklyPending} tutor${weeklyPending === 1 ? "" : "s"}`} />
-      </div>
-
-      {filteredViews.length === 0 ? (
-        <Card><Empty>No active tutors match these filters.</Empty></Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredViews.map(({ tutor, view }) => {
-            const entries = selectedClass
-              ? view.entries.filter((entry) => entry.classId === selectedClass)
-              : view.entries;
-            const active = entries.filter((entry) => !entry.isRemoved);
-            const filteredMinutes = active.reduce((sum, entry) => sum + entry.minutes, 0);
-            const filteredPay = active.reduce(
-              (sum, entry) => sum + checkinPay(entry.minutes, entry.hourlyRate),
-              0,
-            );
-            const filteredHasMissingRate = active.some(
-              (entry) => Number(entry.hourlyRate) <= 0,
-            );
-            return (
-              <Card
-                key={view.id}
-                accent={
-                  active.length === 0
-                    ? undefined
-                    : view.status === "approved"
-                    ? "good"
-                    : view.status === "disputed"
-                      ? "bad"
-                      : "warn"
-                }
-              >
-                <CardHead
-                  title={`${tutor.firstName} ${tutor.lastName}`}
-                  eyebrow={`${hoursLabel(filteredMinutes)} · ${money(filteredPay)}`}
-                  action={
-                    <Pill tone={active.length === 0 ? "default" : view.status === "approved" ? "good" : view.status === "disputed" ? "bad" : "warn"} dot={active.length > 0}>
-                      {active.length === 0 ? "No work" : view.status === "approved" ? "Approved" : view.status === "disputed" ? "Issue reported" : "Pending"}
-                    </Pill>
-                  }
-                />
-                {view.disputeMessage && (
-                  <div className="border-b border-bad/20 bg-bad-bg px-5 py-3 text-[12px] text-bad">
-                    <strong>Tutor note:</strong> {view.disputeMessage}
-                  </div>
-                )}
-                {entries.length === 0 ? (
-                  <Empty>
-                    {selectedClass ? "No rows for this class in the selected week." : "No scheduled lessons in this week."}
-                  </Empty>
-                ) : (
-                  <ul className="divide-y divide-line">
-                    {entries.map((entry) => (
-                      <li key={entry.id} className={entry.isRemoved ? "bg-surface-2 opacity-70" : ""}>
-                        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5">
-                          <div className="min-w-0">
-                            <div className={`text-[13px] font-extrabold text-ink ${entry.isRemoved ? "line-through" : ""}`}>
-                              {checkinEntryLabel(entry)}
-                            </div>
-                            <div className="mt-1 text-[12px] text-muted">
-                              {formatDateLong(entry.workDate)} · {formatTime(entry.startTime)}–{formatTime(entry.endTime)}
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              {entry.isManualOverride && <Pill tone="brand">Admin corrected</Pill>}
-                              {entry.isRemoved && <Pill tone="bad">Removed</Pill>}
-                              {entry.note && <span className="text-[11px] text-muted">{entry.note}</span>}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[13px] font-extrabold text-ink">{hoursLabel(entry.minutes)}</div>
-                            <div className="mt-0.5 text-[11px] text-muted">
-                              {money(checkinPay(entry.minutes, entry.hourlyRate))} · {money(Number(entry.hourlyRate))}/hr
-                            </div>
-                          </div>
-                        </div>
-                        <CheckinEntryEditor entry={entry} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {filteredHasMissingRate && (
-                  <div className="border-t border-warn/20 bg-warn-bg px-5 py-3 text-[11px] font-semibold text-warn">
-                    An hourly rate is missing. Set it on{" "}
-                    <Link
-                      href={`/admin/users/${tutor.id}?tab=tutor`}
-                      className="underline underline-offset-2"
-                    >
-                      {tutor.firstName}&apos;s user record
-                    </Link>
-                    , then review this pending week.
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      <Card accent="brand">
-        <CardHead
-          title="Monthly payroll history"
-          eyebrow="Approved snapshots only count as owed"
-          action={<Pill tone="brand">{money(monthlyApprovedPay)} approved</Pill>}
-        />
-        <CardBody>
-          <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
+      <GlassPanel
+        title="Monthly payroll history"
+        titleId="checkin-month-h"
+        meta={`${money(monthlyApprovedPay)} approved`}
+        action={
+          <form method="get" className="flex flex-wrap items-center gap-1.5">
             <input type="hidden" name="week" value={week} />
             {selectedTutor && <input type="hidden" name="tutor" value={selectedTutor} />}
             {selectedClass && <input type="hidden" name="class" value={selectedClass} />}
-            <label className="space-y-1">
-              <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Month</span>
-              <input type="month" name="month" defaultValue={month} className="h-10 rounded-[9px] border border-line bg-surface px-3 text-[12px] text-ink" />
+            <label className="sr-only" htmlFor="checkin-month">
+              Month
             </label>
-            <button type="submit" className="h-10 rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink">View month</button>
+            <input
+              id="checkin-month"
+              type="month"
+              name="month"
+              defaultValue={month}
+              className="h-9 rounded-[10px] border border-white/95 bg-white/65 px-3 text-[13px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            />
+            <button type="submit" className={GLASS_MD}>
+              View month
+            </button>
           </form>
-          {monthSummary.length === 0 ? (
-            <p className="py-5 text-center text-[12px] text-muted">
-              No generated check-in records for this month yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto rounded-[10px] border border-line">
-              <table className="w-full min-w-[640px] text-left text-[12px]">
-                <thead className="bg-surface-2 text-[10px] uppercase tracking-[0.1em] text-muted">
-                  <tr>
-                    <th className="px-3 py-2.5">Tutor</th>
-                    <th className="px-3 py-2.5">Approved hours</th>
-                    <th className="px-3 py-2.5">Approved pay owed</th>
-                    <th className="px-3 py-2.5">Pending hours</th>
+        }
+      >
+        {monthSummary.length === 0 ? (
+          <p className="px-4 py-8 text-center text-[13px] text-muted">
+            No generated check-in records for this month yet.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-[13px]">
+              <thead className="text-[12px] text-muted">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-extrabold">Tutor</th>
+                  <th scope="col" className="px-4 py-3 font-extrabold">Approved hours</th>
+                  <th scope="col" className="px-4 py-3 font-extrabold">Approved pay owed</th>
+                  <th scope="col" className="px-4 py-3 font-extrabold">Pending hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthSummary.map((row) => (
+                  <tr key={row.tutorId} className="border-t border-line">
+                    <th scope="row" className="px-4 py-3 text-left font-extrabold text-ink">
+                      {row.tutorName}
+                    </th>
+                    <td className="px-4 py-3 tabular-nums text-ink">
+                      {hoursLabel(row.approvedMinutes)} · {row.approvedWeeks} week{row.approvedWeeks === 1 ? "" : "s"}
+                    </td>
+                    <td className="px-4 py-3 font-extrabold tabular-nums text-good">
+                      {money(row.approvedPay)}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted">
+                      {hoursLabel(row.pendingMinutes)} · {money(row.pendingPay)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {monthSummary.map((row) => (
-                    <tr key={row.tutorId}>
-                      <td className="px-3 py-3 font-bold text-ink">{row.tutorName}</td>
-                      <td className="px-3 py-3 text-ink">{hoursLabel(row.approvedMinutes)} · {row.approvedWeeks} week{row.approvedWeeks === 1 ? "" : "s"}</td>
-                      <td className="px-3 py-3 font-extrabold text-good">{money(row.approvedPay)}</td>
-                      <td className="px-3 py-3 text-muted">{hoursLabel(row.pendingMinutes)} · {money(row.pendingPay)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassPanel>
     </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardBody>
-        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{label}</div>
-        <div className="mt-1 text-[17px] font-extrabold text-ink">{value}</div>
-      </CardBody>
-    </Card>
   );
 }
