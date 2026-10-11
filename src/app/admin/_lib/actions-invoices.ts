@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { familyLinks, invoices, profiles } from "@/db/schema";
+import { familyLinks, invoices, notifications, profiles } from "@/db/schema";
 import { coarseRole } from "@/lib/roles";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import {
+  OPEN_STATUSES,
+  PAYMENT_REMINDER_TITLE,
+  buildPaymentReminderBody,
+  paymentReminderDedupeKey,
+} from "@/app/admin/payments/_lib/families";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
 
@@ -27,9 +34,58 @@ const createInvoiceSchema = z.object({
   description: z.string().max(1000).optional(),
 });
 
-export async function createInvoice(input: z.infer<typeof createInvoiceSchema>) {
+/**
+ * The billed account must be a parent and, when a student is named, that
+ * student must be linked to the parent - otherwise the invoice would show in
+ * the wrong family's portal.
+ */
+async function billingError(
+  parentId: string,
+  studentId: string | null | undefined,
+): Promise<string | null> {
+  const profileIds = [parentId, studentId].filter(
+    (value): value is string => Boolean(value),
+  );
+  const people = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(inArray(profiles.id, profileIds));
+  const parent = people.find((person) => person.id === parentId);
+  if (!parent || coarseRole(parent.role) !== "parent") {
+    return "Select a valid parent account.";
+  }
+  if (studentId) {
+    const student = people.find((person) => person.id === studentId);
+    if (!student || coarseRole(student.role) !== "student") {
+      return "Select a valid student account.";
+    }
+    const [link] = await db
+      .select({ parentId: familyLinks.parentId })
+      .from(familyLinks)
+      .where(
+        and(
+          eq(familyLinks.parentId, parentId),
+          eq(familyLinks.studentId, studentId),
+        ),
+      )
+      .limit(1);
+    if (!link) return "That student is not linked to the selected parent.";
+  }
+  return null;
+}
+
+export async function createInvoice(input: z.input<typeof createInvoiceSchema>) {
   const user = await requireAdmin();
-  const data = createInvoiceSchema.parse(input);
+  const parsed = createInvoiceSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Check the invoice details.",
+    };
+  }
+  const data = parsed.data;
+  const invalid = await billingError(data.parentId, data.studentId);
+  if (invalid) return { ok: false as const, error: invalid };
   const row = await withActor({ id: user.id, role: "admin" }, async (tx) => {
     const [r] = await tx
       .insert(invoices)
@@ -112,39 +168,8 @@ export async function updateInvoice(
   const user = await requireAdmin();
   const data = updateInvoiceSchema.parse(input);
 
-  const profileIds = [data.parentId, data.studentId].filter(
-    (value): value is string => Boolean(value),
-  );
-  const people = await db
-    .select({ id: profiles.id, role: profiles.role })
-    .from(profiles)
-    .where(inArray(profiles.id, profileIds));
-  const parent = people.find((person) => person.id === data.parentId);
-  if (!parent || coarseRole(parent.role) !== "parent") {
-    return { ok: false as const, error: "Select a valid parent account." };
-  }
-  if (data.studentId) {
-    const student = people.find((person) => person.id === data.studentId);
-    if (!student || coarseRole(student.role) !== "student") {
-      return { ok: false as const, error: "Select a valid student account." };
-    }
-    const [link] = await db
-      .select({ parentId: familyLinks.parentId })
-      .from(familyLinks)
-      .where(
-        and(
-          eq(familyLinks.parentId, data.parentId),
-          eq(familyLinks.studentId, data.studentId),
-        ),
-      )
-      .limit(1);
-    if (!link) {
-      return {
-        ok: false as const,
-        error: "That student is not linked to the selected parent.",
-      };
-    }
-  }
+  const invalid = await billingError(data.parentId, data.studentId);
+  if (invalid) return { ok: false as const, error: invalid };
 
   let paidAt: Date | null = null;
   if (data.status === "paid" || data.status === "refunded") {
@@ -181,5 +206,64 @@ export async function updateInvoice(
 
   revalidatePath("/admin/payments");
   revalidatePath("/admin");
+  return { ok: true as const };
+}
+
+/**
+ * Send one in-app payment reminder to a family's parent covering every open
+ * invoice (unpaid, overdue, partially paid). Limited to one per family per
+ * Melbourne day by the notification dedupe key, so a double click or a
+ * second admin cannot spam the parent.
+ */
+export async function sendPaymentReminder(parentId: string) {
+  const user = await requireAdmin();
+  const id = z.string().uuid().safeParse(parentId);
+  if (!id.success) return { ok: false as const, error: "Select a valid parent account." };
+
+  const [parent] = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, id.data))
+    .limit(1);
+  if (!parent || coarseRole(parent.role) !== "parent") {
+    return { ok: false as const, error: "Select a valid parent account." };
+  }
+
+  const open = await db
+    .select({
+      amount: invoices.amount,
+      currency: invoices.currency,
+      status: invoices.status,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.parentId, parent.id),
+        inArray(invoices.status, [...OPEN_STATUSES]),
+      ),
+    );
+  if (open.length === 0) {
+    return { ok: false as const, error: "This family has nothing owing." };
+  }
+
+  const inserted = await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .insert(notifications)
+      .values({
+        userId: parent.id,
+        channel: "in_app",
+        title: PAYMENT_REMINDER_TITLE,
+        body: buildPaymentReminderBody(open),
+        href: "/parent/payments",
+        dedupeKey: paymentReminderDedupeKey(parent.id, melbourneDate()),
+      })
+      .onConflictDoNothing()
+      .returning({ id: notifications.id }),
+  );
+  if (inserted.length === 0) {
+    return { ok: false as const, error: "Already reminded today." };
+  }
+
+  revalidatePath("/admin/payments");
   return { ok: true as const };
 }

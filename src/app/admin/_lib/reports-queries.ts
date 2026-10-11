@@ -9,6 +9,7 @@ import {
   homeworkAssignments,
   lessons,
   profiles,
+  subjects,
   terms,
 } from "@/db/schema";
 import type { ClassMetricRow } from "./reports-metrics";
@@ -74,12 +75,14 @@ export async function getClassMetricRows(term: {
     .select({
       classId: classes.id,
       className: classes.name,
+      subjectName: subjects.name,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
       capacity: classes.capacity,
     })
     .from(classes)
     .innerJoin(profiles, eq(profiles.id, classes.tutorId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .orderBy(asc(classes.name));
 
   const att = await db
@@ -138,6 +141,7 @@ export async function getClassMetricRows(term: {
   return classRows.map((c) => ({
     classId: c.classId,
     className: c.className,
+    subjectName: c.subjectName,
     tutorName: `${c.tutorFirst} ${c.tutorLast}`.trim(),
     attended: attMap.get(c.classId)?.attended ?? 0,
     markedLessons: attMap.get(c.classId)?.marked ?? 0,

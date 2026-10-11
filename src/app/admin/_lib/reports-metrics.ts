@@ -1,6 +1,7 @@
 export type ClassMetricRow = {
   classId: string;
   className: string;
+  subjectName: string;
   tutorName: string;
   attended: number;
   markedLessons: number;
@@ -15,6 +16,7 @@ export type ClassMetricRow = {
 export type ClassReportRow = {
   classId: string;
   className: string;
+  subjectName: string;
   tutorName: string;
   attendancePct: number | null;
   homeworkPct: number | null;
@@ -45,6 +47,7 @@ export function toClassReportRow(r: ClassMetricRow): ClassReportRow {
   return {
     classId: r.classId,
     className: r.className,
+    subjectName: r.subjectName,
     tutorName: r.tutorName,
     attendancePct: ratePct(r.attended, r.markedLessons),
     homeworkPct: ratePct(r.homeworkCompleted, r.homeworkAssigned),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Select } from "@/components/ui/select";
+import { LabelledSelect } from "@/components/admin/ui/labelled-select";
 
 type Option = { id: string; label: string };
 
@@ -14,16 +14,11 @@ export function TermSelect({
 }) {
   const router = useRouter();
   return (
-    <Select
+    <LabelledSelect
+      label="Term"
       value={selectedId}
-      onChange={(e) => router.push(`/admin/reports?term=${e.target.value}`)}
-      aria-label="Select term"
-    >
-      {terms.map((t) => (
-        <option key={t.id} value={t.id}>
-          {t.label}
-        </option>
-      ))}
-    </Select>
+      options={terms.map((t) => ({ value: t.id, label: t.label }))}
+      onChange={(value) => router.push(`/admin/reports?term=${value}`)}
+    />
   );
 }

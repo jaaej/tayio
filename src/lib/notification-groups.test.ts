@@ -45,6 +45,15 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("routes admin payment reminders to the parent's action needed group", () => {
+    expect(
+      notificationGroupFor({
+        title: "Payment reminder",
+        href: "/parent/payments",
+      }),
+    ).toBe("action");
+  });
+
   it("routes urgent tutor cover alerts to action needed", () => {
     expect(
       notificationGroupFor({

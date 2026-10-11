@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/admin/ui";
+import { Button, SubjectDot } from "@/components/admin/ui";
 import { saveSubjectSearchAlias } from "../actions";
 import type { SubjectSearchAliasRow } from "@/lib/subject-search-aliases";
 
@@ -28,7 +28,7 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
 
   return (
     <form
-      className="grid items-center gap-3 px-5 py-3.5 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 transition-colors hover:bg-[#F8F9FC]"
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
@@ -46,9 +46,10 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
         });
       }}
     >
-      <div className="min-w-0">
-        <p className="truncate text-[13px] font-bold text-ink">
-          {subject.subjectName}
+      <div className="min-w-[160px] flex-1">
+        <p className="flex items-center gap-3 text-[14px] font-bold text-ink">
+          <SubjectDot subject={subject.subjectName} />
+          <span className="min-w-0 truncate">{subject.subjectName}</span>
         </p>
         {error && (
           <p role="alert" className="mt-1 text-[11px] font-semibold text-bad">
@@ -62,12 +63,13 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
         maxLength={24}
         placeholder="e.g. e1/2"
         aria-label={`Search shortcut for ${subject.subjectName}`}
-        className="h-9"
+        className="h-9 w-[140px] rounded-[10px] px-2.5 text-[13px] font-semibold"
       />
       <Button
         type="submit"
-        size="sm"
+        size="md"
         variant="outline"
+        className="min-w-[70px] text-[12px]"
         disabled={pending || value.trim().toLowerCase() === saved}
       >
         {pending ? "Saving…" : value.trim() ? "Save" : "Clear"}

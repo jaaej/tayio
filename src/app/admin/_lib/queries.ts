@@ -166,44 +166,14 @@ export async function getOpsStats(opts: {
   };
 }
 
-export type RevenueSummary = {
-  revenueMonth: number;
-  revenueLastMonth: number;
+export type OverdueSummary = {
   overdueTotal: number;
   overdueCount: number;
 };
 
-/** Financial figures for the PIN-gated revenue page. */
-export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
-  // Bucket by paidAt (cash received in the month), not issuedAt - a "Revenue"
-  // figure means money collected. Both months are half-open [start, nextStart).
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const todayIso = isoDate(now);
-
-  const [revMonth] = await db
-    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.status, "paid"),
-        gte(invoices.paidAt, monthStart),
-        lt(invoices.paidAt, nextMonthStart),
-      ),
-    );
-
-  const [revPrev] = await db
-    .select({ total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text` })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.status, "paid"),
-        gte(invoices.paidAt, prevMonthStart),
-        lt(invoices.paidAt, monthStart),
-      ),
-    );
-
+/** Open invoices past their due date (Melbourne today), for the PIN-gated
+ *  revenue page. Collected-per-month figures come from getMonthlyRevenue. */
+export async function getOverdueSummary(now: Date): Promise<OverdueSummary> {
   const [overdue] = await db
     .select({
       count: sql<number>`count(*)::int`,
@@ -213,13 +183,11 @@ export async function getRevenueSummary(now: Date): Promise<RevenueSummary> {
     .where(
       and(
         sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, todayIso),
+        lt(invoices.dueDate, melbourneDate(now)),
       ),
     );
 
   return {
-    revenueMonth: Number(revMonth?.total ?? 0),
-    revenueLastMonth: Number(revPrev?.total ?? 0),
     overdueTotal: Number(overdue?.total ?? 0),
     overdueCount: overdue?.count ?? 0,
   };
@@ -232,11 +200,15 @@ export type RecentPayment = {
   currency: string;
   parentFirst: string;
   parentLast: string;
+  description: string | null;
+  studentFirst: string | null;
+  studentLast: string | null;
 };
 
 /** Most recent paid invoices, for the revenue page. */
 export async function getRecentPayments(limit = 8): Promise<RecentPayment[]> {
   const parent = alias(profiles, "parent");
+  const student = alias(profiles, "student");
   return db
     .select({
       id: invoices.id,
@@ -245,9 +217,13 @@ export async function getRecentPayments(limit = 8): Promise<RecentPayment[]> {
       currency: invoices.currency,
       parentFirst: parent.firstName,
       parentLast: parent.lastName,
+      description: invoices.description,
+      studentFirst: student.firstName,
+      studentLast: student.lastName,
     })
     .from(invoices)
     .innerJoin(parent, eq(parent.id, invoices.parentId))
+    .leftJoin(student, eq(student.id, invoices.studentId))
     .where(and(eq(invoices.status, "paid"), sql`${invoices.paidAt} is not null`))
     .orderBy(desc(invoices.paidAt))
     .limit(limit);
