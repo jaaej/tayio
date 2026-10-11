@@ -1,17 +1,6 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { CalendarCheck } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardHead,
-  Pill,
-  BackLink,
-  Hero,
-  HeroChip,
-  Button,
-  Empty,
-} from "@/components/admin/ui";
+import { Empty, Pill } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import {
   attendance,
@@ -27,23 +16,27 @@ import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { classNameDetail } from "@/lib/class-display";
 import { getLessonReschedules } from "@/lib/reschedule";
-import { adminSaveAttendance } from "@/app/admin/_lib/actions-attendance";
+import { AttendanceQueue } from "../_components/attendance-queue";
+import { LessonNotesButton } from "../_components/lesson-notes-button";
+import { MarkingPane, type MarkingStudent } from "../_components/marking-pane";
+import { getAttendanceQueue, parseQueueFilters } from "../_lib/queue";
+import { nextLessonId, queueQueryString } from "../_lib/queue-logic";
 
-const ATTENDANCE_OPTIONS = [
-  { value: "present", label: "Present" },
-  { value: "late", label: "Late" },
-  { value: "left_early", label: "Left early" },
-  { value: "absent", label: "Absent" },
-  { value: "makeup_attended", label: "Make-up" },
-] as const;
+export const dynamic = "force-dynamic";
+
+type SearchParams = Promise<{ view?: string; date?: string; from?: string }>;
 
 export default async function AdminLessonAttendancePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lessonId: string }>;
+  searchParams: SearchParams;
 }) {
   await requireRole("admin");
   const { lessonId } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(lessonId)) notFound();
+  const filters = parseQueueFilters(await searchParams);
 
   const [lesson] = await db
     .select({
@@ -51,6 +44,7 @@ export default async function AdminLessonAttendancePage({
       date: lessons.date,
       startTime: lessons.startTime,
       endTime: lessons.endTime,
+      status: lessons.status,
       className: classes.name,
       classId: classes.id,
       subjectName: subjects.name,
@@ -67,270 +61,187 @@ export default async function AdminLessonAttendancePage({
   const classDetail = classNameDetail(lesson.subjectName, lesson.className);
   const lessonTitle = classDetail || lesson.subjectName;
 
-  // Roster - enrolled students for the class, with current attendance status if any.
-  const roster = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      attendanceStatus: attendance.status,
-      attendanceNote: attendance.note,
-    })
-    .from(enrollments)
-    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-    .leftJoin(
-      attendance,
-      and(
-        eq(attendance.studentId, enrollments.studentId),
-        eq(attendance.lessonId, lessonId),
-      ),
-    )
-    .where(
-      and(
-        eq(enrollments.classId, lesson.classId),
-        isNull(enrollments.withdrawnAt),
-      ),
-    )
-    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
+  const [queue, roster, reschedules, noteRows] = await Promise.all([
+    getAttendanceQueue(filters),
+    // A make-up lesson's roll is only the students moved into it (the save
+    // action rejects anyone else), so the class roster is not listed there.
+    lesson.status === "makeup"
+      ? Promise.resolve([])
+      : db
+          .select({
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            attendanceStatus: attendance.status,
+            attendanceNote: attendance.note,
+          })
+          .from(enrollments)
+          .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
+          .leftJoin(
+            attendance,
+            and(
+              eq(attendance.studentId, enrollments.studentId),
+              eq(attendance.lessonId, lessonId),
+            ),
+          )
+          .where(
+            and(
+              eq(enrollments.classId, lesson.classId),
+              isNull(enrollments.withdrawnAt),
+            ),
+          )
+          .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
+    getLessonReschedules(lessonId),
+    db
+      .select({
+        id: lessonNotes.id,
+        studentId: lessonNotes.studentId,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+        topicCovered: lessonNotes.topicCovered,
+        keyConcepts: lessonNotes.keyConcepts,
+        performance: lessonNotes.performance,
+        strengths: lessonNotes.strengths,
+        struggles: lessonNotes.struggles,
+        nextLessonFocus: lessonNotes.nextLessonFocus,
+        parentVisibleComment: lessonNotes.parentVisibleComment,
+        internalNote: lessonNotes.internalNote,
+      })
+      .from(lessonNotes)
+      .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
+      .where(eq(lessonNotes.lessonId, lessonId))
+      .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
+  ]);
 
   // Reschedules - who left this lesson (and where to) and who's here as a make-up.
-  const { movedOut, movedIn } = await getLessonReschedules(lessonId);
+  const { movedOut, movedIn } = reschedules;
   const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
-  const attendanceStudentIds = Array.from(
-    new Set([
-      ...roster.map((student) => student.id),
-      ...movedIn.map((student) => student.studentId),
-    ]),
-  );
-  const trialRows = attendanceStudentIds.length
+  const rosterIds = new Set(roster.map((s) => s.id));
+  const makeups = movedIn.filter((m) => !rosterIds.has(m.studentId));
+  const studentIds = [...rosterIds, ...makeups.map((m) => m.studentId)];
+  const trialRows = studentIds.length
     ? await db
         .select({ studentId: studentTrials.studentId })
         .from(studentTrials)
         .where(
           and(
-            inArray(studentTrials.studentId, attendanceStudentIds),
+            inArray(studentTrials.studentId, studentIds),
             sql`${studentTrials.startDate} <= ${lesson.date}`,
             sql`${studentTrials.endDate} >= ${lesson.date}`,
           ),
         )
     : [];
   const onTrialIds = new Set(trialRows.map((row) => row.studentId));
-  const noteRows = await db
-    .select({
-      id: lessonNotes.id,
-      studentId: lessonNotes.studentId,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      topicCovered: lessonNotes.topicCovered,
-      keyConcepts: lessonNotes.keyConcepts,
-      performance: lessonNotes.performance,
-      strengths: lessonNotes.strengths,
-      struggles: lessonNotes.struggles,
-      nextLessonFocus: lessonNotes.nextLessonFocus,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      internalNote: lessonNotes.internalNote,
-    })
-    .from(lessonNotes)
-    .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
-    .where(eq(lessonNotes.lessonId, lessonId))
-    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
+
+  const students: MarkingStudent[] = [
+    ...roster.map((s) => ({
+      id: s.id,
+      name: `${s.firstName} ${s.lastName}`.trim(),
+      status: s.attendanceStatus,
+      note: s.attendanceNote ?? "",
+      onTrial: onTrialIds.has(s.id),
+      movedOutTo: movedOutById.get(s.id),
+    })),
+    ...makeups.map((m) => ({
+      id: m.studentId,
+      name: m.studentName,
+      status: m.attendanceStatus ?? "makeup_attended",
+      note: m.attendanceNote ?? "",
+      onTrial: onTrialIds.has(m.studentId),
+      makeupFrom: m.fromLabel,
+    })),
+  ];
+
+  const query = queueQueryString(filters);
+  const nextId = nextLessonId(
+    queue.items.map((item) => item.id),
+    lesson.id,
+  );
+  const makeupIds = new Set(movedIn.map((m) => m.studentId));
+
+  const sub = [
+    formatDateLong(lesson.date),
+    `${formatTime(lesson.startTime)} – ${formatTime(lesson.endTime)}`,
+    classDetail ? lesson.subjectName : null,
+    `${lesson.tutorFirst} ${lesson.tutorLast}`,
+    `${students.length} ${students.length === 1 ? "student" : "students"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="space-y-6">
-      <BackLink href="/admin/attendance">Back to attendance</BackLink>
-
-      <Hero
-        className="rise"
-        eyebrow="Attendance"
-        icon={<CalendarCheck className="h-7 w-7" />}
-        title={lessonTitle}
-        chips={
-          <>
-            <HeroChip>{formatDateLong(lesson.date)}</HeroChip>
-            <HeroChip>
-              {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
-            </HeroChip>
-            {classDetail && <HeroChip>{lesson.subjectName}</HeroChip>}
-            <HeroChip>
-              Tutor: {lesson.tutorFirst} {lesson.tutorLast}
-            </HeroChip>
-          </>
-        }
+    <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+      <AttendanceQueue
+        queue={queue}
+        basePath={`/admin/attendance/${lesson.id}`}
+        currentLessonId={lesson.id}
+        headingLevel="h2"
+        className="hidden xl:flex xl:w-[360px] xl:shrink-0 2xl:w-[400px]"
       />
 
-      <Card className="rise">
-        <CardHead
-          title="Attendance"
-          action={<Pill tone="brand">{roster.length} enrolled</Pill>}
-        />
-        {roster.length === 0 && movedIn.length === 0 ? (
-          <Empty>No students enrolled in this class.</Empty>
-        ) : roster.length === 0 ? null : (
-          <form action={adminSaveAttendance}>
-            <input type="hidden" name="lessonId" value={lesson.id} />
-            <ul className="divide-y divide-line">
-              {roster.map((s) => {
-                const current = s.attendanceStatus ?? "";
-                return (
-                  <li key={s.id} className="px-5 py-4 space-y-3">
-                    <div className="flex items-baseline justify-between gap-3">
+      <MarkingPane
+        key={lesson.id}
+        lessonId={lesson.id}
+        title={lessonTitle}
+        sub={sub}
+        students={students}
+        backHref={`/admin/attendance${query}`}
+        nextHref={nextId ? `/admin/attendance/${nextId}${query}` : null}
+        notesButton={
+          <LessonNotesButton
+            count={noteRows.length}
+            sub={`${lessonTitle} · ${formatDateLong(lesson.date)}`}
+          >
+            {noteRows.length === 0 ? (
+              <Empty>No tutor notes have been saved for this lesson.</Empty>
+            ) : (
+              <div className="divide-y divide-line">
+                {noteRows.map((note) => {
+                  const details = [
+                    ["Topic covered", note.topicCovered],
+                    ["Key concepts", note.keyConcepts],
+                    ["Performance", note.performance],
+                    ["Strengths", note.strengths],
+                    ["Struggled with", note.struggles],
+                    ["Next lesson focus", note.nextLessonFocus],
+                    ["Parent-visible comment", note.parentVisibleComment],
+                    ["Internal note", note.internalNote],
+                  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
+
+                  return (
+                    <section key={note.id} className="py-4 first:pt-0 last:pb-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[14px] font-bold text-ink">
-                          {s.firstName} {s.lastName}
-                        </span>
-                        {onTrialIds.has(s.id) && (
-                          <Pill tone="info">Free trial</Pill>
+                        <h3 className="text-[14px] font-bold text-ink">
+                          {note.firstName} {note.lastName}
+                        </h3>
+                        {makeupIds.has(note.studentId) && (
+                          <Pill tone="mint">Make-up attendee</Pill>
                         )}
                       </div>
-                      {movedOutById.has(s.id) && (
-                        <Pill tone="warn">
-                          Rescheduled → {movedOutById.get(s.id)}
-                        </Pill>
+                      {details.length === 0 ? (
+                        <p className="mt-2 text-[12px] text-muted">Empty note.</p>
+                      ) : (
+                        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {details.map(([label, value]) => (
+                            <div key={label} className="rounded-[10px] bg-surface-2 p-3">
+                              <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                                {label}
+                              </dt>
+                              <dd className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-ink-soft">
+                                {value}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
                       )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {ATTENDANCE_OPTIONS.map((opt) => (
-                        <label key={opt.value} className="cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`status[${s.id}]`}
-                            value={opt.value}
-                            defaultChecked={current === opt.value}
-                            className="peer sr-only"
-                          />
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-full border border-line text-[12px] font-semibold text-ink-soft peer-checked:bg-brand-500 peer-checked:text-white peer-checked:border-brand-500 hover:border-brand-400 transition-colors">
-                            {opt.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <Input
-                      name={`note[${s.id}]`}
-                      placeholder="Optional note (e.g. arrived 10 min late)"
-                      defaultValue={s.attendanceNote ?? ""}
-                      className="h-9 text-sm"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="px-5 py-4 border-t border-line bg-surface-2 flex justify-end">
-              <Button type="submit" size="sm" variant="primary">
-                Save attendance
-              </Button>
-            </div>
-          </form>
-        )}
-        {movedIn.length > 0 && (
-          <form action={adminSaveAttendance} className="border-t border-line">
-            <input type="hidden" name="lessonId" value={lesson.id} />
-            <div className="px-5 pt-4 pb-2 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-soft">
-              Make-up attendees
-            </div>
-            <ul className="divide-y divide-line">
-              {movedIn.map((m) => (
-                <li
-                  key={m.studentId}
-                  className="space-y-3 px-5 py-4"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[14px] font-bold text-ink">
-                        {m.studentName}
-                      </span>
-                      {onTrialIds.has(m.studentId) && (
-                        <Pill tone="info">Free trial</Pill>
-                      )}
-                    </div>
-                    <Pill tone="mint">Make-up ← {m.fromLabel}</Pill>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {ATTENDANCE_OPTIONS.map((opt) => (
-                      <label key={opt.value} className="cursor-pointer">
-                        <input
-                          type="radio"
-                          name={`status[${m.studentId}]`}
-                          value={opt.value}
-                          defaultChecked={
-                            (m.attendanceStatus ?? "makeup_attended") ===
-                            opt.value
-                          }
-                          className="peer sr-only"
-                        />
-                        <span className="inline-flex items-center rounded-full border border-line px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-400 peer-checked:border-brand-500 peer-checked:bg-brand-500 peer-checked:text-white">
-                          {opt.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <Input
-                    name={`note[${m.studentId}]`}
-                    placeholder="Optional note (e.g. attended a make-up lesson)"
-                    defaultValue={m.attendanceNote ?? ""}
-                    className="h-9 text-sm"
-                  />
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end border-t border-line bg-surface-2 px-5 py-4">
-              <Button type="submit" size="sm" variant="primary">
-                Save make-up attendance
-              </Button>
-            </div>
-          </form>
-        )}
-      </Card>
-
-      <Card className="rise">
-        <CardHead title="Lesson notes" />
-        {noteRows.length === 0 ? (
-          <Empty>No tutor notes have been saved for this lesson.</Empty>
-        ) : (
-          <div className="divide-y divide-line">
-            {noteRows.map((note) => {
-              const details = [
-                ["Topic covered", note.topicCovered],
-                ["Key concepts", note.keyConcepts],
-                ["Performance", note.performance],
-                ["Strengths", note.strengths],
-                ["Struggled with", note.struggles],
-                ["Next lesson focus", note.nextLessonFocus],
-                ["Parent-visible comment", note.parentVisibleComment],
-                ["Internal note", note.internalNote],
-              ].filter((entry): entry is [string, string] => Boolean(entry[1]));
-
-              return (
-                <section key={note.id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[14px] font-bold text-ink">
-                      {note.firstName} {note.lastName}
-                    </h3>
-                    {movedIn.some((student) => student.studentId === note.studentId) && (
-                      <Pill tone="mint">Make-up attendee</Pill>
-                    )}
-                  </div>
-                  {details.length === 0 ? (
-                    <p className="mt-2 text-[12px] text-muted">Empty note.</p>
-                  ) : (
-                    <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {details.map(([label, value]) => (
-                        <div key={label} className="rounded-[10px] bg-surface-2 p-3">
-                          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
-                            {label}
-                          </dt>
-                          <dd className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-ink-soft">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                </section>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </LessonNotesButton>
+        }
+      />
     </div>
   );
 }

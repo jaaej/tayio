@@ -13,6 +13,15 @@ Last updated: 10 October 2026
 
 ## Manual QA required
 
+- [ ] Admin Attendance (11 October 2026): on desktop and at 390px, switch
+  queue tabs and pick a day, mark a lesson with "All present" and a note, use
+  "Save & next lesson" through to the end of the queue, and open "View lesson
+  notes". Confirm a make-up lesson lists only its make-up attendees.
+- [ ] Admin Reschedules (11 October 2026): on desktop and at 390px, check
+  every tab, approve and reject a pending leave from the banner, assign,
+  change and return a cover, and confirm a cover under 24 hours sits in its
+  own column.
+
 - [ ] As admin, tutor, student, and parent, open Messages, start a new
   message, open a conversation, and send a reply on desktop and phone width.
   Confirm the inbox, contact picker, and conversation use the frosted glass
@@ -422,6 +431,29 @@ Last updated: 10 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin Attendance glass split view (11 October 2026).
+  - `/admin/attendance` and `/admin/attendance/[lessonId]` share one queue
+    (`src/app/admin/attendance/_components/attendance-queue.tsx`) with
+    To mark / Marked / Upcoming tabs (`?view=`), the day picker (`?date=`) and
+    `?from=`. Desktop (xl) shows queue and marking pane side by side; phones
+    show the queue, then the lesson on its own route with a back button.
+  - "To mark" = started (Melbourne time) with an enrolled student lacking a
+    row; rules and "Save & next lesson" order live in
+    `src/app/admin/attendance/_lib/queue-logic.ts` (unit tested). Saving the
+    last lesson returns to the queue with its filters.
+  - One form saves the roll and make-up attendees; "All present" fills the
+    class (not moved-out or make-up students). Make-up lessons no longer list
+    the class roster the save action rejects. Notes open read-only in a side
+    panel from "View lesson notes".
+- [x] Admin Reschedules glass tabs (11 October 2026).
+  - `?tab=` Cover board (default, keeps `#tutor-cover`), Leave requests,
+    Class credits, Term usage. Cover board columns Under 24 hours / Needs
+    cover / Covered come from `src/app/admin/reschedules/_lib/cover-columns.ts`
+    (Melbourne time, unit tested). Pending leave shows as banners with the
+    affected class count; the Leave tab adds the last 20 decisions.
+  - Any still-pending student reschedule request (retired queue, but counted
+    in the sidebar badge) is listed for approve/decline above the tabs.
 
 - [x] Glass messaging, narrower sidebar, and body-portal positioning fix
   (10 October 2026).
