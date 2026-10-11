@@ -1,21 +1,23 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
-import { Input, Label } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const CLASS_TYPE_OPTIONS = [
-  { value: "group", label: "Group" },
-  { value: "one_on_one", label: "One-on-one" },
-] as const;
+import { useState, type ReactNode } from "react";
+import { defaultClassTimes } from "../_lib/class-time";
+import {
+  CapacityStepper,
+  ClassTypeSegment,
+  FIELD,
+  Field,
+  SelectField,
+  WhenFields,
+  type ClassTypeValue,
+} from "./class-fields";
+import { subjectOptionLabel } from "../_lib/subject-option-label";
 
 export type CreateClassValues = {
   name: string;
   subjectId: string;
   tutorId: string;
-  classType: "group" | "one_on_one";
+  classType: ClassTypeValue;
   capacity: number;
   location: string | null;
   onlineLink: string | null;
@@ -34,6 +36,7 @@ export function CreateClassForm({
   formId,
   tutors,
   subjects,
+  lessonMinutes,
   disabled,
   error,
   onSubmit,
@@ -41,6 +44,8 @@ export function CreateClassForm({
   formId: string;
   tutors: { id: string; firstName: string; lastName: string }[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
+  /** Usual lesson length, used to default the end time after the start. */
+  lessonMinutes: number;
   disabled: boolean;
   error: string | null;
   onSubmit: (values: CreateClassValues) => void;
@@ -49,13 +54,15 @@ export function CreateClassForm({
   // can never steal a label's `for` target.
   const fid = (name: string) => `${formId}-${name}`;
 
-  const [classType, setClassType] =
-    useState<CreateClassValues["classType"]>("group");
+  const [classType, setClassType] = useState<ClassTypeValue>("group");
+  const [times] = useState(() => defaultClassTimes(lessonMinutes));
 
   return (
     <form
       id={formId}
-      className="space-y-5"
+      // Cancel the panel body's padding so the sections sit as white cards on
+      // a tinted ground, like the glass bezel elsewhere in admin.
+      className="-m-4 flex min-h-[calc(100%+2rem)] flex-col gap-1.5 bg-surface-2 p-1.5 sm:-m-5 sm:min-h-[calc(100%+2.5rem)]"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -69,122 +76,97 @@ export function CreateClassForm({
           location: text("location") || null,
           onlineLink: text("onlineLink") || null,
           isRecurring: fd.get("isRecurring") === "on",
-          weekday: text("weekday") === "" ? null : Number(fd.get("weekday")),
+          weekday: text("weekday") === "" ? null : Number(text("weekday")),
           startTime: text("startTime") || null,
           endTime: text("endTime") || null,
         });
       }}
     >
-      <fieldset disabled={disabled} className="space-y-5">
-        <Field id={fid("name")} label="Class name">
-          <Input
-            id={fid("name")}
-            name="name"
-            required
-            placeholder="Year 10 Maths · Tue PM"
-            autoComplete="off"
-          />
-        </Field>
-
-        <Field id={fid("subjectId")} label="Subject">
-          <Select id={fid("subjectId")} name="subjectId" required defaultValue="">
-            <option value="" disabled>
-              Pick a subject
-            </option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.yearLevel ? ` (Yr ${s.yearLevel})` : ""}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field id={fid("tutorId")} label="Tutor">
-          <Select id={fid("tutorId")} name="tutorId" required defaultValue="">
-            <option value="" disabled>
-              Pick a tutor
-            </option>
-            {tutors.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.firstName} {t.lastName}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        {/* Single column until `sm` so the two type pills never wrap into a
-            second line beside the capacity field on a phone-width panel. */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <ClassTypeRadioGroup value={classType} onChange={setClassType} />
-          <Field id={fid("capacity")} label="Capacity">
-            <Input
-              id={fid("capacity")}
-              name="capacity"
-              type="number"
-              min={1}
-              max={200}
-              defaultValue={8}
-              required
-            />
-          </Field>
-        </div>
-
-        {/* The recurring toggle governs the three fields under it, so it sits
-            with them rather than at the foot of the form. */}
-        <div className="space-y-3 border-t border-line pt-5">
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink-soft">
+      <fieldset disabled={disabled} className="contents">
+        <Section id={fid("s-details")} title="Details">
+          <Field id={fid("name")} label="Class name">
             <input
-              type="checkbox"
-              name="isRecurring"
-              defaultChecked
-              className="h-4 w-4 accent-brand-600"
+              id={fid("name")}
+              name="name"
+              required
+              placeholder="e.g. Year 10 Maths · Tue PM"
+              autoComplete="off"
+              className={FIELD}
             />
-            Recurring weekly
-          </label>
-          <Field id={fid("weekday")} label="Weekday">
-            <Select id={fid("weekday")} name="weekday" defaultValue="">
-              <option value="">-</option>
-              {WEEKDAYS.map((d, i) => (
-                <option key={d} value={i}>
-                  {d}
-                </option>
-              ))}
-            </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field id={fid("startTime")} label="Start time">
-              <Input id={fid("startTime")} name="startTime" type="time" />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field id={fid("subjectId")} label="Subject">
+              <SelectField id={fid("subjectId")} name="subjectId" required defaultValue="">
+                <option value="" disabled>
+                  Choose subject
+                </option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {subjectOptionLabel(s)}
+                  </option>
+                ))}
+              </SelectField>
             </Field>
-            <Field id={fid("endTime")} label="End time">
-              <Input id={fid("endTime")} name="endTime" type="time" />
+            <Field id={fid("tutorId")} label="Tutor">
+              <SelectField id={fid("tutorId")} name="tutorId" required defaultValue="">
+                <option value="" disabled>
+                  Choose tutor
+                </option>
+                {tutors.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.firstName} {t.lastName}
+                  </option>
+                ))}
+              </SelectField>
             </Field>
           </div>
-        </div>
 
-        <div className="space-y-5 border-t border-line pt-5">
-          <Field id={fid("location")} label="Location">
-            <Input
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
+            <ClassTypeSegment value={classType} onChange={setClassType} />
+            <CapacityStepper id={fid("capacity")} defaultValue={8} />
+          </div>
+        </Section>
+
+        <Section id={fid("s-when")} title="When">
+          <WhenFields
+            idPrefix={fid("when")}
+            defaultRecurring
+            defaultWeekday={null}
+            defaultStart={times.startTime}
+            defaultEnd={times.endTime}
+            lessonMinutes={lessonMinutes}
+          />
+        </Section>
+
+        <Section id={fid("s-where")} title="Where">
+          <Field id={fid("location")} label="Location" optional>
+            <input
               id={fid("location")}
               name="location"
-              placeholder="Room 3 · Hawthorn"
+              placeholder="e.g. Room 3 · Hawthorn"
               autoComplete="off"
+              className={FIELD}
             />
           </Field>
-          <Field id={fid("onlineLink")} label="Online link">
-            <Input
+          <Field id={fid("onlineLink")} label="Online link" optional>
+            <input
               id={fid("onlineLink")}
               name="onlineLink"
               type="url"
-              placeholder="https://…"
+              placeholder="https://"
               autoComplete="off"
+              className={FIELD}
             />
           </Field>
-        </div>
+        </Section>
       </fieldset>
 
       {error && (
-        <p role="alert" className="text-[12px] font-semibold text-bad">
+        <p
+          role="alert"
+          className="rounded-[12px] bg-bad-bg px-3.5 py-2.5 text-[13px] font-semibold text-bad"
+        >
           {error}
         </p>
       )}
@@ -192,79 +174,21 @@ export function CreateClassForm({
   );
 }
 
-function Field({
+function Section({
   id,
-  label,
+  title,
   children,
 }: {
   id: string;
-  label: string;
+  title: string;
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="block font-bold">
-        {label}
-      </Label>
+    <section aria-labelledby={id} className="panel flex flex-col gap-3.5 p-[18px]">
+      <h3 id={id} className="text-[13px] font-extrabold text-muted">
+        {title}
+      </h3>
       {children}
-    </div>
-  );
-}
-
-/**
- * Class type as a pill group - a two-option dropdown hid the choice behind a
- * click. Real `<input type="radio">`s sit behind the pills, so arrow-key
- * navigation, form semantics and screen-reader announcement come from the
- * browser. Same shape and styling as the role picker in
- * `admin/users/_components/create-user-form.tsx`.
- */
-function ClassTypeRadioGroup({
-  value,
-  onChange,
-}: {
-  value: CreateClassValues["classType"];
-  onChange: (classType: CreateClassValues["classType"]) => void;
-}) {
-  const labelId = useId();
-
-  return (
-    <div>
-      {/* Block, like the `Field` label, so its line box is sized by its own
-          11px text and the pills line up with the capacity input beside it. */}
-      <span
-        id={labelId}
-        className="block text-[11px] font-bold uppercase tracking-[0.14em] text-muted"
-      >
-        Class type
-      </span>
-      <div
-        role="radiogroup"
-        aria-labelledby={labelId}
-        className="mt-1.5 flex flex-wrap gap-2"
-      >
-        {CLASS_TYPE_OPTIONS.map((option) => (
-          <label
-            key={option.value}
-            className={cn(
-              "inline-flex min-h-11 cursor-pointer items-center rounded-full border px-4 text-[12px] font-bold transition-colors",
-              "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 has-[:focus-visible]:ring-offset-1",
-              value === option.value
-                ? "border-brand-500 bg-brand-500 text-white"
-                : "border-line-strong bg-surface text-ink hover:border-brand-500 hover:text-brand-700",
-            )}
-          >
-            <input
-              type="radio"
-              name="classType"
-              value={option.value}
-              checked={value === option.value}
-              onChange={() => onChange(option.value)}
-              className="sr-only"
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </div>
+    </section>
   );
 }

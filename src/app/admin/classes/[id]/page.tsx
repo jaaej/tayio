@@ -3,17 +3,11 @@ import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
 import { STUDENT_TIERS } from "@/lib/roles";
-import {
-  Card,
-  CardHead,
-  CardBody,
-  Hero,
-  HeroChip,
-  BackLink,
-  Button,
-} from "@/components/admin/ui";
-import { formatTime } from "@/lib/format";
+import Link from "next/link";
+import { GlassPanel, PageHeader, buttonVariants } from "@/components/admin/ui";
+import { formatTimeRange } from "@/lib/format";
 import { classNameDetail } from "@/lib/class-display";
+import { subjectTone } from "@/lib/subject-tone";
 import { EditClassForm } from "./_components/edit-class-form";
 import { EnrollmentsManager } from "./_components/enrollments-manager";
 
@@ -87,74 +81,78 @@ export default async function ClassEditPage({
 
   const scheduleChip =
     row.isRecurring && row.weekday !== null && row.startTime && row.endTime
-      ? `${WEEKDAY_SHORT[row.weekday]} · ${formatTime(row.startTime)}–${formatTime(row.endTime)}`
+      ? `${WEEKDAY_SHORT[row.weekday]} · ${formatTimeRange(row.startTime, row.endTime)}`
       : "No recurring slot";
+  const tone = subjectName ? subjectTone(subjectName) : null;
+  const chip =
+    "inline-flex h-6 items-center whitespace-nowrap rounded-full bg-white/75 px-2.5 text-[12px] font-bold text-ink";
 
   return (
-    <div className="space-y-6">
-      <BackLink href="/admin/classes">All classes</BackLink>
-
-      <Hero
-        className="rise"
-        eyebrow="Edit class"
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        back={{ href: "/admin/classes", label: "All classes" }}
         title={classTitle}
-        icon={row.name.charAt(0).toUpperCase()}
-        chips={
-          <>
-            {showSubjectChip && <HeroChip>{subjectName}</HeroChip>}
-            <HeroChip>{scheduleChip}</HeroChip>
-            <HeroChip>
+        sub={
+          <span className="mt-1 flex flex-wrap gap-1.5">
+            {showSubjectChip && tone && (
+              <span
+                className={chip}
+                style={{ backgroundColor: tone.bg, color: tone.fg }}
+              >
+                {subjectName}
+              </span>
+            )}
+            <span className={chip}>{scheduleChip}</span>
+            <span className={`${chip} tabular-nums`}>
               {enrolled.length}/{row.capacity} enrolled
-            </HeroChip>
-            {row.location && <HeroChip>{row.location}</HeroChip>}
-          </>
+            </span>
+            {row.location && <span className={chip}>{row.location}</span>}
+          </span>
         }
-        right={
-          <a href={`/admin/subjects/${row.subjectId}/curriculum`}>
-            <Button variant="outline">Open curriculum →</Button>
-          </a>
+        actions={
+          <Link
+            href={`/admin/subjects/${row.subjectId}/curriculum`}
+            className={buttonVariants({ variant: "glass", size: "lg" })}
+          >
+            Open curriculum
+          </Link>
         }
       />
 
-      <section className="rise" style={{ animationDelay: "80ms" }}>
-        <Card>
-          <CardHead title="Details" />
-          <CardBody>
-            <EditClassForm
-              id={row.id}
-              initial={{
-                name: row.name,
-                subjectId: row.subjectId,
-                tutorId: row.tutorId,
-                classType: row.classType,
-                capacity: row.capacity,
-                location: row.location ?? "",
-                onlineLink: row.onlineLink ?? "",
-                isRecurring: row.isRecurring,
-                weekday: row.weekday ?? null,
-                startTime: row.startTime ?? "",
-                endTime: row.endTime ?? "",
-              }}
-              tutors={tutors}
-              subjects={subjectList}
-            />
-          </CardBody>
-        </Card>
-      </section>
+      <div className="flex flex-wrap items-start gap-5">
+        <EnrollmentsManager
+          className="min-w-0 flex-[999_1_520px]"
+          classId={id}
+          enrolled={enrolled}
+          availableStudents={availableStudents}
+          capacity={row.capacity}
+        />
 
-      <section className="rise" style={{ animationDelay: "120ms" }}>
-        <Card>
-          <CardHead title="Enrolled students" />
-          <CardBody>
-            <EnrollmentsManager
-              classId={id}
-              enrolled={enrolled}
-              availableStudents={availableStudents}
-              capacity={row.capacity}
-            />
-          </CardBody>
-        </Card>
-      </section>
+        <GlassPanel
+          className="min-w-0 flex-[1_1_340px] lg:max-w-[420px]"
+          title="Class details"
+          titleId="class-details-heading"
+        >
+          <EditClassForm
+            id={row.id}
+            initial={{
+              name: row.name,
+              subjectId: row.subjectId,
+              tutorId: row.tutorId,
+              classType: row.classType,
+              capacity: row.capacity,
+              location: row.location ?? "",
+              onlineLink: row.onlineLink ?? "",
+              isRecurring: row.isRecurring,
+              weekday: row.weekday ?? null,
+              startTime: row.startTime ?? "",
+              endTime: row.endTime ?? "",
+            }}
+            tutors={tutors}
+            subjects={subjectList}
+          />
+        </GlassPanel>
+      </div>
     </div>
   );
 }

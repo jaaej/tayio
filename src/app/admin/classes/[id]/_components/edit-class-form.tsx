@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/admin/ui";
-import { Input, Label } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { updateClass } from "@/app/admin/_lib/actions-classes";
 import type { ClassType } from "@/db/schema";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { FALLBACK_LESSON_MINUTES } from "../../_lib/class-time";
+import { subjectOptionLabel } from "../../_lib/subject-option-label";
+import {
+  CapacityStepper,
+  ClassTypeSegment,
+  FIELD,
+  Field,
+  SelectField,
+  WhenFields,
+} from "../../_components/class-fields";
 
 type Initial = {
   name: string;
@@ -23,6 +29,9 @@ type Initial = {
   endTime: string;
 };
 
+/** postgres TIME comes back as HH:MM:SS; <input type="time"> wants HH:MM. */
+const toInputTime = (t: string) => t.slice(0, 5);
+
 export function EditClassForm({
   id,
   initial,
@@ -37,159 +46,142 @@ export function EditClassForm({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [classType, setClassType] = useState<ClassType>(initial.classType);
+  const fid = useId();
+  const f = (name: string) => `${fid}-${name}`;
 
   return (
     <form
-      className="grid sm:grid-cols-2 gap-4"
+      className="flex flex-col gap-3.5 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         setError(null);
         setOk(false);
         const fd = new FormData(e.currentTarget);
+        const text = (key: string) => String(fd.get(key) ?? "").trim();
         start(async () => {
           try {
             const res = await updateClass({
               id,
-              name: String(fd.get("name") || ""),
-              subjectId: String(fd.get("subjectId") || ""),
-              tutorId: String(fd.get("tutorId") || ""),
+              name: text("name"),
+              subjectId: text("subjectId"),
+              tutorId: text("tutorId"),
               classType: fd.get("classType") === "one_on_one" ? "one_on_one" : "group",
               capacity: Number(fd.get("capacity") || 8),
-              location: String(fd.get("location") || "") || null,
-              onlineLink: String(fd.get("onlineLink") || "") || null,
+              location: text("location") || null,
+              onlineLink: text("onlineLink") || null,
               isRecurring: fd.get("isRecurring") === "on",
-              weekday:
-                fd.get("weekday") === "" ? null : Number(fd.get("weekday")),
-              startTime: String(fd.get("startTime") || "") || null,
-              endTime: String(fd.get("endTime") || "") || null,
+              // No day chosen sends nothing: null, never Sunday (0).
+              weekday: text("weekday") === "" ? null : Number(text("weekday")),
+              startTime: text("startTime") || null,
+              endTime: text("endTime") || null,
             });
             if (res.ok) setOk(true);
             else setError(res.error);
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed");
+            setError(err instanceof Error ? err.message : "Could not save the class.");
           }
         });
       }}
     >
-      <div className="sm:col-span-2 space-y-1.5">
-        <Label htmlFor="name">Class name</Label>
-        <Input id="name" name="name" defaultValue={initial.name} required />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="subjectId">Subject</Label>
-        <Select
-          id="subjectId"
-          name="subjectId"
-          defaultValue={initial.subjectId}
-          required
+      <fieldset disabled={pending} className="contents">
+        <Field id={f("name")} label="Class name">
+          <input
+            id={f("name")}
+            name="name"
+            defaultValue={initial.name}
+            required
+            autoComplete="off"
+            className={FIELD}
+          />
+        </Field>
+        <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
+          <Field id={f("subjectId")} label="Subject">
+            <SelectField
+              id={f("subjectId")}
+              name="subjectId"
+              defaultValue={initial.subjectId}
+              required
+            >
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {subjectOptionLabel(s)}
+                </option>
+              ))}
+            </SelectField>
+          </Field>
+          <Field id={f("tutorId")} label="Tutor">
+            <SelectField
+              id={f("tutorId")}
+              name="tutorId"
+              defaultValue={initial.tutorId}
+              required
+            >
+              {tutors.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.firstName} {t.lastName}
+                </option>
+              ))}
+            </SelectField>
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 items-end gap-2.5 min-[420px]:grid-cols-[minmax(0,1fr)_132px]">
+          <ClassTypeSegment value={classType} onChange={setClassType} />
+          <CapacityStepper id={f("capacity")} defaultValue={initial.capacity} />
+        </div>
+
+        <div aria-hidden className="my-0.5 h-px bg-line" />
+
+        <WhenFields
+          idPrefix={f("when")}
+          defaultRecurring={initial.isRecurring}
+          defaultWeekday={initial.weekday}
+          defaultStart={toInputTime(initial.startTime)}
+          defaultEnd={toInputTime(initial.endTime)}
+          lessonMinutes={FALLBACK_LESSON_MINUTES}
+        />
+
+        <div aria-hidden className="my-0.5 h-px bg-line" />
+
+        <Field id={f("location")} label="Location" optional>
+          <input
+            id={f("location")}
+            name="location"
+            defaultValue={initial.location}
+            autoComplete="off"
+            className={FIELD}
+          />
+        </Field>
+        <Field id={f("onlineLink")} label="Online link" optional>
+          <input
+            id={f("onlineLink")}
+            name="onlineLink"
+            type="url"
+            placeholder="https://"
+            defaultValue={initial.onlineLink}
+            autoComplete="off"
+            className={FIELD}
+          />
+        </Field>
+      </fieldset>
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-[12px] bg-bad-bg px-3.5 py-2.5 text-[13px] font-semibold text-bad"
         >
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {s.yearLevel ? ` (Yr ${s.yearLevel})` : ""}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="tutorId">Tutor</Label>
-        <Select
-          id="tutorId"
-          name="tutorId"
-          defaultValue={initial.tutorId}
-          required
-        >
-          {tutors.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.firstName} {t.lastName}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="classType">Class type</Label>
-        <Select
-          id="classType"
-          name="classType"
-          defaultValue={initial.classType}
-        >
-          <option value="group">Group</option>
-          <option value="one_on_one">One-on-one</option>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="capacity">Capacity</Label>
-        <Input
-          id="capacity"
-          name="capacity"
-          type="number"
-          min={1}
-          max={200}
-          defaultValue={initial.capacity}
-          required
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="weekday">Weekday</Label>
-        <Select
-          id="weekday"
-          name="weekday"
-          defaultValue={initial.weekday === null ? "" : String(initial.weekday)}
-        >
-          <option value="">-</option>
-          {WEEKDAYS.map((d, i) => (
-            <option key={d} value={i}>
-              {d}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="startTime">Start time</Label>
-        <Input
-          id="startTime"
-          name="startTime"
-          type="time"
-          defaultValue={initial.startTime}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="endTime">End time</Label>
-        <Input
-          id="endTime"
-          name="endTime"
-          type="time"
-          defaultValue={initial.endTime}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="location">Location</Label>
-        <Input id="location" name="location" defaultValue={initial.location} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="onlineLink">Online link</Label>
-        <Input
-          id="onlineLink"
-          name="onlineLink"
-          type="url"
-          defaultValue={initial.onlineLink}
-        />
-      </div>
-      <label className="sm:col-span-2 flex items-center gap-2 text-sm text-ink-soft">
-        <input
-          type="checkbox"
-          name="isRecurring"
-          defaultChecked={initial.isRecurring}
-          className="h-4 w-4 accent-brand-600"
-        />
-        Recurring weekly
-      </label>
-      <div className="sm:col-span-2 flex items-center gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+          {error}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <Button type="submit" size="lg" variant="primary" disabled={pending} className="w-full">
           {pending ? "Saving…" : "Save changes"}
         </Button>
-        {ok && <span className="text-xs font-semibold text-good">Saved.</span>}
-        {error && <span className="text-xs font-semibold text-bad">{error}</span>}
+        {ok && (
+          <p role="status" className="text-center text-[13px] font-semibold text-good">
+            Saved.
+          </p>
+        )}
       </div>
     </form>
   );

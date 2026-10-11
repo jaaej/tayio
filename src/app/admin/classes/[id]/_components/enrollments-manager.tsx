@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pill, Button } from "@/components/admin/ui";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/input";
+import Link from "next/link";
+import { Avatar, Button, Empty, GlassPanel, Pill } from "@/components/admin/ui";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   enrollStudent,
   setAdminNotes,
   setDeliveryMode,
   withdrawStudent,
 } from "@/app/admin/_lib/actions-enrollments";
+import { cn } from "@/lib/utils";
 
 type DeliveryMode = "in_person" | "online";
 
@@ -23,21 +24,28 @@ type Student = {
   adminNotes?: string | null;
 };
 
+/** Compact native select for the title row and the enrolment rows. */
+const SMALL_SELECT =
+  "min-w-0 cursor-pointer rounded-[10px] border border-[#DCDEE9] bg-surface px-2.5 text-[13px] font-semibold text-ink transition-colors focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-50";
+
 export function EnrollmentsManager({
   classId,
   enrolled,
   availableStudents,
   capacity,
+  className,
 }: {
   classId: string;
   enrolled: Student[];
   availableStudents: Student[];
   capacity: number;
+  className?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [modeOverride, setModeOverride] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
 
   function handleDelivery(studentId: string, value: string) {
     setModeOverride((prev) => ({ ...prev, [studentId]: value }));
@@ -58,125 +66,152 @@ export function EnrollmentsManager({
     });
   }
 
-  function handleRemove(studentId: string) {
-    if (
-      !confirm("Withdraw this student from the class? Past records are kept.")
-    )
-      return;
+  async function handleRemove(student: Student) {
+    const ok = await confirm({
+      title: `Withdraw ${student.firstName} ${student.lastName}?`,
+      body: "They leave this class. Past attendance and notes are kept.",
+      confirmLabel: "Withdraw",
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
-      await withdrawStudent({ classId, studentId });
+      await withdrawStudent({ classId, studentId: student.id });
     });
   }
 
   const atCapacity = enrolled.length >= capacity;
 
+  // The confirm dialog renders outside the panel: .glass uses backdrop-filter,
+  // which would make it the containing block for the fixed-position overlay.
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-[13px] font-bold text-ink-soft tabular-nums">
-          {enrolled.length} of {capacity} enrolled
-        </div>
-        {atCapacity && <Pill tone="warn">At capacity</Pill>}
-      </div>
-
+    <>
+    <GlassPanel
+      as="section"
+      className={className}
+      title="Enrolled students"
+      titleId="enrolled-heading"
+      meta={`${enrolled.length} of ${capacity}`}
+      action={
+        <>
+          {atCapacity && <Pill tone="warn">At capacity</Pill>}
+          {availableStudents.length === 0 ? (
+            <span className="px-1.5 text-[13px] font-semibold text-ink-soft">
+              Every student is enrolled
+            </span>
+          ) : (
+            <>
+              <select
+                aria-label="Student to add"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+                disabled={pending}
+                className={cn(SMALL_SELECT, "h-9 max-w-[240px]")}
+              >
+                <option value="">Select a student…</option>
+                {availableStudents.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.firstName} {s.lastName} · {s.email}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="md"
+                variant="primary"
+                onClick={handleAdd}
+                disabled={!selected || pending}
+              >
+                {pending && selected ? "Adding…" : "Add"}
+              </Button>
+            </>
+          )}
+        </>
+      }
+    >
+      {error && (
+        <p
+          role="alert"
+          className="border-b border-line bg-bad-bg px-4 py-2.5 text-[13px] font-semibold text-bad"
+        >
+          {error}
+        </p>
+      )}
       {enrolled.length === 0 ? (
-        <div className="text-[13px] text-muted italic">
-          No students enrolled yet.
-        </div>
+        <Empty>No students enrolled yet.</Empty>
       ) : (
-        <ul className="divide-y divide-line rounded-[14px] border border-line overflow-hidden">
-          {enrolled.map((s) => (
-            <li
-              key={s.id}
-              className="px-5 py-3.5 hover:bg-surface-2 transition-colors"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[14px] font-bold text-ink truncate">
-                    {s.firstName} {s.lastName}
+        <ul className="divide-y divide-line">
+          {enrolled.map((s) => {
+            const name = `${s.firstName} ${s.lastName}`.trim();
+            return (
+              <li
+                key={s.id}
+                className="flex flex-col gap-2.5 px-4 py-3.5 transition-colors hover:bg-[#F8F9FC]"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <Avatar name={name} size={36} tone="brand" />
+                  <div className="flex min-w-[160px] flex-1 flex-col">
+                    <Link
+                      href={`/admin/users/${s.id}`}
+                      className="truncate text-[14px] font-bold text-ink hover:text-brand-600"
+                    >
+                      {name}
+                    </Link>
+                    <span className="truncate text-[12px] text-muted">
+                      {s.school ? `${s.school} · ${s.email}` : s.email}
+                    </span>
                   </div>
-                  <div className="text-xs text-muted truncate">
-                    {s.school ? `${s.school} · ${s.email}` : s.email}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <select
-                    aria-label={`Delivery mode for ${s.firstName} ${s.lastName}`}
-                    value={modeOverride[s.id] ?? s.deliveryMode ?? ""}
-                    onChange={(e) => handleDelivery(s.id, e.target.value)}
-                    disabled={pending}
-                    className="rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink disabled:opacity-50"
-                  >
-                    <option value="">Default</option>
-                    <option value="in_person">In person</option>
-                    <option value="online">Online</option>
-                  </select>
-                  <button
+                  <label className="flex items-center gap-1.5 text-[12px] font-semibold text-muted">
+                    Delivery
+                    <select
+                      aria-label={`Delivery mode for ${name}`}
+                      value={modeOverride[s.id] ?? s.deliveryMode ?? ""}
+                      onChange={(e) => handleDelivery(s.id, e.target.value)}
+                      disabled={pending}
+                      className={cn(SMALL_SELECT, "h-9")}
+                    >
+                      <option value="">Default</option>
+                      <option value="in_person">In person</option>
+                      <option value="online">Online</option>
+                    </select>
+                  </label>
+                  <Button
                     type="button"
-                    onClick={() => handleRemove(s.id)}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRemove(s)}
                     disabled={pending}
-                    className="text-[11px] uppercase tracking-[0.16em] font-bold text-bad hover:brightness-90 disabled:opacity-50"
+                    className="h-9"
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
-              </div>
-              <AdminNotesField
-                classId={classId}
-                studentId={s.id}
-                initial={s.adminNotes ?? ""}
-              />
-            </li>
-          ))}
+                <AdminNotesField
+                  classId={classId}
+                  studentId={s.id}
+                  studentName={name}
+                  initial={s.adminNotes ?? ""}
+                />
+              </li>
+            );
+          })}
         </ul>
       )}
-
-      <div className="border-t border-line pt-4 space-y-2">
-        <div className="text-[11px] uppercase tracking-[0.16em] font-bold text-muted">
-          Add a student
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink"
-            disabled={pending}
-          >
-            <option value="">- Select a student -</option>
-            {availableStudents.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.firstName} {s.lastName} · {s.email}
-              </option>
-            ))}
-          </select>
-          <Button
-            type="button"
-            onClick={handleAdd}
-            disabled={!selected || pending}
-          >
-            {pending ? "Adding…" : "Add"}
-          </Button>
-        </div>
-        {availableStudents.length === 0 && (
-          <div className="text-xs text-muted">
-            All students are already enrolled in this class.
-          </div>
-        )}
-      </div>
-
-      {error && <div className="text-[13px] font-semibold text-bad">{error}</div>}
-    </div>
+    </GlassPanel>
+    {confirmDialog}
+    </>
   );
 }
 
 function AdminNotesField({
   classId,
   studentId,
+  studentName,
   initial,
 }: {
   classId: string;
   studentId: string;
+  studentName: string;
   initial: string;
 }) {
   const [value, setValue] = useState(initial);
@@ -204,26 +239,11 @@ function AdminNotesField({
     });
   }
 
-  const fieldId = `admin-notes-${studentId}`;
+  const statusId = `admin-notes-status-${studentId}`;
 
   return (
-    <div className="mt-3 space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={fieldId}>Admin notes</Label>
-        {status === "saving" && (
-          <span className="text-[11px] font-semibold text-muted">Saving…</span>
-        )}
-        {status === "done" && (
-          <span className="text-[11px] font-semibold text-good">Saved</span>
-        )}
-        {status === "error" && (
-          <span className="text-[11px] font-semibold text-bad">
-            Save failed
-          </span>
-        )}
-      </div>
-      <Textarea
-        id={fieldId}
+    <div className="flex flex-col gap-1">
+      <textarea
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
@@ -232,9 +252,17 @@ function AdminNotesField({
         onBlur={handleBlur}
         disabled={pending}
         maxLength={2000}
-        placeholder="Internal notes for this enrolment (not visible to student or parent)"
-        className="min-h-[64px] text-[13px]"
+        rows={1}
+        aria-label={`Admin note for ${studentName}`}
+        aria-describedby={statusId}
+        placeholder="Admin note for this enrolment (not visible to student or parent)"
+        className="min-h-9 w-full resize-y rounded-[10px] border border-[#DCDEE9] bg-[#FAFBFD] px-3 py-[7px] text-[13px] leading-5 text-ink placeholder:text-muted focus:border-ink focus:bg-surface focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60"
       />
+      <span id={statusId} role="status" className="text-[12px] font-semibold">
+        {status === "saving" && <span className="text-muted">Saving…</span>}
+        {status === "done" && <span className="text-good">Saved</span>}
+        {status === "error" && <span className="text-bad">Save failed</span>}
+      </span>
     </div>
   );
 }

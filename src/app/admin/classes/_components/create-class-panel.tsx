@@ -9,11 +9,14 @@ import { CreateClassForm, type CreateClassValues } from "./create-class-form";
 export function CreateClassPanel({
   tutors,
   subjects,
+  lessonMinutes,
   triggerSize = "md",
   defaultOpen = false,
 }: {
   tutors: { id: string; firstName: string; lastName: string }[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
+  /** Usual lesson length in minutes; the end time defaults this far after the start. */
+  lessonMinutes: number;
   /** `lg` for the empty-state trigger, where the button is the whole surface. */
   triggerSize?: "md" | "lg";
   /** Open on arrival, for links such as the dashboard's "New class". */
@@ -67,7 +70,7 @@ export function CreateClassPanel({
       <Button
         type="button"
         size="lg"
-        variant="ghost"
+        variant="outline"
         disabled={pending}
         onClick={() => setOpen(false)}
       >
@@ -77,10 +80,17 @@ export function CreateClassPanel({
         type="submit"
         form={formId}
         size="lg"
-        variant="brand"
+        variant="primary"
         disabled={pending}
       >
-        {pending ? "Saving…" : "Create class"}
+        {pending ? (
+          "Saving…"
+        ) : (
+          <>
+            <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
+            Create class
+          </>
+        )}
       </Button>
     </>
   );
@@ -89,14 +99,14 @@ export function CreateClassPanel({
     <>
       <Button
         type="button"
+        variant="primary"
         size={triggerSize}
         onClick={() => {
           setError(null);
           setOpen(true);
         }}
-        className="rounded-[10px] border-ink bg-ink px-4 font-bold text-white shadow-[0_8px_20px_-10px_rgba(14,17,22,0.6)] hover:border-ink hover:bg-ink/90"
       >
-        <Plus className="h-4 w-4" aria-hidden />
+        <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
         New class
       </Button>
 
@@ -107,12 +117,13 @@ export function CreateClassPanel({
         footer={footer}
       >
         {blocker ? (
-          <p className="text-[13px] text-ink-soft">{blocker}</p>
+          <p className="text-[14px] text-ink-soft">{blocker}</p>
         ) : (
           <CreateClassForm
             formId={formId}
             tutors={tutors}
             subjects={subjects}
+            lessonMinutes={lessonMinutes}
             disabled={pending}
             error={error}
             onSubmit={submit}

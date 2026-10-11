@@ -43,6 +43,27 @@ export function formatTime(t: string) {
   return `${displayHour}:${m}${suffix}`;
 }
 
+/**
+ * A lesson's time range from two postgres TIME (24h) values, e.g.
+ * "4:00 – 5:30 pm", or "11:30 am – 12:30 pm" when it crosses noon. The
+ * meridiem is always written so a mistyped 02:10 can never pass for 14:10.
+ */
+export function formatTimeRange(start: string, end: string) {
+  const parts = (t: string) => {
+    const [h, m] = t.split(":");
+    const hour = Number(h);
+    return {
+      clock: `${hour % 12 === 0 ? 12 : hour % 12}:${m}`,
+      suffix: hour >= 12 ? "pm" : "am",
+    };
+  };
+  const a = parts(start);
+  const b = parts(end);
+  return a.suffix === b.suffix
+    ? `${a.clock} – ${b.clock} ${b.suffix}`
+    : `${a.clock} ${a.suffix} – ${b.clock} ${b.suffix}`;
+}
+
 export function formatDueDate(d: Date) {
   return new Intl.DateTimeFormat("en-AU", {
     weekday: "short",
