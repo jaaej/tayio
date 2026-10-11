@@ -1,39 +1,16 @@
-import { PageHero } from "@/components/ui/page-hero";
-import { InboxCompose, type DmGroup } from "@/components/dm/inbox-compose";
+import { MessagesLayout } from "@/components/dm/messages-layout";
 import { requireRole } from "@/lib/auth";
-import {
-  listDmDirectoryForAdmin,
-  listMyThreads,
-  type DmDirectoryEntry,
-} from "@/lib/dm-queries";
+import { loadAdminMessagesInbox } from "./_lib/inbox";
 
 export default async function AdminMessagesPage() {
   const user = await requireRole("admin");
-  const [threads, directory] = await Promise.all([
-    listMyThreads(user.id),
-    listDmDirectoryForAdmin(user.id),
-  ]);
-
-  const toContacts = (entries: DmDirectoryEntry[]) =>
-    entries.map((e) => ({
-      id: e.id,
-      name: `${e.firstName} ${e.lastName}`.trim(),
-    }));
-
-  const groups: DmGroup[] = [
-    { label: "Parents", contacts: toContacts(directory.parents) },
-    { label: "Tutors", contacts: toContacts(directory.tutors) },
-    { label: "Students", contacts: toContacts(directory.students) },
-  ];
+  const { threads, groups } = await loadAdminMessagesInbox(user.id);
 
   return (
-    <div className="space-y-6">
-      <PageHero eyebrow="Messages" title="Direct messages" />
-      <InboxCompose
-        threads={threads}
-        hrefPrefix="/admin/messages"
-        groups={groups}
-      />
-    </div>
+    <MessagesLayout
+      threads={threads}
+      groups={groups}
+      hrefPrefix="/admin/messages"
+    />
   );
 }

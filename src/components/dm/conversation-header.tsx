@@ -1,49 +1,71 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { UserRole } from "@/db/schema";
+import { buttonVariants } from "@/components/admin/ui/button";
 import { roleLabel } from "@/lib/roles";
-import { initialOf, roleColor } from "./dm-visuals";
+import { cn } from "@/lib/utils";
+import { initialsOf, roleAvatarClass } from "./dm-visuals";
 
 /**
- * Shared conversation header: back link + role-coloured avatar + name/role.
- * Rendered at the top of the shared ConversationPanel for every role.
+ * Conversation title row, sitting on the glass frame above the white message
+ * panel. The back button only shows on phones, where the inbox list and the
+ * conversation are separate screens.
  */
 export function ConversationHeader({
   otherName,
   otherRole,
   backHref,
+  profileHref,
+  titleId,
 }: {
   otherName: string;
   otherRole: UserRole;
   backHref: string;
+  /** Link to the other person's profile, where the viewer's role has one. */
+  profileHref?: string;
+  titleId: string;
 }) {
-  const color = roleColor(otherRole);
   return (
-    <div className="flex items-center gap-3 border-b border-white/60 px-4 py-3.5 sm:px-6">
+    <div className="flex min-h-12 items-center gap-2.5 pb-2.5 pl-2 pr-2 pt-2 sm:pl-3">
       <Link
         href={backHref}
         aria-label="Back to messages"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-white/60 hover:text-ink"
+        title="Back to messages"
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 lg:hidden"
       >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
+        <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
       </Link>
       <span
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[14px] font-bold text-white shadow-[0_4px_12px_-5px_rgba(31,40,90,0.5)]"
-        style={{ background: color }}
+        aria-hidden
+        className={cn(
+          "grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold",
+          roleAvatarClass(otherRole),
+        )}
       >
-        {initialOf(otherName)}
+        {initialsOf(otherName)}
       </span>
-      <div className="min-w-0">
-        <div className="truncate text-[16px] font-extrabold tracking-[-0.01em] text-ink">
-          {otherName}
-        </div>
-        <div
-          className="text-[10px] font-bold uppercase tracking-[0.14em]"
-          style={{ color }}
+      <div className="flex min-w-0 flex-col">
+        <h2
+          id={titleId}
+          className="truncate text-[16px] font-extrabold leading-tight text-ink"
         >
+          {otherName}
+        </h2>
+        <span className="truncate text-[12px] font-semibold text-ink-soft">
           {roleLabel(otherRole)}
-        </div>
+        </span>
       </div>
+      {profileHref && (
+        <Link
+          href={profileHref}
+          className={cn(
+            buttonVariants({ variant: "glass", size: "md" }),
+            "ml-auto shrink-0",
+          )}
+        >
+          View profile
+        </Link>
+      )}
     </div>
   );
 }

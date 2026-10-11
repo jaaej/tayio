@@ -69,33 +69,18 @@ export function notificationGroupFor(
   return "updates";
 }
 
-export type NotificationTimeBucket = "today" | "week" | "earlier";
-
-export const NOTIFICATION_TIME_BUCKETS: Array<{
-  key: NotificationTimeBucket;
-  label: string;
-}> = [
-  { key: "today", label: "Today" },
-  { key: "week", label: "This week" },
-  { key: "earlier", label: "Earlier" },
-];
-
 /**
- * "This week" is a rolling six days behind today, not the calendar week: on a
- * Monday morning a calendar week would push yesterday's notifications into
- * "Earlier", which reads as wrong to anyone who just saw them arrive.
+ * Splits inbox rows into one labelled section per group, in
+ * NOTIFICATION_GROUPS order, so direct messages and action items always sit
+ * above announcements and general updates. Empty sections are dropped and
+ * each section keeps the incoming (newest-first) order.
  */
-export function notificationTimeBucket(
-  createdAt: Date,
-  now: Date,
-): NotificationTimeBucket {
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  if (createdAt.getTime() >= startOfToday.getTime()) return "today";
-
-  const startOfWeek = new Date(startOfToday);
-  startOfWeek.setDate(startOfWeek.getDate() - 6);
-  if (createdAt.getTime() >= startOfWeek.getTime()) return "week";
-
-  return "earlier";
+export function notificationSections<T extends { group: NotificationGroupKey }>(
+  items: T[],
+): Array<{ key: NotificationGroupKey; label: string; items: T[] }> {
+  return NOTIFICATION_GROUPS.map((group) => ({
+    ...group,
+    items: items.filter((item) => item.group === group.key),
+  })).filter((section) => section.items.length > 0);
 }
+

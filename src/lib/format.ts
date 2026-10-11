@@ -132,3 +132,84 @@ export function yearLevelLabel(value: string): string {
   const v = value.trim();
   return /^\d+$/.test(v) ? `Year ${v}` : v;
 }
+
+/*
+ * Inbox timestamps (messages and notifications). Formatted in Melbourne time
+ * explicitly: servers run in UTC, and a label rendered on the server must read
+ * the same as the one the browser renders on hydration.
+ */
+const MELBOURNE_TZ = "Australia/Melbourne";
+const melbourneDayKeyFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: MELBOURNE_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const melbourneClock = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE_TZ,
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+const melbourneWeekday = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE_TZ,
+  weekday: "short",
+});
+const melbourneDayMonth = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE_TZ,
+  day: "numeric",
+  month: "short",
+});
+const melbourneDayMonthYear = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE_TZ,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** Melbourne calendar day of an instant, as YYYY-MM-DD. */
+export function melbourneDayKey(d: Date): string {
+  return melbourneDayKeyFormat.format(d);
+}
+
+function melbourneDayNumber(d: Date): number {
+  const [y, m, day] = melbourneDayKey(d).split("-").map(Number);
+  return Date.UTC(y, m - 1, day) / 86_400_000;
+}
+
+/** Melbourne wall-clock time, e.g. "9:41 am". */
+export function formatClockTime(d: Date): string {
+  return melbourneClock
+    .format(d)
+    .replace(/[  ]/g, " ")
+    .toLowerCase();
+}
+
+function dayMonth(d: Date, now: Date): string {
+  return melbourneDayKey(d).slice(0, 4) === melbourneDayKey(now).slice(0, 4)
+    ? melbourneDayMonth.format(d)
+    : melbourneDayMonthYear.format(d);
+}
+
+/**
+ * Compact inbox stamp: the time today, "Yesterday", the weekday within the
+ * last week, then the date (with the year once it is not this year).
+ */
+export function inboxStamp(d: Date, now: Date = new Date()): string {
+  const days = melbourneDayNumber(now) - melbourneDayNumber(d);
+  if (days <= 0) return formatClockTime(d);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return melbourneWeekday.format(d);
+  return dayMonth(d, now);
+}
+
+/** Day divider inside a conversation: "Today", "Yesterday", "Thu 9 Oct". */
+export function conversationDayLabel(d: Date, now: Date = new Date()): string {
+  const days = melbourneDayNumber(now) - melbourneDayNumber(d);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) {
+    return `${melbourneWeekday.format(d)} ${melbourneDayMonth.format(d)}`;
+  }
+  return dayMonth(d, now);
+}

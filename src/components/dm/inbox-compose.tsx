@@ -2,121 +2,185 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, ArrowLeft, Building2 } from "lucide-react";
+import { Building2, Plus, Search } from "lucide-react";
+import { buttonVariants } from "@/components/admin/ui/button";
 import { ThreadRow } from "@/components/dm/thread-row";
 import type { ThreadInboxRow } from "@/lib/dm-queries";
+import { cn } from "@/lib/utils";
+import { initialsOf } from "./dm-visuals";
 
 export type DmContact = {
   id: string;
   name: string;
   meta?: string;
-  /** Renders a building icon instead of an initial (e.g. the admin office). */
+  /** Renders a building icon instead of initials (e.g. the admin office). */
   office?: boolean;
 };
 export type DmGroup = { label: string; contacts: DmContact[] };
 
+function matches(name: string, query: string) {
+  return name.toLowerCase().includes(query);
+}
+
 /**
- * Shared messaging inbox used by every role. Default view is the conversation
- * list (the same ThreadRow used across the portal); a single "New message"
- * action reveals a categorized contact picker to start a new thread. One entry
- * point, no redundant stacked blocks. An empty inbox opens into the picker.
+ * Left pane of the shared messaging workspace, used by every role: the
+ * conversation list, a people search, and one "New" action that swaps the
+ * list for a categorized contact picker. An empty inbox opens into the picker.
  */
 export function InboxCompose({
   threads,
   hrefPrefix,
   groups,
+  activeThreadId,
+  className,
 }: {
   threads: ThreadInboxRow[];
   hrefPrefix: string;
   groups: DmGroup[];
+  activeThreadId?: string;
+  className?: string;
 }) {
-  const visibleGroups = groups.filter((g) => g.contacts.length > 0);
   const [composing, setComposing] = useState(threads.length === 0);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
 
-  if (composing) {
-    return (
-      <div className="space-y-4">
-        {threads.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setComposing(false)}
-            className="inline-flex items-center gap-1.5 text-[13px] font-bold text-brand-700 transition-colors hover:text-brand-800"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to inbox
-          </button>
-        )}
-        <div className="px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-          New message
-        </div>
-        {visibleGroups.length === 0 ? (
-          <div className="portal-glass-panel rounded-[22px] border px-4 py-6 text-[13px] text-muted">
-            No one to message yet.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {visibleGroups.map((g) => (
-              <div key={g.label} className="space-y-1.5">
-                <div className="px-1 text-[12px] font-bold text-ink-soft">
-                  {g.label}
-                </div>
-                <div className="portal-glass-panel max-h-80 divide-y divide-white/60 overflow-y-auto rounded-[22px] border">
-                  {g.contacts.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`${hrefPrefix}/with/${c.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/45"
-                    >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-[12px] font-extrabold text-brand-ink">
-                        {c.office ? (
-                          <Building2 className="h-[18px] w-[18px]" />
-                        ) : (
-                          c.name.charAt(0).toUpperCase()
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-bold text-ink">
-                          {c.name}
-                        </span>
-                        {c.meta && (
-                          <span className="block truncate text-[12px] text-muted">
-                            {c.meta}
-                          </span>
-                        )}
-                      </span>
-                      <span className="shrink-0 text-[12px] font-bold text-brand-700">
-                        Message →
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const visibleThreads = q
+    ? threads.filter((t) => matches(t.otherName, q))
+    : threads;
+  const visibleGroups = groups
+    .map((g) => ({
+      ...g,
+      contacts: q ? g.contacts.filter((c) => matches(c.name, q)) : g.contacts,
+    }))
+    .filter((g) => g.contacts.length > 0);
+  const hasContacts = groups.some((g) => g.contacts.length > 0);
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setComposing(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-700"
-        >
-          <Plus className="h-4 w-4" /> New message
-        </button>
+    <section
+      aria-labelledby="messages-inbox-title"
+      className={cn(
+        "glass min-w-0 flex-col rounded-[24px] p-1.5 lg:min-h-0",
+        className,
+      )}
+    >
+      <div className="flex flex-col gap-2.5 pb-2.5 pl-3 pr-2 pt-2">
+        <div className="flex min-h-9 items-center justify-between gap-2">
+          <h1
+            id="messages-inbox-title"
+            className="text-[20px] font-extrabold leading-tight text-ink"
+          >
+            {composing ? "New message" : "Messages"}
+          </h1>
+          {composing ? (
+            threads.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setComposing(false);
+                  setQuery("");
+                }}
+                className={buttonVariants({ variant: "glass", size: "md" })}
+              >
+                Cancel
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setComposing(true);
+                setQuery("");
+              }}
+              className={buttonVariants({ variant: "primary", size: "md" })}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+              New
+            </button>
+          )}
+        </div>
+        <label className="flex h-[38px] items-center gap-2 rounded-[11px] bg-white px-3 text-muted focus-within:ring-2 focus-within:ring-brand-400">
+          <Search className="h-[15px] w-[15px] shrink-0" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search people"
+            aria-label={composing ? "Search people to message" : "Search conversations"}
+            className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
+          />
+        </label>
       </div>
-      <div className="portal-glass-panel overflow-hidden rounded-[22px] border">
-        <ul className="divide-y divide-white/60">
-          {threads.map((t) => (
-            <li key={t.threadId}>
-              <ThreadRow thread={t} hrefPrefix={hrefPrefix} />
-            </li>
-          ))}
-        </ul>
+
+      <div className="panel min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
+        {composing ? (
+          !hasContacts ? (
+            <PaneMessage>No one to message yet.</PaneMessage>
+          ) : visibleGroups.length === 0 ? (
+            <PaneMessage>No one matches that name.</PaneMessage>
+          ) : (
+            visibleGroups.map((g) => (
+              <div key={g.label} className="pb-1">
+                <h2 className="px-2.5 pb-1 pt-2.5 text-[12px] font-bold text-muted">
+                  {g.label}
+                </h2>
+                <ul className="flex flex-col gap-0.5">
+                  {g.contacts.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        href={`${hrefPrefix}/with/${c.id}`}
+                        className="flex items-center gap-2.5 rounded-[12px] p-2.5 text-ink transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+                      >
+                        <span
+                          aria-hidden
+                          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full bg-surface-3 text-[12px] font-extrabold text-ink"
+                        >
+                          {c.office ? (
+                            <Building2 className="h-[17px] w-[17px]" />
+                          ) : (
+                            initialsOf(c.name)
+                          )}
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate text-[14px] font-bold">
+                            {c.name}
+                          </span>
+                          {c.meta && (
+                            <span className="truncate text-[12px] text-muted">
+                              {c.meta}
+                            </span>
+                          )}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )
+        ) : visibleThreads.length === 0 ? (
+          <PaneMessage>No conversations match that name.</PaneMessage>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {visibleThreads.map((t) => (
+              <li key={t.threadId}>
+                <ThreadRow
+                  thread={t}
+                  hrefPrefix={hrefPrefix}
+                  active={t.threadId === activeThreadId}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </div>
+    </section>
+  );
+}
+
+function PaneMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 py-8 text-center text-[13px] font-medium text-muted">
+      {children}
+    </p>
   );
 }

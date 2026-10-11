@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 10 October 2026
+Last updated: 11 October 2026
 
 ## Status key
 
@@ -34,6 +34,20 @@ Last updated: 10 October 2026
   and the dashboard, and the PDF downloads.
   Open Admin Reports and Settings on desktop and phone and confirm term
   switching, CSV export, PIN change, and shortcut saving still work.
+- [ ] (11 October 2026) As admin, tutor, student, and parent, open Messages on
+  desktop and at 390px. Desktop: the inbox list and conversation sit side by
+  side, the open thread is highlighted, each pane scrolls on its own, and a
+  conversation opens scrolled to the newest message. Phone: the list and the
+  conversation are separate screens and the conversation's back button
+  returns to the list. Check search, `New` and `Cancel`, unread dots clearing
+  on open, day dividers, sending (Enter and the Send button), and that admin
+  `View profile` opens the right user. No doubled headers in any role.
+- [ ] (11 October 2026) As admin, tutor, student, and parent, open
+  Notifications. Confirm one labelled section per kind with Messages and
+  Action needed above Learning updates, Announcements, and Other updates;
+  filters, Mark all read, the tutor/student/parent `New notifications`
+  shortcut, Urgent badges, expand-in-place rows, and the Melbourne-time
+  stamps (`9:41 am`, `Yesterday`, `Thu`, `24 May`).
 - [ ] As admin, tutor, student, and parent, open Messages, start a new
   message, open a conversation, and send a reply on desktop and phone width.
   Confirm the inbox, contact picker, and conversation use the frosted glass
@@ -165,10 +179,14 @@ Last updated: 10 October 2026
 - [x] Open unread notifications from Today, This week, and Earlier. Confirm
   every row is clickable; linked items open their destination, older items
   without a link expand in place, the unread count decreases by one, and the
-  blue unread dot disappears immediately.
+  blue unread dot disappears immediately. (11 October 2026: the time sections
+  were replaced by per-kind sections; the row behaviour is unchanged and is
+  re-checked in the glass inbox QA item above.)
 - [x] Leave a notification inbox open across a minute boundary and confirm its
   timestamp advances from `5m ago` to `6m ago` without refreshing. Confirm the
   label changes to `1h ago` at 60 minutes and then advances hourly.
+  (Superseded 11 October 2026: the glass inbox shows fixed Melbourne-time
+  stamps, matching the messages list, so there is no live ticking label.)
 - [x] Open Messages as admin, tutor, parent, and student. Confirm thread dates
   render without the `lastActivityAt.toLocaleDateString` runtime error.
 - [x] From the admin users list, confirm the gear menu exposes password reset
@@ -498,6 +516,32 @@ Last updated: 10 October 2026
   - Settings stays owner only (`requireUnrestrictedAdmin`); PIN form is one
     row, shortcut rows carry subject dots.
   - Verified with `tsc` and `vitest` only; manual QA below is open.
+- [x] Glass messaging and notification inbox redesign (11 October 2026),
+  applied to all four roles through the shared components. Cross-role manual
+  QA is still open (see the two 11 October items under Manual QA).
+  - Messages are a two-pane workspace: `src/components/dm/messages-layout.tsx`
+    renders the inbox list (`inbox-compose.tsx`, with people search and the
+    `New` contact picker) beside the open conversation
+    (`conversation-panel.tsx`). Each role's `messages/page.tsx` and
+    `messages/[threadId]/page.tsx` render it; the per-role thread list and
+    contacts load from `src/app/<role>/messages/_lib/inbox.ts`, after the
+    thread is marked read so the list never shows the open thread as unread.
+  - The old per-role `PageHero` above Messages was removed; the inbox pane
+    carries the `Messages` heading. Admin conversations get a `View profile`
+    link to `/admin/users/[id]`; other roles have no profile link.
+  - Messages show Melbourne-time stamps and day dividers
+    (`inboxStamp`, `conversationDayLabel`, `formatClockTime` in
+    `src/lib/format.ts`). They previously used the server's UTC clock.
+  - A failed send now keeps the draft and shows an inline error instead of
+    throwing; the draft is keyed to its thread.
+  - Notifications (`src/components/notifications/inbox-view.tsx`) now render
+    one glass section per kind via `notificationSections` in
+    `src/lib/notification-groups.ts`, so Messages and Action needed sit above
+    Announcements and Other updates as the notification rule requires. The
+    Today / This week / Earlier buckets and `notificationTimeBucket` were
+    removed. The redundant `Action needed` row chip was dropped inside the
+    Action needed section; `Urgent` stays.
+
 - [x] Glass messaging, narrower sidebar, and body-portal positioning fix
   (10 October 2026).
   - Messages inboxes, contact pickers, and conversations use the shared
