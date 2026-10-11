@@ -423,6 +423,27 @@ Last updated: 10 October 2026
 
 ## Recently implemented
 
+- [x] Admin Announcements glass redesign (11 October 2026, admin only).
+  - `src/app/admin/announcements/page.tsx`: glass header with a "N tutor announcements to approve" chip linking to `#awaiting-approval`; compose bezel (`id="compose"`, still the dashboard's quick-action target) beside a rail with Awaiting approval and History.
+  - `create-announcement-form.tsx`: role cards, and the subject / year / class / tutor filters are compact multi-select pickers (still multi-value, same server action and validation); a live "To: ..." line from `targetSummary` shows the audience and whether it is in-app only or in-app + email.
+  - Pending and history items keep their `announcement-<id>` anchors (tutor submission notifications link to them); history rows expand to the full message and keep Delete and rejection reasons.
+- [x] Admin Resources glass redesign (11 October 2026, admin only).
+  - `src/app/admin/resources/page.tsx`: header status chips (live / unpublished / removed counts) are the status filter (`?status=`, toggles off on a second click) and respect the subject/type filters; the Library bezel uses `UrlLabelledSelect` for Subject and Type, so `resource-filters.tsx` was removed.
+  - Promoted resources show "Promoted from homework" under the title instead of a Source column.
+  - Remove now opens an inline reason field and a "Remove resource" confirm instead of firing on one click (`resource-row-actions.tsx`).
+  - The student/parent library browser (`src/components/resources/library-browser-client.tsx`) is not behind this admin page and was not changed; it is still on the older style.
+- [x] Discussions glass redesign, shared by admin, tutor, and student (11 October 2026).
+  - One implementation in `src/components/discussions/` restyled in place, using theme tokens so each role keeps its palette: `boards-view.tsx` (landing), `board-detail.tsx` (board), `thread-detail.tsx`, `reply-list.tsx`, `reply-composer.tsx`, `thread-list-panel.tsx` (searchable thread list used by both the landing's Recent activity and a board), `thread-row.tsx`, and `new-thread-panel.tsx`.
+  - Every role now starts a thread from a "New thread" header button that opens a side panel (board picker on the landing, fixed board on a board page); the inline Ask prompt, the hero, the decorative thread backdrop, and `board-threads.tsx` were removed.
+  - The reply box is always open at the end of the replies.
+  - Role labels and staff highlighting now collapse tiered roles (`admin_unrestricted`, `student_restricted`, ...) through `coarseRole`; previously those showed raw enum text and admin replies were not highlighted as staff (`role-tone.ts`, covered by `role-tone.test.ts`).
+  - The role pages (`src/app/{admin,tutor,student}/discussions/**`) only lost the now-unused `title` and `userFirstName` props; admin's moderation rail (`Admin controls`) shows a snippet per reply so two replies by the same person are distinguishable.
+  - Parents have no discussions route, unchanged.
+- [ ] **Manual QA (11 October 2026 redesigns):** As admin, open `/admin/announcements#compose` from the dashboard, publish to a filtered audience (subject + year), and approve and reject a tutor announcement.
+  Open `/admin/resources`, filter by each status chip, unpublish, remove with a reason, and restore.
+  As admin, tutor, and student, open Discussions, a board, and a thread at 1440px and 390px; post a thread from the landing and from a board, reply, and reply to a reply; as admin remove a reply and a thread.
+  Confirm the three roles look and behave the same apart from their own colour theme and the admin moderation rail.
+
 - [x] Glass messaging, narrower sidebar, and body-portal positioning fix
   (10 October 2026).
   - Messages inboxes, contact pickers, and conversations use the shared

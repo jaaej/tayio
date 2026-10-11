@@ -17,12 +17,6 @@ export default async function StudentDiscussionsPage() {
       boards={boards}
       recentThreads={recentThreads}
       hrefPrefix="/student/discussions"
-      title="Ask. Answer. Level up."
-      userFirstName={
-        (user.user_metadata?.first_name as string | undefined) ??
-        user.email?.split("@")[0] ??
-        "you"
-      }
       rolePrefix="student"
     />
   );

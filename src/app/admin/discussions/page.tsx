@@ -17,12 +17,6 @@ export default async function AdminDiscussionsPage() {
       boards={boards}
       recentThreads={recentThreads}
       hrefPrefix="/admin/discussions"
-      title="Oversee every board."
-      userFirstName={
-        (user.user_metadata?.first_name as string | undefined) ??
-        user.email?.split("@")[0] ??
-        "you"
-      }
       rolePrefix="admin"
     />
   );

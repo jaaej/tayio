@@ -21,17 +21,11 @@ export default async function StudentThreadPage({
   const thread = await getThreadWithReplies(threadId);
   if (!thread) notFound();
 
-  const userFirstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "you";
-
   return (
     <DiscussionThreadDetail
       thread={thread}
       boardId={boardId}
       rolePrefix="student"
-      userFirstName={userFirstName}
     />
   );
 }

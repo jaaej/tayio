@@ -2,33 +2,71 @@
 
 import { useRef, useState, useTransition } from "react";
 import { BadgeCheck, Send } from "lucide-react";
-import type { AccentTokens } from "@/lib/subject-colors";
+import type { UserRole } from "@/db/schema";
 import type { ThreadDetail } from "@/lib/discussions-queries";
 import { postReply } from "@/app/_actions/discussions";
-import {
-  AttachmentList,
-  AttachmentPicker,
-} from "@/components/discussions/attachments";
+import { Button } from "@/components/admin/ui/button";
+import { initialsOf } from "@/components/admin/ui/glass";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { cn } from "@/lib/utils";
+import { AttachmentList, AttachmentPicker } from "./attachments";
 import {
-  initialOf,
   isStaffRole,
   relativeShort,
-  roleColor,
+  roleLabel,
+  roleTone,
   type DiscussionRole,
 } from "./role-tone";
 
 type Reply = ThreadDetail["replies"][number];
 
+/** Initials avatar tinted by the author's role. */
+export function RoleAvatar({
+  name,
+  role,
+  size = 32,
+}: {
+  name: string;
+  role: UserRole;
+  size?: number;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-grid shrink-0 place-items-center rounded-full font-extrabold",
+        roleTone(role),
+      )}
+      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.375)) }}
+    >
+      {initialsOf(name)}
+    </span>
+  );
+}
+
+/** Role chip beside an author's name; staff get a check so answers stand out. */
+function RolePill({ role, removed }: { role: UserRole; removed: boolean }) {
+  const staff = isStaffRole(role) && !removed;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-extrabold",
+        roleTone(role),
+      )}
+    >
+      {staff && <BadgeCheck className="h-3 w-3" aria-hidden />}
+      {roleLabel(role)}
+    </span>
+  );
+}
+
 export function ReplyList({
   replies,
   threadId,
-  tokens,
   rolePrefix,
 }: {
   replies: Reply[];
   threadId: string;
-  tokens: AccentTokens;
   rolePrefix: DiscussionRole;
 }) {
   const topLevel = replies.filter((r) => r.parentReplyId === null);
@@ -43,21 +81,20 @@ export function ReplyList({
 
   if (topLevel.length === 0) {
     return (
-      <div className="py-2 text-[14px] text-muted">
+      <p className="panel px-4 py-5 text-[14px] text-muted">
         No replies yet - be the first to chime in.
-      </div>
+      </p>
     );
   }
 
   return (
-    <ol className="space-y-3">
+    <ol className="flex flex-col gap-1.5">
       {topLevel.map((r) => (
-        <li key={r.id}>
+        <li key={r.id} className="panel p-4">
           <ReplyRow
             reply={r}
             childReplies={childrenByParent.get(r.id) ?? []}
             threadId={threadId}
-            tokens={tokens}
             rolePrefix={rolePrefix}
           />
         </li>
@@ -66,103 +103,81 @@ export function ReplyList({
   );
 }
 
+function ReplyBody({ reply, size }: { reply: Reply; size: "md" | "sm" }) {
+  const removed = reply.deletedAt !== null;
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <span className="flex flex-wrap items-center gap-2">
+        <span className={cn("font-extrabold text-ink", size === "md" ? "text-[14px]" : "text-[13px]")}>
+          {reply.authorName}
+        </span>
+        <RolePill role={reply.authorRole} removed={removed} />
+        <span className="text-[12px] tabular-nums text-muted">
+          {relativeShort(reply.createdAt)}
+        </span>
+      </span>
+      {removed ? (
+        <p className="text-[13px] italic text-muted">[removed by admin]</p>
+      ) : (
+        <p
+          className={cn(
+            "whitespace-pre-wrap break-words text-ink",
+            size === "md" ? "text-[14px] leading-[1.55]" : "text-[13px] leading-[1.5]",
+          )}
+        >
+          {reply.body}
+        </p>
+      )}
+      {!removed && reply.attachments.length > 0 && (
+        <AttachmentList attachments={reply.attachments} />
+      )}
+    </div>
+  );
+}
+
 function ReplyRow({
   reply,
   childReplies,
   threadId,
-  tokens,
   rolePrefix,
 }: {
   reply: Reply;
   childReplies: Reply[];
   threadId: string;
-  tokens: AccentTokens;
   rolePrefix: DiscussionRole;
 }) {
   const [showComposer, setShowComposer] = useState(false);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const body = reply.deletedAt ? "[removed by admin]" : reply.body;
-  const avatarColor = roleColor(reply.authorRole);
-  const isStaff = isStaffRole(reply.authorRole) && !reply.deletedAt;
-
   return (
-    <div
-      className={
-        isStaff
-          ? "rounded-[18px] p-5"
-          : "rounded-[16px] p-4 transition-colors hover:bg-surface-2"
-      }
-      style={
-        isStaff
-          ? {
-              background: `color-mix(in srgb, ${tokens.bgFrom} 42%, white)`,
-              boxShadow: `inset 0 0 0 1.5px ${tokens.arrow}`,
-            }
-          : undefined
-      }
-    >
-      {isStaff && (
-        <div
-          className="mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]"
-          style={{ background: tokens.pillBg, color: tokens.pillText }}
-        >
-          <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-          {reply.authorRole === "tutor" ? "Tutor answer" : "Staff answer"}
-        </div>
-      )}
-      <div className="flex gap-4">
-        <div
-          className="h-[40px] w-[40px] rounded-full grid place-items-center text-[14px] font-bold text-white shrink-0"
-          style={{ background: avatarColor }}
-        >
-          {initialOf(reply.authorName)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[14px] font-bold text-ink">
-              {reply.authorName}
-            </span>
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.12em]"
-              style={{ background: tokens.pillBg, color: tokens.pillText }}
-            >
-              {reply.authorRole}
-            </span>
-            <span className="text-[11px] font-semibold text-muted tabular-nums">
-              · {relativeShort(reply.createdAt)}
-            </span>
-          </div>
-          <p className="mt-2 text-[15px] leading-[1.65] text-ink whitespace-pre-wrap">
-            {body}
-          </p>
-          {reply.attachments.length > 0 && (
-            <AttachmentList attachments={reply.attachments} accent={tokens.arrow} />
-          )}
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-3">
+        <RoleAvatar name={reply.authorName} role={reply.authorRole} size={32} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <ReplyBody reply={reply} size="md" />
           {!reply.deletedAt && (
             <button
               type="button"
               onClick={() => setShowComposer((v) => !v)}
-              className="mt-3 text-[11px] uppercase tracking-[0.14em] font-bold transition-opacity hover:opacity-70"
-              style={{ color: tokens.arrow }}
+              className="-ml-1.5 self-start rounded-[8px] px-1.5 py-1 text-[12px] font-bold text-brand-600 transition-colors hover:bg-surface-2 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
               aria-expanded={showComposer}
             >
-              {showComposer ? "Cancel" : "Reply →"}
+              {showComposer ? "Cancel" : "Reply"}
             </button>
           )}
         </div>
       </div>
 
       {childReplies.length > 0 && (
-        <div
-          className="mt-5 ml-[56px] pl-5 space-y-5 border-l-2"
-          style={{ borderColor: tokens.ring }}
-        >
+        <ol className="ml-[44px] flex flex-col gap-3 border-l-2 border-line pl-4">
           {childReplies.map((c) => (
-            <NestedReply key={c.id} reply={c} tokens={tokens} />
+            <li key={c.id} className="flex gap-2.5">
+              <RoleAvatar name={c.authorName} role={c.authorRole} size={28} />
+              <ReplyBody reply={c} size="sm" />
+            </li>
           ))}
-        </div>
+        </ol>
       )}
 
       {showComposer && !reply.deletedAt && (
@@ -178,7 +193,7 @@ function ReplyRow({
               setShowComposer(false);
             });
           }}
-          className="mt-4 ml-[56px] rounded-[16px] bg-surface-2 p-4 space-y-3"
+          className="ml-[44px] flex flex-col gap-2.5 rounded-[12px] bg-surface-2 p-3"
         >
           <textarea
             name="body"
@@ -186,79 +201,34 @@ function ReplyRow({
             maxLength={4000}
             rows={3}
             placeholder={`Reply to ${reply.authorName}…`}
+            aria-label={`Reply to ${reply.authorName}`}
             autoFocus
-            className="w-full rounded-[12px] border border-line bg-surface px-3 py-2.5 text-[14px] leading-relaxed placeholder:text-muted focus:outline-none focus:border-line-strong transition-colors"
+            className="w-full resize-y rounded-[10px] border border-line-field bg-surface px-3 py-2.5 text-[14px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
           />
-          <AttachmentPicker accent={tokens.arrow} />
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50 transition-transform hover:-translate-y-[1px]"
-              style={{ background: tokens.arrow }}
-            >
-              <ActionButtonLabel pending={pending} pendingLabel="Posting…">
-                <>
-                  <Send className="h-3 w-3" aria-hidden />
-                  Post reply
-                </>
-              </ActionButtonLabel>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowComposer(false)}
-              disabled={pending}
-              className="text-[12px] font-semibold text-muted hover:text-ink"
-            >
-              Cancel
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <AttachmentPicker accent="var(--ink)" />
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowComposer(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={pending}>
+                <ActionButtonLabel pending={pending} pendingLabel="Posting…">
+                  <>
+                    <Send className="h-3 w-3" aria-hidden />
+                    Post reply
+                  </>
+                </ActionButtonLabel>
+              </Button>
+            </div>
           </div>
         </form>
       )}
-    </div>
-  );
-}
-
-function NestedReply({
-  reply,
-  tokens,
-}: {
-  reply: Reply;
-  tokens: AccentTokens;
-}) {
-  const body = reply.deletedAt ? "[removed by admin]" : reply.body;
-  const avatarColor = roleColor(reply.authorRole);
-
-  return (
-    <div className="flex gap-3">
-      <div
-        className="h-[32px] w-[32px] rounded-full grid place-items-center text-[12px] font-bold text-white shrink-0"
-        style={{ background: avatarColor }}
-      >
-        {initialOf(reply.authorName)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] font-bold text-ink">
-            {reply.authorName}
-          </span>
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-[0.12em]"
-            style={{ background: tokens.pillBg, color: tokens.pillText }}
-          >
-            {reply.authorRole}
-          </span>
-          <span className="text-[10px] font-semibold text-muted tabular-nums">
-            · {relativeShort(reply.createdAt)}
-          </span>
-        </div>
-        <p className="mt-1.5 text-[14px] leading-[1.6] text-ink whitespace-pre-wrap">
-          {body}
-        </p>
-        {reply.attachments.length > 0 && (
-          <AttachmentList attachments={reply.attachments} accent={tokens.arrow} />
-        )}
-      </div>
     </div>
   );
 }

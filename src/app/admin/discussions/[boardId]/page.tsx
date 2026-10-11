@@ -19,10 +19,6 @@ export default async function AdminBoardPage({
   if (!(await canSeeBoard(user.id, "admin", board))) notFound();
 
   const threads = await listThreadsForBoard(board);
-  const userFirstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "you";
 
   return (
     <DiscussionBoardDetail
@@ -30,7 +26,6 @@ export default async function AdminBoardPage({
       boardSegment={boardId}
       threads={threads}
       rolePrefix="admin"
-      userFirstName={userFirstName}
     />
   );
 }
