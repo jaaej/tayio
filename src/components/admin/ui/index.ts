@@ -25,3 +25,4 @@ export {
   type SegmentItem,
 } from "./glass";
 export { ListPane, ListPaneTitle, ListPaneGroup, ListPaneRow } from "./list-pane";
+export { ListPaneSearch } from "./list-pane-search";

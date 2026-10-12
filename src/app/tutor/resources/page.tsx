@@ -1,26 +1,29 @@
+import Link from "next/link";
 import { asc, inArray } from "drizzle-orm";
 import { Download, ExternalLink } from "lucide-react";
-import { Card, CardBody } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
-import { Pill } from "@/components/student/pill";
-import { FilterToolbar, type FilterPill } from "@/components/ui/filter-toolbar";
+import { Empty, GlassPanel, PageHeader, SubjectDot } from "@/components/admin/ui";
+import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import { db } from "@/db/client";
 import { subjects, subjectTopics, type Resource } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong } from "@/lib/format";
+import { formatDateShort } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { httpHref } from "@/lib/safe-url";
 import { listResourcesForSubjects, taughtSubjectIds } from "@/lib/resources";
-import { resourceTypeLabel } from "@/lib/resource-types";
+import { formatBytes, resourceFormatLabel } from "@/lib/resource-format";
 import { signResourceAttachment } from "@/lib/resources-storage";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { cn } from "@/lib/utils";
 import {
   AddResourceProvider,
   AddResourceButton,
   AddToSubjectButton,
 } from "./_components/add-resource-panel";
+import { ResourceSearch } from "./_components/resource-search";
 import { ShareToggle } from "./_components/share-toggle";
 
 export const dynamic = "force-dynamic";
+
+const SUB = "Share items with students when they are ready.";
 
 export default async function TutorResourcesPage({
   searchParams,
@@ -33,28 +36,42 @@ export default async function TutorResourcesPage({
   const user = await requireRole("tutor");
   const subjectIds = await taughtSubjectIds(user.id);
 
-  const subjectRows = subjectIds.length
-    ? await db
-        .select({ id: subjects.id, name: subjects.name })
-        .from(subjects)
-        .where(inArray(subjects.id, subjectIds))
-    : [];
-  // Preserve a stable order regardless of what the DB returns for the IN list.
-  const subjectList = subjectIds
-    .map((id) => subjectRows.find((s) => s.id === id))
-    .filter((s): s is { id: string; name: string } => Boolean(s));
+  const [subjectRows, topicRows, allResources] = subjectIds.length
+    ? await Promise.all([
+        db
+          .select({ id: subjects.id, name: subjects.name })
+          .from(subjects)
+          .where(inArray(subjects.id, subjectIds)),
+        db
+          .select({
+            id: subjectTopics.id,
+            subjectId: subjectTopics.subjectId,
+            name: subjectTopics.name,
+          })
+          .from(subjectTopics)
+          .where(inArray(subjectTopics.subjectId, subjectIds))
+          .orderBy(asc(subjectTopics.position)),
+        // The tutor's own library shows what they have unshared as well - the
+        // student and parent libraries stay published-only.
+        listResourcesForSubjects(subjectIds, {
+          q: query || undefined,
+          includeUnpublished: true,
+        }),
+      ])
+    : [[], [], []];
 
-  const topicRows = subjectIds.length
-    ? await db
-        .select({
-          id: subjectTopics.id,
-          subjectId: subjectTopics.subjectId,
-          name: subjectTopics.name,
-        })
-        .from(subjectTopics)
-        .where(inArray(subjectTopics.subjectId, subjectIds))
-        .orderBy(asc(subjectTopics.position))
-    : [];
+  if (subjectRows.length === 0) {
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader title="Resources" />
+        <GlassPanel>
+          <Empty>An admin needs to assign you to a class before you can add resources.</Empty>
+        </GlassPanel>
+      </div>
+    );
+  }
+
+  const subjectList = [...subjectRows].sort((a, b) => a.name.localeCompare(b.name));
   const topicsBySubject = new Map<string, Array<{ id: string; name: string }>>();
   for (const t of topicRows) {
     if (!topicsBySubject.has(t.subjectId)) topicsBySubject.set(t.subjectId, []);
@@ -62,53 +79,39 @@ export default async function TutorResourcesPage({
   }
   const topicNameById = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  if (subjectList.length === 0) {
-    return (
-      <div className="space-y-5">
-        <PageHead eyebrow="Resource library" title="Resources" />
-        <Card>
-          <CardBody>
-            <p className="py-6 text-center text-sm text-ink-soft">
-              An admin needs to assign you to a class before you can add
-              resources.
-            </p>
-          </CardBody>
-        </Card>
-      </div>
-    );
+  const bySubject = new Map<string, Resource[]>();
+  for (const r of allResources) {
+    const list = bySubject.get(r.subjectId) ?? [];
+    list.push(r);
+    bySubject.set(r.subjectId, list);
   }
 
   // Only a subject the tutor actually teaches can be selected, so a stale or
   // hand-edited ?subject= falls back to showing everything.
-  const activeSubject = subjectList.some((s) => s.id === sp.subject)
-    ? (sp.subject as string)
-    : "";
+  const activeSubject = subjectList.some((s) => s.id === sp.subject) ? sp.subject! : "";
   const shown = activeSubject
     ? subjectList.filter((s) => s.id === activeSubject)
     : subjectList;
-
-  const groups = await Promise.all(
-    shown.map(async (subject) => ({
-      subject,
-      // The tutor's own library shows what they have unshared as well - the
-      // student and parent libraries stay published-only.
-      resources: await listResourcesForSubjects([subject.id], {
-        q: query || undefined,
-        includeUnpublished: true,
-      }),
-    })),
-  );
-
-  const filtering = Boolean(query);
   // With a search running, a subject with no hits is noise; with no search it
   // stays put so its "Add to <Subject>" control remains reachable.
-  const sections = filtering
-    ? groups.filter((g) => g.resources.length > 0)
-    : groups;
+  const sections = (query ? shown.filter((s) => bySubject.has(s.id)) : shown).map(
+    (subject) => ({ subject, resources: bySubject.get(subject.id) ?? [] }),
+  );
 
-  const pills: FilterPill[] = [
-    { value: "", label: "All subjects" },
-    ...subjectList.map((s) => ({ value: s.id, label: s.name })),
+  const chipHref = (subjectId: string) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (subjectId) params.set("subject", subjectId);
+    const qs = params.toString();
+    return qs ? `/tutor/resources?${qs}` : "/tutor/resources";
+  };
+  const chips = [
+    { id: "", label: "All subjects", count: allResources.length },
+    ...subjectList.map((s) => ({
+      id: s.id,
+      label: s.name,
+      count: bySubject.get(s.id)?.length ?? 0,
+    })),
   ];
 
   const panelSubjects = subjectList.map((s) => ({
@@ -119,57 +122,74 @@ export default async function TutorResourcesPage({
 
   return (
     <AddResourceProvider subjects={panelSubjects}>
-      <div className="space-y-5">
-        <PageHead
-          eyebrow="Resource library"
+      <div className="flex flex-col gap-5">
+        <PageHeader
           title="Resources"
-          actions={<AddResourceButton />}
+          sub={SUB}
+          actions={
+            <>
+              <ResourceSearch />
+              <AddResourceButton />
+            </>
+          }
         />
 
-        {/* The toolbar owns the whole card, so its own bottom rule would sit
-            1px above the card border and read as a doubled line. */}
-        <Card className="overflow-hidden [&>div]:border-b-0">
-          <FilterToolbar
-            searchPlaceholder="Search resources"
-            pillParam="subject"
-            pills={pills}
-          />
-        </Card>
+        {subjectList.length > 1 && (
+          <nav aria-label="Filter by subject" className="flex flex-wrap gap-1.5">
+            {chips.map((chip) => {
+              const active = chip.id === activeSubject;
+              return (
+                <Link
+                  key={chip.id || "all"}
+                  href={chipHref(chip.id)}
+                  scroll={false}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                    active
+                      ? "border-ink bg-ink text-white"
+                      : "border-white/95 bg-white/70 text-ink hover:bg-white",
+                  )}
+                >
+                  {chip.label}
+                  <span
+                    className={cn(
+                      "text-[11px] tabular-nums",
+                      active ? "text-white/75" : "text-ink-soft",
+                    )}
+                  >
+                    {chip.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
 
         {sections.length === 0 ? (
-          <Card>
-            <CardBody>
-              <p className="py-6 text-center text-sm text-ink-soft">
-                No resources match this search.
-              </p>
-            </CardBody>
-          </Card>
+          <GlassPanel>
+            <Empty>No resources match this search.</Empty>
+          </GlassPanel>
         ) : (
           sections.map(({ subject, resources }) => (
-            <section key={subject.id} className="space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <SubjectTile name={subject.name} />
-                <h2 className="m-0 min-w-0 flex-1 text-[17px] font-extrabold tracking-[-0.01em] text-ink">
+            <GlassPanel
+              key={subject.id}
+              titleId={`subject-${subject.id}`}
+              title={
+                <span className="inline-flex items-center gap-2.5">
+                  <SubjectDot subject={subject.name} />
                   {subject.name}
-                </h2>
-                <AddToSubjectButton
-                  subjectId={subject.id}
-                  subjectName={subject.name}
-                />
-              </div>
-
+                </span>
+              }
+              meta={`${resources.length} ${resources.length === 1 ? "item" : "items"}`}
+              action={<AddToSubjectButton subjectId={subject.id} subjectName={subject.name} />}
+            >
               {resources.length === 0 ? (
-                <Card>
-                  <CardBody>
-                    <p className="py-4 text-center text-[13px] text-ink-soft">
-                      Nothing in this subject yet.
-                    </p>
-                  </CardBody>
-                </Card>
+                <Empty>Nothing in this subject yet.</Empty>
               ) : (
-                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <ul className="divide-y divide-line">
                   {resources.map((r) => (
-                    <ResourceCard
+                    <ResourceRow
                       key={r.id}
                       resource={r}
                       topicName={r.topicId ? (topicNameById.get(r.topicId) ?? null) : null}
@@ -177,7 +197,7 @@ export default async function TutorResourcesPage({
                   ))}
                 </ul>
               )}
-            </section>
+            </GlassPanel>
           ))
         )}
       </div>
@@ -185,20 +205,7 @@ export default async function TutorResourcesPage({
   );
 }
 
-function SubjectTile({ name }: { name: string }) {
-  const tokens = getAccentTokens(colorFamilyForSubject(name));
-  return (
-    <span
-      aria-hidden
-      className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[12px] font-extrabold tracking-[0.02em] text-white"
-      style={{ background: tokens.title }}
-    >
-      {subjectInitials(name)}
-    </span>
-  );
-}
-
-async function ResourceCard({
+async function ResourceRow({
   resource: r,
   topicName,
 }: {
@@ -213,85 +220,41 @@ async function ResourceCard({
         : null;
 
   const meta = [
-    fileFormatLabel(r),
+    resourceFormatLabel(r),
     r.kind === "file" && r.sizeBytes ? formatBytes(r.sizeBytes) : null,
-    `Added ${formatDateLong(r.createdAt)}`,
+    formatDateShort(melbourneDate(r.createdAt)),
   ].filter(Boolean) as string[];
 
   return (
-    <li className="flex">
-      <Card className="flex w-full flex-col">
-        <CardBody className="flex flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Pill tone="brand">{resourceTypeLabel(r.type)}</Pill>
-            {!r.isPublished && <Pill tone="warn">Not shared</Pill>}
-          </div>
-
-          <h3 className="m-0 break-words text-[14px] font-bold leading-snug text-ink">
-            {r.title}
-          </h3>
-
-          {topicName && (
-            <p className="m-0 break-words text-[12px] text-muted">{topicName}</p>
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-[#F8F9FC] md:grid-cols-[110px_minmax(0,1fr)_170px_140px_44px]">
+      <span className="col-span-2 md:col-span-1">
+        <ResourceTypeChip type={r.type} />
+      </span>
+      <span className="col-span-2 flex min-w-0 flex-col md:col-span-1">
+        <span className="truncate text-[14px] font-bold text-ink" title={r.title}>
+          {r.title}
+        </span>
+        {topicName && <span className="truncate text-[12px] text-muted">{topicName}</span>}
+      </span>
+      <span className="col-span-2 text-[12px] text-muted md:col-span-1">{meta.join(" · ")}</span>
+      <ShareToggle id={r.id} isShared={r.isPublished} title={r.title} />
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={r.kind === "link" ? `Open ${r.title}` : `Download ${r.title}`}
+          className="grid h-11 w-11 place-items-center justify-self-end rounded-[10px] border border-line-strong bg-surface text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        >
+          {r.kind === "link" ? (
+            <ExternalLink className="h-[15px] w-[15px]" aria-hidden />
+          ) : (
+            <Download className="h-[15px] w-[15px]" aria-hidden />
           )}
-
-          <p className="m-0 mt-auto pt-1 text-[11px] text-muted">
-            {meta.join(" · ")}
-          </p>
-
-          <div className="flex items-stretch gap-2 pt-1">
-            <ShareToggle
-              id={r.id}
-              isShared={r.isPublished}
-              title={r.title}
-            />
-            {href && (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={
-                  r.kind === "link" ? `Open ${r.title}` : `Download ${r.title}`
-                }
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line-strong bg-surface text-ink transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
-              >
-                {r.kind === "link" ? (
-                  <ExternalLink className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Download className="h-4 w-4" aria-hidden />
-                )}
-              </a>
-            )}
-          </div>
-        </CardBody>
-      </Card>
+        </a>
+      ) : (
+        <span aria-hidden />
+      )}
     </li>
   );
-}
-
-/** Two-letter mark for the subject tile: initials of the first two words, or
- *  the first two letters of a single-word name. */
-function subjectInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-/** The stored extension is the honest answer for an uploaded file; the MIME
- *  subtype covers rows promoted out of curriculum attachments, which carry a
- *  content type but not always a suffixed path. */
-function fileFormatLabel(r: Resource): string | null {
-  if (r.kind === "link") return "Link";
-  const ext = r.storagePath?.split("/").pop()?.split(".").slice(1).pop();
-  if (ext && ext.length <= 5) return ext.toUpperCase();
-  const subtype = r.contentType?.split("/").pop();
-  return subtype ? subtype.toUpperCase() : null;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${Math.round(kb)} KB`;
-  return `${(kb / 1024).toFixed(1)} MB`;
 }

@@ -8,7 +8,8 @@ import {
   type AdminResourceFilter,
   type AdminResourceStatus,
 } from "@/lib/resources";
-import { RESOURCE_TYPES, resourceTypeLabel } from "@/lib/resource-types";
+import { RESOURCE_TYPES } from "@/lib/resource-types";
+import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import Link from "next/link";
 import {
   Empty,
@@ -200,9 +201,7 @@ export default async function AdminResourcesPage({
                       </span>
                     </td>
                     <td className="px-2.5 py-3">
-                      <span className="inline-flex h-6 items-center whitespace-nowrap rounded-[8px] bg-surface-3 px-2.5 text-[12px] font-semibold text-ink">
-                        {resourceTypeLabel(r.type)}
-                      </span>
+                      <ResourceTypeChip type={r.type} />
                     </td>
                     <td className="px-2.5 py-3 text-ink-soft">{r.uploaderName}</td>
                     <td className="px-2.5 py-3">

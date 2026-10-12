@@ -7,11 +7,17 @@ import {
   PROFILE_AVATAR_OPTIONS,
   type ProfileAvatarKey,
 } from "@/lib/profile-avatars";
+import { cn } from "@/lib/utils";
 
 type AvatarUpdateResult =
   | { ok: true }
   | { ok: false; error: string };
 
+/**
+ * Profile icon grid shared by the student and tutor profile pages: compact
+ * square tiles that preview each icon exactly as it shows beside a name,
+ * with the chosen one outlined in ink and ticked.
+ */
 export function ProfileIconPicker({
   current,
   initials,
@@ -23,24 +29,28 @@ export function ProfileIconPicker({
 }) {
   const [selected, setSelected] = useState<string | null>(current);
   const [pending, start] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   function choose(key: ProfileAvatarKey) {
     setMessage(null);
     start(async () => {
-      const result = await updateAction(key);
-      if (!result.ok) {
-        setMessage(result.error);
-        return;
+      try {
+        const result = await updateAction(key);
+        if (!result.ok) {
+          setMessage({ text: result.error, ok: false });
+          return;
+        }
+        setSelected(key);
+        setMessage({ text: "Profile icon updated.", ok: true });
+      } catch {
+        setMessage({ text: "Could not update your icon. Try again.", ok: false });
       }
-      setSelected(key);
-      setMessage("Profile icon updated.");
     });
   }
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2.5">
         {PROFILE_AVATAR_OPTIONS.map((option) => {
           const active = selected === option.key;
           return (
@@ -50,37 +60,38 @@ export function ProfileIconPicker({
               disabled={pending}
               onClick={() => choose(option.key)}
               aria-pressed={active}
-              className={`relative flex min-h-32 flex-col items-center justify-center gap-2 rounded-[16px] border p-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+              aria-label={option.label}
+              title={option.label}
+              className={cn(
+                "relative grid aspect-square place-items-center rounded-[16px] border-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 disabled:cursor-wait",
                 active
-                  ? "border-brand-500 bg-brand-50 shadow-sm"
-                  : "border-line bg-surface hover:-translate-y-0.5 hover:border-brand-300 hover:bg-surface-2"
-              }`}
+                  ? "border-ink bg-surface"
+                  : "border-transparent bg-surface-2 hover:bg-surface-3",
+              )}
             >
-              <ProfileAvatar
-                avatarKey={option.key}
-                fallback={initials}
-                className="h-16 w-16"
-              />
-              <span className="text-[12px] font-bold text-ink">
-                {option.label}
+              <span aria-hidden>
+                <ProfileAvatar avatarKey={option.key} fallback={initials} className="h-10 w-10" />
               </span>
-              {active ? (
-                <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-brand-600 text-white">
-                  <Check className="h-3 w-3" aria-hidden />
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute right-1.5 top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-ink text-white"
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} />
                 </span>
-              ) : null}
+              )}
             </button>
           );
         })}
       </div>
-      {message ? (
+      {message && (
         <p
-          role="status"
-          className={`mt-4 text-[12px] font-semibold ${message.includes("updated") ? "text-good" : "text-bad"}`}
+          role={message.ok ? "status" : "alert"}
+          className={cn("mt-3 text-[12px] font-semibold", message.ok ? "text-good" : "text-bad")}
         >
-          {message}
+          {message.text}
         </p>
-      ) : null}
+      )}
     </div>
   );
 }
