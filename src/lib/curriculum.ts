@@ -5,6 +5,7 @@ import {
   terms,
   type Term,
 } from "@/db/schema";
+import { inclusiveDayCount } from "@/lib/tutor-cover-rules";
 
 export async function resolveCurrentTerm(
   date: Date = new Date(),
@@ -46,3 +47,15 @@ export function currentWeekNumber(
   return week;
 }
 
+
+/**
+ * "Term 4, Week 2" for a Melbourne date, or null outside every term. The
+ * portal home headers (admin dashboard, tutor Today) print it after the date.
+ */
+export async function termWeekLabel(todayIso: string): Promise<string | null> {
+  const day = new Date(`${todayIso}T12:00:00`);
+  const term = await resolveCurrentTerm(day);
+  if (!term) return null;
+  const weeks = Math.ceil(inclusiveDayCount(term.startDate, term.endDate) / 7);
+  return `Term ${term.termNumber}, Week ${currentWeekNumber(term, weeks, day)}`;
+}

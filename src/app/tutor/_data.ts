@@ -75,39 +75,6 @@ export async function getTutorClasses(tutorId: string) {
 }
 
 /**
- * The tutor's today's-or-next lesson across ALL their classes - the one-tap
- * attendance entry on the classes list. `null` when nothing is scheduled ahead.
- */
-export async function getTutorNextLesson(tutorId: string) {
-  const today = todayDateString();
-
-  const [next] = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      className: classes.name,
-      subjectName: subjects.name,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .where(
-      and(
-        eq(classes.tutorId, tutorId),
-        sql`${lessons.date} >= ${today}`,
-        sql`${lessons.status} <> 'cancelled'`,
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime))
-    .limit(1);
-
-  if (!next) return null;
-  return { ...next, isToday: next.date === today };
-}
-
-/**
  * A class's announcements (newest first) plus its active roster size, for the
  * announcements card on the class curriculum page. Verifies the tutor owns the
  * class (404 otherwise).
@@ -724,33 +691,6 @@ export async function getTutorWeekLessons(
     .orderBy(asc(lessons.date), asc(lessons.startTime));
 }
 
-export async function getSubmissionsToMark(tutorId: string, limit = 8) {
-  return db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      status: homeworkAssignments.status,
-      submittedAt: homeworkAssignments.submittedAt,
-      studentId: homeworkAssignments.studentId,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      className: classes.name,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .where(
-      and(
-        eq(homework.tutorId, tutorId),
-        inArray(homeworkAssignments.status, ["submitted", "late"]),
-      ),
-    )
-    .orderBy(desc(homeworkAssignments.submittedAt))
-    .limit(limit);
-}
-
 /**
  * Recent lessons taught by this tutor (past `days` back through today + 7d
  * ahead by default) with per-lesson attendance counts + roster size. Used
@@ -843,82 +783,6 @@ export async function getTutorAttendanceOverview(
     const roster = rosterByClass.get(l.classId) ?? 0;
     return { ...l, marked, present, late, absent, roster };
   });
-}
-
-/**
- * Students with at least one overdue, unsubmitted homework assigned by this
- * tutor. Used by the dashboard "Students to bump" card so the tutor can
- * nudge them. Counts how many items each student is behind on; row =
- * one per (student, homework) pair so the tutor can drill into the worst
- * one first.
- */
-export async function getStudentsToBump(tutorId: string, limit = 8) {
-  const today = todayDateString();
-  return db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      status: homeworkAssignments.status,
-      studentId: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      className: classes.name,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .where(
-      and(
-        eq(homework.tutorId, tutorId),
-        inArray(homeworkAssignments.status, [
-          "not_started",
-          "viewed",
-          "resubmission_requested",
-        ]),
-        sql`${homework.dueDate} < ${today}::timestamp`,
-      ),
-    )
-    .orderBy(asc(homework.dueDate))
-    .limit(limit);
-}
-
-export async function getLessonsMissingNotes(tutorId: string, limit = 6) {
-  // Lessons in the past 7 days, taught by this tutor, with no note row by this tutor.
-  const today = todayDateString();
-  const sevenAgo = new Date();
-  sevenAgo.setDate(sevenAgo.getDate() - 7);
-  const since = isoDateLocal(sevenAgo);
-  return db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      className: classes.name,
-      subjectName: subjects.name,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .leftJoin(
-      lessonNotes,
-      and(
-        eq(lessonNotes.lessonId, lessons.id),
-        eq(lessonNotes.tutorId, tutorId),
-      ),
-    )
-    .where(
-      and(
-        eq(lessons.tutorId, tutorId),
-        sql`${lessons.date} <= ${today}`,
-        sql`${lessons.date} >= ${since}`,
-        sql`${lessonNotes.id} is null`,
-      ),
-    )
-    .orderBy(desc(lessons.date), asc(lessons.startTime))
-    .limit(limit);
 }
 
 export async function getTodayLessonCount(tutorId: string) {

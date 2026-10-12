@@ -1,8 +1,6 @@
 import Link from "next/link";
 import {
   CalendarClock,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   CreditCard,
   Lock,
@@ -12,10 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
-import {
-  WeekTimeGrid,
-  type TimeGridEvent,
-} from "@/components/data/week-time-grid";
+import type { TimeGridEvent } from "@/components/data/week-time-grid";
 import { Empty, PageHeader, buttonVariants } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/auth";
@@ -23,9 +18,10 @@ import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { relativeTime } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
-import { resolveCurrentTerm, currentWeekNumber } from "@/lib/curriculum";
-import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
-import { inclusiveDayCount, melbourneDate } from "@/lib/tutor-cover-rules";
+import { termWeekLabel } from "@/lib/curriculum";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { weekStartFromParam } from "@/lib/week-nav";
 import { getAdminSecurityState } from "./_lib/actions-security";
 import {
   getRecentActivity,
@@ -41,6 +37,7 @@ import {
 import { RevenueBars } from "./_components/revenue-bars";
 import { TodoPanel } from "@/components/dashboard/todo-panel";
 import { PersonStatusTable } from "@/components/dashboard/person-status-table";
+import { WeekPanel } from "@/components/dashboard/week-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +51,6 @@ const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
 };
 
 const LINE_SM = buttonVariants({ variant: "outline", size: "md" });
-const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
 
 function greeting(now: Date) {
   const hour = Number(
@@ -77,17 +73,6 @@ function money(n: number) {
   });
 }
 
-function weekLabel(weekStart: string) {
-  const end = addIsoDays(weekStart, 6);
-  const fmt = (iso: string, withMonth: boolean) =>
-    new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", {
-      day: "numeric",
-      ...(withMonth ? { month: "short" } : {}),
-    });
-  const sameMonth = weekStart.slice(0, 7) === end.slice(0, 7);
-  return `${fmt(weekStart, !sameMonth)} – ${fmt(end, true)}`;
-}
-
 export default async function AdminDashboard({
   searchParams,
 }: {
@@ -105,17 +90,10 @@ export default async function AdminDashboard({
   const { unlocked } = await getAdminSecurityState();
   const showMoney = isOwner || unlocked;
 
-  let weekStart = weekStartForIsoDate(todayIso);
-  if (week && /^\d{4}-\d{2}-\d{2}$/.test(week)) {
-    try {
-      weekStart = weekStartForIsoDate(week);
-    } catch {
-      /* invalid date: stay on this week */
-    }
-  }
+  const weekStart = weekStartFromParam(week, todayIso);
   const weekEndExclusive = addIsoDays(weekStart, 7);
 
-  const [todo, revenue, watch, weekLessons, activity, notices, term] =
+  const [todo, revenue, watch, weekLessons, activity, notices, termLabel] =
     await Promise.all([
       getDashboardTodo(now, { showMoney, isOwner }),
       showMoney ? getMonthlyRevenue(now) : Promise.resolve(null),
@@ -126,7 +104,7 @@ export default async function AdminDashboard({
       ),
       getRecentActivity(6),
       getRecentAnnouncements(4),
-      resolveCurrentTerm(new Date(`${todayIso}T12:00:00`)),
+      termWeekLabel(todayIso),
     ]);
 
   const lessons = weekLessons.filter((l) => l.status !== "cancelled");
@@ -146,13 +124,6 @@ export default async function AdminDashboard({
     "en-AU",
     { weekday: "long", day: "numeric", month: "long" },
   );
-  const termLabel = term
-    ? `Term ${term.termNumber}, Week ${currentWeekNumber(
-        term,
-        Math.ceil(inclusiveDayCount(term.startDate, term.endDate) / 7),
-        new Date(`${todayIso}T12:00:00`),
-      )}`
-    : null;
   const firstName = (user.user_metadata?.first_name as string | undefined) ?? "Admin";
   const thisMonth = revenue?.[revenue.length - 1];
   const monthName = new Date(`${todayIso}T12:00:00`).toLocaleDateString("en-AU", {
@@ -233,37 +204,16 @@ export default async function AdminDashboard({
       </div>
 
       {/* This week */}
-      <GlassPanel
+      <WeekPanel
         className="rise"
-        title="This week"
-        meta={`${weekLabel(weekStart)} · ${lessons.length} ${lessons.length === 1 ? "class" : "classes"}`}
-        action={
-          <>
-            <Link
-              href={`/admin?week=${addIsoDays(weekStart, -7)}`}
-              aria-label="Previous week"
-              className={GLASS_ICON}
-            >
-              <ChevronLeft className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
-            </Link>
-            <Link
-              href={`/admin?week=${addIsoDays(weekStart, 7)}`}
-              aria-label="Next week"
-              className={GLASS_ICON}
-            >
-              <ChevronRight className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
-            </Link>
-            <Link
-              href={`/admin/classes?w=${weekStart}`}
-              className={buttonVariants({ variant: "glass", size: "md" })}
-            >
-              Open schedule
-            </Link>
-          </>
-        }
-      >
-        <WeekTimeGrid events={events} weekStart={weekStart} todayIso={todayIso} />
-      </GlassPanel>
+        basePath="/admin"
+        weekStart={weekStart}
+        todayIso={todayIso}
+        events={events}
+        noun="class"
+        calendarHref={`/admin/classes?w=${weekStart}`}
+        calendarLabel="Open schedule"
+      />
 
       {/* Students to watch */}
       <GlassPanel

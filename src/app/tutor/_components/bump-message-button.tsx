@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Check, Send } from "lucide-react";
 import { sendHomeworkBump } from "../_actions";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { buttonVariants } from "@/components/admin/ui/button";
+import { cn } from "@/lib/utils";
 
 export function BumpMessageButton({ studentId }: { studentId: string }) {
   const [pending, startTransition] = useTransition();
@@ -32,7 +34,11 @@ export function BumpMessageButton({ studentId }: { studentId: string }) {
         type="button"
         onClick={send}
         disabled={pending || sent}
-        className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white shadow-[0_4px_12px_-4px_rgba(50,58,145,0.4)] transition-all hover:bg-brand-700 disabled:cursor-default disabled:opacity-70"
+        className={cn(
+          buttonVariants({ variant: "outline", size: "md" }),
+          // A sent reminder stays readable rather than greyed out.
+          sent && "disabled:opacity-100 text-good",
+        )}
       >
         <ActionButtonLabel pending={pending} pendingLabel="Sending…">
           <>
@@ -46,7 +52,7 @@ export function BumpMessageButton({ studentId }: { studentId: string }) {
         </ActionButtonLabel>
       </button>
       {error && (
-        <span role="alert" className="max-w-48 text-right text-[10px] font-bold text-bad">
+        <span role="alert" className="max-w-48 text-right text-[12px] font-semibold text-bad">
           {error}
         </span>
       )}

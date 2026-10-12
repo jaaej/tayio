@@ -1,0 +1,330 @@
+import "server-only";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, min, notInArray, sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import {
+  classes,
+  enrollments,
+  homework,
+  homeworkAssignments,
+  lessonNotes,
+  lessons,
+  profiles,
+  quizzes,
+  subjects,
+  subjectWeeks,
+} from "@/db/schema";
+import { getLessonWeek } from "@/lib/week-plans";
+import { getCoverBoardRows } from "@/lib/tutor-cover";
+import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
+import { TUTOR_QUIZ_TODO_STATUSES } from "./nav-badges";
+
+// Queries behind the tutor Today page and the Classes next-class strip. Every
+// query is scoped to the signed-in tutor's id.
+
+/** Lessons that never ran: they need no note, no attendance and no slot. */
+const NOT_RUN = ["cancelled", "rescheduled"] as const;
+
+export type DayLesson = {
+  id: string;
+  classId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  className: string;
+  subjectName: string;
+  /** Room for an in-person lesson, "Online" for an online one, else null. */
+  place: string | null;
+  recordingUrl: string | null;
+  studentCount: number;
+};
+
+function lessonSelect() {
+  return db
+    .select({
+      id: lessons.id,
+      classId: lessons.classId,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectName: subjects.name,
+      lessonLocation: lessons.location,
+      lessonOnline: lessons.onlineLink,
+      classLocation: classes.location,
+      classOnline: classes.onlineLink,
+      recordingUrl: lessons.recordingUrl,
+      studentCount: sql<number>`(
+        select count(*)::int from ${enrollments}
+        where ${enrollments.classId} = ${lessons.classId}
+          and ${enrollments.withdrawnAt} is null
+      )`,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId));
+}
+
+type LessonRow = Awaited<ReturnType<ReturnType<typeof lessonSelect>["execute"]>>[number];
+
+function toDayLesson(r: LessonRow): DayLesson {
+  const location = r.lessonLocation ?? r.classLocation;
+  const online = r.lessonOnline ?? r.classOnline;
+  return {
+    id: r.id,
+    classId: r.classId,
+    date: r.date,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    className: r.className,
+    subjectName: r.subjectName,
+    place: location ?? (online ? "Online" : null),
+    recordingUrl: r.recordingUrl,
+    studentCount: r.studentCount,
+  };
+}
+
+/** The tutor's lessons on one Melbourne date, earliest first. */
+export async function getTutorDayLessons(tutorId: string, isoDate: string) {
+  const rows = await lessonSelect()
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        eq(lessons.date, isoDate),
+        notInArray(lessons.status, [...NOT_RUN]),
+      ),
+    )
+    .orderBy(asc(lessons.startTime));
+  return rows.map(toDayLesson);
+}
+
+/** The lesson in progress or next to start, from now on. Null when none. */
+export async function getTutorUpcomingLesson(tutorId: string, now: Date) {
+  const today = melbourneDate(now);
+  const rows = await lessonSelect()
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        gte(lessons.date, today),
+        notInArray(lessons.status, [...NOT_RUN]),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime))
+    .limit(8);
+  const next = rows.find(
+    (r) => lessonStartInstant(r.date, r.endTime).getTime() > now.getTime(),
+  );
+  return next ? toDayLesson(next) : null;
+}
+
+export type LessonWeekSummary = {
+  weekNumber: number;
+  title: string;
+  quizStatus: string | null;
+  /** Melbourne date of the earliest homework due for this class and week. */
+  homeworkDueIso: string | null;
+};
+
+/** The curriculum week a lesson falls in, with its quiz and homework state. */
+export async function getLessonWeekSummary(
+  lesson: Pick<DayLesson, "classId" | "date">,
+): Promise<LessonWeekSummary | null> {
+  const week = await getLessonWeek(lesson.classId, lesson.date);
+  if (!week) return null;
+  const [[quiz], [hw]] = await Promise.all([
+    db
+      .select({ status: quizzes.status })
+      .from(quizzes)
+      .where(eq(quizzes.subjectWeekId, week.subjectWeekId))
+      .limit(1),
+    db
+      .select({ due: min(homework.dueDate) })
+      .from(homework)
+      .where(
+        and(
+          eq(homework.classId, lesson.classId),
+          eq(homework.weekId, week.subjectWeekId),
+        ),
+      ),
+  ]);
+  return {
+    weekNumber: week.weekNumber,
+    title: week.title,
+    quizStatus: quiz?.status ?? null,
+    homeworkDueIso: hw?.due ? melbourneDate(new Date(hw.due)) : null,
+  };
+}
+
+export type MarkingSummary = {
+  total: number;
+  late: number;
+  /** The submission to mention: the oldest late one, else the oldest. */
+  first: { firstName: string; lastName: string; title: string } | null;
+};
+
+export async function getMarkingSummary(tutorId: string): Promise<MarkingSummary> {
+  const rows = await db
+    .select({
+      status: homeworkAssignments.status,
+      submittedAt: homeworkAssignments.submittedAt,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      title: homework.title,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .where(
+      and(
+        eq(homework.tutorId, tutorId),
+        inArray(homeworkAssignments.status, ["submitted", "late"]),
+      ),
+    )
+    .orderBy(asc(homeworkAssignments.submittedAt));
+  const late = rows.filter((r) => r.status === "late");
+  const first = late[0] ?? rows[0] ?? null;
+  return {
+    total: rows.length,
+    late: late.length,
+    first: first
+      ? { firstName: first.firstName, lastName: first.lastName, title: first.title }
+      : null,
+  };
+}
+
+export type MissingNotesByClass = {
+  classId: string;
+  className: string;
+  subjectName: string;
+  dates: string[];
+};
+
+/**
+ * Lessons from the last 7 days that have finished and have no note from this
+ * tutor yet, grouped by class so each To do row opens that class's Lessons tab.
+ */
+export async function getMissingNotesByClass(
+  tutorId: string,
+  now: Date,
+): Promise<MissingNotesByClass[]> {
+  const today = melbourneDate(now);
+  const rows = await db
+    .select({
+      classId: lessons.classId,
+      className: classes.name,
+      subjectName: subjects.name,
+      date: lessons.date,
+      endTime: lessons.endTime,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(
+      lessonNotes,
+      and(eq(lessonNotes.lessonId, lessons.id), eq(lessonNotes.tutorId, tutorId)),
+    )
+    .where(
+      and(
+        eq(lessons.tutorId, tutorId),
+        gte(lessons.date, addIsoDays(today, -7)),
+        lte(lessons.date, today),
+        notInArray(lessons.status, [...NOT_RUN]),
+        isNull(lessonNotes.id),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+
+  const byClass = new Map<string, MissingNotesByClass>();
+  for (const r of rows) {
+    if (lessonStartInstant(r.date, r.endTime).getTime() > now.getTime()) continue;
+    const entry = byClass.get(r.classId) ?? {
+      classId: r.classId,
+      className: r.className,
+      subjectName: r.subjectName,
+      dates: [],
+    };
+    entry.dates.push(r.date);
+    byClass.set(r.classId, entry);
+  }
+  return [...byClass.values()];
+}
+
+export type QuizRequest = {
+  id: string;
+  status: string;
+  title: string;
+  subjectName: string;
+  weekNumber: number;
+  note: string | null;
+};
+
+/** Quizzes an admin asked this tutor to write or fix, oldest ask first. */
+export async function getQuizRequests(tutorId: string): Promise<QuizRequest[]> {
+  return db
+    .select({
+      id: quizzes.id,
+      status: quizzes.status,
+      title: quizzes.title,
+      subjectName: subjects.name,
+      weekNumber: subjectWeeks.weekNumber,
+      note: quizzes.note,
+    })
+    .from(quizzes)
+    .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
+    .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
+    .where(
+      and(
+        eq(quizzes.assignedTutorId, tutorId),
+        inArray(quizzes.status, [...TUTOR_QUIZ_TODO_STATUSES]),
+      ),
+    )
+    .orderBy(asc(quizzes.updatedAt));
+}
+
+/** Open covers this tutor could take (not their own), soonest first. */
+export async function getClaimableCovers(tutorId: string, now: Date) {
+  const rows = await getCoverBoardRows(now);
+  return rows.filter(
+    (row) => row.status === "open" && row.originalTutorId !== tutorId,
+  );
+}
+
+/** Homework past due and not handed in, for "Students to bump". */
+export async function getOverdueHomework(tutorId: string, now: Date) {
+  const rows = await db
+    .select({
+      studentId: profiles.id,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      className: classes.name,
+      dueDate: homework.dueDate,
+    })
+    .from(homeworkAssignments)
+    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+    .leftJoin(classes, eq(classes.id, homework.classId))
+    .where(
+      and(
+        eq(homework.tutorId, tutorId),
+        inArray(homeworkAssignments.status, [
+          "not_started",
+          "viewed",
+          "resubmission_requested",
+        ]),
+        sql`${homework.dueDate} < ${now.toISOString()}::timestamptz`,
+      ),
+    )
+    .orderBy(desc(homework.dueDate))
+    .limit(200);
+  // Overdue means due on an earlier day: work due later today is not late yet.
+  const today = melbourneDate(now);
+  return rows
+    .map((r) => ({
+      studentId: r.studentId,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      className: r.className,
+      dueIso: melbourneDate(new Date(r.dueDate)),
+    }))
+    .filter((r) => r.dueIso < today);
+}
