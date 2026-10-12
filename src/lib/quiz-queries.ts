@@ -46,6 +46,8 @@ export type QuizListRow = {
   assignedTutorId: string | null;
   assignedTutorName: string | null;
   createdByName: string;
+  /** Admin instructions on a request, or what to change on a sent-back quiz. */
+  note: string | null;
   /** Answerable questions only - `context` rows are passage wrappers, not items. */
   questionCount: number;
   updatedAt: Date;
@@ -100,6 +102,7 @@ function baseListSelect() {
       termNumber: terms.termNumber,
       weekNumber: subjectWeeks.weekNumber,
       assignedTutorId: quizzes.assignedTutorId,
+      note: quizzes.note,
       assignedTutorFirst: tutor.firstName,
       assignedTutorLast: tutor.lastName,
       createdByFirst: creator.firstName,
@@ -127,7 +130,7 @@ function baseListSelect() {
 function toListRow(r: {
   id: string; title: string; status: string; subjectName: string;
   termYear: number; termNumber: number; weekNumber: number;
-  assignedTutorId: string | null; assignedTutorFirst: string | null;
+  assignedTutorId: string | null; note: string | null; assignedTutorFirst: string | null;
   assignedTutorLast: string | null; createdByFirst: string;
   createdByLast: string | null; questionCount: number; updatedAt: Date;
 }): QuizListRow {
@@ -140,6 +143,7 @@ function toListRow(r: {
     termNumber: r.termNumber,
     weekNumber: r.weekNumber,
     assignedTutorId: r.assignedTutorId,
+    note: r.note,
     assignedTutorName:
       r.assignedTutorFirst != null
         ? `${r.assignedTutorFirst} ${r.assignedTutorLast ?? ""}`.trim()

@@ -88,16 +88,25 @@ export function ProfilePhotoUploader({
   }
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      <ProfileAvatar
-        avatarKey={null}
-        imageUrl={photoUrl}
-        fallback={initials}
-        className="h-24 w-24 shrink-0 text-[22px]"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap gap-2">
-          <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white transition-colors hover:bg-brand-700">
+    <div className="flex flex-col items-center gap-3.5 text-center">
+      {photoUrl ? (
+        <ProfileAvatar
+          avatarKey={null}
+          imageUrl={photoUrl}
+          fallback={initials}
+          className="h-[120px] w-[120px] shrink-0"
+        />
+      ) : (
+        <span
+          aria-hidden
+          className="grid h-[120px] w-[120px] place-items-center rounded-full border-2 border-dashed border-line-field bg-surface-3 text-muted"
+        >
+          <Camera className="h-[34px] w-[34px]" strokeWidth={1.6} />
+        </span>
+      )}
+      <div className="flex flex-col items-center">
+        <div className="flex flex-wrap justify-center gap-2">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[11px] bg-ink px-[18px] text-[14px] font-bold text-white transition-colors hover:bg-[#2b2847] focus-within:ring-2 focus-within:ring-brand-400 focus-within:ring-offset-1">
             <Upload className="h-4 w-4" aria-hidden />
             <ActionButtonLabel pending={pending} pendingLabel="Uploading…">
               {photoUrl ? "Replace photo" : "Upload photo"}
@@ -119,17 +128,14 @@ export function ProfilePhotoUploader({
               type="button"
               disabled={pending}
               onClick={remove}
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-bad/30 bg-surface px-4 text-[12px] font-bold text-bad transition-colors hover:bg-bad-bg disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-[11px] bg-bad-bg px-4 text-[14px] font-bold text-bad transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
               Remove
             </button>
           )}
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted">
-          <Camera className="h-3.5 w-3.5" aria-hidden />
-          JPEG, PNG, or WebP up to 5 MB.
-        </p>
+        <p className="mt-2.5 text-[12px] text-muted">JPEG, PNG or WebP up to 5 MB</p>
         {message && (
           <p role="status" className="mt-2 text-[12px] font-semibold text-good">
             {message}

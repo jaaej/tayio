@@ -37,6 +37,7 @@ export default async function TutorQuizDetailPage({
                   ? "Changes requested"
                   : "Instructions from admin",
               text: quiz.note,
+              tone: quiz.status === "changes_requested" ? "bad" : undefined,
             }
           : null
       }

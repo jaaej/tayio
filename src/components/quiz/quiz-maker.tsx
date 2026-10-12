@@ -233,7 +233,7 @@ export function QuizMaker({
   /** Secondary actions shown before the primary action in the header. */
   headerActions?: ReactNode;
   /** Instructions or review feedback from the admin. */
-  note?: { label: string; text: string } | null;
+  note?: { label: string; text: string; tone?: "bad" } | null;
 }) {
   const { error: actionError, pending: actionPending, run } = useActionRunner();
 
@@ -364,7 +364,11 @@ export function QuizMaker({
 
       {note && note.text.trim().length > 0 && (
         <div className="rounded-[16px] bg-white/75 px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
-          <strong className="font-extrabold text-ink">{note.label}:</strong>{" "}
+          <strong
+            className={cn("font-extrabold", note.tone === "bad" ? "text-bad" : "text-ink")}
+          >
+            {note.label}:
+          </strong>{" "}
           <span className="whitespace-pre-wrap">{note.text}</span>
         </div>
       )}
@@ -390,7 +394,7 @@ export function QuizMaker({
                 attachmentsByQuestion={attachmentsByQuestion}
                 contextAttachments={attachmentsByQuestion.get(question.id) ?? []}
                 totalAttachmentCount={attachments.length}
-                reorder={topReorder.handlers(question.id, index)}
+                reorder={editable ? topReorder.handlers(question.id, index) : undefined}
               />
             ) : (
               <QuestionCard
@@ -401,7 +405,7 @@ export function QuizMaker({
                 editable={editable}
                 attachments={attachmentsByQuestion.get(question.id) ?? []}
                 totalAttachmentCount={attachments.length}
-                reorder={topReorder.handlers(question.id, index)}
+                reorder={editable ? topReorder.handlers(question.id, index) : undefined}
               />
             ),
           )}
@@ -1248,7 +1252,7 @@ function ContextCard({
                 editable={editable}
                 attachments={attachmentsByQuestion.get(child.id) ?? []}
                 totalAttachmentCount={totalAttachmentCount}
-                reorder={childReorder.handlers(child.id, childIndex)}
+                reorder={editable ? childReorder.handlers(child.id, childIndex) : undefined}
                 nested
               />
             ))

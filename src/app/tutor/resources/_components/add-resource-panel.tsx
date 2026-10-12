@@ -10,8 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Plus } from "lucide-react";
-import { SidePanel } from "@/components/ui/side-panel";
-import { Button } from "@/components/student/button";
+import { Button, SidePanel } from "@/components/admin/ui";
 import { addResource } from "@/app/_actions/resources";
 import { ResourceForm, type ResourceFormSubject } from "./resource-form";
 
@@ -92,7 +91,7 @@ export function AddResourceProvider({
         type="submit"
         form={FORM_ID}
         size="lg"
-        variant="primary"
+        variant="brand"
         disabled={pending}
       >
         {pending ? "Adding…" : "Add resource"}
@@ -131,8 +130,8 @@ export function AddResourceProvider({
 export function AddResourceButton() {
   const open = useOpenAddResource();
   return (
-    <Button type="button" variant="primary" onClick={() => open()}>
-      <Plus className="h-4 w-4" aria-hidden />
+    <Button type="button" variant="brand" size="lg" onClick={() => open()}>
+      <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
       Add resource
     </Button>
   );
@@ -148,14 +147,8 @@ export function AddToSubjectButton({
 }) {
   const open = useOpenAddResource();
   return (
-    <Button
-      type="button"
-      variant="link"
-      // Sits on the page wash, not on a card: the variant's --brand-600 drops
-      // to 2.8:1 against the dark end of the gradient, --brand-ink holds 5.9:1.
-      className="px-1.5 text-brand-ink hover:text-ink"
-      onClick={() => open(subjectId)}
-    >
+    // Sits on the subject's glass title row, so it takes the glass variant.
+    <Button type="button" variant="glass" size="md" onClick={() => open(subjectId)}>
       <Plus className="h-3.5 w-3.5" aria-hidden />
       Add to {subjectName}
     </Button>
