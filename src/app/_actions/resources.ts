@@ -3,7 +3,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { resources, tutorWeekAttachments, tutorWeekSections, subjectWeeks } from "@/db/schema";
+import {
+  classes,
+  classWeekPlanAttachments,
+  classWeekPlans,
+  resources,
+  subjectWeeks,
+} from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
 import {
@@ -125,29 +131,35 @@ export async function promoteAttachment(formData: FormData) {
   // Auth before DB read - rejects unauthenticated/wrong-role callers before any probe.
   await requireRole(["tutor", "admin"]);
 
-  // tutorWeekAttachments has no subjectId column; derive via:
-  //   tutorWeekAttachments.sectionId → tutorWeekSections.id
-  //   tutorWeekSections.subjectWeekId → subjectWeeks.id
-  //   subjectWeeks.subjectId
+  // Attachments have no subjectId column; derive it via the week plan's
+  // subject week. The class tutor is the only tutor who may publish it.
   const [att] = await db
     .select({
-      id: tutorWeekAttachments.id,
-      fileName: tutorWeekAttachments.fileName,
-      kind: tutorWeekAttachments.kind,
-      storagePath: tutorWeekAttachments.storagePath,
-      contentType: tutorWeekAttachments.contentType,
-      url: tutorWeekAttachments.url,
+      id: classWeekPlanAttachments.id,
+      fileName: classWeekPlanAttachments.fileName,
+      kind: classWeekPlanAttachments.kind,
+      storagePath: classWeekPlanAttachments.storagePath,
+      contentType: classWeekPlanAttachments.contentType,
+      url: classWeekPlanAttachments.url,
       subjectId: subjectWeeks.subjectId,
+      classTutorId: classes.tutorId,
     })
-    .from(tutorWeekAttachments)
-    .innerJoin(tutorWeekSections, eq(tutorWeekSections.id, tutorWeekAttachments.sectionId))
-    .innerJoin(subjectWeeks, eq(subjectWeeks.id, tutorWeekSections.subjectWeekId))
-    .where(eq(tutorWeekAttachments.id, parsed.attachmentId))
+    .from(classWeekPlanAttachments)
+    .innerJoin(classWeekPlans, eq(classWeekPlans.id, classWeekPlanAttachments.planId))
+    .innerJoin(classes, eq(classes.id, classWeekPlans.classId))
+    .innerJoin(subjectWeeks, eq(subjectWeeks.id, classWeekPlans.subjectWeekId))
+    .where(eq(classWeekPlanAttachments.id, parsed.attachmentId))
     .limit(1);
 
   if (!att) return { ok: false as const, error: "Attachment not found" };
 
   const user = await assertCanAuthor(att.subjectId);
+  if (
+    coarseRole(user.app_metadata?.role as UserRole) !== "admin" &&
+    att.classTutorId !== user.id
+  ) {
+    return { ok: false as const, error: "Attachment not found" };
+  }
   const actor = { id: user.id, role: user.app_metadata?.role as string };
 
   // Idempotent: if a live promoted resources row already references this attachment, no-op.

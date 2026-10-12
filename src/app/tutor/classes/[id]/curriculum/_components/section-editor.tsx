@@ -18,11 +18,11 @@ import {
 } from "lucide-react";
 import { promoteAttachment } from "@/app/_actions/resources";
 import {
-  addTutorWeekLink,
-  finalizeTutorWeekAttachmentUpload,
-  prepareTutorWeekAttachmentUpload,
-  removeTutorWeekAttachment,
-  upsertTutorWeekNote,
+  addWeekPlanLink,
+  finalizeWeekPlanAttachmentUpload,
+  prepareWeekPlanAttachmentUpload,
+  removeWeekPlanAttachment,
+  saveWeekPlanBody,
 } from "@/app/tutor/_actions";
 import { createClient } from "@/lib/supabase/client";
 import { formatDueDate } from "@/lib/format";
@@ -72,7 +72,7 @@ export function SectionEditor({
     formData.set("subjectWeekId", week.subjectWeekId);
     setError(null);
     startTransition(async () => {
-      const res = await upsertTutorWeekNote(formData);
+      const res = await saveWeekPlanBody(formData);
       if (!res.ok) setError(res.error);
     });
   }
@@ -88,7 +88,7 @@ export function SectionEditor({
         return;
       }
 
-      const prepared = await prepareTutorWeekAttachmentUpload({
+      const prepared = await prepareWeekPlanAttachmentUpload({
         classId,
         subjectWeekId: week.subjectWeekId,
         fileName: file.name,
@@ -111,7 +111,7 @@ export function SectionEditor({
         return;
       }
 
-      const res = await finalizeTutorWeekAttachmentUpload({
+      const res = await finalizeWeekPlanAttachmentUpload({
         classId,
         subjectWeekId: week.subjectWeekId,
         ticket: prepared.value.ticket,
@@ -125,7 +125,7 @@ export function SectionEditor({
     formData.set("subjectWeekId", week.subjectWeekId);
     setError(null);
     startTransition(async () => {
-      const res = await addTutorWeekLink(formData);
+      const res = await addWeekPlanLink(formData);
       if (!res.ok) setError(res.error);
     });
   }
@@ -133,7 +133,7 @@ export function SectionEditor({
   function handleRemove(attachmentId: string) {
     setError(null);
     startTransition(async () => {
-      const res = await removeTutorWeekAttachment(attachmentId, classId);
+      const res = await removeWeekPlanAttachment(attachmentId, classId);
       if (!res.ok) setError(res.error);
     });
   }
@@ -330,7 +330,7 @@ export function SectionEditor({
                   Note
                 </div>
                 <textarea
-                  name="note"
+                  name="body"
                   defaultValue={week.note ?? ""}
                   rows={4}
                   placeholder="Add notes for your students… (e.g. what you actually covered, tips, corrections)"

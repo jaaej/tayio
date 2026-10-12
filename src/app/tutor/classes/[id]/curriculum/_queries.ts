@@ -3,8 +3,8 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes, homework, resources, subjectTopics, subjectWeeks, subjects, terms,
-  tutorWeekSections, tutorWeekAttachments,
 } from "@/db/schema";
+import { getClassWeekPlans } from "@/lib/week-plans";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
 import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
 
@@ -27,7 +27,7 @@ export type TutorCurriculumWeek = {
   topicName: string | null;
   videoUrl: string | null;
   bookletUrl: string | null;
-  note: string | null;               // the tutor's section note
+  note: string | null;               // "For students this week" for this class
   attachments: TutorSectionAttachment[];
   hasSection: boolean;               // note or ≥1 attachment
   homework: Array<{ id: string; title: string; dueDate: Date }>;
@@ -105,24 +105,8 @@ export async function getTutorCurriculum(
     .where(eq(subjectTopics.subjectId, cls.subjectId));
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  const sections = weekIds.length
-    ? await db.select().from(tutorWeekSections).where(and(
-        eq(tutorWeekSections.tutorId, tutorId),
-        inArray(tutorWeekSections.subjectWeekId, weekIds),
-      ))
-    : [];
-  const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
-  const sectionIds = sections.map((s) => s.id);
-  const atts = sectionIds.length
-    ? await db.select({
-        id: tutorWeekAttachments.id,
-        sectionId: tutorWeekAttachments.sectionId,
-        kind: tutorWeekAttachments.kind,
-        fileName: tutorWeekAttachments.fileName,
-        storagePath: tutorWeekAttachments.storagePath,
-        url: tutorWeekAttachments.url,
-      }).from(tutorWeekAttachments).where(inArray(tutorWeekAttachments.sectionId, sectionIds))
-    : [];
+  const plans = await getClassWeekPlans(classId, weekIds);
+  const atts = [...plans.values()].flatMap((p) => p.attachments);
 
   const attIds = atts.map((a) => a.id);
   const promotedRows = attIds.length
@@ -139,19 +123,6 @@ export async function getTutorCurriculum(
   const promotedAttachmentIds = new Set(
     promotedRows.map((r) => r.sourceAttachmentId),
   );
-
-  const attBySection = new Map<string, TutorSectionAttachment[]>();
-  for (const a of atts) {
-    if (!attBySection.has(a.sectionId)) attBySection.set(a.sectionId, []);
-    attBySection.get(a.sectionId)!.push({
-      id: a.id,
-      kind: a.kind === "link" ? "link" : "file",
-      fileName: a.fileName,
-      storagePath: a.storagePath,
-      url: a.url,
-      promoted: promotedAttachmentIds.has(a.id),
-    });
-  }
 
   const hwRows = weekIds.length
     ? await db
@@ -178,8 +149,17 @@ export async function getTutorCurriculum(
   }
 
   const weeks: TutorCurriculumWeek[] = templates.map((tpl) => {
-    const s = sectionByWeek.get(tpl.id) ?? null;
-    const attachments = s ? (attBySection.get(s.id) ?? []) : [];
+    const plan = plans.get(tpl.id) ?? null;
+    const attachments: TutorSectionAttachment[] = (plan?.attachments ?? []).map(
+      (a) => ({
+        id: a.id,
+        kind: a.kind,
+        fileName: a.fileName,
+        storagePath: a.storagePath,
+        url: a.url,
+        promoted: promotedAttachmentIds.has(a.id),
+      }),
+    );
     return {
       subjectWeekId: tpl.id,
       weekNumber: tpl.weekNumber,
@@ -190,9 +170,9 @@ export async function getTutorCurriculum(
       topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
       videoUrl: tpl.videoUrl,
       bookletUrl: tpl.bookletUrl,
-      note: s?.note ?? null,
+      note: plan?.body ?? null,
       attachments,
-      hasSection: Boolean(s?.note) || attachments.length > 0,
+      hasSection: Boolean(plan?.body) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
       quiz: quizByWeek.get(tpl.id) ?? null,
     };

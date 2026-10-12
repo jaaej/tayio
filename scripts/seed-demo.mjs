@@ -413,21 +413,21 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 3.5. Tutor week sections - one demo "From your tutor" note so the student
+// 3.5. Week plan - one demo "For students this week" note so the student
 //      weekly page renders populated content instead of an empty section.
-//      Uses Tom Tutor (tutor@taiyo.com) + Week 1 of "Year 9 Maths" (linear
-//      equations). Both ids exist by this point: tutorIds populated in §1,
+//      Uses Week 1 of "Year 9 Maths" (linear equations) for Tom Tutor's
+//      Saturday class. Both ids exist by this point: classIds populated in §3,
 //      subjectWeekIds populated in §2.5.
 // ----------------------------------------------------------------------------
 
-console.log("→ Seeding tutor week sections");
+console.log("→ Seeding week plans");
 {
-  const tutorId = tutorIds["tutor@taiyo.com"];
+  const classId = classIds["Year 9 Maths · Saturday AM"];
   const subjectWeekId = subjectWeekIds["Year 9 Maths"][0]; // Week 1: linear equations
   await sql`
-    insert into tutor_week_sections (tutor_id, subject_week_id, note)
-    values (${tutorId}, ${subjectWeekId}, ${"Bring your exercise book and last week's notes - we'll work through the trickier rearrangement problems first, then move on to word problems. If you found Q7 from the worksheet hard, jot down where you got stuck."})
-    on conflict (tutor_id, subject_week_id) do update set note = excluded.note
+    insert into class_week_plans (class_id, subject_week_id, body)
+    values (${classId}, ${subjectWeekId}, ${"Bring your exercise book and last week's notes - we'll work through the trickier rearrangement problems first, then move on to word problems. If you found Q7 from the worksheet hard, jot down where you got stuck."})
+    on conflict (class_id, subject_week_id) do update set body = excluded.body
   `;
 }
 

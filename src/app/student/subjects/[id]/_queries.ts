@@ -11,8 +11,8 @@ import {
   subjectWeeks,
   subjects,
   terms,
-  tutorWeekAttachments,
-  tutorWeekSections,
+  classWeekPlanAttachments,
+  classWeekPlans,
 } from "@/db/schema";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
@@ -60,7 +60,6 @@ export type StudentCurriculumData = {
   subjectName: string;
   className: string;
   classId: string;
-  lessonPlan: string | null;
   currentTerm: {
     id: string;
     year: number;
@@ -84,8 +83,6 @@ export async function getStudentCurriculum(
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,
-      tutorId: classes.tutorId,
-      lessonPlan: classes.lessonPlan,
       enrolledAt: enrollments.enrolledAt,
     })
     .from(enrollments)
@@ -180,11 +177,11 @@ export async function getStudentCurriculum(
   const sections = weekIds.length
     ? await db
         .select()
-        .from(tutorWeekSections)
+        .from(classWeekPlans)
         .where(
           and(
-            eq(tutorWeekSections.tutorId, enrollment.tutorId),
-            inArray(tutorWeekSections.subjectWeekId, weekIds),
+            eq(classWeekPlans.classId, enrollment.classId),
+            inArray(classWeekPlans.subjectWeekId, weekIds),
           ),
         )
     : [];
@@ -193,14 +190,14 @@ export async function getStudentCurriculum(
   const attRows = sectionIds.length
     ? await db
         .select()
-        .from(tutorWeekAttachments)
-        .where(inArray(tutorWeekAttachments.sectionId, sectionIds))
+        .from(classWeekPlanAttachments)
+        .where(inArray(classWeekPlanAttachments.planId, sectionIds))
     : [];
   // Group attachments by sectionId for fast lookup
   const attsBySection = new Map<string, typeof attRows>();
   for (const a of attRows) {
-    if (!attsBySection.has(a.sectionId)) attsBySection.set(a.sectionId, []);
-    attsBySection.get(a.sectionId)!.push(a);
+    if (!attsBySection.has(a.planId)) attsBySection.set(a.planId, []);
+    attsBySection.get(a.planId)!.push(a);
   }
 
   const progress = weekIds.length
@@ -289,7 +286,7 @@ export async function getStudentCurriculum(
         bookletUrl: tpl.bookletUrl,
         topicId: tpl.topicId,
         topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
-        tutorNote: section?.note ?? null,
+        tutorNote: section?.body ?? null,
         tutorAttachments,
         videoWatchedAt: p?.videoWatchedAt ?? null,
         bookletOpenedAt: p?.bookletOpenedAt ?? null,
@@ -310,7 +307,6 @@ export async function getStudentCurriculum(
     subjectName: enrollment.subjectName,
     className: enrollment.className,
     classId: enrollment.classId,
-    lessonPlan: enrollment.lessonPlan,
     currentTerm: {
       id: term.id,
       year: term.year,

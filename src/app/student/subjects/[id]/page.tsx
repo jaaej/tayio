@@ -119,20 +119,6 @@ export default async function StudentSubjectPage({
           an h1 so the week hero's h2 isn't the first heading on the page. */}
       <h1 className="sr-only">{data.subjectName}</h1>
 
-      {data.lessonPlan && (
-        <div className="px-5 lg:px-7 pt-3">
-          <Card>
-            <CardBody>
-              <div className="text-[11px] uppercase tracking-[0.12em] font-bold text-muted mb-1.5">
-                What's coming up
-              </div>
-              <p className="text-[13px] text-ink-soft whitespace-pre-wrap">
-                {data.lessonPlan}
-              </p>
-            </CardBody>
-          </Card>
-        </div>
-      )}
 
       {/* Full-bleed 2-col: rail attached to the nav, content fills the rest */}
       <CurriculumLayout

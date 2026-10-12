@@ -451,7 +451,6 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       recordingUrl: lessons.recordingUrl,
       classId: classes.id,
       className: classes.name,
-      lessonPlan: classes.lessonPlan,
       subjectName: subjects.name,
     })
     .from(lessons)

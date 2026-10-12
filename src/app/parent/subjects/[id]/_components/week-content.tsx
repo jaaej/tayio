@@ -229,11 +229,11 @@ export async function WeekContentParent({
           </div>
         </section>
 
-        {/* Tutor notes */}
+        {/* For students this week (class week plan) */}
         {(week.tutorNote || week.tutorAttachments.length > 0) && (
           <section className="p-4 lg:p-5">
             <SectionHead
-              title="Tutor notes"
+              title="For students this week"
               count={week.tutorAttachments.length}
             />
             <div className="space-y-3">

@@ -237,7 +237,6 @@ export const classes = pgTable("classes", {
   classType: classTypeEnum("class_type").notNull().default("group"),
   location: text("location"),
   onlineLink: text("online_link"),
-  lessonPlan: text("lesson_plan"),
   isRecurring: boolean("is_recurring").notNull().default(true),
   weekday: integer("weekday"),
   startTime: time("start_time"),
@@ -1153,36 +1152,45 @@ export const subjectWeeks = pgTable(
   ],
 );
 
-export const tutorWeekSections = pgTable(
-  "tutor_week_sections",
+// "For students this week": one per class per curriculum week, written by the
+// class tutor (or an admin) and shown to the class's students and parents on
+// the week view and on each lesson. Replaced classes.lesson_plan and the
+// per-tutor week notes in migration 0060.
+export const classWeekPlans = pgTable(
+  "class_week_plans",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tutorId: uuid("tutor_id")
+    classId: uuid("class_id")
       .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+      .references(() => classes.id, { onDelete: "cascade" }),
     subjectWeekId: uuid("subject_week_id")
       .notNull()
       .references(() => subjectWeeks.id, { onDelete: "cascade" }),
-    note: text("note"),
+    body: text("body"),
+    updatedBy: uuid("updated_by").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("tutor_week_sections_tutor_week_idx").on(t.tutorId, t.subjectWeekId),
-    index("tutor_week_sections_week_idx").on(t.subjectWeekId),
+    uniqueIndex("class_week_plans_class_week_idx").on(t.classId, t.subjectWeekId),
+    index("class_week_plans_week_idx").on(t.subjectWeekId),
   ],
 );
 
-export const tutorWeekAttachments = pgTable(
-  "tutor_week_attachments",
+export const classWeekPlanAttachments = pgTable(
+  "class_week_plan_attachments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sectionId: uuid("section_id")
+    planId: uuid("plan_id")
       .notNull()
-      .references(() => tutorWeekSections.id, { onDelete: "cascade" }),
+      .references(() => classWeekPlans.id, { onDelete: "cascade" }),
     fileName: text("file_name").notNull(),
     // 'file' → uploaded file in storage (storagePath set); 'link' → external
     // URL such as a video or resource link (url set). See migration 0015.
+    // Migration 0060 copied shared tutor notes to each class, so one storage
+    // object can back several rows; delete the object only when no row is left.
     kind: text("kind").notNull().default("file"),
     storagePath: text("storage_path"),
     url: text("url"),
@@ -1190,7 +1198,7 @@ export const tutorWeekAttachments = pgTable(
     sizeBytes: integer("size_bytes"),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("tutor_week_attachments_section_idx").on(t.sectionId)],
+  (t) => [index("class_week_plan_attachments_plan_idx").on(t.planId)],
 );
 
 
@@ -1217,7 +1225,7 @@ export const resources = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "restrict" }),
     sourceAttachmentId: uuid("source_attachment_id").references(
-      () => tutorWeekAttachments.id,
+      () => classWeekPlanAttachments.id,
       { onDelete: "cascade" },
     ),
     isPublished: boolean("is_published").notNull().default(true),
@@ -1285,8 +1293,8 @@ export const studentCurriculumTermGrants = pgTable(
 export type Term = typeof terms.$inferSelect;
 export type SubjectTopic = typeof subjectTopics.$inferSelect;
 export type SubjectWeek = typeof subjectWeeks.$inferSelect;
-export type TutorWeekSection = typeof tutorWeekSections.$inferSelect;
-export type TutorWeekAttachment = typeof tutorWeekAttachments.$inferSelect;
+export type ClassWeekPlan = typeof classWeekPlans.$inferSelect;
+export type ClassWeekPlanAttachment = typeof classWeekPlanAttachments.$inferSelect;
 export type StudentWeekProgress = typeof studentWeekProgress.$inferSelect;
 export type StudentCurriculumTermGrant =
   typeof studentCurriculumTermGrants.$inferSelect;
