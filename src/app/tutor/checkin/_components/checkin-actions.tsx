@@ -17,6 +17,7 @@ export function TutorCheckinActions({
   hasEntries,
   hasMissingRate,
   correctedCount,
+  notFinished,
   initialMessage,
 }: {
   weekStart: string;
@@ -25,6 +26,8 @@ export function TutorCheckinActions({
   hasMissingRate: boolean;
   /** Lessons admin corrected, which the tutor should check before approving. */
   correctedCount: number;
+  /** Some lessons this week have not finished yet, so approval must wait. */
+  notFinished: boolean;
   initialMessage: string | null;
 }) {
   const router = useRouter();
@@ -87,7 +90,9 @@ export function TutorCheckinActions({
           <p className="min-w-0 flex-[1_1_300px] text-[14px] leading-normal text-ink">
             {hasMissingRate
               ? "Approval is unavailable until admin sets your hourly rate."
-              : "Approving tells admin these hours are right so they can go into payroll."}
+              : notFinished
+                ? "You can approve these hours once the week's last lesson has finished."
+                : "Approving tells admin these hours are right so they can go into payroll."}
             {correctedCount > 0 &&
               ` Admin corrected ${correctedCount === 1 ? "1 lesson" : `${correctedCount} lessons`} - check ${correctedCount === 1 ? "it matches" : "they match"} what you worked.`}
           </p>
@@ -95,7 +100,7 @@ export function TutorCheckinActions({
             type="button"
             size="lg"
             variant="primary"
-            disabled={pending || hasMissingRate}
+            disabled={pending || hasMissingRate || notFinished}
             onClick={approve}
           >
             <ActionButtonLabel pending={pending && action === "approve"} pendingLabel="Saving…">

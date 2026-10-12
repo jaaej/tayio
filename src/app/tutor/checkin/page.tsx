@@ -18,6 +18,7 @@ import {
   weekRangeLabel,
 } from "@/lib/format";
 import {
+  checkinApprovalTimingError,
   addIsoDays,
   checkinPay,
   weekStartForIsoDate,
@@ -44,6 +45,13 @@ const STATUS: Record<
   pending: { tile: "To approve", pill: "Awaiting your approval", tone: "warn", tileTone: "warn" },
   approved: { tile: "Approved", pill: "Approved", tone: "good", tileTone: "good" },
   disputed: { tile: "Reported", pill: "Correction requested", tone: "bad", tileTone: "bad" },
+};
+
+const IN_PROGRESS = {
+  tile: "In progress",
+  pill: "Week in progress",
+  tone: "info" as PillTone,
+  tileTone: "default" as const,
 };
 
 const TH = "px-3 py-3 text-[12px] font-extrabold text-muted";
@@ -84,7 +92,13 @@ export default async function TutorCheckinPage({
   const correctedCount = activeEntries.filter((entry) => entry.isManualOverride).length;
   const rates = new Set(activeEntries.map((entry) => Number(entry.hourlyRate)));
   const singleRate = rates.size === 1 ? [...rates][0] : null;
-  const status = STATUS[view.status];
+  // The server refuses approval until every lesson has finished; say so up
+  // front instead of offering a button that can only fail.
+  const notFinished =
+    view.status === "pending" && activeEntries.length > 0
+      ? checkinApprovalTimingError(activeEntries)
+      : null;
+  const status = notFinished ? IN_PROGRESS : STATUS[view.status];
 
   return (
     <div className="flex max-w-[1040px] flex-col gap-5">
@@ -236,6 +250,7 @@ export default async function TutorCheckinPage({
           hasEntries={activeEntries.length > 0}
           hasMissingRate={view.hasMissingRate}
           correctedCount={correctedCount}
+          notFinished={Boolean(notFinished)}
           initialMessage={view.disputeMessage}
         />
       </GlassPanel>
