@@ -350,9 +350,10 @@ body:has(.theme-glass) .theme-tutor {
   --info: #1e4fb8;  --info-bg: #e7effd;
 
   --portal-header-h: 0px;
-  --portal-sticky-top: 20px;
-  /* Glass shell: 20px page padding top and bottom. */
-  --portal-fill-h: calc(100dvh - 40px);
+  /* rem, not px: html is 17px, so the shell's lg:p-5 padding is 1.25rem. */
+  --portal-sticky-top: 1.25rem;
+  /* Glass shell: 1.25rem page padding top and bottom. */
+  --portal-fill-h: calc(100dvh - 2.5rem);
 
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
