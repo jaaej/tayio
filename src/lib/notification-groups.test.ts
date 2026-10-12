@@ -100,6 +100,51 @@ describe("notificationGroupFor", () => {
     ).toBe("learning");
   });
 
+  it("routes tutor-facing to-dos to action needed", () => {
+    for (const title of [
+      "Announcement changes required",
+      "Tutor announcement approval required",
+      "Your class needs cover again",
+      "Weekly hours due today",
+      "Check your hours before Sunday",
+      "Review your corrected hourly rate",
+    ]) {
+      expect(notificationGroupFor({ title, href: "/tutor" })).toBe("action");
+    }
+  });
+
+  it("keeps an approved tutor announcement in announcements", () => {
+    expect(
+      notificationGroupFor({
+        title: "Announcement approved",
+        href: "/tutor/classes/class-1/announcements",
+      }),
+    ).toBe("announcements");
+  });
+
+  it("classifies titles that embed user text by their fixed prefix", () => {
+    // A thread or announcement title can contain any keyword; it must not
+    // move the notification into another group.
+    expect(
+      notificationGroupFor({
+        title: 'New reply on "Can I request an announcement extension?"',
+        href: "/student/discussions/admin/thread-1",
+      }),
+    ).toBe("learning");
+    expect(
+      notificationGroupFor({
+        title: "New announcement: Changes requested for the overdue booklet",
+        href: "/tutor",
+      }),
+    ).toBe("announcements");
+    expect(
+      notificationGroupFor({
+        title: "Urgent announcement: Centre closed today",
+        href: "/admin/announcements",
+      }),
+    ).toBe("announcements");
+  });
+
   it("treats admin credit/allowance actions as account updates", () => {
     // Admin-side credit grants, allowance top-ups, and reversal confirmations
     // are informational (schedule/account activity), not action items.

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isStaffRole, relativeShort, roleLabel, roleTone } from "./role-tone";
+import {
+  isStaffRole,
+  relativeShort,
+  replyRoleLabel,
+  roleLabel,
+  roleTone,
+} from "./role-tone";
 
 describe("discussion role helpers", () => {
   it("collapses tiered roles to their family", () => {
@@ -17,6 +23,12 @@ describe("discussion role helpers", () => {
     expect(isStaffRole("admin_restricted")).toBe(true);
     expect(isStaffRole("student_unrestricted")).toBe(false);
     expect(isStaffRole("parent")).toBe(false);
+  });
+
+  it("tags tutor replies as a tutor answer and leaves other roles plain", () => {
+    expect(replyRoleLabel("tutor")).toBe("Tutor answer");
+    expect(replyRoleLabel("admin_unrestricted")).toBe("Admin");
+    expect(replyRoleLabel("student_restricted")).toBe("Student");
   });
 
   it("formats recent activity compactly", () => {

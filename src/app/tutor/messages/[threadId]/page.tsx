@@ -4,6 +4,7 @@ import { getThreadForMe } from "@/lib/dm-queries";
 import { ConversationPanel } from "@/components/dm/conversation-panel";
 import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
+import { getTutorConversationContext } from "../_lib/context";
 import { loadTutorMessagesInbox } from "../_lib/inbox";
 
 export default async function TutorThreadPage({
@@ -22,7 +23,10 @@ export default async function TutorThreadPage({
   await markThreadRead(fd);
 
   // Loaded after marking read so the list shows this thread as read.
-  const { threads, groups } = await loadTutorMessagesInbox(user.id);
+  const [{ threads, groups }, context] = await Promise.all([
+    loadTutorMessagesInbox(user.id),
+    getTutorConversationContext(user.id, thread.otherUserId, thread.otherRole),
+  ]);
 
   return (
     <MessagesLayout
@@ -38,6 +42,9 @@ export default async function TutorThreadPage({
         otherRole={thread.otherRole}
         messages={thread.messages}
         rolePrefix="tutor"
+        context={context?.context}
+        profileHref={context?.profileHref}
+        profileLabel={context?.profileLabel}
       />
     </MessagesLayout>
   );

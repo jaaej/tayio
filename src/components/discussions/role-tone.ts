@@ -26,6 +26,14 @@ export function roleLabel(role: UserRole): string {
   return ROLE_LABEL[coarseRole(role)] ?? "Member";
 }
 
+/**
+ * The tag on a reply. A tutor's reply reads "Tutor answer" in every role's
+ * view, so students can tell at a glance which answers they can rely on.
+ */
+export function replyRoleLabel(role: UserRole): string {
+  return coarseRole(role) === "tutor" ? "Tutor answer" : roleLabel(role);
+}
+
 // Tutors and admins give authoritative answers - their replies get highlighted.
 export function isStaffRole(role: UserRole): boolean {
   const coarse = coarseRole(role);

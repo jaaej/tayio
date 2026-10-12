@@ -12,20 +12,20 @@ import { relativeShort, roleLabel, type DiscussionRole } from "./role-tone";
 /**
  * Shared discussion thread view used identically by student, tutor and admin:
  * the question, then the replies with the reply composer last. A role page
- * may pass a `moderation` panel (admin), which sits in a side rail. The role
- * pages only do auth + data fetch, then render this.
+ * may pass an `aside` panel for its side rail (admin moderation, the tutor's
+ * "Asked by" card). The role pages only do auth + data fetch, then render this.
  */
 export function DiscussionThreadDetail({
   thread,
   boardId,
   rolePrefix,
-  moderation,
+  aside,
 }: {
   thread: ThreadDetail;
   boardId: string;
   rolePrefix: DiscussionRole;
-  /** Optional role-specific panel (e.g. admin moderation) shown beside the thread. */
-  moderation?: ReactNode;
+  /** Optional role-specific panel shown beside the thread. */
+  aside?: ReactNode;
 }) {
   const threadBoardSegment =
     thread.subjectId === null ? "admin" : thread.subjectId;
@@ -102,9 +102,9 @@ export function DiscussionThreadDetail({
           </section>
         </div>
 
-        {moderation && (
+        {aside && (
           <div className="min-w-0 flex-[1_1_300px] lg:sticky lg:top-[var(--portal-sticky-top)] lg:max-w-[380px]">
-            {moderation}
+            {aside}
           </div>
         )}
       </div>

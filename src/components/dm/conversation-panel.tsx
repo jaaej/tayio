@@ -16,6 +16,8 @@ export function ConversationPanel({
   messages,
   rolePrefix,
   profileHref,
+  profileLabel,
+  context,
 }: {
   threadId: string;
   meId: string;
@@ -24,6 +26,8 @@ export function ConversationPanel({
   messages: MessageRow[];
   rolePrefix: "parent" | "student" | "tutor" | "admin";
   profileHref?: string;
+  profileLabel?: string;
+  context?: string;
 }) {
   return (
     <section
@@ -35,6 +39,8 @@ export function ConversationPanel({
         otherRole={otherRole}
         backHref={`/${rolePrefix}/messages`}
         profileHref={profileHref}
+        profileLabel={profileLabel}
+        context={context}
         titleId="conversation-title"
       />
       <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">

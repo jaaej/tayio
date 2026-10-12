@@ -5,7 +5,9 @@ import {
   getThreadWithReplies,
 } from "@/lib/discussions-queries";
 import { resolveBoardId } from "@/lib/discussions";
+import { AskedByCard } from "@/components/discussions/asked-by-card";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
+import { getThreadAskerForTutor } from "../../_lib/asker";
 
 export default async function TutorThreadPage({
   params,
@@ -21,11 +23,21 @@ export default async function TutorThreadPage({
   const thread = await getThreadWithReplies(threadId);
   if (!thread) notFound();
 
+  const asker = await getThreadAskerForTutor(user.id, thread);
+
   return (
     <DiscussionThreadDetail
       thread={thread}
       boardId={boardId}
       rolePrefix="tutor"
+      aside={
+        asker && (
+          <AskedByCard
+            person={asker}
+            note="Your replies show a “Tutor answer” tag so students know they can rely on them."
+          />
+        )
+      }
     />
   );
 }
