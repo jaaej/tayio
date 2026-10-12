@@ -210,7 +210,7 @@ export default async function TutorStudentProfilePage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-1.5">
         <MetricTile
           label="Attendance"
           value={att.percent === null ? "-" : `${att.percent}%`}

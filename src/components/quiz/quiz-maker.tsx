@@ -394,7 +394,7 @@ export function QuizMaker({
                 attachmentsByQuestion={attachmentsByQuestion}
                 contextAttachments={attachmentsByQuestion.get(question.id) ?? []}
                 totalAttachmentCount={attachments.length}
-                reorder={topReorder.handlers(question.id, index)}
+                reorder={editable ? topReorder.handlers(question.id, index) : undefined}
               />
             ) : (
               <QuestionCard
@@ -405,7 +405,7 @@ export function QuizMaker({
                 editable={editable}
                 attachments={attachmentsByQuestion.get(question.id) ?? []}
                 totalAttachmentCount={attachments.length}
-                reorder={topReorder.handlers(question.id, index)}
+                reorder={editable ? topReorder.handlers(question.id, index) : undefined}
               />
             ),
           )}
@@ -1252,7 +1252,7 @@ function ContextCard({
                 editable={editable}
                 attachments={attachmentsByQuestion.get(child.id) ?? []}
                 totalAttachmentCount={totalAttachmentCount}
-                reorder={childReorder.handlers(child.id, childIndex)}
+                reorder={editable ? childReorder.handlers(child.id, childIndex) : undefined}
                 nested
               />
             ))
