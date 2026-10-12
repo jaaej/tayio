@@ -329,6 +329,27 @@ drop table if exists public.student_curriculum_term_grants;
 
 ---
 
+### 0060 - Class week plans
+
+**File:** `supabase/migrations/0060_class_week_plans.sql`
+**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Risk:** Medium. Renames `tutor_week_sections` / `tutor_week_attachments` to `class_week_plans` / `class_week_plan_attachments`, re-keys them by class, drops `classes.lesson_plan`, and replaces the 0010/0011 policies and helpers.
+The migration raises instead of dropping content it cannot place.
+
+**What it does:** Drops the 0010/0011 policies and the `is_owner_of_tutor_section`, `can_read_tutor_section` and `can_read_tutor_section_att` helpers, then adds three `SECURITY DEFINER` helpers with a pinned `search_path` that return a boolean or the plan's class id only:
+
+- `can_read_class_week_plan(class_id)` - admin, the class tutor, a student enrolled in the class, or a parent of one.
+- `can_write_class_week_plan(class_id)` - admin or the class tutor.
+- `class_of_week_plan(plan_id)` - resolves an attachment's class without triggering RLS recursion on `class_week_plans`.
+
+Policies: `class_week_plans_select` / `class_week_plan_attachments_select` (read helper), `class_week_plans_write` / `class_week_plan_attachments_write` (write helper).
+`anon` has no grants; `authenticated` has `SELECT` only, as in 0010.
+Reads are now scoped to the class, not to every class the tutor teaches in the subject.
+
+**Reversible:** only before plans diverge per class; see the migration header.
+
+---
+
 ## Access matrix
 
 Read access. "✓" = full row visibility for own data; "limited" = subset of columns or rows; "no" = denied at RLS level.
@@ -352,8 +373,8 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `notifications`        | no   | own (R+U-read)   | own (R+U-read)          | own (R+U-read)                 | all   |
 | `tutor_availability`   | no   | no (RLS)\*\*     | no (RLS)\*\*            | own                            | all   |
 | `subject_topics`       | no   | all              | all                     | all                            | all   |
-| `tutor_week_sections`  | no   | enrolled with section's tutor | child enrolled with section's tutor | own (tutor_id match) | all |
-| `tutor_week_attachments` | no | enrolled with section's tutor | child enrolled with section's tutor | own (via parent section) | all |
+| `class_week_plans`  | no   | enrolled in the class | child enrolled in the class | own class (class tutor) | all |
+| `class_week_plan_attachments` | no | enrolled in the class | child enrolled in the class | own class (via plan) | all |
 | `terms`                | no   | all              | all                     | all                            | all   |
 | `subject_weeks`        | no   | all              | all                     | all                            | all   |
 | `student_week_progress`| no   | own              | child's                 | no                             | all   |
@@ -387,8 +408,8 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `notifications`        | UPDATE own (read_at) | -      | -                              | all   |
 | `tutor_availability`   | -                    | -      | INSERT/UPDATE/DELETE own       | all   |
 | `subject_topics`       | -                    | -      | -                              | all   |
-| `tutor_week_sections`  | -                    | -      | INSERT/UPDATE/DELETE own       | all   |
-| `tutor_week_attachments` | -                  | -      | INSERT/UPDATE/DELETE own\*\*\* | all   |
+| `class_week_plans`  | -                    | -      | INSERT/UPDATE/DELETE own class | all   |
+| `class_week_plan_attachments` | -             | -      | INSERT/UPDATE/DELETE own\*\*\* | all   |
 | `terms`                | -                    | -      | -                              | all   |
 | `subject_weeks`        | -                    | -      | -                              | all   |
 | `student_week_progress`| INSERT/UPDATE own    | -      | -                              | all   |
@@ -399,7 +420,7 @@ Write access. INSERT/UPDATE/DELETE; service_role bypasses all of this.
 | `dm_messages`          | INSERT own (sender)  | INSERT own (sender) | INSERT own (sender) | - (read-only) |
 | `dm_reads`             | own                  | own    | own                            | own   |
 
-\*\*\* "own" for `tutor_week_attachments` means the attachment's parent section is owned by the caller (`is_owner_of_tutor_section`).
+\*\*\* "own" for `class_week_plan_attachments` means the attachment's plan belongs to a class the caller tutors (`can_write_class_week_plan(class_of_week_plan(plan_id))`, migration 0060).
 
 ---
 

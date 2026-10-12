@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 11 October 2026
+Last updated: 12 October 2026
 
 ## Status key
 
@@ -12,6 +12,21 @@ Last updated: 11 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Admin Classes as the home of curriculum (12 October 2026): the sidebar
+  has no Curriculum group; from `/admin/classes` open Terms, Quizzes (badge =
+  quizzes waiting for review) and a subject's Curriculum; confirm Classes stays
+  highlighted on each, every back button returns to Classes, ⌘K still finds
+  Quizzes and Terms, and an old `/admin/subjects` link lands on Classes.
+- [ ] Admin Users internal notes (12 October 2026): a person with an internal
+  note shows it as a third line under their name in the list (full text on
+  hover); people without one are unchanged. Check at 1440px and 390px.
+- [ ] "For students this week" (12 October 2026): as tutor, write the week
+  plan for a class and attach a file and a link; confirm the class's students
+  and parents see it on that week of `/student/subjects/[id]` and
+  `/parent/subjects/[id]`, that another class of the same subject does not,
+  and that removing a migrated attachment shared by two classes keeps the
+  other class's copy working.
 
 - [ ] Admin glass redesign (12 October 2026): sign in as owner and as
   reception, at 1440px and 390px; walk every sidebar item, open and close the
@@ -480,6 +495,41 @@ Last updated: 11 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin: curriculum, quizzes and terms are run from Classes
+  (12 October 2026, owner request). The sidebar's Curriculum group is gone.
+  `/admin/classes` header opens Terms and Quizzes (with the pending-review
+  count) and its Subjects panel opens each subject's curriculum, now with
+  "N weeks this term". `NavItem.also` (`src/lib/nav-active.ts`) keeps Classes
+  highlighted on `/admin/subjects/**`, `/admin/quizzes/**` and `/admin/terms`;
+  those pages' back buttons return to Classes; search still lists Quizzes and
+  Terms. `/admin/subjects` redirects to `/admin/classes`. This reverses the
+  11 October move of Terms back into the sidebar.
+- [x] Admin Users list shows the internal account note under the name, only
+  for people who have one (12 October 2026; `note` on `DirectoryListItem`).
+- [x] Tutor glass redesign foundation (12 October 2026, `taiyo-tutor-design`
+  handoff). The glass shell, sidebar nav, search and account row moved to
+  `src/components/portal/` (`glass-shell`, `glass-nav-links`, `glass-chrome`,
+  `global-search`) and are shared by admin and tutor; `.theme-admin` was
+  renamed `.theme-glass`. Tutor nav adds Quizzes and badges for marking, quiz
+  requests, claimable covers, messages and notifications
+  (`src/app/tutor/_lib/nav-badges.ts`); the account row opens
+  `/tutor/profile`. Shared pieces extracted from admin for reuse:
+  `TodoPanel`, `PersonStatusTable` (`src/components/dashboard/`) and
+  `ListPane` (admin Users and Attendance now use it; both panes are now the
+  same width). Student and parent still use `CollapsiblePortalShell`.
+- [x] One "For students this week" field per class per week (12 October 2026,
+  migration `0060_class_week_plans.sql`, applied to dev only). Replaces
+  `classes.lesson_plan` and the per-tutor `tutor_week_sections` notes; tables
+  were renamed in place (`class_week_plans`, `class_week_plan_attachments`) so
+  attachment ids and library links survive, and a shared tutor note was copied
+  to each of that tutor's classes in the subject. The migration raises instead
+  of dropping content it cannot place. Read via `src/lib/week-plans.ts`; write
+  via `saveWeekPlanBody` and the `*WeekPlan*` actions in
+  `src/app/tutor/_actions.ts`. Students and parents see it as "For students
+  this week" on their week view; the old "What's coming up" banner and the
+  lesson-page plan editor were removed. Publishing an attachment to the
+  library now requires the class's own tutor.
 
 - [x] Admin glass redesign foundation (12 October 2026, from the
   `taiyo-admin-design` handoff). Admin only while it is reviewed; tutor,
@@ -1294,7 +1344,8 @@ Last updated: 11 October 2026
 - [x] Move Terms from the main navigation into Classes as `Manage terms`, near
   `Create new class`, with a clear `Back to classes` link on the Terms page.
   (11 October 2026: Terms is back in the sidebar under Curriculum, so the
-  page no longer has a back link.)
+  page no longer has a back link. 12 October 2026: moved back under Classes
+  with a back button; see Recently implemented.)
 - [x] Student reschedules and cancellations generate in-app notifications for
   admin and the relevant tutor/family recipients.
 - [x] Release student curriculum one teaching week at a time. Future weeks are
@@ -1465,6 +1516,13 @@ Last updated: 11 October 2026
 - [ ] Confirm production loading improvements using Vercel/Supabase timing data.
 
 ## Deployment required for the next larger workflow batch
+
+- [ ] Apply `supabase/migrations/0060_class_week_plans.sql` to Production
+  together with the tutor redesign deploy (the old code reads the dropped
+  `classes.lesson_plan` column and `tutor_week_sections`, so code and
+  migration must ship together). Production had no lesson plans or week notes
+  on 12 October 2026, so nothing is copied or lost; re-check with a count
+  before applying. Then run `npm run db:check-rls`.
 
 - [x] Apply `supabase/migrations/0053` through `0059` to Production
   (10 October 2026). Production had been deployed at `21a3d98` without them,
