@@ -233,7 +233,7 @@ export function QuizMaker({
   /** Secondary actions shown before the primary action in the header. */
   headerActions?: ReactNode;
   /** Instructions or review feedback from the admin. */
-  note?: { label: string; text: string } | null;
+  note?: { label: string; text: string; tone?: "bad" } | null;
 }) {
   const { error: actionError, pending: actionPending, run } = useActionRunner();
 
@@ -364,7 +364,11 @@ export function QuizMaker({
 
       {note && note.text.trim().length > 0 && (
         <div className="rounded-[16px] bg-white/75 px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
-          <strong className="font-extrabold text-ink">{note.label}:</strong>{" "}
+          <strong
+            className={cn("font-extrabold", note.tone === "bad" ? "text-bad" : "text-ink")}
+          >
+            {note.label}:
+          </strong>{" "}
           <span className="whitespace-pre-wrap">{note.text}</span>
         </div>
       )}
