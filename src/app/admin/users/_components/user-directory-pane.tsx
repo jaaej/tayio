@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import { StickyNote } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Empty, SegmentedLinks } from "@/components/admin/ui";
 import { initialsOf } from "@/components/admin/ui/glass";
@@ -195,6 +196,16 @@ function PersonRow({
           {person.status === "discontinued" ? "Discontinued · " : ""}
           {person.sub}
         </span>
+        {person.note && (
+          <span
+            className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] text-ink-soft"
+            title={person.note}
+          >
+            <StickyNote className="h-3 w-3 shrink-0 text-muted" aria-hidden />
+            <span className="sr-only">Internal note: </span>
+            <span className="truncate">{person.note}</span>
+          </span>
+        )}
       </span>
       {person.flag && (
         <span

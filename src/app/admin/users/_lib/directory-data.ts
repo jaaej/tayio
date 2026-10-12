@@ -119,6 +119,7 @@ export async function getDirectoryPaneData(): Promise<DirectoryPaneData> {
     school: u.school,
     yearLevel: u.yearLevel,
     sub: subLine(u),
+    note: u.adminNote?.trim() || null,
     flag: coarseRole(u.role) === "student" || coarseRole(u.role) === "tutor"
       ? rowFlag(u, today, signals)
       : null,

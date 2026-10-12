@@ -36,6 +36,8 @@ export type DirectoryListItem = SearchableDirectoryEntry & {
   /** Secondary line under the name: subjects, children, or email. */
   sub: string;
   flag: RowFlag | null;
+  /** Internal admin note, shown under the name only when one exists. */
+  note?: string | null;
 };
 
 /** The params that describe the list. Carried on every row and tab link so
