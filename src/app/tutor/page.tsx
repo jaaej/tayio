@@ -162,17 +162,26 @@ export default async function TutorToday({
       action: "Start marking",
     });
   }
-  for (const c of missingNotes) {
+  // One row however many classes are behind: the button opens the oldest
+  // lesson without a note, where the note is written.
+  const missingCount = missingNotes.reduce((n, c) => n + c.dates.length, 0);
+  if (missingCount > 0) {
+    const first = missingNotes[0];
+    const firstLabel = classDisplayName(first.subjectName, first.className);
+    const others = missingNotes.length - 1;
     todo.push({
-      key: `notes-${c.classId}`,
+      key: "notes",
       icon: <NotebookPen className={ICON} aria-hidden />,
       tone: "bg-warn-bg text-warn",
       title:
-        c.dates.length === 1
+        missingCount === 1
           ? "1 lesson is missing a note"
-          : `${c.dates.length} lessons are missing a note`,
-      detail: `${classDisplayName(c.subjectName, c.className)} · ${lessonDatesLabel(c.dates)}`,
-      href: `/tutor/classes/${c.classId}/lessons`,
+          : `${missingCount} lessons are missing a note`,
+      detail:
+        others === 0
+          ? `${firstLabel} · ${lessonDatesLabel(first.dates)}`
+          : `${firstLabel} and ${plural(others, "other class", "other classes")}`,
+      href: `/tutor/lessons/${first.oldestLessonId}`,
       action: "Write notes",
     });
   }

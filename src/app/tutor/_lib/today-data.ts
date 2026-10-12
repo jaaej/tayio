@@ -197,11 +197,13 @@ export type MissingNotesByClass = {
   className: string;
   subjectName: string;
   dates: string[];
+  /** The class's oldest lesson still missing a note. */
+  oldestLessonId: string;
 };
 
 /**
  * Lessons from the last 7 days that have finished and have no note from this
- * tutor yet, grouped by class so each To do row opens that class's Lessons tab.
+ * tutor yet, grouped by class, oldest class first.
  */
 export async function getMissingNotesByClass(
   tutorId: string,
@@ -210,6 +212,7 @@ export async function getMissingNotesByClass(
   const today = melbourneDate(now);
   const rows = await db
     .select({
+      lessonId: lessons.id,
       classId: lessons.classId,
       className: classes.name,
       subjectName: subjects.name,
@@ -242,6 +245,7 @@ export async function getMissingNotesByClass(
       className: r.className,
       subjectName: r.subjectName,
       dates: [],
+      oldestLessonId: r.lessonId,
     };
     entry.dates.push(r.date);
     byClass.set(r.classId, entry);
