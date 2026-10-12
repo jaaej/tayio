@@ -5,19 +5,23 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search, Users, X } from "lucide-react";
 
-export type AdminSearchDestination = {
+export type PortalSearchDestination = {
   label: string;
   href: string;
   section: string;
 };
 
-export function AdminGlobalSearch({
+export function PortalSearch({
   destinations,
+  directory,
   compact = false,
   variant = "toolbar",
   shortcutEnabled = true,
 }: {
-  destinations: AdminSearchDestination[];
+  destinations: PortalSearchDestination[];
+  /** Free-text search over the role's people directory, offered under the
+   * page matches. Omit when the role has no directory page. */
+  directory?: { href: string; label: string; placeholder: string };
   compact?: boolean;
   /** "sidebar" is the full-width glass field at the top of the side menu. */
   variant?: "toolbar" | "sidebar";
@@ -80,8 +84,8 @@ export function AdminGlobalSearch({
   }
 
   function searchDirectory() {
-    if (!normalized) return;
-    go(`/admin/users?q=${encodeURIComponent(query.trim())}`);
+    if (!normalized || !directory) return;
+    go(`${directory.href}?q=${encodeURIComponent(query.trim())}`);
   }
 
   return (
@@ -132,7 +136,7 @@ export function AdminGlobalSearch({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search Taiyo Portal"
-                // Portalled outside the admin shell's theme wrapper: the theme
+                // Portalled outside the shell's theme wrapper: the theme
                 // class restores its white surface tokens, and the inline
                 // background replaces the page wash that class also paints.
                 className="theme-tutor w-full max-w-2xl overflow-hidden rounded-[20px] border border-white/20 shadow-2xl"
@@ -150,7 +154,7 @@ export function AdminGlobalSearch({
                       if (visible[0]) go(visible[0].href);
                       else searchDirectory();
                     }}
-                    placeholder="Search users, classes, subjects, or pages…"
+                    placeholder={directory?.placeholder ?? "Search pages…"}
                     className="h-10 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
                   />
                   <button
@@ -195,7 +199,7 @@ export function AdminGlobalSearch({
                     </p>
                   )}
 
-                  {normalized ? (
+                  {normalized && directory ? (
                     <>
                       <div className="mx-3 my-2 border-t border-line" />
                       <button
@@ -208,10 +212,10 @@ export function AdminGlobalSearch({
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-[13px] font-extrabold text-ink">
-                            Search users, classes and subjects
+                            {directory.label}
                           </span>
                           <span className="block truncate text-[11px] text-muted">
-                            Find “{query.trim()}” in the user directory
+                            Find “{query.trim()}”
                           </span>
                         </span>
                         <ArrowRight className="h-4 w-4 shrink-0 text-brand-700" />

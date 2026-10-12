@@ -54,7 +54,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function AdminNavLinks({ sections }: { sections: NavSection[] }) {
+export function GlassNavLinks({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
 
@@ -86,7 +86,7 @@ export function AdminNavLinks({ sections }: { sections: NavSection[] }) {
   );
 }
 
-export function AdminNavLinksMobile({ sections }: { sections: NavSection[] }) {
+export function GlassNavLinksMobile({ sections }: { sections: NavSection[] }) {
   const items = sections.flatMap((s) => s.items);
   return <MobilePortalNav items={items} />;
 }

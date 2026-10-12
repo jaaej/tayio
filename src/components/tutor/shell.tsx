@@ -1,81 +1,101 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import {
-  Sunrise,
+  LayoutDashboard,
   BookOpen,
   Users,
   SquarePen,
+  CircleHelp,
+  FolderOpen,
   CalendarDays,
+  ArrowLeftRight,
   CalendarCheck2,
-  Handshake,
-  Library,
   MessagesSquare,
   MessageCircle,
   Bell,
-  LogOut,
 } from "lucide-react";
-import { ToriiMark } from "@/components/brand/wordmark";
-import { signOutAction } from "@/app/auth/actions";
+import Link from "next/link";
+import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { signProfilePhoto } from "@/lib/profile-photo-storage";
-import { TutorNavLinks, TutorNavLinksMobile, type NavSection } from "./nav-links";
-import { CollapsiblePortalShell } from "@/components/portal/collapsible-shell";
+import { GlassPortalShell } from "@/components/portal/glass-shell";
+import {
+  GlassNavLinks,
+  GlassNavLinksMobile,
+  type NavSection,
+} from "@/components/portal/glass-nav-links";
+import {
+  GlassAccount,
+  GlassBrandMark,
+  GlassMobileHeader,
+} from "@/components/portal/glass-chrome";
+import {
+  PortalSearch,
+  type PortalSearchDestination,
+} from "@/components/portal/global-search";
+import { getPendingMarkCount } from "@/app/tutor/_data";
+import {
+  getClaimableCoverCount,
+  getTutorQuizTodoCount,
+} from "@/app/tutor/_lib/nav-badges";
 
-const IC = "h-[18px] w-[18px]";
+const IC = "h-[17px] w-[17px]";
 
 const SECTIONS: NavSection[] = [
   {
     heading: "Teaching",
     items: [
-      { label: "Today",      href: "/tutor",            icon: <Sunrise className={IC} /> },
-      { label: "Classes",    href: "/tutor/classes",    icon: <BookOpen className={IC} /> },
-      { label: "Students",   href: "/tutor/students",   icon: <Users className={IC} /> },
-      { label: "Marking",    href: "/tutor/homework",   icon: <SquarePen className={IC} /> },
-      { label: "Resources",  href: "/tutor/resources",  icon: <Library className={IC} /> },
+      { label: "Today", href: "/tutor", icon: <LayoutDashboard className={IC} /> },
+      { label: "Classes", href: "/tutor/classes", icon: <BookOpen className={IC} /> },
+      { label: "Students", href: "/tutor/students", icon: <Users className={IC} /> },
+      { label: "Marking", href: "/tutor/homework", icon: <SquarePen className={IC} /> },
+      { label: "Quizzes", href: "/tutor/quizzes", icon: <CircleHelp className={IC} /> },
+      { label: "Resources", href: "/tutor/resources", icon: <FolderOpen className={IC} /> },
     ],
   },
   {
     heading: "Schedule",
     items: [
-      { label: "Schedule & availability", href: "/tutor/timetable", icon: <CalendarDays className={IC} /> },
-      { label: "Cover board", href: "/tutor/cover", icon: <Handshake className={IC} /> },
+      {
+        label: "Schedule & availability",
+        href: "/tutor/timetable",
+        icon: <CalendarDays className={IC} />,
+      },
+      { label: "Cover board", href: "/tutor/cover", icon: <ArrowLeftRight className={IC} /> },
       { label: "Weekly check-in", href: "/tutor/checkin", icon: <CalendarCheck2 className={IC} /> },
     ],
   },
   {
     heading: "Inbox",
     items: [
-      { label: "Discussions",   href: "/tutor/discussions",   icon: <MessagesSquare className={IC} /> },
-      { label: "Messages",      href: "/tutor/messages",      icon: <MessageCircle className={IC} /> },
+      { label: "Discussions", href: "/tutor/discussions", icon: <MessagesSquare className={IC} /> },
+      { label: "Messages", href: "/tutor/messages", icon: <MessageCircle className={IC} /> },
       { label: "Notifications", href: "/tutor/notifications", icon: <Bell className={IC} /> },
     ],
   },
 ];
 
-function BrandMark() {
-  return (
-    <Link href="/tutor" className="flex items-center gap-2.5">
-      <div className="h-8 w-8 rounded-lg bg-brand-100 grid place-items-center">
-        <ToriiMark width={24} />
-      </div>
-      <div className="leading-tight">
-        <div className="text-[13px] font-extrabold tracking-[0.04em] uppercase text-ink">
-          Taiyo
-        </div>
-        <div className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-muted-2 -mt-0.5">
-          Tuition
-        </div>
-      </div>
-    </Link>
-  );
+const DIRECTORY = {
+  href: "/tutor/students",
+  label: "Search your students",
+  placeholder: "Search your students or pages…",
+};
+
+/** A failed badge query must never take the whole portal down. */
+function settled(result: PromiseSettledResult<number>, label: string) {
+  if (result.status === "fulfilled") return result.value;
+  console.error(`[tutor-shell] ${label} count failed:`, result.reason);
+  return 0;
 }
 
+/**
+ * TutorShell - tutor portal chrome on the shared glass shell (same component
+ * as admin, tutor nav config). `.theme-glass` scopes the palette and font.
+ */
 export async function TutorShell({
   userName,
   children,
@@ -84,13 +104,15 @@ export async function TutorShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  let unread = 0;
-  let notifUnread = 0;
+  const badges = { marking: 0, quizzes: 0, cover: 0, messages: 0, notifications: 0 };
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [threadResult, notificationResult, avatarResult] =
+    const [marking, quizzes, cover, messages, notifications, avatarResult] =
       await Promise.allSettled([
+        getPendingMarkCount(user.id),
+        getTutorQuizTodoCount(user.id),
+        getClaimableCoverCount(user.id),
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
         db
@@ -102,151 +124,99 @@ export async function TutorShell({
           .where(eq(profiles.id, user.id))
           .limit(1),
       ]);
-    if (threadResult.status === "fulfilled") {
-      unread = threadResult.value;
-    } else {
-      console.error(
-        "[tutor-shell] message count failed:",
-        threadResult.reason,
-      );
-    }
-    if (notificationResult.status === "fulfilled") {
-      notifUnread = notificationResult.value;
-    } else {
-      console.error(
-        "[tutor-shell] notification count failed:",
-        notificationResult.reason,
-      );
-    }
+    badges.marking = settled(marking, "marking");
+    badges.quizzes = settled(quizzes, "quiz");
+    badges.cover = settled(cover, "cover");
+    badges.messages = settled(messages, "message");
+    badges.notifications = settled(notifications, "notification");
     if (avatarResult.status === "fulfilled") {
       profileAvatarKey = avatarResult.value[0]?.profileAvatarKey ?? null;
-      profilePhotoUrl = await signProfilePhoto(
-        avatarResult.value[0]?.avatarUrl,
-      );
+      profilePhotoUrl = await signProfilePhoto(avatarResult.value[0]?.avatarUrl);
     } else {
-      console.error(
-        "[tutor-shell] profile icon failed:",
-        avatarResult.reason,
-      );
+      console.error("[tutor-shell] profile icon failed:", avatarResult.reason);
     }
   }
+
+  const BADGE_BY_HREF: Record<string, number> = {
+    "/tutor/homework": badges.marking,
+    "/tutor/quizzes": badges.quizzes,
+    "/tutor/cover": badges.cover,
+    "/tutor/messages": badges.messages,
+  };
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
     items: s.items.map((item) => {
-      if (item.href === "/tutor/messages") return { ...item, badge: unread };
       if (item.href === "/tutor/notifications") {
-        return { ...item, badge: notifUnread, badgeTone: "danger" as const };
+        return { ...item, badge: badges.notifications, badgeTone: "danger" as const };
       }
-      return item;
+      const badge = BADGE_BY_HREF[item.href];
+      return badge ? { ...item, badge } : item;
     }),
   }));
+  const searchDestinations: PortalSearchDestination[] = [
+    ...sections.flatMap((section) =>
+      section.items.map((item) => ({
+        label: item.label,
+        href: item.href,
+        section: section.heading,
+      })),
+    ),
+    { label: "Profile", href: "/tutor/profile", section: "Account" },
+  ];
   const initial = userName.charAt(0).toUpperCase();
+  const avatar = (size: string) => (
+    <ProfileAvatar
+      avatarKey={profileAvatarKey}
+      imageUrl={profilePhotoUrl}
+      fallback={initial}
+      className={size}
+    />
+  );
 
   return (
-    <CollapsiblePortalShell
-      themeClassName="theme-tutor"
-      desktopBrand={<BrandMark />}
-      desktopActions={
-        <>
-          <Link
-            href="/tutor/notifications"
-            className={`relative grid h-[34px] w-[34px] place-items-center rounded-lg transition-colors hover:bg-surface-2 ${notifUnread > 0 ? "text-bad" : "text-muted hover:text-ink"}`}
-            aria-label={
-              notifUnread > 0
-                ? `${notifUnread} unread notification${notifUnread === 1 ? "" : "s"}`
-                : "Notifications"
-            }
-          >
-            <Bell className="h-[18px] w-[18px]" />
-            {notifUnread > 0 && (
-              <span className="absolute -right-1 -top-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-surface bg-bad px-1 text-[9px] font-extrabold leading-none tabular-nums text-white">
-                {notifUnread > 99 ? "99+" : notifUnread}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/tutor/messages"
-            className="relative h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            aria-label="Messages"
-          >
-            <MessageCircle className="h-[18px] w-[18px]" />
-            {unread > 0 && (
-              <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full bg-brand-500 border-2 border-surface" />
-            )}
-          </Link>
-          <Link
-            href="/tutor/profile"
-            aria-label="Open tutor profile settings"
-            className="flex items-center gap-2.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 transition-colors hover:border-brand-300 hover:bg-surface-2"
-          >
-            <ProfileAvatar
-              avatarKey={profileAvatarKey}
-              imageUrl={profilePhotoUrl}
-              fallback={initial}
-              className="h-7 w-7 text-[12px]"
-            />
-            <div className="leading-tight">
-              <div className="text-[13px] font-bold text-ink whitespace-nowrap">
-                {userName}
-              </div>
-              <div className="text-[11px] text-muted capitalize">Tutor</div>
-            </div>
-          </Link>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-[34px] w-[34px] grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink transition-colors"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </form>
-        </>
+    <GlassPortalShell
+      brand={<GlassBrandMark href="/tutor" />}
+      search={
+        <PortalSearch
+          destinations={searchDestinations}
+          directory={DIRECTORY}
+          variant="sidebar"
+        />
       }
-      desktopSidebar={
-        <>
-          <div className="flex-1">
-            <TutorNavLinks sections={sections} />
-          </div>
-          <div className="portal-sidebar-footer mt-4 pt-3 border-t border-line px-3 text-[11px] text-muted">
-            <div>Taiyo Tuition · v0.4 preview</div>
-            <div>© 2026 Taiyo Pty Ltd</div>
-          </div>
-        </>
+      nav={<GlassNavLinks sections={sections} />}
+      account={
+        <GlassAccount
+          name={userName}
+          roleLabel="Tutor"
+          href="/tutor/profile"
+          avatar={avatar("h-8 w-8 text-[13px]")}
+        />
       }
       mobileHeader={
-        <header className="lg:hidden bg-surface/95 backdrop-blur-md border-b border-line sticky top-0 z-40">
-          <div className="h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
-            <BrandMark />
-            <div className="flex items-center gap-1.5">
-              <Link
-                href="/tutor/profile"
-                aria-label="Open tutor profile settings"
-                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-              >
-                <ProfileAvatar
-                  avatarKey={profileAvatarKey}
-                  imageUrl={profilePhotoUrl}
-                  fallback={initial}
-                  className="h-9 w-9 text-[12px]"
-                />
-              </Link>
-              <form action={signOutAction}>
-                <button
-                  type="submit"
-                  aria-label="Sign out"
-                  className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
-                >
-                  <LogOut className="h-[18px] w-[18px]" />
-                </button>
-              </form>
-            </div>
-          </div>
-          <TutorNavLinksMobile sections={sections} />
-        </header>
+        <GlassMobileHeader
+          brandHref="/tutor"
+          search={
+            <PortalSearch
+              destinations={searchDestinations}
+              directory={DIRECTORY}
+              compact
+              shortcutEnabled={false}
+            />
+          }
+          extra={
+            <Link
+              href="/tutor/profile"
+              aria-label="Your profile"
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              {avatar("h-9 w-9 text-[12px]")}
+            </Link>
+          }
+          nav={<GlassNavLinksMobile sections={sections} />}
+        />
       }
     >
       {children}
-    </CollapsiblePortalShell>
+    </GlassPortalShell>
   );
 }

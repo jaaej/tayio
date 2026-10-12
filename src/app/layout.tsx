@@ -11,7 +11,7 @@ const nunitoSans = Nunito_Sans({
   display: "swap",
 });
 
-// Admin portal only (the glass redesign); applied through .theme-admin in
+// Glass portals (admin and tutor); applied through .theme-glass in
 // globals.css. Not preloaded, so the other portals never download it.
 const figtree = Figtree({
   variable: "--font-figtree",

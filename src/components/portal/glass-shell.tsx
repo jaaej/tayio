@@ -8,13 +8,12 @@ import { cn } from "@/lib/utils";
 const SIDEBAR_STORAGE_KEY = "taiyo-portal-sidebar-collapsed";
 
 /**
- * Glass portal chrome from the admin redesign: no top bar on desktop. The
+ * Glass portal chrome (admin and tutor redesigns): no top bar on desktop. The
  * floating glass sidebar carries the brand, search, menu and the signed-in
  * person; the page column holds each page's own glass header. Phones keep a
  * compact sticky header with the menu.
  *
- * Admin only while the redesign is reviewed; other roles still use
- * CollapsiblePortalShell.
+ * Student and parent still use CollapsiblePortalShell until their redesigns.
  */
 export function GlassPortalShell({
   brand,
@@ -58,7 +57,7 @@ export function GlassPortalShell({
 
   return (
     <div
-      className="theme-tutor theme-admin min-h-screen text-ink"
+      className="theme-tutor theme-glass min-h-screen text-ink"
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
       {mobileHeader}

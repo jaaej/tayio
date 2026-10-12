@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   LayoutDashboard,
@@ -16,27 +15,34 @@ import {
   BarChart3,
   Wallet,
   Settings,
-  LogOut,
   FolderOpen,
   ListChecks,
   Layers,
   CalendarDays,
 } from "lucide-react";
-import { ToriiMark } from "@/components/brand/wordmark";
-import { signOutAction } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
-import { AdminNavLinks, AdminNavLinksMobile, type NavSection } from "./nav-links";
+import {
+  GlassNavLinks,
+  GlassNavLinksMobile,
+  type NavSection,
+} from "@/components/portal/glass-nav-links";
 import { CoverAlertPoller } from "./cover-alert-poller";
-import { GlassPortalShell } from "./glass-shell";
+import { GlassPortalShell } from "@/components/portal/glass-shell";
+import {
+  GlassAccount,
+  GlassBrandMark,
+  GlassInitial,
+  GlassMobileHeader,
+} from "@/components/portal/glass-chrome";
 import { getRescheduleBadgeCount } from "@/app/admin/_lib/dashboard-queries";
 import {
-  AdminGlobalSearch,
-  type AdminSearchDestination,
-} from "@/components/admin/global-search";
+  PortalSearch,
+  type PortalSearchDestination,
+} from "@/components/portal/global-search";
 
 // Owner-only destinations - reception (admin_restricted) is redirected away by
 // requireUnrestrictedAdmin, so the nav must not surface a link that bounces.
@@ -100,31 +106,10 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-function BrandMark() {
-  return (
-    <Link
-      href="/admin"
-      aria-label="Taiyo Tuition dashboard"
-      className="flex items-center gap-2.5 rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-    >
-      {/* The mark asset is navy; brightness-0 + invert turns it white on ink. */}
-      <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] bg-ink [&_img]:brightness-0 [&_img]:invert">
-        <ToriiMark width={22} />
-      </span>
-      <span className="portal-brand-text flex flex-col leading-[1.1]">
-        <span className="text-[15px] font-extrabold text-ink">Taiyo</span>
-        <span className="text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-          Tuition
-        </span>
-      </span>
-    </Link>
-  );
-}
-
 /**
  * AdminShell - admin portal chrome in the glass redesign: the floating
  * sidebar holds brand, search, menu and the signed-in person (no top bar).
- * `.theme-admin` (globals.css) scopes the redesign's palette and font.
+ * `.theme-glass` (globals.css) scopes the redesign's palette and font.
  */
 export async function AdminShell({
   userName,
@@ -169,7 +154,7 @@ export async function AdminShell({
         return item;
       }),
   })).filter((s) => s.items.length > 0);
-  const searchDestinations: AdminSearchDestination[] = sections.flatMap(
+  const searchDestinations: PortalSearchDestination[] = sections.flatMap(
     (section) =>
       section.items.map((item) => ({
         label: item.label,
@@ -180,62 +165,45 @@ export async function AdminShell({
   const initial = userName.charAt(0).toUpperCase();
   const roleLabel = canSeeOwnerNav ? "Owner" : "Reception";
 
+  const directory = {
+    href: "/admin/users",
+    label: "Search users, classes and subjects",
+    placeholder: "Search users, classes, subjects, or pages…",
+  };
+
   return (
     <>
       <CoverAlertPoller />
       <GlassPortalShell
-        brand={<BrandMark />}
+        brand={<GlassBrandMark href="/admin" />}
         search={
-          <AdminGlobalSearch destinations={searchDestinations} variant="sidebar" />
+          <PortalSearch
+            destinations={searchDestinations}
+            directory={directory}
+            variant="sidebar"
+          />
         }
-        nav={<AdminNavLinks sections={sections} />}
+        nav={<GlassNavLinks sections={sections} />}
         account={
-          <div className="portal-account flex items-center gap-2.5 pb-1.5 pl-2.5 pr-1.5 pt-2">
-            <span
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-[13px] font-extrabold text-white"
-              aria-hidden
-            >
-              {initial}
-            </span>
-            <span className="portal-account-text flex min-w-0 flex-1 flex-col leading-[1.2]">
-              <span className="truncate text-[13px] font-bold text-ink">{userName}</span>
-              <span className="text-[12px] text-ink-soft">{roleLabel}</span>
-            </span>
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                aria-label="Sign out"
-                title="Sign out"
-                className="grid h-9 w-9 place-items-center rounded-[10px] text-ink-soft transition-colors hover:bg-white/70 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                <LogOut className="h-[17px] w-[17px]" aria-hidden />
-              </button>
-            </form>
-          </div>
+          <GlassAccount
+            name={userName}
+            roleLabel={roleLabel}
+            avatar={<GlassInitial initial={initial} />}
+          />
         }
         mobileHeader={
-          <header className="glass sticky top-0 z-40 rounded-b-[20px] border-t-0 lg:hidden">
-            <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-5">
-              <BrandMark />
-              <div className="flex items-center gap-1.5">
-                <AdminGlobalSearch
-                  destinations={searchDestinations}
-                  compact
-                  shortcutEnabled={false}
-                />
-                <form action={signOutAction}>
-                  <button
-                    type="submit"
-                    aria-label="Sign out"
-                    className="grid h-9 w-9 place-items-center rounded-[10px] text-ink-soft hover:bg-white/70 hover:text-ink"
-                  >
-                    <LogOut className="h-[18px] w-[18px]" />
-                  </button>
-                </form>
-              </div>
-            </div>
-            <AdminNavLinksMobile sections={sections} />
-          </header>
+          <GlassMobileHeader
+            brandHref="/admin"
+            search={
+              <PortalSearch
+                destinations={searchDestinations}
+                directory={directory}
+                compact
+                shortcutEnabled={false}
+              />
+            }
+            nav={<GlassNavLinksMobile sections={sections} />}
+          />
         }
       >
         {children}
