@@ -35,11 +35,6 @@ const KIND_LABEL: Record<CalendarEvent["kind"], string> = {
   homework: "text-amber-800",
   event: "text-emerald-800",
 };
-const KIND_META: Record<CalendarEvent["kind"], string> = {
-  lesson: "text-brand-600/80",
-  homework: "text-amber-700/80",
-  event: "text-emerald-700/80",
-};
 const KIND_TAG: Record<CalendarEvent["kind"], string> = {
   lesson: "",
   homework: "Due",

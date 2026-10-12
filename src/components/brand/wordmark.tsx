@@ -20,6 +20,8 @@ const MARK_RATIO = 909.9 / 1260.3;
  */
 export function ToriiMark({ width = 24 }: { width?: number }) {
   return (
+    // A static SVG gains nothing from next/image optimisation.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/brand/taiyo-mark.svg"
       alt=""
@@ -123,6 +125,8 @@ export function LogoCard({
         background: "linear-gradient(155deg, #1d2951 0%, #00112f 100%)",
       }}
     >
+      {/* A static SVG gains nothing from next/image optimisation. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/brand/taiyo-logo-full.svg"
         alt=""

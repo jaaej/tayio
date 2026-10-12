@@ -3,18 +3,18 @@ import { cn } from "@/lib/utils";
 import type { ParentChild } from "../_data";
 
 export function ChildSwitcher({
-  children,
+  students,
   selectedId,
   basePath,
 }: {
-  children: ParentChild[];
+  students: ParentChild[];
   selectedId: string | null;
   basePath: string;
 }) {
-  if (children.length <= 1) return null;
+  if (students.length <= 1) return null;
   return (
     <div className="inline-flex flex-wrap items-center gap-1 rounded-[16px] border border-line bg-card p-1.5 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
-      {children.map((c) => {
+      {students.map((c) => {
         const active = c.id === selectedId;
         const href = `${basePath}?child=${c.id}`;
         return (
@@ -66,8 +66,8 @@ export function EmptyChildrenNotice() {
         No children linked
       </div>
       <p className="mt-4 text-ink-soft max-w-md mx-auto">
-        Your account isn't linked to a student yet. Ask the admin team to add a
-        family link so you can see your child's lessons, homework and feedback.
+        Your account isn&apos;t linked to a student yet. Ask the admin team to add a
+        family link so you can see your child&apos;s lessons, homework and feedback.
       </p>
     </div>
   );

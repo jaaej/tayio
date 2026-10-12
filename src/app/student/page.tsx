@@ -12,15 +12,12 @@ import {
 import { requireRole } from "@/lib/auth";
 import {
   formatMoney,
-  formatTime,
-  formatWeekday,
   isoDate,
   relativeTime,
   startOfMondayWeek,
 } from "@/lib/format";
 import {
   getAdminContactForStudent,
-  getNextLesson,
   getOutstandingBalanceForStudent,
   getRelevantAnnouncements,
   getStudentHomework,
@@ -54,10 +51,9 @@ export default async function StudentDashboard() {
   weekEnd.setDate(weekStart.getDate() + 7);
   const todayIso = isoDate(now);
 
-  const [subjects, nextLesson, allHomework, weekLessons, notices, tutors, adminContact] =
+  const [subjects, allHomework, weekLessons, notices, tutors, adminContact] =
     await Promise.all([
       getStudentSubjects(user.id),
-      getNextLesson(user.id),
       getStudentHomework(user.id),
       getStudentLessons(user.id, { from: weekStart }),
       getRelevantAnnouncements(user.id, 4),
@@ -123,7 +119,7 @@ export default async function StudentDashboard() {
               <Card>
                 <CardBody>
                   <div className="text-sm text-muted">
-                    You're not enrolled in any classes yet.
+                    You&apos;re not enrolled in any classes yet.
                   </div>
                 </CardBody>
               </Card>

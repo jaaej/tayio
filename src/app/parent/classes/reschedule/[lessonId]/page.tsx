@@ -125,7 +125,7 @@ export default async function ParentReschedulePage({
 
   return (
     <div className="space-y-6 max-w-[820px] mx-auto">
-      <BackLink href={backHref}>Back to {selected.firstName}'s classes</BackLink>
+      <BackLink href={backHref}>Back to {selected.firstName}&apos;s classes</BackLink>
 
       <PageHeader
         className="rise"

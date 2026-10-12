@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   dmMessages,

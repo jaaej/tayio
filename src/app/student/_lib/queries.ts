@@ -726,13 +726,6 @@ export async function getStudentLessons(
   return rows;
 }
 
-export async function getNextLesson(studentId: string): Promise<LessonRow | null> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const rows = await getStudentLessons(studentId, { from: today, limit: 1 });
-  return rows[0] ?? null;
-}
-
 export type HomeworkRow = {
   homeworkId: string;
   title: string;

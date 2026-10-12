@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { tutorAvailability } from "@/db/schema";
 

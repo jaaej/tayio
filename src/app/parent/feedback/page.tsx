@@ -39,7 +39,7 @@ export default async function ParentFeedbackPage({
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
           <ChildSwitcher
-            children={children}
+            students={children}
             selectedId={selected.id}
             basePath="/parent/feedback"
           />
@@ -51,7 +51,7 @@ export default async function ParentFeedbackPage({
           <Card>
             <Empty>
               No tutor feedback yet. Notes will appear here after each of{" "}
-              {selected.firstName}'s lessons.
+              {selected.firstName}&apos;s lessons.
             </Empty>
           </Card>
         ) : (

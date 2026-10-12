@@ -526,6 +526,16 @@ Last updated: 12 October 2026
 
 ## Recently implemented
 
+- [x] Lint (12 October 2026): ESLint 9 with `eslint-config-next`
+  (`eslint.config.mjs`, `npm run lint`; `next lint` is deprecated in Next 15.5).
+  All 49 first-run findings were fixed, and lint now reports nothing. Unused
+  imports and dead code removed: `src/components/portal/shell.tsx`,
+  `getTutorHomework`, `getTodayLessonCount`, and the student home's unused
+  `getNextLesson` query. The parent `ChildSwitcher` prop `children` was
+  renamed `students`. The four `<img>` tags (two SVG logos, two signed private
+  URLs) keep `<img>` with a stated reason. Variables starting with `_` are
+  allowed to go unused.
+
 - [x] Owner follow-ups to the tutor redesign (12 October 2026). Typecheck and
   unit tests pass; each change was checked in the browser.
   - Discussions: withdrawn students lose the subject board

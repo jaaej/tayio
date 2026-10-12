@@ -81,7 +81,7 @@ export default async function ParentHomeworkPage({
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
           <ChildSwitcher
-            children={children}
+            students={children}
             selectedId={selected.id}
             basePath="/parent/homework"
           />

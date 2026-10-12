@@ -180,7 +180,7 @@ function EmptyCurriculum() {
       <Card>
         <CardBody>
           <div className="text-sm text-muted">
-            Curriculum coming soon - your tutor is preparing this term's content.
+            Curriculum coming soon - your tutor is preparing this term&apos;s content.
           </div>
         </CardBody>
       </Card>

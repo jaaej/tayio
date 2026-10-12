@@ -13,7 +13,8 @@
     "db:check-rls": "node scripts/check-rls.mjs",
     "db:bootstrap": "node scripts/bootstrap-db.mjs",
     "db:status": "node scripts/apply-migration.mjs --status",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -32,6 +33,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -39,6 +41,8 @@
     "@types/react-dom": "^19.2.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.18",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

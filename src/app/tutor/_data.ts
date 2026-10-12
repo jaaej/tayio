@@ -534,49 +534,6 @@ export async function getStudentTrialsOnDate(
     );
 }
 
-export async function getTutorHomework(tutorId: string) {
-  const items = await db
-    .select({
-      id: homework.id,
-      title: homework.title,
-      description: homework.description,
-      dueDate: homework.dueDate,
-      createdAt: homework.createdAt,
-      attachmentUrl: homework.attachmentUrl,
-      className: classes.name,
-      classId: classes.id,
-    })
-    .from(homework)
-    .leftJoin(classes, eq(homework.classId, classes.id))
-    .where(eq(homework.tutorId, tutorId))
-    .orderBy(desc(homework.createdAt));
-
-  if (items.length === 0) return [];
-
-  const ids = items.map((i) => i.id);
-  const counts = await db
-    .select({
-      homeworkId: homeworkAssignments.homeworkId,
-      status: homeworkAssignments.status,
-      total: sql<number>`count(*)::int`,
-    })
-    .from(homeworkAssignments)
-    .where(inArray(homeworkAssignments.homeworkId, ids))
-    .groupBy(homeworkAssignments.homeworkId, homeworkAssignments.status);
-
-  return items.map((i) => {
-    const rows = counts.filter((c) => c.homeworkId === i.id);
-    const total = rows.reduce((a, r) => a + r.total, 0);
-    const toMark = rows
-      .filter((r) => r.status === "submitted" || r.status === "late")
-      .reduce((a, r) => a + r.total, 0);
-    const marked = rows
-      .filter((r) => r.status === "marked" || r.status === "returned")
-      .reduce((a, r) => a + r.total, 0);
-    return { ...i, total, toMark, marked };
-  });
-}
-
 export async function getHomeworkDetail(tutorId: string, homeworkId: string) {
   const [hw] = await db
     .select()
@@ -672,16 +629,6 @@ export async function getTutorWeekLessons(
       ),
     )
     .orderBy(asc(lessons.date), asc(lessons.startTime));
-}
-
-export async function getTodayLessonCount(tutorId: string) {
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(lessons)
-    .where(
-      and(eq(lessons.tutorId, tutorId), eq(lessons.date, todayDateString())),
-    );
-  return count ?? 0;
 }
 
 export async function getRecentLessonNotes(tutorId: string, limit = 20) {

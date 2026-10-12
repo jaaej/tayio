@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, inArray, lte, ne, sql } from "drizzle-orm";
-import { db } from "@/db/client";
 import {
   notifications,
   tutorBankDetails,

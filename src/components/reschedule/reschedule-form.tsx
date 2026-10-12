@@ -95,8 +95,8 @@ export function RescheduleForm(props: {
     null,
   );
 
-  const slots = props.slots ?? [];
-  const targets = props.targets ?? [];
+  const slots = useMemo(() => props.slots ?? [], [props.slots]);
+  const targets = useMemo(() => props.targets ?? [], [props.targets]);
   const empty = props.mode === "makeup" ? slots.length === 0 : targets.length === 0;
 
   // Normalise both modes into a common cell item shape.

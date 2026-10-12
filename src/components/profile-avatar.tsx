@@ -70,6 +70,9 @@ export function ProfileAvatar({
           className,
         )}
       >
+        {/* A short-lived signed URL to a private photo; the next/image cache
+            would store it beyond its expiry. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt="Profile photo"

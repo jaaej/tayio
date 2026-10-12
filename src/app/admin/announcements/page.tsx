@@ -203,33 +203,27 @@ export default async function AnnouncementsPage() {
   );
 }
 
-type AnnouncementRow = Awaited<ReturnType<typeof getRowType>>;
-
-// A type-only helper keeps AnnouncementCard tied to the query without a second
-// hand-maintained interface. It is never called at runtime.
-async function getRowType() {
-  return {
-    id: "",
-    title: "",
-    body: "",
-    audienceRole: null as (typeof announcements.$inferSelect)["audienceRole"],
-    audienceClassId: null as string | null,
-    status: "published" as (typeof announcements.$inferSelect)["status"],
-    isUrgent: false,
-    targetRoles: [] as string[],
-    targetSubjectIds: [] as string[],
-    targetYearLevels: [] as string[],
-    targetClassIds: [] as string[],
-    targetTutorIds: [] as string[],
-    includeLinkedParents: false,
-    rejectedReason: null as string | null,
-    publishedAt: new Date(),
-    authorFirst: "",
-    authorLast: "",
-    className: null as string | null,
-    recipientCount: 0,
-  };
-}
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  audienceRole: (typeof announcements.$inferSelect)["audienceRole"];
+  audienceClassId: string | null;
+  status: (typeof announcements.$inferSelect)["status"];
+  isUrgent: boolean;
+  targetRoles: string[];
+  targetSubjectIds: string[];
+  targetYearLevels: string[];
+  targetClassIds: string[];
+  targetTutorIds: string[];
+  includeLinkedParents: boolean;
+  rejectedReason: string | null;
+  publishedAt: Date;
+  authorFirst: string;
+  authorLast: string;
+  className: string | null;
+  recipientCount: number;
+};
 
 function formatStamp(date: Date) {
   return new Date(date).toLocaleString("en-AU", {

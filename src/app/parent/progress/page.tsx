@@ -102,7 +102,7 @@ export default async function ParentProgressPage({
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
           <ChildSwitcher
-            children={children}
+            students={children}
             selectedId={selected.id}
             basePath="/parent/progress"
           />
@@ -178,7 +178,7 @@ export default async function ParentProgressPage({
         {topics.length === 0 ? (
           <Card>
             <Empty>
-              {selected.firstName} isn't enrolled in any subjects with tracked
+              {selected.firstName} isn&apos;t enrolled in any subjects with tracked
               topics yet. Once classes start, the tutor will begin tracking
               topics here.
             </Empty>

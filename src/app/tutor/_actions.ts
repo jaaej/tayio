@@ -28,7 +28,6 @@ import {
   classWeekPlans,
 } from "@/db/schema";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
-import { requireRole } from "@/lib/auth";
 import { BUCKET, removeCurriculumObject } from "@/lib/curriculum-storage";
 import {
   discardDirectUpload,

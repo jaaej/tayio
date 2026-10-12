@@ -127,7 +127,7 @@ export default async function LessonRecapPage({
       {!hasAnyNotes ? (
         <Card>
           <div className="py-6 text-sm text-ink-soft">
-            Your tutor hasn't written a recap for this lesson yet. Check back later.
+            Your tutor hasn&apos;t written a recap for this lesson yet. Check back later.
           </div>
         </Card>
       ) : (

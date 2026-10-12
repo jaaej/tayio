@@ -356,7 +356,7 @@ export function CreditManagement({
 
             {summary.termId === null ? (
               <p className="text-[13px] text-muted">
-                Today falls outside any term, so credits and allowance can't be
+                Today falls outside any term, so credits and allowance can&apos;t be
                 granted right now.
               </p>
             ) : (
@@ -367,7 +367,7 @@ export function CreditManagement({
                   </div>
                   {subjects.length === 0 ? (
                     <p className="text-[12px] text-muted">
-                      This student isn't enrolled in any subject.
+                      This student isn&apos;t enrolled in any subject.
                     </p>
                   ) : (
                     <div className="flex items-end gap-3">

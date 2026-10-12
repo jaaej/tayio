@@ -134,6 +134,9 @@ function ImageViewerButton({
                   </button>
                 </header>
                 <div className="grid min-h-0 flex-1 place-items-center overflow-auto bg-ink/95 p-3">
+                  {/* A short-lived signed URL to a private file; the next/image
+                      cache would store it beyond its expiry. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
                     alt={title}

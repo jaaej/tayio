@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";

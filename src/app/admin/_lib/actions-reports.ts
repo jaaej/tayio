@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { familyLinks, notifications, profiles, terms } from "@/db/schema";
 import type { UserRole } from "@/db/schema";

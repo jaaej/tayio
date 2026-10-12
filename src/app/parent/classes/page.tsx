@@ -98,7 +98,7 @@ export default async function ParentClassesPage({
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
           <ChildSwitcher
-            children={children}
+            students={children}
             selectedId={selected.id}
             basePath="/parent/classes"
           />

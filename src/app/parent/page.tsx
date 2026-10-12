@@ -134,7 +134,7 @@ export default async function ParentDashboard({
       {children.length > 1 && (
         <div className="rise" style={{ animationDelay: "20ms" }}>
           <ChildSwitcher
-            children={children}
+            students={children}
             selectedId={selected.id}
             basePath="/parent"
           />
@@ -213,8 +213,8 @@ export default async function ParentDashboard({
             />
             {feedbackItems.length === 0 ? (
               <Empty>
-                No tutor notes yet. After {selected.firstName}'s next lesson the
-                tutor's note will appear here.
+                No tutor notes yet. After {selected.firstName}&apos;s next lesson the
+                tutor&apos;s note will appear here.
               </Empty>
             ) : (
               <FeedbackList items={feedbackItems} />

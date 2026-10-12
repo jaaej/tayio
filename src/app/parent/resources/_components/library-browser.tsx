@@ -27,7 +27,7 @@ export async function ParentLibraryBrowser({ parentId }: { parentId: string }) {
     return (
       <Card>
         <div className="py-6 text-sm text-ink-soft">
-          No resources yet - your children aren't enrolled in any subjects.
+          No resources yet - your children aren&apos;t enrolled in any subjects.
         </div>
       </Card>
     );

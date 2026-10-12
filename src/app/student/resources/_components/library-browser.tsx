@@ -24,7 +24,7 @@ export async function LibraryBrowser({ studentId }: { studentId: string }) {
       <Card>
         <CardBody>
           <div className="text-sm text-muted">
-            You aren't enrolled in any subjects yet.
+            You aren&apos;t enrolled in any subjects yet.
           </div>
         </CardBody>
       </Card>

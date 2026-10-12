@@ -244,7 +244,7 @@ function ResourceRow({
       </button>
       {state === "error" && (
         <div className="px-6 pb-3 -mt-1 text-xs text-rose-700">
-          Couldn't open this resource. Try again.
+          Couldn&apos;t open this resource. Try again.
         </div>
       )}
     </li>

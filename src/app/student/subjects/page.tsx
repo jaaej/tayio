@@ -6,7 +6,6 @@ import {
   CardHead,
   CardBody,
 } from "@/components/student/card";
-import { Badge } from "@/components/student/pill";
 import { SubjectPill } from "@/components/student/subject-pill";
 import { PageHead, SectionHead } from "@/components/student/page-head";
 import {
@@ -19,12 +18,7 @@ import {
   type MonthHomework,
 } from "../_components/month-calendar";
 import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
-import {
   getStudentHomework,
-  getStudentProgressBySubject,
   getStudentSubjects,
 } from "../_lib/queries";
 
@@ -34,9 +28,8 @@ export default async function StudentSubjectsIndex({
   searchParams: Promise<{ month?: string; week?: string }>;
 }) {
   const user = await requireRole("student");
-  const [subjects, progress, allHomework, params] = await Promise.all([
+  const [subjects, allHomework, params] = await Promise.all([
     getStudentSubjects(user.id),
-    getStudentProgressBySubject(user.id),
     getStudentHomework(user.id),
     searchParams,
   ]);
@@ -101,7 +94,7 @@ export default async function StudentSubjectsIndex({
         <Card>
           <CardBody>
             <div className="text-[13px] text-muted">
-              You're not enrolled in any classes yet.
+              You&apos;re not enrolled in any classes yet.
             </div>
           </CardBody>
         </Card>
