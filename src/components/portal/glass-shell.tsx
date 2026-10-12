@@ -65,7 +65,7 @@ export function GlassPortalShell({
         <aside
           id="portal-desktop-sidebar"
           className={cn(
-            "portal-desktop-sidebar glass sticky top-5 hidden max-h-[calc(100dvh-2.5rem)] shrink-0 flex-col gap-1.5 overflow-hidden rounded-[24px] p-1.5 transition-[width] duration-200 ease-out lg:flex",
+            "portal-desktop-sidebar glass sticky top-5 hidden h-[calc(100dvh-2.5rem)] shrink-0 flex-col gap-1.5 overflow-hidden rounded-[24px] p-1.5 transition-[width] duration-200 ease-out lg:flex",
             collapsed ? "w-[76px]" : "w-[236px]",
             !preferenceLoaded && "[&_*]:duration-0 duration-0",
             collapsed &&

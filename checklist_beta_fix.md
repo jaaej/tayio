@@ -554,6 +554,9 @@ Last updated: 12 October 2026
     equally; used on the tutor Students page and student subject progress.
   - Tutor Profile no longer shows the hourly rate (Check-in still shows pay).
   - Notifications inbox fills the content width.
+  - The admin and tutor glass sidebar always fills the window height
+    (`src/components/portal/glass-shell.tsx`); on short windows only the menu
+    scrolls.
   - Dev data: the offensive internal note on tutor Wei Chen was cleared.
 
 - [x] Tutor portal pages on the glass kit (12 October 2026, `taiyo-tutor-design`
