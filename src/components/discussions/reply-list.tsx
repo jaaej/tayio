@@ -14,6 +14,7 @@ import {
   isStaffRole,
   relativeShort,
   replyRoleLabel,
+  roleLabel,
   roleTone,
   type DiscussionRole,
 } from "./role-tone";
@@ -55,7 +56,7 @@ function RolePill({ role, removed }: { role: UserRole; removed: boolean }) {
       )}
     >
       {staff && <BadgeCheck className="h-3 w-3" aria-hidden />}
-      {replyRoleLabel(role)}
+      {removed ? roleLabel(role) : replyRoleLabel(role)}
     </span>
   );
 }

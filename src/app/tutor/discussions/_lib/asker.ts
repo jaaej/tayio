@@ -31,9 +31,11 @@ export async function getThreadAskerForTutor(
       : null,
   ]);
 
+  const year = student?.yearLevel ? yearLevelLabel(student.yearLevel) : null;
   const meta = student
     ? [
-        student.yearLevel ? yearLevelLabel(student.yearLevel) : null,
+        // Class names usually lead with the year ("Year 9 Maths"); don't say it twice.
+        year && !student.className?.includes(year) ? year : null,
         student.className ?? roleLabel(thread.authorRole),
         student.className ? "your class" : null,
       ]
