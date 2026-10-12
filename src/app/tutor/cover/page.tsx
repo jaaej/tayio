@@ -1,173 +1,171 @@
 import Link from "next/link";
-import { Card, CardBody, CardHead } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
-import { Pill } from "@/components/student/pill";
-import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatTime } from "@/lib/format";
-import { getTutorCoverPageData, type CoverBoardRow } from "@/lib/tutor-cover";
 import {
-  tutorCoverClassLabel,
-  tutorCoverDateLabel,
-} from "@/lib/tutor-cover-rules";
-import { CoverActionButton } from "./_components/cover-controls";
+  buttonVariants,
+  Empty,
+  GlassPanel,
+  PageHeader,
+  Pill,
+} from "@/components/admin/ui";
+import { CoverBoardColumn, CoverCard } from "@/components/cover/cover-board";
+import { requireRole } from "@/lib/auth";
+import type { CoverBoardRow } from "@/lib/tutor-cover";
+import { CoverActionButton, WithdrawLeaveButton } from "./_components/cover-controls";
+import type { CoverFit } from "./_lib/fit";
+import {
+  LEAVE_STATUS,
+  coverUrgencyLabel,
+  leaveDetail,
+  leaveRangeLabel,
+} from "./_lib/labels";
+import { getTutorCoverBoard } from "./_lib/queries";
 
-const LEAVE_LABEL = {
-  pending: "Awaiting approval",
-  approved: "Approved",
-  rejected: "Declined",
-  cancelled: "Cancelled",
-} as const;
+export const dynamic = "force-dynamic";
+
+const FIT_STATE: Record<CoverFit, { text: string; tone: "good" | "warn" | "bad" }> = {
+  free: { text: "You’re free then", tone: "good" },
+  outside: { text: "Outside your hours", tone: "warn" },
+  clash: { text: "You have a class then", tone: "bad" },
+};
+
+function tutorName(first: string | null, last: string | null) {
+  return `${first ?? ""} ${last ?? ""}`.trim();
+}
+
+function cardProps(row: CoverBoardRow) {
+  return {
+    subjectName: row.subjectName,
+    className: row.className,
+    date: row.date,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    location: row.location,
+  };
+}
 
 export default async function TutorCoverPage() {
   const user = await requireRole("tutor");
-  const data = await getTutorCoverPageData(user.id);
+  const board = await getTutorCoverBoard(user.id);
 
   return (
-    <div className="space-y-5">
-      <PageHead
-        eyebrow="Schedule"
-        title="Tutor cover board"
-        sub="Pick up a class that needs cover and manage the shifts you have claimed."
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Cover board"
         actions={
           <Link
             href="/tutor/timetable?panel=leave"
-            className="inline-flex min-h-10 items-center rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
+            className={buttonVariants({ variant: "primary", size: "lg" })}
           >
             Report absence or leave
           </Link>
         }
       />
 
-      <Card>
-        <CardHead
-          title="Classes needing cover"
-          action={<Pill tone={data.open.length ? "warn" : "good"}>{data.open.length} open</Pill>}
-        />
-        {data.open.length === 0 ? (
-          <CardBody>
-            <p className="py-4 text-center text-[13px] text-muted">
-              Every posted class is covered.
-            </p>
-          </CardBody>
-        ) : (
-          <ul className="divide-y divide-line">
-            {data.open.map((row) => (
-              <CoverRow
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] items-start gap-4">
+        <CoverBoardColumn
+          id="cover-needed"
+          title="Needs cover"
+          dotClassName="bg-[#E8890C]"
+          count={board.needsCover.length}
+          empty="No classes need cover."
+        >
+          {board.needsCover.map((row) => {
+            const fit = board.fits.get(row.id) ?? "outside";
+            return (
+              <CoverCard
                 key={row.id}
-                row={row}
-                action={
-                  row.originalTutorId === user.id ? (
-                    <span className="text-[11px] font-bold text-muted">Your class</span>
-                  ) : (
+                {...cardProps(row)}
+                reason={`${tutorName(row.originalTutorFirst, row.originalTutorLast)}: ${row.reason}`}
+                urgency={coverUrgencyLabel(row.hoursRemaining)}
+                state={FIT_STATE[fit]}
+                // The claim is refused on a clash, so no button is offered.
+                actions={
+                  fit === "clash" ? undefined : (
                     <CoverActionButton coverRequestId={row.id} mode="claim" />
                   )
                 }
               />
-            ))}
+            );
+          })}
+        </CoverBoardColumn>
+
+        <CoverBoardColumn
+          id="cover-mine"
+          title="You’re covering"
+          dotClassName="bg-[#3B4FD8]"
+          count={board.covering.length}
+          empty="You’re not covering any classes."
+        >
+          {board.covering.map((row) => (
+            <CoverCard
+              key={row.id}
+              {...cardProps(row)}
+              reason={`For ${tutorName(row.originalTutorFirst, row.originalTutorLast)}: ${row.reason}`}
+              state={{ text: "On your timetable", tone: "info" }}
+              actions={<CoverActionButton coverRequestId={row.id} mode="release" />}
+            />
+          ))}
+        </CoverBoardColumn>
+
+        <CoverBoardColumn
+          id="cover-requests"
+          title="Your requests"
+          dotClassName="bg-[#16A34A]"
+          count={board.requests.length}
+          empty="You haven’t posted any classes."
+        >
+          {board.requests.map((row) => (
+            <CoverCard
+              key={row.id}
+              {...cardProps(row)}
+              reason={row.reason}
+              urgency={
+                row.status === "open" ? coverUrgencyLabel(row.hoursRemaining) : null
+              }
+              state={
+                row.status === "claimed"
+                  ? {
+                      text: `Covered by ${tutorName(row.replacementTutorFirst, row.replacementTutorLast)}`,
+                      tone: "good",
+                    }
+                  : { text: "Waiting for a tutor", tone: "warn" }
+              }
+            />
+          ))}
+        </CoverBoardColumn>
+      </div>
+
+      <GlassPanel
+        title="Your extended leave"
+        titleId="leave-heading"
+        meta="Once approved, every affected class is posted for cover"
+      >
+        {board.leave.length === 0 ? (
+          <Empty>No leave requests.</Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {board.leave.map((leave) => {
+              const status = LEAVE_STATUS[leave.status];
+              return (
+                <li
+                  key={leave.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5"
+                >
+                  <div className="flex min-w-0 flex-[1_1_260px] flex-col">
+                    <span className="text-[14px] font-bold text-ink">
+                      {leaveRangeLabel(leave.startDate, leave.endDate)}
+                    </span>
+                    <span className="text-[12px] text-muted">{leaveDetail(leave)}</span>
+                  </div>
+                  <Pill tone={status.tone}>{status.label}</Pill>
+                  {leave.status === "pending" && (
+                    <WithdrawLeaveButton leaveRequestId={leave.id} />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
-      </Card>
-
-      {data.claimedByMe.length > 0 && (
-        <Card>
-          <CardHead
-            title="Cover I’m teaching"
-            action={<Pill tone="info">{data.claimedByMe.length}</Pill>}
-          />
-          <ul className="divide-y divide-line">
-            {data.claimedByMe.map((row) => (
-              <CoverRow
-                key={row.id}
-                row={row}
-                action={<CoverActionButton coverRequestId={row.id} mode="release" />}
-              />
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHead title="My class cover requests" />
-          {data.requestedByMe.length === 0 ? (
-            <CardBody><p className="text-[13px] text-muted">No active class requests.</p></CardBody>
-          ) : (
-            <ul className="divide-y divide-line">
-              {data.requestedByMe.map((row) => (
-                <CoverRow key={row.id} row={row} compact />
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <CardHead title="My extended leave" />
-          {data.leaveRequests.length === 0 ? (
-            <CardBody><p className="text-[13px] text-muted">No leave requests.</p></CardBody>
-          ) : (
-            <ul className="divide-y divide-line">
-              {data.leaveRequests.map((leave) => (
-                <li key={leave.id} className="flex items-start justify-between gap-3 px-4 py-3.5">
-                  <div>
-                    <div className="text-[13px] font-bold text-ink">
-                      {formatDateLong(leave.startDate)}–{formatDateLong(leave.endDate)}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[12px] text-muted">{leave.reason}</p>
-                  </div>
-                  <Pill
-                    tone={
-                      leave.status === "approved"
-                        ? "good"
-                        : leave.status === "pending"
-                          ? "warn"
-                          : "neutral"
-                    }
-                  >
-                    {LEAVE_LABEL[leave.status]}
-                  </Pill>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      </GlassPanel>
     </div>
-  );
-}
-
-function CoverRow({
-  row,
-  action,
-  compact = false,
-}: {
-  row: CoverBoardRow;
-  action?: React.ReactNode;
-  compact?: boolean;
-}) {
-  const urgent = row.hoursRemaining <= 48;
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[14px] font-extrabold text-ink">
-            {tutorCoverClassLabel(row.subjectName, row.className)}
-          </span>
-          {urgent && row.status === "open" && <Pill tone="bad">Urgent</Pill>}
-          {row.status === "claimed" && <Pill tone="good">Covered</Pill>}
-        </div>
-        <div className="mt-0.5 text-[12px] font-semibold text-ink-soft">
-          {tutorCoverDateLabel(row.date, row.className)} · {formatTime(row.startTime)}–{formatTime(row.endTime)}
-          {!compact && ` · ${row.location ?? "Location TBC"}`}
-        </div>
-        <p className="mt-1 text-[12px] text-muted">
-          {compact
-            ? row.replacementTutorId
-              ? `Covered by ${row.replacementTutorFirst} ${row.replacementTutorLast}`
-              : "Waiting for another tutor"
-            : `${row.originalTutorFirst} ${row.originalTutorLast}: ${row.reason}`}
-        </p>
-      </div>
-      {action}
-    </li>
   );
 }

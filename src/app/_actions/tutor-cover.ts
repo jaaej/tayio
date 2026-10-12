@@ -272,6 +272,67 @@ export async function submitTutorLeaveRequest(
   return { ok: true, message: "Leave sent to admin for approval." };
 }
 
+/**
+ * A tutor withdraws their own leave request while it is still waiting for a
+ * decision. Approved leave has already posted classes to the cover board, so
+ * changing it goes through the office instead.
+ */
+export async function withdrawTutorLeaveRequest(
+  leaveRequestId: string,
+): Promise<ActionResult> {
+  const user = await requireRole("tutor");
+  const parsed = z.string().uuid().safeParse(leaveRequestId);
+  if (!parsed.success) return { ok: false, error: "Leave request not found." };
+
+  const [[tutor], adminIds] = await Promise.all([
+    db
+      .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.id, user.id))
+      .limit(1),
+    getAdminRecipientIds(),
+  ]);
+  const withdrawn = await db.transaction(async (tx) => {
+    const [changed] = await tx
+      .update(tutorLeaveRequests)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(
+        and(
+          eq(tutorLeaveRequests.id, parsed.data),
+          eq(tutorLeaveRequests.tutorId, user.id),
+          eq(tutorLeaveRequests.status, "pending"),
+        ),
+      )
+      .returning({
+        startDate: tutorLeaveRequests.startDate,
+        endDate: tutorLeaveRequests.endDate,
+      });
+    if (!changed) return false;
+    const adminNotifications = adminNotificationValues(adminIds, {
+      title: "Tutor leave withdrawn",
+      body:
+        `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} withdrew their leave ` +
+        `request for ${formatDateLong(changed.startDate)}–${formatDateLong(changed.endDate)}.`,
+      href: "/admin/reschedules?tab=leave",
+    });
+    if (adminNotifications.length) {
+      await tx.insert(notifications).values(adminNotifications);
+    }
+    return true;
+  });
+  if (!withdrawn) {
+    return {
+      ok: false,
+      error: "This request has already been decided. Contact the office to change it.",
+    };
+  }
+
+  revalidatePath("/tutor/cover");
+  revalidatePath("/tutor/timetable");
+  revalidatePath("/admin/reschedules");
+  return { ok: true, message: "Leave request withdrawn." };
+}
+
 export async function decideTutorLeave(input: {
   leaveRequestId: string;
   decision: "approve" | "reject";
