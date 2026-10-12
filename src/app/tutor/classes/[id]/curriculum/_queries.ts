@@ -1,12 +1,22 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  classes, homework, resources, subjectTopics, subjectWeeks, subjects, terms,
+  classes,
+  homework,
+  homeworkAssignments,
+  quizzes,
+  resources,
+  subjectTopics,
+  subjectWeeks,
+  subjects,
+  terms,
 } from "@/db/schema";
 import { getClassWeekPlans } from "@/lib/week-plans";
+import { weekNumberOn } from "@/lib/week-plan-rules";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
-import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
+import { LIVE_QUIZ_STATUSES } from "@/lib/quiz-status";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 
 export type TutorSectionAttachment = {
   id: string;
@@ -14,9 +24,34 @@ export type TutorSectionAttachment = {
   fileName: string;
   storagePath: string | null;
   url: string | null;
+  contentType: string | null;
+  sizeBytes: number | null;
   /** true if a live (non-removed) `resources` row already sources from this attachment */
   promoted: boolean;
 };
+
+export type TutorWeekHomework = {
+  id: string;
+  title: string;
+  dueDate: Date;
+  isTest: boolean;
+  assigned: number;
+  /** Handed in (submitted, late, marked or returned). */
+  handedIn: number;
+  /** Handed in and waiting for marking. */
+  toMark: number;
+};
+
+export type TutorWeekQuiz = {
+  id: string;
+  title: string;
+  status: string;
+  note: string | null;
+  questionCount: number;
+  /** This tutor was asked to write it (vs. a live quiz in their subject). */
+  assignedToMe: boolean;
+};
+
 export type TutorCurriculumWeek = {
   subjectWeekId: string;
   weekNumber: number;
@@ -30,12 +65,8 @@ export type TutorCurriculumWeek = {
   note: string | null;               // "For students this week" for this class
   attachments: TutorSectionAttachment[];
   hasSection: boolean;               // note or ≥1 attachment
-  homework: Array<{ id: string; title: string; dueDate: Date }>;
-  quiz: {
-    id: string;
-    title: string;
-    questionCount: number;
-  } | null;
+  homework: TutorWeekHomework[];
+  quiz: TutorWeekQuiz | null;
 };
 
 export type TutorCurriculumData = {
@@ -45,7 +76,9 @@ export type TutorCurriculumData = {
   currentTerm: { id: string; year: number; termNumber: number };
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: TutorCurriculumWeek[];
-  /** subject topics, for the "Also publish to library" promote form's topic select */
+  /** The week today falls in, when the shown term is the running one. */
+  currentWeekId: string | null;
+  /** subject topics, for the "Add to library" promote form's topic select */
   topics: Array<{ id: string; name: string }>;
 };
 
@@ -72,6 +105,8 @@ export async function getTutorCurriculum(
       id: terms.id,
       year: terms.year,
       termNumber: terms.termNumber,
+      startDate: terms.startDate,
+      endDate: terms.endDate,
     })
     .from(terms)
     .orderBy(desc(terms.year), desc(terms.termNumber));
@@ -94,10 +129,6 @@ export async function getTutorCurriculum(
     )
     .orderBy(asc(subjectWeeks.weekNumber));
   const weekIds = templates.map((t) => t.id);
-  const quizRows = await listApprovedQuizSummariesForWeeks(weekIds);
-  const quizByWeek = new Map(
-    quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
-  );
 
   const topicRows = await db
     .select({ id: subjectTopics.id, name: subjectTopics.name })
@@ -105,9 +136,66 @@ export async function getTutorCurriculum(
     .where(eq(subjectTopics.subjectId, cls.subjectId));
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  const plans = await getClassWeekPlans(classId, weekIds);
-  const atts = [...plans.values()].flatMap((p) => p.attachments);
+  const [plans, quizRows, hwRows] = await Promise.all([
+    getClassWeekPlans(classId, weekIds),
+    weekIds.length
+      ? db
+          .select({
+            id: quizzes.id,
+            title: quizzes.title,
+            status: quizzes.status,
+            note: quizzes.note,
+            subjectWeekId: quizzes.subjectWeekId,
+            assignedTutorId: quizzes.assignedTutorId,
+            // Table names spelled out: in a single-table select Drizzle drops
+            // the prefix, and "quiz_id" = "id" would match the inner table.
+            questionCount: sql<number>`(
+              select count(*)::int from quiz_questions qq
+              where qq.quiz_id = quizzes.id and qq.type <> 'context'
+            )`,
+          })
+          .from(quizzes)
+          .where(
+            and(
+              inArray(quizzes.subjectWeekId, weekIds),
+              // Same visibility as the tutor quiz list: live quizzes in the
+              // subject, or one this tutor was asked to write.
+              or(
+                inArray(quizzes.status, [...LIVE_QUIZ_STATUSES]),
+                eq(quizzes.assignedTutorId, tutorId),
+              ),
+            ),
+          )
+      : Promise.resolve([]),
+    weekIds.length
+      ? db
+          .select({
+            id: homework.id,
+            title: homework.title,
+            dueDate: homework.dueDate,
+            isTest: homework.isTest,
+            weekId: homework.weekId,
+            assigned: sql<number>`count(${homeworkAssignments.studentId})::int`,
+            handedIn: sql<number>`count(*) filter (where ${homeworkAssignments.status} in ('submitted', 'late', 'marked', 'returned'))::int`,
+            toMark: sql<number>`count(*) filter (where ${homeworkAssignments.status} in ('submitted', 'late'))::int`,
+          })
+          .from(homework)
+          .leftJoin(
+            homeworkAssignments,
+            eq(homeworkAssignments.homeworkId, homework.id),
+          )
+          .where(
+            and(
+              eq(homework.classId, classId),
+              inArray(homework.weekId, weekIds),
+            ),
+          )
+          .groupBy(homework.id)
+          .orderBy(asc(homework.dueDate))
+      : Promise.resolve([]),
+  ]);
 
+  const atts = [...plans.values()].flatMap((p) => p.attachments);
   const attIds = atts.map((a) => a.id);
   const promotedRows = attIds.length
     ? await db
@@ -124,28 +212,31 @@ export async function getTutorCurriculum(
     promotedRows.map((r) => r.sourceAttachmentId),
   );
 
-  const hwRows = weekIds.length
-    ? await db
-        .select({
-          id: homework.id,
-          title: homework.title,
-          dueDate: homework.dueDate,
-          weekId: homework.weekId,
-        })
-        .from(homework)
-        .where(
-          and(
-            eq(homework.classId, classId),
-            inArray(homework.weekId, weekIds),
-          ),
-        )
-        .orderBy(asc(homework.dueDate))
-    : [];
-  const hwByWeek = new Map<string, Array<{ id: string; title: string; dueDate: Date }>>();
+  const quizByWeek = new Map<string, TutorWeekQuiz>();
+  for (const q of quizRows) {
+    quizByWeek.set(q.subjectWeekId, {
+      id: q.id,
+      title: q.title,
+      status: q.status,
+      note: q.note,
+      questionCount: q.questionCount,
+      assignedToMe: q.assignedTutorId === tutorId,
+    });
+  }
+
+  const hwByWeek = new Map<string, TutorWeekHomework[]>();
   for (const r of hwRows) {
     if (!r.weekId) continue;
     if (!hwByWeek.has(r.weekId)) hwByWeek.set(r.weekId, []);
-    hwByWeek.get(r.weekId)!.push({ id: r.id, title: r.title, dueDate: r.dueDate });
+    hwByWeek.get(r.weekId)!.push({
+      id: r.id,
+      title: r.title,
+      dueDate: r.dueDate,
+      isTest: r.isTest,
+      assigned: r.assigned,
+      handedIn: r.handedIn,
+      toMark: r.toMark,
+    });
   }
 
   const weeks: TutorCurriculumWeek[] = templates.map((tpl) => {
@@ -157,6 +248,8 @@ export async function getTutorCurriculum(
         fileName: a.fileName,
         storagePath: a.storagePath,
         url: a.url,
+        contentType: a.contentType,
+        sizeBytes: a.sizeBytes,
         promoted: promotedAttachmentIds.has(a.id),
       }),
     );
@@ -178,6 +271,12 @@ export async function getTutorCurriculum(
     };
   });
 
+  const today = melbourneDate();
+  const running = term.startDate <= today && today <= term.endDate;
+  const todayWeek = running ? weekNumberOn(term.startDate, today) : null;
+  const currentWeekId =
+    weeks.find((w) => w.weekNumber === todayWeek)?.subjectWeekId ?? null;
+
   return {
     className: cls.className,
     subjectId: cls.subjectId,
@@ -187,8 +286,13 @@ export async function getTutorCurriculum(
       year: term.year,
       termNumber: term.termNumber,
     },
-    termsAvailable: allTerms,
+    termsAvailable: allTerms.map((t) => ({
+      id: t.id,
+      year: t.year,
+      termNumber: t.termNumber,
+    })),
     weeks,
+    currentWeekId,
     topics: topicRows,
   };
 }

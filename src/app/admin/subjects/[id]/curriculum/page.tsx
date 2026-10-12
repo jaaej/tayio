@@ -15,7 +15,6 @@ import {
   homework,
   profiles,
   quizzes,
-  quizQuestions,
   subjectWeeks,
   subjects,
   terms,
@@ -131,9 +130,8 @@ export default async function AdminSubjectCurriculumPage({
             title: quizzes.title,
             status: quizzes.status,
             questionCount: sql<number>`(
-              select count(*)::int from ${quizQuestions}
-              where ${quizQuestions.quizId} = ${quizzes.id}
-                and ${quizQuestions.type} <> 'context'
+              select count(*)::int from quiz_questions qq
+              where qq.quiz_id = quizzes.id and qq.type <> 'context'
             )`,
           })
           .from(quizzes)

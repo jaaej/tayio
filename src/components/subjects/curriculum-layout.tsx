@@ -40,15 +40,12 @@ export function CurriculumLayout({
   attached = false,
   framed = false,
   subjectName,
-  flushTabTop = false,
 }: {
   rail: React.ReactNode;
   children: React.ReactNode;
   attached?: boolean;
   framed?: boolean;
   subjectName?: string;
-  /** Drop the collapsed tab's top padding so its first mark sits on the edge. */
-  flushTabTop?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -203,10 +200,7 @@ export function CurriculumLayout({
                 onClick={toggle}
                 aria-label="Show weeks"
                 aria-expanded={false}
-                className={cn(
-                  "glass absolute inset-y-0 left-0 flex w-[48px] flex-col items-center gap-2.5 rounded-[18px] pb-4 text-ink-soft transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400",
-                  flushTabTop ? "pt-2" : "pt-3.5",
-                )}
+                className="glass absolute inset-y-0 left-0 flex w-[48px] flex-col items-center gap-2.5 rounded-[18px] pb-4 pt-3.5 text-ink-soft transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
               >
                 {dot && (
                   <span

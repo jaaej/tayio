@@ -1,23 +1,40 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, CardHead, CardBody } from "@/components/student/card";
+import { notFound } from "next/navigation";
+import { Check, Eye } from "lucide-react";
 import {
-  createClassAnnouncement,
-  deleteClassAnnouncement,
-} from "@/app/tutor/_actions";
-import { getClassAnnouncementsForTutor } from "@/app/tutor/_data";
-import { requireRole } from "@/lib/auth";
-import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import { relativeTime } from "@/lib/format";
-import { getTutorCurriculum } from "./_queries";
+  Empty,
+  GlassPanel,
+  Pill,
+  buttonVariants,
+  type PillTone,
+} from "@/components/admin/ui";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
   CurriculumRail,
   type RailWeek,
 } from "@/components/subjects/curriculum-rail";
-import { SectionEditor } from "./_components/section-editor";
+import { HomeworkCreatePanel } from "@/components/homework/homework-create-panel";
+import { PdfViewerButton } from "@/components/ui/pdf-viewer";
+import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { requireTutor } from "@/app/tutor/_data";
+import { classDisplayName } from "@/lib/class-display";
+import { signCurriculumUrl } from "@/lib/curriculum-storage";
+import { formatDueDate } from "@/lib/format";
+import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
+import { getClassHub } from "../_lib/class-hub";
+import {
+  getTutorCurriculum,
+  type TutorCurriculumWeek,
+  type TutorWeekHomework,
+  type TutorWeekQuiz,
+} from "./_queries";
+import { WeekPlanEditor } from "./_components/week-plan-editor";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
+
+/** Buttons on the dark admin-plan bar. */
+const ON_DARK =
+  "min-h-[34px] rounded-[10px] border-white/25 bg-white/10 px-3 text-[13px] text-white hover:border-white/40 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60";
 
 export default async function TutorClassCurriculumPage({
   params,
@@ -26,37 +43,35 @@ export default async function TutorClassCurriculumPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
-  const user = await requireRole("tutor");
+  const tutor = await requireTutor();
   const { id: classId } = await params;
   const { term: termParam, week: weekParam } = await searchParams;
 
-  const data = await getTutorCurriculum(user.id, classId, termParam);
+  const hub = await getClassHub(tutor.id, classId);
+  if (!hub) notFound();
+  const data = await getTutorCurriculum(tutor.id, classId, termParam);
   if (!data) notFound();
 
-  // Class announcements live here now that the class hub is gone. Ownership is
-  // already proven by getTutorCurriculum returning a row for this tutor.
-  const { announcements, rosterCount } = await getClassAnnouncementsForTutor(
-    user.id,
-    classId,
-  );
-
   const selected =
-    data.weeks.find((w) => w.subjectWeekId === weekParam) ?? data.weeks[0];
+    data.weeks.find((w) => w.subjectWeekId === weekParam) ??
+    data.weeks.find((w) => w.subjectWeekId === data.currentWeekId) ??
+    data.weeks[0];
 
-  // Pre-sign base file URLs and attachment URLs for the selected week
-  const videoSignedUrl = selected ? await signCurriculumUrl(selected.videoUrl) : null;
-  const bookletSignedUrl = selected ? await signCurriculumUrl(selected.bookletUrl) : null;
-  const attachmentsWithUrls = selected
-    ? await Promise.all(
-        selected.attachments.map(async (att) => ({
-          ...att,
-          url:
-            att.kind === "link"
-              ? att.url
-              : await signCurriculumUrl(att.storagePath),
-        })),
-      )
-    : [];
+  const [videoSignedUrl, bookletSignedUrl, attachments] = selected
+    ? await Promise.all([
+        signCurriculumUrl(selected.videoUrl),
+        signCurriculumUrl(selected.bookletUrl),
+        Promise.all(
+          selected.attachments.map(async (att) => ({
+            ...att,
+            href:
+              att.kind === "link"
+                ? att.url
+                : await signCurriculumUrl(att.storagePath),
+          })),
+        ),
+      ])
+    : [null, null, []];
 
   const railWeeks: RailWeek[] = data.weeks.map((w) => ({
     id: w.subjectWeekId,
@@ -69,202 +84,267 @@ export default async function TutorClassCurriculumPage({
       ...(w.homework.length > 0
         ? [{ label: `${w.homework.length} HW`, tone: "neutral" as const }]
         : []),
+      ...(w.quiz?.assignedToMe &&
+      (w.quiz.status === "requested" || w.quiz.status === "changes_requested")
+        ? [{ label: "Quiz to do", tone: "warn" as const }]
+        : []),
     ],
   }));
 
-  // Full-bleed layout mirroring the student subject page: bleed past the shell
-  // padding, subject-tinted header, skinny rail + content that fills the rest.
   return (
-    <div
-      className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16"
+    <CurriculumLayout
+      attached
+      framed
+      subjectName={data.subjectName}
+      rail={
+        <CurriculumRail
+          basePath={`/tutor/classes/${classId}/curriculum`}
+          currentTermId={data.currentTerm.id}
+          terms={data.termsAvailable.map((t) => ({
+            id: t.id,
+            label: `${t.year} · Term ${t.termNumber}`,
+          }))}
+          weeks={railWeeks}
+          selectedWeekId={selected?.subjectWeekId ?? null}
+          currentWeekIdHint={data.currentWeekId}
+        />
+      }
     >
-      <h1 className="sr-only">{data.className} - Curriculum</h1>
+      {!selected ? (
+        <GlassPanel>
+          <Empty className="py-12">
+            No curriculum has been set up for {data.subjectName} in Term{" "}
+            {data.currentTerm.termNumber}, {data.currentTerm.year} yet.
+          </Empty>
+        </GlassPanel>
+      ) : (
+        <div className="flex min-w-0 flex-col gap-5">
+          <AdminPlanBar
+            week={selected}
+            videoSignedUrl={videoSignedUrl}
+            bookletSignedUrl={bookletSignedUrl}
+          />
 
-      {/* Class announcements - posted here now that the class hub is gone */}
-      <div className="order-3 px-3 pb-3 lg:px-4">
-        <Card className="overflow-hidden">
-          <CardHead
-            title="Announcements"
+          <GlassPanel
+            title="For students this week"
+            titleId="week-plan-heading"
             action={
-              <span className="text-[12px] text-muted">
-                {rosterCount} enrolled student{rosterCount === 1 ? "" : "s"}
+              <span className="flex items-center gap-1.5 pr-1.5 text-[12px] font-bold text-ink-soft">
+                <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Students and parents see this on the week and its lessons
               </span>
             }
-          />
-          <CardBody className="space-y-4">
-            <details className="group rounded-[12px] border border-line bg-surface-2">
-              <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] font-bold text-ink [&::-webkit-details-marker]:hidden">
-                Submit an announcement
-                <span className="text-[11px] font-semibold text-brand-600 group-open:hidden">
-                  New ↓
-                </span>
-                <span className="hidden text-[11px] font-semibold text-muted group-open:inline">
-                  Close ↑
-                </span>
-              </summary>
-              <form
-                action={createClassAnnouncement}
-                className="space-y-2.5 border-t border-line px-3.5 py-3"
-              >
-                <input type="hidden" name="classId" value={classId} />
-                <input
-                  name="title"
-                  required
-                  maxLength={200}
-                  placeholder="Title (e.g. Bring your calculator next week)"
-                  className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25"
-                />
-                <textarea
-                  name="body"
-                  required
-                  rows={3}
-                  maxLength={10000}
-                  placeholder="Write your message to the class…"
-                  className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25"
-                />
-                <p className="text-[12px] text-muted">
-                  Admin approval is required before anyone receives this
-                  announcement.
-                </p>
-                <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-[10px] border border-line bg-surface px-3 py-2.5">
-                  <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-ink-soft">
-                    <input
-                      type="checkbox"
-                      name="includeLinkedParents"
-                      className="h-4 w-4 accent-brand-600"
-                    />
-                    Also send to linked parents
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-ink-soft">
-                    <input
-                      type="checkbox"
-                      name="isUrgent"
-                      className="h-4 w-4 accent-brand-600"
-                    />
-                    Mark urgent and email recipients
-                  </label>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="h-9 rounded-full bg-brand-600 px-4 text-[12px] font-bold text-white hover:bg-brand-700"
-                  >
-                    Submit for approval
-                  </button>
-                </div>
-              </form>
-            </details>
-
-            {announcements.length === 0 ? (
-              <p className="text-[13px] text-muted">
-                No announcements posted for this class yet.
-              </p>
-            ) : (
-              <ul className="space-y-2.5">
-                {announcements.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-[12px] border border-line bg-surface p-3.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[14px] font-bold text-ink">
-                          {a.title}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                              a.status === "published"
-                                ? "bg-good-bg text-good"
-                                : a.status === "rejected"
-                                  ? "bg-bad-bg text-bad"
-                                  : "bg-warn-bg text-warn"
-                            }`}
-                          >
-                            {a.status === "published"
-                              ? "Published"
-                              : a.status === "rejected"
-                                ? "Changes requested"
-                                : "Awaiting admin approval"}
-                          </span>
-                          {a.isUrgent ? (
-                            <span className="rounded-full bg-bad-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-bad">
-                              Urgent
-                            </span>
-                          ) : null}
-                          {a.includeLinkedParents ? (
-                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
-                              Includes parents
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-[11px] text-muted tabular-nums mt-0.5">
-                          {relativeTime(new Date(a.publishedAt))}
-                        </div>
-                      </div>
-                      <form action={deleteClassAnnouncement} className="shrink-0">
-                        <input type="hidden" name="announcementId" value={a.id} />
-                        <input type="hidden" name="classId" value={classId} />
-                        <button
-                          type="submit"
-                          className="text-[12px] font-semibold text-muted hover:text-bad"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    </div>
-                    <p className="mt-2 text-[13px] text-ink-soft whitespace-pre-wrap leading-snug">
-                      {a.body}
-                    </p>
-                    {a.rejectedReason ? (
-                      <p className="mt-2 rounded-[10px] bg-bad-bg px-3 py-2 text-[12px] text-bad">
-                        Admin feedback: {a.rejectedReason}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      {data.weeks.length === 0 ? (
-        <div className="p-8 text-sm text-muted text-center">
-          No curriculum has been set up for {data.subjectName} this term yet.
-        </div>
-      ) : (
-        <CurriculumLayout
-          attached
-          subjectName={data.subjectName}
-          flushTabTop
-          rail={
-            <CurriculumRail
-              basePath={`/tutor/classes/${classId}/curriculum`}
-              currentTermId={data.currentTerm.id}
-              terms={data.termsAvailable.map((t) => ({
-                id: t.id,
-                label: `Term ${t.termNumber} · ${t.year}`,
-              }))}
-              weeks={railWeeks}
-              selectedWeekId={selected?.subjectWeekId ?? null}
-            />
-          }
-        >
-          {selected && (
-            <SectionEditor
+          >
+            <WeekPlanEditor
+              key={selected.subjectWeekId}
               classId={classId}
-              week={selected}
-              subjectName={data.subjectName}
-              className={data.className}
+              subjectWeekId={selected.subjectWeekId}
+              initialBody={selected.note ?? ""}
+              attachments={attachments}
               topics={data.topics}
-              videoSignedUrl={videoSignedUrl}
-              bookletSignedUrl={bookletSignedUrl}
-              attachmentsWithUrls={attachmentsWithUrls}
             />
-          )}
-        </CurriculumLayout>
+          </GlassPanel>
+
+          <div className="flex flex-wrap items-start gap-5">
+            <GlassPanel
+              title="Homework"
+              titleId="week-homework-heading"
+              className="min-w-0 flex-[999_1_340px]"
+            >
+              <div className="border-b border-line p-4">
+                <HomeworkCreatePanel
+                  actor="tutor"
+                  weekId={selected.subjectWeekId}
+                  classes={[
+                    { id: classId, label: classDisplayName(hub.subjectName, hub.name) },
+                  ]}
+                  initialClassId={classId}
+                />
+              </div>
+              {selected.homework.length === 0 ? (
+                <Empty className="py-8">No homework for this week yet.</Empty>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {selected.homework.map((h) => (
+                    <HomeworkRow key={h.id} hw={h} />
+                  ))}
+                </ul>
+              )}
+            </GlassPanel>
+
+            <GlassPanel
+              title="Weekly quiz"
+              titleId="week-quiz-heading"
+              className="min-w-0 flex-[1_1_260px]"
+            >
+              <QuizCard quiz={selected.quiz} />
+            </GlassPanel>
+          </div>
+        </div>
       )}
+    </CurriculumLayout>
+  );
+}
+
+/** The admin's plan for the week: one compact, read-only dark bar. */
+function AdminPlanBar({
+  week,
+  videoSignedUrl,
+  bookletSignedUrl,
+}: {
+  week: TutorCurriculumWeek;
+  videoSignedUrl: string | null;
+  bookletSignedUrl: string | null;
+}) {
+  const objectives = (week.objectives ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return (
+    <section
+      aria-labelledby="admin-plan-heading"
+      className="flex flex-col gap-3 rounded-[22px] bg-ink px-[18px] py-4 text-white"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <h2 id="admin-plan-heading" className="text-[16px] font-extrabold">
+          Week {week.weekNumber} · {week.title}
+        </h2>
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-white/70">
+          Plan from admin
+        </span>
+      </div>
+      {week.description ? (
+        <p className="whitespace-pre-wrap text-[14px] leading-[1.55] text-white/85">
+          {week.description}
+        </p>
+      ) : (
+        objectives.length === 0 && (
+          <p className="text-[14px] text-white/70">No overview for this week yet.</p>
+        )
+      )}
+      {objectives.length > 0 && (
+        <ul aria-label="Goals" className="flex flex-wrap gap-1.5">
+          {objectives.map((o, i) => (
+            <li
+              key={i}
+              className="flex min-h-7 items-center gap-1.5 rounded-[14px] bg-white/10 px-2.5 py-1 text-[12px] font-semibold"
+            >
+              <Check className="h-3 w-3 shrink-0 text-[#7EE2B0]" strokeWidth={3} aria-hidden />
+              {o}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap gap-2 border-t border-white/[0.14] pt-3">
+        {videoSignedUrl ? (
+          <VideoViewerButton url={videoSignedUrl} title={`Week ${week.weekNumber} recording`} className={ON_DARK}>
+            Recorded lesson
+          </VideoViewerButton>
+        ) : (
+          <MissingMaterial>Recorded lesson · not uploaded yet</MissingMaterial>
+        )}
+        {bookletSignedUrl ? (
+          <PdfViewerButton url={bookletSignedUrl} title={`Week ${week.weekNumber} booklet`} className={ON_DARK}>
+            Week booklet
+          </PdfViewerButton>
+        ) : (
+          <MissingMaterial>Week booklet · not uploaded yet</MissingMaterial>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MissingMaterial({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex min-h-[34px] items-center rounded-[10px] border border-dashed border-white/30 px-3 text-[13px] font-semibold text-white/70">
+      {children}
+    </span>
+  );
+}
+
+function HomeworkRow({ hw }: { hw: TutorWeekHomework }) {
+  const pct = hw.assigned > 0 ? Math.round((hw.handedIn / hw.assigned) * 100) : 0;
+  const meta = [
+    hw.isTest ? "Test" : null,
+    `Due ${formatDueDate(hw.dueDate)}`,
+    `${hw.handedIn} of ${hw.assigned} in`,
+    hw.toMark > 0 ? `${hw.toMark} to mark` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <li className="flex items-center gap-2.5 px-4 py-3">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[14px] font-bold text-ink">{hw.title}</span>
+        <span className="text-[12px] text-muted">{meta}</span>
+      </span>
+      <span
+        role="img"
+        aria-label={`${pct}% handed in`}
+        className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-[3px] bg-surface-3 sm:block"
+      >
+        <span className="block h-full bg-ink" style={{ width: `${pct}%` }} />
+      </span>
+      <Link
+        href={`/tutor/homework/${hw.id}`}
+        className={buttonVariants({
+          variant: hw.toMark > 0 ? "primary" : "outline",
+          size: "sm",
+          className: "shrink-0",
+        })}
+      >
+        {hw.toMark > 0 ? `Mark ${hw.toMark}` : "Open"}
+      </Link>
+    </li>
+  );
+}
+
+function QuizCard({ quiz }: { quiz: TutorWeekQuiz | null }) {
+  if (!quiz) {
+    return <Empty className="py-8">No quiz for this week.</Empty>;
+  }
+  const mine = quiz.assignedToMe;
+  const action =
+    mine && quiz.status === "requested"
+      ? "Write quiz"
+      : mine && quiz.status === "changes_requested"
+        ? "Fix quiz"
+        : mine && quiz.status === "draft"
+          ? "Continue quiz"
+          : "View quiz";
+  const showNote =
+    mine &&
+    quiz.note?.trim() &&
+    (quiz.status === "requested" || quiz.status === "changes_requested");
+  return (
+    <div className="flex flex-col gap-2.5 p-4">
+      <Pill
+        tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone}
+        className="h-[22px] self-start px-2 text-[11px]"
+      >
+        {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
+      </Pill>
+      <span className="text-[14px] font-extrabold text-ink">{quiz.title}</span>
+      {showNote ? (
+        <p className="whitespace-pre-wrap text-[13px] leading-[1.45] text-ink-soft">
+          Admin: {quiz.note}
+        </p>
+      ) : (
+        <span className="text-[13px] text-muted">
+          {quiz.questionCount} {quiz.questionCount === 1 ? "question" : "questions"}
+        </span>
+      )}
+      <Link
+        href={`/tutor/quizzes/${quiz.id}`}
+        className={buttonVariants({
+          variant: action === "View quiz" ? "outline" : "primary",
+          size: "md",
+          className: "w-full",
+        })}
+      >
+        {action}
+      </Link>
     </div>
   );
 }

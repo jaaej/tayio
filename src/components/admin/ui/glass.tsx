@@ -14,17 +14,22 @@ export type SegmentItem = {
   active: boolean;
   /** Optional count shown after the label. */
   count?: number;
+  /** "warn" marks a count that needs action (a solid badge). */
+  countTone?: "default" | "warn";
 };
 
 /**
  * Segmented control on glass: a translucent track with the selected option
  * filled in ink. Each option is a link, so the choice lives in the URL.
+ * `size="md"` is the page-section variant (taller options, counts as badges),
+ * used for tabs under a page header such as the tutor class page.
  */
 export function SegmentedLinks({
   items,
   label,
   className,
   stretch = false,
+  size = "sm",
 }: {
   items: SegmentItem[];
   /** Accessible name for the group. */
@@ -32,12 +37,15 @@ export function SegmentedLinks({
   className?: string;
   /** Spread the options across the full width. */
   stretch?: boolean;
+  size?: "sm" | "md";
 }) {
+  const md = size === "md";
   return (
     <nav
       aria-label={label}
       className={cn(
-        "inline-flex gap-0.5 rounded-[11px] border border-white/90 bg-white/60 p-[3px]",
+        "inline-flex gap-0.5 border border-white/90 bg-white/60 p-[3px]",
+        md ? "rounded-[12px]" : "rounded-[11px]",
         stretch && "flex w-full",
         className,
       )}
@@ -49,7 +57,10 @@ export function SegmentedLinks({
           scroll={false}
           aria-current={item.active ? "page" : undefined}
           className={cn(
-            "inline-flex h-7 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] px-2.5 text-[12px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+            "inline-flex items-center justify-center whitespace-nowrap font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+            md
+              ? "h-[34px] gap-[7px] rounded-[9px] px-3.5 text-[13px]"
+              : "h-7 gap-1.5 rounded-[8px] px-2.5 text-[12px]",
             stretch && "flex-1 px-1",
             item.active
               ? "bg-ink text-white"
@@ -57,7 +68,21 @@ export function SegmentedLinks({
           )}
         >
           {item.label}
-          {item.count !== undefined && (
+          {md && item.count !== undefined && item.count > 0 && (
+            <span
+              className={cn(
+                "inline-flex h-5 min-w-5 items-center justify-center rounded-[10px] px-1.5 text-[11px] font-extrabold tabular-nums",
+                item.countTone === "warn"
+                  ? "bg-warn text-white"
+                  : item.active
+                    ? "bg-white text-ink"
+                    : "bg-surface-3 text-ink",
+              )}
+            >
+              {item.count}
+            </span>
+          )}
+          {!md && item.count !== undefined && (
             <span
               className={cn(
                 "tabular-nums",
