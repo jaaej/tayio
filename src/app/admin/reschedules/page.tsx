@@ -155,9 +155,8 @@ export default async function AdminReschedulesPage({
       <PageHeader
         title="Reschedules & cover"
         actions={
-          <div className="max-w-full overflow-x-auto">
-            <SegmentedLinks label="Section" items={tabs} />
-          </div>
+          // Wraps to two rows on a phone rather than hiding a tab off-screen.
+          <SegmentedLinks label="Section" items={tabs} className="flex-wrap" />
         }
       />
 

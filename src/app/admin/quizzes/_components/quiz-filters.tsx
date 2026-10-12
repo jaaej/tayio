@@ -85,7 +85,7 @@ export function QuizFilters({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
       <div className="relative w-full sm:w-[220px]">
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted"
@@ -111,10 +111,11 @@ export function QuizFilters({
         )}
       </div>
       <div
-        className="max-w-full overflow-x-auto"
+        className="max-w-full"
         onClickCapture={() => commitQuery(query)}
       >
         <SegmentedLinks
+          className="flex-wrap"
           label="Filter by status"
           items={statuses.map((s) => ({
             label: s.label,
