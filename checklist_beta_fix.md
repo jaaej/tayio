@@ -511,10 +511,15 @@ Last updated: 11 October 2026
   - Verified: `tsc`, 270 unit tests, production build, and 1440px screenshots
     of every admin page. Scroll panes now contain their `sr-only` labels
     (they had stretched the attendance page to 2600px).
-  - Dev note: the dev database pooler intermittently stalls under parallel
-    queries from this laptop (raw `postgres` queries, no app code, stalled for
-    minutes and then reset). The intermittent `/admin/users` hang is that,
-    not the page: the same loaders return in about 300ms when it is healthy.
+  - Fixed (12 October 2026): intermittent request hangs, worst on
+    `/admin/users`. Cause: postgres-js pipelined queries over Supabase's
+    transaction pooler (Supavisor, port 6543, used by dev and production);
+    when a page fired more parallel queries than the pool size, the pooler
+    left backends "active / ClientRead" forever. `src/db/client.ts` now sets
+    `max_pipeline: 0`. Verified with the real users loaders (6/6 stalled
+    before, 0/6 after) and 20 concurrent `/admin/users` loads (all complete in
+    0.25-1.1s). This likely explains the earlier unresolved "dev /admin/users
+    hang" note too; check production for the same symptom after deploy.
 
 - [x] Admin Attendance glass split view (11 October 2026).
   - `/admin/attendance` and `/admin/attendance/[lessonId]` share one queue

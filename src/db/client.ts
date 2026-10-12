@@ -17,6 +17,17 @@ type GlobalWithDb = typeof globalThis & {
 };
 const globalForDb = globalThis as GlobalWithDb;
 
+// No query pipelining. DATABASE_URL is Supabase's transaction pooler
+// (Supavisor, port 6543), and when postgres-js pipelines several queries on
+// one connection (any page that fires more parallel queries than `max`) the
+// pooler can leave a backend waiting mid-message forever ("active /
+// ClientRead"), hanging the request. Reproduced 12 Oct 2026 with the
+// /admin/users loaders: 6 of 6 rounds stalled with pipelining, 0 of 6 with it
+// off. Queries beyond `max` now queue in the client. `max_pipeline` is a
+// supported runtime option that postgres-js's typings omit, hence the
+// separate object.
+const NO_PIPELINING = { max_pipeline: 0 };
+
 const client =
   globalForDb.__pgClient ??
   postgres(connectionString, {
@@ -31,6 +42,7 @@ const client =
     connect_timeout: 10,
     max_lifetime: 60 * 10,
     keep_alive: 30,
+    ...NO_PIPELINING,
   });
 
 if (process.env.NODE_ENV !== "production") {
