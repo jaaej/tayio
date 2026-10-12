@@ -13,6 +13,22 @@ Last updated: 12 October 2026
 
 ## Manual QA required
 
+- [ ] Tutor glass redesign (12 October 2026): sign in as a tutor at 1440px and
+  390px and walk every sidebar item. Today: each To do row opens the right
+  place (the single "missing a note" row opens the oldest lesson without a
+  note), "Send reminder" on Students to bump, and week arrows. Classes: each
+  card's Week plan and Lessons. Class page tabs: Week plan autosave plus
+  file upload and "Add to library", Lessons tab buckets, Students tab,
+  Announcements submit, admin reject, then "Edit & resubmit". Lesson page:
+  All present, Save attendance, notes with "Save & next student", recording
+  link. Marking: Save & next through the queue and Homework settings panel.
+  Students: search and `?q=` from the sidebar search. Quizzes, Resources
+  share switch, Profile photo and icon. Discussions "Tutor answer" tag and
+  Asked by card, Messages header for a tutor-parent conversation (no such
+  conversation exists in dev), Notifications sections. Then reopen admin
+  Dashboard, Users, Attendance, Quizzes and Resources to confirm the shared
+  components still look right there.
+
 - [ ] Admin Classes as the home of curriculum (12 October 2026): the sidebar
   has no Curriculum group; from `/admin/classes` open Terms, Quizzes (badge =
   quizzes waiting for review) and a subject's Curriculum; confirm Classes stays
@@ -495,6 +511,50 @@ Last updated: 12 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Tutor portal pages on the glass kit (12 October 2026, `taiyo-tutor-design`
+  handoff). Each page was checked in the browser at 1440px and 390px with no
+  horizontal overflow; typecheck and unit tests pass.
+  - Today `/tutor`: shared `TodoPanel` (marking, one row for lessons missing a
+    note, quiz requests, last week's check-in, claimable covers), Today card,
+    shared week panel (`src/components/dashboard/week-panel.tsx`, also on the
+    admin dashboard), shared `PersonStatusTable` for Students to bump, Recent
+    notes. `/tutor/notes` redirects to `/tutor/students`.
+  - Classes `/tutor/classes`: next-class strip and class cards.
+  - Class page `/tutor/classes/[id]/{curriculum,lessons,students,announcements}`
+    with a shared header and tab badges (`classes/[id]/layout.tsx`).
+    Week plan edits "For students this week" with autosave and attachments.
+    Lessons tab replaces `/tutor/attendance` (now a redirect); its
+    "needs finishing" rule is `classes/[id]/_lib/lesson-progress.ts` (tested).
+    Announcements tab adds `resubmitClassAnnouncement`; admin approve/reject
+    notifications now link to it, and each rejection gets its own
+    notification key. Admin curriculum's quiz question count was always 0
+    (unqualified Drizzle subquery column); fixed.
+  - Lesson page `/tutor/lessons/[id]`: attendance uses the shared
+    `src/components/attendance/attendance-row.tsx` (admin Attendance too), one
+    roll for enrolled and make-up students, read-only week plan, recording,
+    per-student notes with "Save & next student".
+  - Marking `/tutor/homework/[homeworkId]?student=`: split view on the shared
+    `ListPane`; old links unchanged. Homework settings opens in a side panel
+    and `updateHomework` no longer redirects.
+  - Students `/tutor/students` split view (`students/layout.tsx`, `?q=`,
+    `?year=`, `?tab=`); search box shared with admin Users (`ListPaneSearch`).
+  - Quizzes list and filters shared with admin in `src/components/quizzes/`;
+    the shared quiz editor hides reorder arrows when read-only.
+  - Resources rows with a share switch; resource type chip shared with admin.
+  - Profile: photo, icon picker (now compact tiles, also on student profile),
+    read-only hourly rate, classes and students. No start date or average
+    score: the schema has no start date and homework scores have no maximum.
+  - Discussions: tutor replies tagged "Tutor answer" in every role, shared
+    "Asked by" card on the tutor thread page. Messages header says who the
+    person is to a tutor. Six tutor/admin to-do notifications now group under
+    Action needed (`src/lib/notification-groups.ts`, tested).
+  - Phone menu names off-menu pages (Profile) instead of "Choose a page".
+  - Glass shell height variables use rem (html is 17px), so full-height panes
+    no longer scroll the window by 2.5px.
+  - Known, not fixed: students who withdrew from a class still see that
+    subject's discussion board; admin "Tutor check-in not approved" files under
+    Other updates.
 
 - [x] Admin: curriculum, quizzes and terms are run from Classes
   (12 October 2026, owner request). The sidebar's Curriculum group is gone.
