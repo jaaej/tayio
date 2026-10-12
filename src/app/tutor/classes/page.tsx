@@ -1,234 +1,222 @@
 import Link from "next/link";
-import { ClipboardCheck } from "lucide-react";
-import { Card, CardHead, CardBody } from "@/components/student/card";
-import { PageHead, SectionHead } from "@/components/student/page-head";
-import { Pill } from "@/components/student/pill";
 import {
-  MiniWeekCalendar,
-  type CalendarEvent,
-} from "@/components/data/mini-week-calendar";
-import { formatDateLong, formatTime, startOfMondayWeek } from "@/lib/format";
+  Empty,
+  PageHeader,
+  Pill,
+  buttonVariants,
+} from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
+import { formatTime, formatTimeRange } from "@/lib/format";
+import { subjectTone } from "@/lib/subject-tone";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { lessonTiming, nearDayLabel } from "@/lib/tutor-today";
+import { getLessonWeek } from "@/lib/week-plans";
+import { cn } from "@/lib/utils";
+import { getTutorClasses, getTutorStudents, requireTutor } from "../_data";
 import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
-import {
-  getTutorClasses,
-  getTutorNextLesson,
-  getTutorStudents,
-  getTutorWeekLessons,
-  requireTutor,
-} from "../_data";
+  getLessonWeekSummary,
+  getTutorUpcomingLesson,
+} from "../_lib/today-data";
+import { getNextLessonDateByClass } from "./_lib/queries";
 
-const WEEKDAY = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+export const dynamic = "force-dynamic";
 
-function trimTime(t: string | null) {
-  return t ? t.slice(0, 5) : "-";
+const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const LINE_BUTTON = buttonVariants({ variant: "outline", size: "md" });
+
+function plural(n: number, one: string, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 export default async function TutorClassesPage() {
   const tutor = await requireTutor();
-
   const now = new Date();
-  const weekStart = startOfMondayWeek(now);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+  const todayIso = melbourneDate(now);
 
-  const [list, weekLessons, students, nextLesson] = await Promise.all([
+  const [list, students, nextLesson, nextByClass] = await Promise.all([
     getTutorClasses(tutor.id),
-    getTutorWeekLessons(tutor.id, weekStart, weekEnd),
     getTutorStudents(tutor.id),
-    getTutorNextLesson(tutor.id),
+    getTutorUpcomingLesson(tutor.id, now),
+    getNextLessonDateByClass(tutor.id, todayIso),
   ]);
 
-  const events: CalendarEvent[] = weekLessons.map((l) => ({
-    date: l.date,
-    time: l.startTime.slice(0, 5),
-    endTime: l.endTime.slice(0, 5),
-    label: l.className,
-    meta: l.subjectName,
-    kind: "lesson",
-    href: `/tutor/lessons/${l.id}`,
-  }));
+  const [nextSummary, weeks] = await Promise.all([
+    nextLesson ? getLessonWeekSummary(nextLesson) : null,
+    Promise.all(list.map((c) => getLessonWeek(c.id, todayIso))),
+  ]);
+  const weekByClass = new Map(list.map((c, i) => [c.id, weeks[i]]));
+
+  // Classes with a lesson coming up first, soonest first; the rest by name.
+  const sorted = [...list].sort((a, b) => {
+    const na = nextByClass.get(a.id);
+    const nb = nextByClass.get(b.id);
+    if (na && nb && na !== nb) return na.localeCompare(nb);
+    if (na && !nb) return -1;
+    if (!na && nb) return 1;
+    return (a.startTime ?? "").localeCompare(b.startTime ?? "") || a.name.localeCompare(b.name);
+  });
+
+  const isToday = nextLesson?.date === todayIso;
+  const timing = nextLesson
+    ? lessonTiming(nextLesson.date, nextLesson.startTime, nextLesson.endTime, now)
+    : null;
+  const [clock, meridiem] = nextLesson
+    ? formatTime(nextLesson.startTime).replace(/(am|pm)$/, " $1").split(" ")
+    : ["", ""];
 
   return (
     <div className="space-y-5">
-      <PageHead
-        eyebrow="Your classes"
-        title={
-          list.length === 0
-            ? "No active classes"
-            : `${list.length} active class${list.length === 1 ? "" : "es"}`
+      <PageHeader
+        title="Classes"
+        sub={
+          list.length > 0
+            ? `${plural(list.length, "active class", "active classes")} · ${plural(students.length, "student")} · admin manages enrolment`
+            : undefined
+        }
+        actions={
+          <Link
+            href="/tutor/timetable"
+            className={buttonVariants({ variant: "glass", size: "lg" })}
+          >
+            Open timetable
+          </Link>
         }
       />
 
-      {list.length > 0 && (
-        <Card className="overflow-hidden">
-          <CardHead
-            title="Weekly schedule"
-            action={
-              <Link href="/tutor/timetable">Open full timetable →</Link>
-            }
-          />
-          <CardBody>
-            <MiniWeekCalendar events={events} weekStart={weekStart} />
-          </CardBody>
-        </Card>
+      {nextLesson && (
+        <section aria-labelledby="next-class" className="glass rise rounded-[24px] p-1.5">
+          <div className="panel flex flex-wrap items-center gap-4 px-[18px] py-4">
+            <span className="flex w-[52px] shrink-0 flex-col items-center leading-[1.1]">
+              <span className="text-[11px] font-extrabold uppercase text-muted">
+                {isToday ? "Today" : nearDayLabel(nextLesson.date, todayIso)}
+              </span>
+              <span className="text-[22px] font-extrabold tabular-nums text-ink">{clock}</span>
+              <span className="text-[11px] font-extrabold uppercase text-muted">{meridiem}</span>
+            </span>
+            <span className="flex min-w-0 flex-[1_1_260px] flex-col gap-[3px]">
+              <span className="flex flex-wrap items-center gap-2">
+                <h2 id="next-class" className="text-[18px] font-extrabold text-ink">
+                  {classDisplayName(nextLesson.subjectName, nextLesson.className)}
+                </h2>
+                {isToday && timing && (
+                  <Pill
+                    tone={timing.tone === "neutral" ? "default" : timing.tone}
+                    className="h-[22px] px-2 text-[11px]"
+                  >
+                    {timing.label}
+                  </Pill>
+                )}
+              </span>
+              <span className="text-[13px] text-muted">
+                {[
+                  nextSummary ? `Week ${nextSummary.weekNumber} · ${nextSummary.title}` : null,
+                  isToday ? null : formatTimeRange(nextLesson.startTime, nextLesson.endTime),
+                  nextLesson.place,
+                  plural(nextLesson.studentCount, "student"),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/tutor/classes/${nextLesson.classId}/curriculum`}
+                className={cn(LINE_BUTTON, "h-10 rounded-[11px]")}
+              >
+                Week plan
+              </Link>
+              <Link
+                href={`/tutor/lessons/${nextLesson.id}`}
+                className={cn(buttonVariants({ variant: "primary", size: "md" }), "h-10 rounded-[11px] px-4")}
+              >
+                Open lesson
+              </Link>
+            </div>
+          </div>
+        </section>
       )}
 
-      {list.length === 0 ? (
-        <Card>
-          <CardBody>
-            <div className="text-[11px] uppercase tracking-[0.12em] text-muted font-bold">
-              Awaiting assignment
-            </div>
-            <p className="mt-2 text-sm text-ink-soft">
-              An admin needs to assign you to a class before students will
-              appear here.
-            </p>
-          </CardBody>
-        </Card>
-      ) : (
-        <div>
-          {/* Upcoming class - the one-tap attendance entry, in context */}
-          {nextLesson && (
-            <Link
-              href={`/tutor/lessons/${nextLesson.id}`}
-              className="block group mb-5"
-            >
-              <Card
-                className={`overflow-hidden transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)] ${nextLesson.isToday ? "border-brand-300" : ""}`}
-              >
-                <CardBody>
-                  <div className="flex items-center gap-4">
-                    <span className="grid place-items-center h-11 w-11 rounded-[12px] bg-brand-100 text-brand-700 shrink-0">
-                      <ClipboardCheck
-                        className="h-[22px] w-[22px]"
-                        strokeWidth={2.2}
-                        aria-hidden
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
-                          {nextLesson.isToday ? "Today's class" : "Next class"}
-                        </span>
-                        {nextLesson.isToday && <Pill tone="brand">Now</Pill>}
-                      </div>
-                      <div className="text-[15px] font-extrabold text-ink leading-tight mt-0.5 truncate">
-                        {formatDateLong(nextLesson.date)} ·{" "}
-                        <span className="tabular-nums">
-                          {formatTime(nextLesson.startTime)}–
-                          {formatTime(nextLesson.endTime)}
-                        </span>
-                      </div>
-                      <div className="text-[12px] text-muted mt-0.5 truncate">
-                        {classDisplayName(
-                          nextLesson.subjectName,
-                          nextLesson.className,
-                        )}{" "}
-                        ·{" "}
-                        {nextLesson.isToday
-                          ? "Open to mark attendance and write notes"
-                          : "Open the lesson"}
-                      </div>
-                    </div>
-                    <span className="text-[13px] font-bold text-brand-700 shrink-0">
-                      View class →
-                    </span>
-                  </div>
-                </CardBody>
-              </Card>
-            </Link>
-          )}
-
-          <SectionHead title="All classes" />
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-            {list.map((c) => {
-              const fam = colorFamilyForSubject(c.subjectName);
-              const accent = getAccentTokens(fam);
-              const initial = c.subjectName.charAt(0).toUpperCase();
+      {/* Same frame as GlassPanel, but each class card is its own white
+          panel on the glass instead of one shared body. */}
+      <section aria-labelledby="your-classes" className="glass rise flex min-w-0 flex-col rounded-[24px] p-1.5">
+        <div className="flex min-h-12 items-center py-1.5 pl-3 pr-1.5">
+          <h2 id="your-classes" className="text-[16px] font-extrabold text-ink">
+            Your classes
+          </h2>
+        </div>
+        {sorted.length === 0 ? (
+          <div className="panel">
+            <Empty>An admin needs to assign you to a class before it appears here.</Empty>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-1.5">
+            {sorted.map((c) => {
+              const tone = subjectTone(c.subjectName);
+              const name = classDisplayName(c.subjectName, c.name);
+              const week = weekByClass.get(c.id);
               const capacity = c.capacity ?? 0;
               const enrolled = c.enrolledCount ?? 0;
               const full = capacity > 0 && enrolled >= capacity;
+              const pct = capacity > 0 ? Math.min(100, Math.round((enrolled / capacity) * 100)) : 0;
+              const when =
+                typeof c.weekday === "number" && c.startTime && c.endTime
+                  ? `${WEEKDAY[c.weekday]} · ${formatTimeRange(c.startTime, c.endTime)}`
+                  : "-";
+              const where = c.location ?? (c.onlineLink ? "Online" : "-");
               return (
-                <Link
-                  key={c.id}
-                  href={`/tutor/classes/${c.id}/curriculum`}
-                  className="block group h-full"
-                >
-                <Card className="overflow-hidden h-full transition-all duration-150 group-hover:-translate-y-[3px] group-hover:shadow-[0_14px_28px_-16px_rgba(31,40,90,0.5)]">
-                  <div
-                    className="px-4 py-3 flex items-center gap-3 border-b border-line"
-                    style={{
-                      background: `linear-gradient(135deg, ${accent.bgFrom} 0%, ${accent.bgTo} 100%)`,
-                    }}
-                  >
-                    <div
-                      className="h-10 w-10 rounded-[10px] grid place-items-center text-[15px] font-extrabold shrink-0"
-                      style={{
-                        background: accent.title,
-                        color: "#fff",
-                      }}
+                <article key={c.id} className="panel flex flex-col gap-3.5 p-4">
+                  <div className="flex items-start gap-2.5">
+                    <span
+                      aria-hidden
+                      className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[11px] text-[15px] font-extrabold"
+                      style={{ backgroundColor: tone.bg, color: tone.fg }}
                     >
-                      {initial}
-                    </div>
-                    <div className="min-w-0">
-                      {/* No subject eyebrow: the class name already leads with
-                          the subject, and subjectYear is the year level, so
-                          this read "Year 10 Maths · 10" above "Year 10 Maths". */}
-                      <div
-                        className="text-[14px] font-extrabold leading-tight truncate"
-                        style={{ color: accent.title }}
-                      >
-                        {classDisplayName(c.subjectName, c.name)}
-                      </div>
-                    </div>
-                  </div>
-                  <CardBody>
-                    <dl className="text-[13px] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-                      <dt className="text-muted">When</dt>
-                      <dd className="text-ink text-right">
-                        {typeof c.weekday === "number"
-                          ? WEEKDAY[c.weekday]
-                          : "-"}{" "}
-                        <span className="tabular-nums">
-                          {trimTime(c.startTime)}–{trimTime(c.endTime)}
+                      {name.replace(/^VCE\s+/i, "").charAt(0).toUpperCase()}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-px">
+                      <h3 className="text-[15px] font-extrabold text-ink">{name}</h3>
+                      {week && (
+                        <span className="text-[12px] text-muted">
+                          Week {week.weekNumber} · {week.title}
                         </span>
-                      </dd>
-                      <dt className="text-muted">Where</dt>
-                      <dd className="text-ink text-right truncate">
-                        {c.location ?? (c.onlineLink ? "Online" : "-")}
-                      </dd>
-                      <dt className="text-muted">Enrolled</dt>
-                      <dd className="text-right">
-                        <Pill tone={full ? "warn" : "good"}>
-                          {enrolled} / {capacity}
-                        </Pill>
-                      </dd>
-                    </dl>
-                    <div className="mt-3 pt-3 border-t border-line flex items-center justify-end">
-                      <span className="text-[13px] font-bold text-brand-700 group-hover:text-brand-800">
-                        Open curriculum →
+                      )}
+                    </span>
+                  </div>
+                  <dl className="grid grid-cols-[64px_1fr] gap-y-1.5 text-[13px]">
+                    <dt className="font-semibold text-muted">When</dt>
+                    <dd className="font-bold text-ink tabular-nums">{when}</dd>
+                    <dt className="font-semibold text-muted">Where</dt>
+                    <dd className="truncate font-bold text-ink">{where}</dd>
+                    <dt className="font-semibold text-muted">Enrolled</dt>
+                    <dd className="flex items-center gap-2">
+                      <span
+                        className="h-1.5 flex-1 overflow-hidden rounded-[3px] bg-[#F1F2F7]"
+                        role="presentation"
+                      >
+                        <span
+                          className={cn("block h-full rounded-[3px]", full ? "bg-warn" : "bg-ink")}
+                          style={{ width: `${pct}%` }}
+                        />
                       </span>
-                    </div>
-                  </CardBody>
-                </Card>
-                </Link>
+                      <span className={cn("font-bold tabular-nums", full ? "text-warn" : "text-ink")}>
+                        {enrolled} / {capacity}
+                      </span>
+                    </dd>
+                  </dl>
+                  <div className="mt-auto grid grid-cols-2 gap-2">
+                    <Link href={`/tutor/classes/${c.id}/curriculum`} className={LINE_BUTTON}>
+                      Week plan
+                    </Link>
+                    <Link href={`/tutor/classes/${c.id}/lessons`} className={LINE_BUTTON}>
+                      Lessons
+                    </Link>
+                  </div>
+                </article>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </section>
     </div>
   );
 }

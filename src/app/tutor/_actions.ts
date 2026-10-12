@@ -372,7 +372,7 @@ export async function saveLessonNote(formData: FormData) {
 
   revalidatePath(`/tutor/lessons/${lessonId}`);
   revalidatePath(`/tutor/students/${studentId}`);
-  revalidatePath("/tutor/notes");
+  revalidatePath("/tutor");
 }
 
 /**

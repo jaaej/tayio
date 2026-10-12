@@ -11,8 +11,9 @@ import { subjectTone } from "@/lib/subject-tone";
  * day share the column side by side. Today's column is tinted and carries a
  * live "now" line in Melbourne time, matching how lesson times are stored.
  *
- * Admin dashboard and admin classes page only for now; the other roles still
- * use MiniWeekCalendar until this style is approved for every role.
+ * Used by the admin dashboard, the admin classes page and tutor Today; the
+ * student and parent portals still use MiniWeekCalendar until they move to
+ * the glass redesign.
  */
 export type TimeGridEvent = {
   id: string;
