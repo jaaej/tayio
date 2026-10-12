@@ -25,7 +25,10 @@ Last updated: 12 October 2026
   Students: search and `?q=` from the sidebar search. Quizzes, Resources
   share switch, Profile photo and icon. Discussions "Tutor answer" tag and
   Asked by card, Messages header for a tutor-parent conversation (no such
-  conversation exists in dev), Notifications sections. Then reopen admin
+  conversation exists in dev), Notifications sections. Schedule: each tab of
+  the "Hours & time away" panel, post a class for cover, have another tutor
+  take and release it, request and withdraw extended leave. Check-in: the
+  current week shows In progress; approve last week. Then reopen admin
   Dashboard, Users, Attendance, Quizzes and Resources to confirm the shared
   components still look right there.
 
@@ -550,6 +553,19 @@ Last updated: 12 October 2026
     person is to a tutor. Six tutor/admin to-do notifications now group under
     Action needed (`src/lib/notification-groups.ts`, tested).
   - Phone menu names off-menu pages (Profile) instead of "Choose a page".
+  - Schedule `/tutor/timetable`: the shared `MonthGrid` (new optional
+    `dayBadges` for Away/Pending days), "Your regular week" and "Time away".
+    One "Hours & time away" side panel with Regular hours, One class (48-hour
+    rule) and Extended leave tabs replaces the two old panels;
+    `?panel=leave|hours|extended` opens a tab. Tutors can withdraw pending
+    leave (`withdrawTutorLeaveRequest`; admins get "Tutor leave withdrawn").
+  - Cover board `/tutor/cover`: Needs cover, You're covering, Your requests,
+    then extended leave; each open card says whether the tutor is free. The
+    card is shared with admin Reschedules (`src/components/cover/cover-board.tsx`).
+  - Check-in `/tutor/checkin`: fact tiles, lessons table with totals and
+    "Corrected by admin" tags, confirm card. A week whose lessons have not all
+    finished shows "In progress" with Approve disabled (the server already
+    refused it).
   - Glass shell height variables use rem (html is 17px), so full-height panes
     no longer scroll the window by 2.5px.
   - Known, not fixed: students who withdrew from a class still see that
