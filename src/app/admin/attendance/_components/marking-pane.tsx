@@ -3,33 +3,20 @@
 import { useId, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ChevronLeft, NotebookPen } from "lucide-react";
-import { Avatar, Button, Empty, Pill, buttonVariants } from "@/components/admin/ui";
+import { ArrowRight, ChevronLeft } from "lucide-react";
+import { Button, Empty, buttonVariants } from "@/components/admin/ui";
+import { AttendanceRow, type RollStudent } from "@/components/attendance/attendance-row";
 import { ActionSpinner } from "@/components/ui/loading-button";
 import { adminSaveAttendance } from "@/app/admin/_lib/actions-attendance";
+import {
+  canMarkAllPresent,
+  markAllPresent,
+  rollSummary,
+  type RollStatuses,
+} from "@/lib/attendance-roll";
 import { cn } from "@/lib/utils";
 
-const OPTIONS = [
-  { value: "present", label: "Present", tone: "text-good" },
-  { value: "late", label: "Late", tone: "text-warn" },
-  { value: "left_early", label: "Left early", tone: "text-warn" },
-  { value: "absent", label: "Absent", tone: "text-bad" },
-  { value: "makeup_attended", label: "Make-up", tone: "text-info" },
-] as const;
-
-type Status = (typeof OPTIONS)[number]["value"];
-
-export type MarkingStudent = {
-  id: string;
-  name: string;
-  status: Status | null;
-  note: string;
-  onTrial: boolean;
-  /** Set when the student moved out of this lesson: where they went. */
-  movedOutTo?: string;
-  /** Set when the student is here as a make-up: where they came from. */
-  makeupFrom?: string;
-};
+export type MarkingStudent = RollStudent;
 
 /**
  * The marking half of the attendance split view. Owns the roll as client state
@@ -58,22 +45,10 @@ export function MarkingPane({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [statuses, setStatuses] = useState<Record<string, Status | null>>(() =>
+  const [statuses, setStatuses] = useState<RollStatuses>(() =>
     Object.fromEntries(students.map((s) => [s.id, s.status])),
   );
   const headingId = useId();
-
-  // Students who moved to another lesson keep the absence written when they
-  // were moved; "All present" only fills in the class that is actually here.
-  const markable = students.filter((s) => !s.movedOutTo && !s.makeupFrom);
-
-  function allPresent() {
-    setStatuses((prev) => {
-      const next = { ...prev };
-      for (const s of markable) next[s.id] = "present";
-      return next;
-    });
-  }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,12 +64,6 @@ export function MarkingPane({
       router.push(nextHref ?? backHref);
     });
   }
-
-  const tally = OPTIONS.map((opt) => ({
-    label: opt.label.toLowerCase(),
-    count: students.filter((s) => statuses[s.id] === opt.value).length,
-  })).filter((t) => t.count > 0);
-  const unmarked = students.filter((s) => !statuses[s.id]).length;
 
   return (
     <section
@@ -118,12 +87,12 @@ export function MarkingPane({
             <p className="text-[13px] font-semibold text-ink-soft">{sub}</p>
           </div>
         </div>
-        {markable.length > 0 && (
+        {canMarkAllPresent(students) && (
           <Button
             type="button"
             variant="glass"
             className="h-[38px] rounded-[11px] px-3"
-            onClick={allPresent}
+            onClick={() => setStatuses((prev) => markAllPresent(students, prev))}
           >
             All present
           </Button>
@@ -140,7 +109,7 @@ export function MarkingPane({
         ) : (
           <ul>
             {students.map((s) => (
-              <StudentRow
+              <AttendanceRow
                 key={s.id}
                 student={s}
                 status={statuses[s.id] ?? null}
@@ -152,12 +121,9 @@ export function MarkingPane({
           </ul>
         )}
 
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line bg-[#FAFBFD] px-4 py-3.5">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 bg-[#FAFBFD] px-4 py-3.5">
           <p className="text-[13px] font-semibold text-ink-soft" aria-live="polite">
-            {[
-              ...tally.map((t) => `${t.count} ${t.label}`),
-              ...(unmarked > 0 ? [`${unmarked} not marked`] : []),
-            ].join(" · ")}
+            {rollSummary(students, statuses)}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {notesButton}
@@ -180,102 +146,5 @@ export function MarkingPane({
         </div>
       </form>
     </section>
-  );
-}
-
-function StudentRow({
-  student,
-  status,
-  onChange,
-}: {
-  student: MarkingStudent;
-  status: Status | null;
-  onChange: (status: Status) => void;
-}) {
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [note, setNote] = useState(student.note);
-  const noteId = useId();
-  const hasNote = note.trim().length > 0;
-
-  return (
-    <li className="border-b border-line px-3 py-3 sm:px-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-        <Avatar name={student.name} size={34} tone="brand" />
-        <div className="flex min-w-0 flex-[1_1_140px] flex-col gap-1">
-          <span className="text-[14px] font-bold text-ink">{student.name}</span>
-          {(student.onTrial || student.movedOutTo || student.makeupFrom) && (
-            <span className="flex flex-wrap gap-1.5">
-              {student.onTrial && <Pill tone="info">Free trial</Pill>}
-              {student.movedOutTo && (
-                <Pill tone="warn">Rescheduled → {student.movedOutTo}</Pill>
-              )}
-              {student.makeupFrom && (
-                <Pill tone="mint">Make-up ← {student.makeupFrom}</Pill>
-              )}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          aria-label={`${hasNote ? "Edit" : "Add"} note for ${student.name}`}
-          aria-expanded={noteOpen}
-          aria-controls={noteId}
-          onClick={() => setNoteOpen((open) => !open)}
-          className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-ink-soft transition-colors sm:order-last",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-            hasNote ? "bg-warn-bg text-warn hover:brightness-95" : "hover:bg-surface-2",
-          )}
-        >
-          <NotebookPen className="h-[15px] w-[15px]" aria-hidden />
-        </button>
-        <div
-          role="radiogroup"
-          aria-label={`Attendance for ${student.name}`}
-          className="flex w-full gap-0.5 rounded-[12px] bg-[#F1F2F7] p-[3px] sm:w-auto"
-        >
-          {OPTIONS.map((opt) => {
-            const checked = status === opt.value;
-            return (
-              <label key={opt.value} className="flex flex-1 cursor-pointer sm:flex-none">
-                <input
-                  type="radio"
-                  name={`status[${student.id}]`}
-                  value={opt.value}
-                  checked={checked}
-                  onChange={() => onChange(opt.value)}
-                  className="peer sr-only"
-                />
-                <span
-                  className={cn(
-                    "flex h-8 w-full items-center justify-center whitespace-nowrap rounded-[9px] px-1 text-[11.5px] font-extrabold transition-colors duration-150 sm:px-3 sm:text-[12px]",
-                    "peer-focus-visible:ring-2 peer-focus-visible:ring-brand-400",
-                    checked
-                      ? cn("bg-surface shadow-[0_1px_3px_rgba(23,21,43,0.14)]", opt.tone)
-                      : "text-muted hover:text-ink",
-                  )}
-                >
-                  {opt.label}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-      <div id={noteId} hidden={!noteOpen} className="mt-2.5 sm:pl-[46px]">
-        <input
-          name={`note[${student.id}]`}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={2000}
-          aria-label={`Note for ${student.name}`}
-          placeholder="Optional note (e.g. arrived 10 min late)"
-          className={cn(
-            "h-9 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[13px] text-ink",
-            "placeholder:text-muted/80 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30",
-          )}
-        />
-      </div>
-    </li>
   );
 }

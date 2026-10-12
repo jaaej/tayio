@@ -559,41 +559,6 @@ export async function getTutorHomework(tutorId: string) {
   });
 }
 
-export async function getTutorMarkingQueue(tutorId: string) {
-  // One row per student submission awaiting marking (status submitted/late),
-  // joined with subject + student so the queue can be grouped by subject.
-  return db
-    .select({
-      homeworkId: homework.id,
-      homeworkTitle: homework.title,
-      dueDate: homework.dueDate,
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      className: classes.name,
-      studentId: homeworkAssignments.studentId,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      status: homeworkAssignments.status,
-      submittedAt: homeworkAssignments.submittedAt,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
-    .where(
-      and(
-        eq(homework.tutorId, tutorId),
-        inArray(homeworkAssignments.status, ["submitted", "late"]),
-      ),
-    )
-    .orderBy(
-      asc(subjects.name),
-      asc(profiles.lastName),
-      asc(profiles.firstName),
-    );
-}
-
 export async function getHomeworkDetail(tutorId: string, homeworkId: string) {
   const [hw] = await db
     .select()

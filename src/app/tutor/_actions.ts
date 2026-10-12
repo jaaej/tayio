@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -763,7 +762,6 @@ export async function updateHomework(formData: FormData) {
   revalidatePath(`/tutor/homework/${homeworkId}`);
   revalidatePath("/tutor/homework");
   revalidatePath("/tutor");
-  redirect(`/tutor/homework/${homeworkId}`);
 }
 
 export async function markSubmission(formData: FormData) {
