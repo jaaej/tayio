@@ -196,7 +196,7 @@ export async function approveAnnouncement(id: string) {
           channel: "in_app" as const,
           title: "Announcement approved",
           body: `“${pending.title}” is now visible to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}.`,
-          href: `/tutor/classes/${pending.targetClassIds[0] ?? ""}/curriculum`,
+          href: `/tutor/classes/${pending.targetClassIds[0] ?? ""}/announcements`,
           dedupeKey: `announcement-approved:${announcementId}`,
         },
       ]);
@@ -259,8 +259,10 @@ export async function rejectAnnouncement(input: {
         channel: "in_app",
         title: "Announcement changes required",
         body: `“${row.title}” was not approved. Admin note: ${data.reason}`,
-        href: `/tutor/classes/${row.targetClassIds[0] ?? ""}/curriculum`,
-        dedupeKey: `announcement-rejected:${data.id}`,
+        href: `/tutor/classes/${row.targetClassIds[0] ?? ""}/announcements`,
+        // A tutor can edit and resubmit, so one announcement can be sent back
+        // more than once: key each review round separately.
+        dedupeKey: `announcement-rejected:${data.id}:${Date.now()}`,
       });
       return row;
     },
@@ -309,5 +311,5 @@ function revalidateAnnouncementPaths(classId?: string) {
   revalidatePath("/admin");
   revalidatePath("/student");
   revalidatePath("/parent");
-  if (classId) revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  if (classId) revalidatePath(`/tutor/classes/${classId}`, "layout");
 }

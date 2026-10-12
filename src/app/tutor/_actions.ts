@@ -483,8 +483,7 @@ export async function createClassAnnouncement(formData: FormData) {
     }
   });
 
-  revalidatePath(`/tutor/classes/${classId}`);
-  revalidatePath(`/tutor/classes/${classId}/curriculum`);
+  revalidatePath(`/tutor/classes/${classId}`, "layout");
   revalidatePath("/admin/announcements");
   revalidatePath("/admin/notifications");
 }
@@ -518,7 +517,7 @@ export async function deleteClassAnnouncement(formData: FormData) {
     tx.delete(announcements).where(eq(announcements.id, announcementId)),
   );
 
-  revalidatePath(`/tutor/classes/${classId}`);
+  revalidatePath(`/tutor/classes/${classId}`, "layout");
 }
 
 export async function createHomework(formData: FormData) {
