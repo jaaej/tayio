@@ -297,6 +297,7 @@ export function NotificationsInboxView({
                   {section.label}
                 </span>
               }
+              meta={section.items.length}
             >
               <ul className="divide-y divide-line">
                 {section.items.map((item) => (

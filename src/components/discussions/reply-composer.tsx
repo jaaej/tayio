@@ -38,7 +38,11 @@ export function ReplyComposer({
         maxLength={4000}
         rows={3}
         aria-label="Write a reply"
-        placeholder="Share what you know - or where you got stuck too."
+        placeholder={
+          rolePrefix === "tutor"
+            ? "Write your answer - it'll be tagged Tutor answer."
+            : "Share what you know - or where you got stuck too."
+        }
         className="w-full resize-y rounded-[12px] border border-line-field bg-surface p-3 text-[14px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">

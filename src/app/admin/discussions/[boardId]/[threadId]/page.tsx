@@ -31,7 +31,7 @@ export default async function AdminThreadPage({
       thread={thread}
       boardId={boardId}
       rolePrefix="admin"
-      moderation={
+      aside={
         <GlassPanel
           as="aside"
           title="Admin controls"

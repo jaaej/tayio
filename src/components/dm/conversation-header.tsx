@@ -16,6 +16,8 @@ export function ConversationHeader({
   otherRole,
   backHref,
   profileHref,
+  profileLabel = "View profile",
+  context,
   titleId,
 }: {
   otherName: string;
@@ -23,6 +25,9 @@ export function ConversationHeader({
   backHref: string;
   /** Link to the other person's profile, where the viewer's role has one. */
   profileHref?: string;
+  profileLabel?: string;
+  /** Who this person is to the viewer; defaults to their role. */
+  context?: string;
   titleId: string;
 }) {
   return (
@@ -52,7 +57,7 @@ export function ConversationHeader({
           {otherName}
         </h2>
         <span className="truncate text-[12px] font-semibold text-ink-soft">
-          {roleLabel(otherRole)}
+          {context ?? roleLabel(otherRole)}
         </span>
       </div>
       {profileHref && (
@@ -63,7 +68,7 @@ export function ConversationHeader({
             "ml-auto shrink-0",
           )}
         >
-          View profile
+          {profileLabel}
         </Link>
       )}
     </div>

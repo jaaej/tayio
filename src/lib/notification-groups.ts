@@ -31,11 +31,23 @@ export function notificationGroupFor(
   if (href.includes("/messages") || title.startsWith("new message")) {
     return "messages";
   }
-  if (href.includes("/announcements") || title.includes("announcement")) {
+  // These titles embed user-written text (a thread or announcement title), so
+  // they are matched on their fixed prefix before any keyword below can be
+  // triggered by whatever the author happened to type.
+  if (title.startsWith("new reply on")) return "learning";
+  if (
+    title.startsWith("new announcement") ||
+    title.startsWith("urgent announcement")
+  ) {
     return "announcements";
   }
   if (
     title.startsWith("urgent:") ||
+    title.startsWith("review ") ||
+    title.includes("approval required") ||
+    title.includes("needs cover") ||
+    title.includes("hours due") ||
+    title.startsWith("check your hours") ||
     title.includes("cover needed") ||
     title.includes("cover request") ||
     title.includes("relocate class time") ||
@@ -51,6 +63,9 @@ export function notificationGroupFor(
     title.includes("canceled")
   ) {
     return "action";
+  }
+  if (href.includes("/announcements") || title.includes("announcement")) {
+    return "announcements";
   }
   if (
     href.includes("/quizzes") ||

@@ -205,6 +205,29 @@ export async function listThreadsForBoard(
   }));
 }
 
+/**
+ * Live threads on the user's subject boards that nobody has replied to yet:
+ * the questions a tutor should pick up next.
+ */
+export async function countUnansweredThreads(
+  userId: string,
+  role: UserRole,
+): Promise<number> {
+  const subjectIds = await accessibleSubjectIds(userId, role);
+  if (subjectIds.length === 0) return 0;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(discussionThreads)
+    .where(
+      and(
+        isNull(discussionThreads.deletedAt),
+        inArray(discussionThreads.subjectId, subjectIds),
+        sql`not exists (select 1 from ${discussionReplies} dr where dr.thread_id = ${discussionThreads.id} and dr.deleted_at is null)`,
+      ),
+    );
+  return row?.n ?? 0;
+}
+
 export type RecentThreadSummary = ThreadSummary & {
   board: BoardId;
   boardLabel: string;

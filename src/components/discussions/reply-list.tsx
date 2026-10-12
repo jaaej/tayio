@@ -13,7 +13,7 @@ import { AttachmentList, AttachmentPicker } from "./attachments";
 import {
   isStaffRole,
   relativeShort,
-  roleLabel,
+  replyRoleLabel,
   roleTone,
   type DiscussionRole,
 } from "./role-tone";
@@ -55,7 +55,7 @@ function RolePill({ role, removed }: { role: UserRole; removed: boolean }) {
       )}
     >
       {staff && <BadgeCheck className="h-3 w-3" aria-hidden />}
-      {roleLabel(role)}
+      {replyRoleLabel(role)}
     </span>
   );
 }

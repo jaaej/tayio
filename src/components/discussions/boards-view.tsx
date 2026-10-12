@@ -36,11 +36,14 @@ export function DiscussionsBoardsView({
   recentThreads,
   hrefPrefix,
   rolePrefix,
+  sub,
 }: {
   boards: BoardSummary[];
   recentThreads: RecentThreadSummary[];
   hrefPrefix: string;
   rolePrefix: DiscussionRole;
+  /** Role-specific status under the title, e.g. a tutor's unanswered count. */
+  sub?: string;
 }) {
   const now = new Date();
   const generalHelp = boards.find((b) => b.id.kind === "admin");
@@ -50,6 +53,7 @@ export function DiscussionsBoardsView({
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Discussions"
+        sub={sub}
         actions={
           <NewThreadButton
             boards={boards.map((b) => ({ segment: boardSegment(b.id), label: b.label }))}
