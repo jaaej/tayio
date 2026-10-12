@@ -4,6 +4,7 @@ import { getThreadForMe } from "@/lib/dm-queries";
 import { ConversationPanel } from "@/components/dm/conversation-panel";
 import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
+import { getConversationContext } from "@/lib/dm-context";
 import { loadAdminMessagesInbox } from "../_lib/inbox";
 
 export default async function AdminThreadPage({
@@ -22,7 +23,13 @@ export default async function AdminThreadPage({
   await markThreadRead(fd);
 
   // Loaded after marking read so the list shows this thread as read.
-  const { threads, groups } = await loadAdminMessagesInbox(user.id);
+  const [{ threads, groups }, context] = await Promise.all([
+    loadAdminMessagesInbox(user.id),
+    getConversationContext(
+      { id: user.id, role: "admin" },
+      { id: thread.otherUserId, role: thread.otherRole },
+    ),
+  ]);
 
   return (
     <MessagesLayout
@@ -38,7 +45,9 @@ export default async function AdminThreadPage({
         otherRole={thread.otherRole}
         messages={thread.messages}
         rolePrefix="admin"
-        profileHref={`/admin/users/${thread.otherUserId}`}
+        context={context.context ?? undefined}
+        profileHref={context.profileHref}
+        profileLabel={context.profileLabel}
       />
     </MessagesLayout>
   );
