@@ -1,17 +1,44 @@
 import Link from "next/link";
-import { Card, CardHead, CardBody } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
-import { Pill } from "@/components/student/pill";
-import { Label } from "@/components/ui/input";
-import { formatDueDate, relativeTime } from "@/lib/format";
+import { ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { eq } from "drizzle-orm";
+import {
+  Avatar,
+  Empty,
+  Pill,
+  SubjectDot,
+  buttonVariants,
+  type PillTone,
+} from "@/components/admin/ui";
+import { FileViewerButton } from "@/components/ui/file-viewer";
+import { db } from "@/db/client";
+import { classes, subjects } from "@/db/schema";
+import { classDisplayName } from "@/lib/class-display";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 import { HOMEWORK_BUCKET, signHomeworkAttachment } from "@/app/student/homework/_storage";
-import { markSubmission } from "../../_actions";
 import { getHomeworkDetail, requireTutor } from "../../_data";
-import { EditHomeworkForm } from "./_components/edit-homework-form";
-import { HomeworkSolutionEditor } from "@/components/homework/homework-solution-editor";
-import { FileViewerButton } from "@/components/ui/file-viewer";
+import { getToMark } from "../_lib/marking-data";
+import {
+  listHref,
+  nextToMark,
+  parseMarkingView,
+  submissionHref,
+} from "../_lib/marking-list";
+import { HomeworkSettings } from "./_components/homework-settings";
+import { MarkForm } from "./_components/mark-form";
+
+export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<string, PillTone> = {
+  late: "bad",
+  submitted: "info",
+  marked: "good",
+  returned: "good",
+  resubmission_requested: "warn",
+  viewed: "default",
+  not_started: "default",
+};
 
 /** Format a Date as a local-time value for <input type="datetime-local">. */
 function toDateTimeLocal(d: Date): string {
@@ -21,281 +48,309 @@ function toDateTimeLocal(d: Date): string {
   )}:${p(d.getMinutes())}`;
 }
 
-const HW_TONE: Record<string, "good" | "warn" | "bad" | "info" | "neutral"> = {
-  marked: "good",
-  returned: "good",
-  submitted: "good",
-  late: "bad",
-  resubmission_requested: "warn",
-  viewed: "info",
-  not_started: "neutral",
-};
+const MELBOURNE = "Australia/Melbourne";
+const dayFmt = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+const clockFmt = new Intl.DateTimeFormat("en-AU", {
+  timeZone: MELBOURNE,
+  hour: "numeric",
+  minute: "2-digit",
+});
 
-const INPUT_CLS =
-  "h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25";
+/** "Sat 10 Oct" - en-AU puts a comma after the weekday; drop it. */
+const shortDay = (d: Date) => dayFmt.format(d).replace(",", "");
 
 async function signSubmissionUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   if (path.startsWith("http")) return path;
   const supabase = await createClient();
-  const { data } = await supabase.storage
-    .from(HOMEWORK_BUCKET)
-    .createSignedUrl(path, 3600);
+  const { data } = await supabase.storage.from(HOMEWORK_BUCKET).createSignedUrl(path, 3600);
   return data?.signedUrl ?? null;
 }
 
-export default async function HomeworkDetailPage({
+function fileNameOf(path: string): string {
+  const last = decodeURIComponent(path.split("?")[0].split("/").pop() ?? "");
+  // Uploads are stored as "<uuid>-<original name>"; show the original name.
+  return last.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[-_]/i, "") || "Submission";
+}
+
+/**
+ * Right pane of the Marking split view. `[id]` is the homework (every older
+ * link points here); `?student=` selects one submission to mark. Without it,
+ * the pane shows the homework and everyone it was set for.
+ */
+export default async function HomeworkMarkingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ student?: string; view?: string; q?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const tutor = await requireTutor();
+  // Scoped to this tutor's homework; 404s otherwise.
   const { homework, submissions } = await getHomeworkDetail(tutor.id, id);
+  const list = { view: parseMarkingView(sp.view), q: (sp.q ?? "").trim() };
 
-  const signedSubmissions = await Promise.all(
-    submissions.map(async (s) => ({
-      ...s,
-      signedUrl: await signSubmissionUrl(s.submissionUrl),
-    })),
+  const [[cls], attachmentHref, solutionHref] = await Promise.all([
+    homework.classId
+      ? db
+          .select({ className: classes.name, subjectName: subjects.name })
+          .from(classes)
+          .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+          .where(eq(classes.id, homework.classId))
+          .limit(1)
+      : Promise.resolve([]),
+    signHomeworkAttachment(homework.attachmentUrl),
+    signHomeworkAttachment(homework.solutionUrl),
+  ]);
+  const classLabel = cls ? classDisplayName(cls.subjectName, cls.className) : null;
+  const dueLabel = `due ${shortDay(new Date(homework.dueDate))}`;
+
+  const settings = (
+    <HomeworkSettings
+      form={{
+        homeworkId: homework.id,
+        title: homework.title,
+        description: homework.description,
+        dueDate: toDateTimeLocal(new Date(homework.dueDate)),
+        allowResubmission: homework.allowResubmission,
+        isTest: homework.isTest,
+        hasAttachment: Boolean(homework.attachmentUrl),
+        attachmentHref,
+      }}
+      hasSolution={Boolean(homework.solutionUrl)}
+      solutionHref={solutionHref}
+    />
   );
+  const backHref = listHref("/tutor/homework", list);
+  const selected = sp.student ? submissions.find((s) => s.studentId === sp.student) : undefined;
 
-  const attachmentHref = await signHomeworkAttachment(homework.attachmentUrl);
-  const solutionHref = await signHomeworkAttachment(homework.solutionUrl);
-
-  const toMarkCount = signedSubmissions.filter(
-    (s) => s.status === "submitted" || s.status === "late",
-  ).length;
-  const markedCount = signedSubmissions.filter(
-    (s) => s.status === "marked" || s.status === "returned",
-  ).length;
-
-  return (
-    <div className="space-y-5">
-      <Link
-        href="/tutor/homework"
-        className="inline-flex items-center gap-1.5 text-[12px] font-bold text-brand-ink hover:text-ink"
+  if (!selected) {
+    return (
+      <section
+        aria-labelledby="homework-heading"
+        className="glass flex min-w-0 flex-col rounded-[24px] p-1.5"
       >
-        ← All homework
-      </Link>
-
-      <PageHead
-        eyebrow={`Due ${formatDueDate(new Date(homework.dueDate))}`}
-        title={homework.title}
-        sub={
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
-            {homework.allowResubmission && (
-              <span className="text-muted">Resubmission allowed</span>
-            )}
-            {attachmentHref && (
-              <FileViewerButton
-                url={attachmentHref}
-                title={`${homework.title} attachment`}
-                className="min-h-0 border-0 bg-transparent p-0 text-brand-600 hover:bg-transparent hover:text-brand-700"
-              >
-                View attachment
-              </FileViewerButton>
-            )}
-          </div>
-        }
-      />
-
-      {homework.description && (
-        <Card>
-          <CardBody>
-            <p className="text-[13px] text-ink-soft whitespace-pre-wrap leading-snug">
-              {homework.description}
-            </p>
-          </CardBody>
-        </Card>
-      )}
-
-      <Card>
-        <EditHomeworkForm
-          homeworkId={homework.id}
+        <PaneHeader
+          headingId="homework-heading"
+          backHref={backHref}
           title={homework.title}
-          description={homework.description}
-          dueDate={toDateTimeLocal(new Date(homework.dueDate))}
-          allowResubmission={homework.allowResubmission}
-          isTest={homework.isTest}
-          hasAttachment={Boolean(homework.attachmentUrl)}
-          attachmentHref={attachmentHref}
+          sub={[classLabel, dueLabel].filter(Boolean).join(" · ")}
+          subject={cls?.subjectName ?? null}
+          actions={settings}
         />
-      </Card>
-
-      <HomeworkSolutionEditor
-        homeworkId={homework.id}
-        hasSolution={Boolean(homework.solutionUrl)}
-        solutionHref={solutionHref}
-      />
-
-      <Card className="overflow-hidden">
-        <CardHead
-          title="Submissions"
-          action={
-            <span className="flex items-center gap-2 text-[11px]">
-              {toMarkCount > 0 && (
-                <Pill tone="warn">{toMarkCount} to mark</Pill>
+        <div className="panel flex flex-col overflow-hidden">
+          {(homework.description || attachmentHref) && (
+            <div className="flex flex-col gap-3 border-b border-line p-4">
+              {homework.description && (
+                <p className="whitespace-pre-wrap text-[14px] leading-[1.6] text-ink">
+                  {homework.description}
+                </p>
               )}
-              <Pill tone="good">{markedCount} marked</Pill>
-              <span className="text-muted">{submissions.length} total</span>
-            </span>
-          }
-        />
-
-        {signedSubmissions.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-muted text-center">
-            No students assigned yet. Assign to a class to populate this list.
-          </div>
-        ) : (
-          <div className="p-4 grid gap-3.5">
-            {signedSubmissions.map((s) => {
-              const hasSubmission = Boolean(
-                s.submissionUrl || s.submissionText,
-              );
-              return (
-                <article
-                  key={s.studentId}
-                  className="rounded-[14px] border border-line bg-surface p-4 space-y-3"
+              {attachmentHref && (
+                <FileViewerButton
+                  url={attachmentHref}
+                  title={`${homework.title} attachment`}
+                  className="self-start"
                 >
-                  <div className="flex items-center justify-between gap-3 pb-3 border-b border-line">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-9 w-9 rounded-full bg-brand-500 text-white grid place-items-center text-[12px] font-bold shrink-0">
-                        {s.firstName.charAt(0)}
-                        {s.lastName.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/tutor/students/${s.studentId}`}
-                          className="text-[14px] font-extrabold text-ink hover:text-brand-700 truncate block"
-                        >
-                          {s.firstName} {s.lastName}
-                        </Link>
-                        {s.yearLevel && (
-                          <div className="text-[11px] text-muted">
-                            {s.yearLevel}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                  View homework file
+                </FileViewerButton>
+              )}
+            </div>
+          )}
+          {submissions.length === 0 ? (
+            <Empty>No students have been assigned this homework.</Empty>
+          ) : (
+            <ul>
+              {submissions.map((s) => {
+                const name = `${s.firstName} ${s.lastName}`.trim();
+                return (
+                  <li key={s.studentId} className="border-b border-line last:border-b-0">
+                    <Link
+                      href={submissionHref(homework.id, s.studentId, list)}
+                      className="flex min-h-[56px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+                    >
+                      <Avatar name={name} size={34} tone="brand" />
+                      <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink">
+                        {name}
+                      </span>
                       {s.score !== null && (
-                        <Pill tone="info">{s.score}</Pill>
+                        <span className="text-[13px] font-extrabold tabular-nums text-ink">
+                          {Number(s.score)}
+                        </span>
                       )}
-                      <Pill tone={HW_TONE[s.status] ?? "neutral"}>
+                      <Pill tone={STATUS_TONE[s.status] ?? "default"}>
                         {HOMEWORK_STATUS_LABEL[s.status] ?? s.status}
                       </Pill>
-                    </div>
-                  </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+    );
+  }
 
-                  {hasSubmission ? (
-                    <div className="rounded-[12px] border border-line bg-surface-2 p-3 space-y-2">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="text-[10px] uppercase tracking-[0.12em] text-muted font-bold">
-                          Submission
-                        </div>
-                        {s.submittedAt && (
-                          <div className="text-[11px] text-muted tabular-nums">
-                            {relativeTime(s.submittedAt)}
-                          </div>
-                        )}
-                      </div>
-                      {s.submissionText && (
-                        <p className="text-[13px] text-ink whitespace-pre-wrap border-l-2 border-brand-300 pl-3 leading-snug">
-                          {s.submissionText}
-                        </p>
-                      )}
-                      {s.signedUrl && (
-                        <FileViewerButton
-                          url={s.signedUrl}
-                          title={`${s.firstName} ${s.lastName} submission`}
-                          className="border-brand-600 bg-brand-600 px-3.5 py-1.5 text-white hover:border-brand-700 hover:bg-brand-700"
-                        >
-                          View file
-                        </FileViewerButton>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-[13px] text-muted italic">
-                      No submission yet.
-                    </div>
-                  )}
+  const name = `${selected.firstName} ${selected.lastName}`.trim();
+  const queue = await getToMark(tutor.id);
+  const next = nextToMark(queue, { homeworkId: homework.id, studentId: selected.studentId });
+  const signedUrl = await signSubmissionUrl(selected.submissionUrl);
+  const hasSubmission = Boolean(selected.submissionText || selected.submissionUrl);
+  const sub = [
+    homework.title,
+    classLabel,
+    dueLabel +
+      (selected.submittedAt ? `, submitted ${shortDay(selected.submittedAt)} ${clockFmt.format(selected.submittedAt)}` : ""),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-                  <form
-                    action={markSubmission}
-                    className="space-y-2.5 pt-3 border-t border-line"
-                  >
-                    <input
-                      type="hidden"
-                      name="homeworkId"
-                      value={homework.id}
-                    />
-                    <input
-                      type="hidden"
-                      name="studentId"
-                      value={s.studentId}
-                    />
+  return (
+    <section
+      aria-labelledby="submission-heading"
+      className="glass flex min-w-0 flex-col rounded-[24px] p-1.5"
+    >
+      <PaneHeader
+        headingId="submission-heading"
+        backHref={backHref}
+        title={name}
+        status={selected.status}
+        sub={sub}
+        subject={cls?.subjectName ?? null}
+        actions={
+          <>
+            {settings}
+            <Link
+              href={`/tutor/students/${selected.studentId}`}
+              className={cn(buttonVariants({ variant: "glass" }), "h-[38px] rounded-[11px] px-3")}
+            >
+              <UserRound className="h-4 w-4" aria-hidden />
+              Student
+            </Link>
+          </>
+        }
+      />
+      <div className="panel flex min-h-[460px] flex-col overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-line p-4">
+          <h3 className="text-[13px] font-extrabold text-muted">Submission</h3>
+          {!hasSubmission && (
+            <p className="text-[14px] text-muted">
+              {selected.submittedAt ? "Submitted without text or a file." : "Nothing submitted yet."}
+            </p>
+          )}
+          {selected.submissionText && (
+            <p className="whitespace-pre-wrap text-[14px] leading-[1.6] text-ink">
+              {selected.submissionText}
+            </p>
+          )}
+          {selected.submissionUrl && (
+            <div className="flex items-center gap-3 rounded-[12px] bg-[#F8F9FC] px-3 py-2.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-bad-bg text-[10px] font-extrabold uppercase text-bad">
+                {(fileNameOf(selected.submissionUrl).split(".").pop() ?? "File").slice(0, 4)}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink">
+                {fileNameOf(selected.submissionUrl)}
+              </span>
+              {signedUrl ? (
+                <FileViewerButton
+                  url={signedUrl}
+                  title={`${name} submission`}
+                  className="shrink-0 rounded-[10px]"
+                >
+                  View file
+                </FileViewerButton>
+              ) : (
+                <span className="text-[12px] text-muted">File unavailable</span>
+              )}
+            </div>
+          )}
+          <p className="flex items-center gap-2.5 text-[12px] text-muted">
+            <span
+              aria-hidden
+              className={cn(
+                "h-[7px] w-[7px] rounded-full",
+                homework.solutionUrl ? "bg-[#16A34A]" : "bg-[#E8890C]",
+              )}
+            />
+            {homework.solutionUrl
+              ? "Solution uploaded · students see it after the due date"
+              : "No solution uploaded"}
+          </p>
+        </div>
+        <MarkForm
+          key={`${homework.id}:${selected.studentId}`}
+          homeworkId={homework.id}
+          studentId={selected.studentId}
+          studentFirstName={selected.firstName || name}
+          status={selected.status}
+          score={selected.score}
+          feedback={selected.feedback}
+          nextHref={next ? submissionHref(next.homeworkId, next.studentId, list) : null}
+          doneHref={backHref}
+        />
+      </div>
+    </section>
+  );
+}
 
-                    <div className="grid sm:grid-cols-[1fr_120px_auto] gap-2.5 items-end">
-                      <div className="space-y-1">
-                        <Label htmlFor={`status-${s.studentId}`}>Status</Label>
-                        <select
-                          id={`status-${s.studentId}`}
-                          name="status"
-                          defaultValue={s.status}
-                          className={INPUT_CLS}
-                        >
-                          <option value="marked">Marked</option>
-                          <option value="returned">Returned</option>
-                          <option value="resubmission_requested">
-                            Request resubmit
-                          </option>
-                          <option value="submitted">Submitted</option>
-                          <option value="late">Late</option>
-                          <option value="viewed">Viewed</option>
-                          <option value="not_started">Not started</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor={`score-${s.studentId}`}>Score</Label>
-                        <input
-                          id={`score-${s.studentId}`}
-                          name="score"
-                          type="number"
-                          step="0.01"
-                          defaultValue={s.score ?? ""}
-                          placeholder="-"
-                          className={INPUT_CLS}
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="h-10 rounded-full bg-brand-600 text-white px-4 text-[12px] font-bold hover:bg-brand-700"
-                      >
-                        Save mark
-                      </button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor={`feedback-${s.studentId}`}>
-                        Feedback
-                      </Label>
-                      <textarea
-                        id={`feedback-${s.studentId}`}
-                        name="feedback"
-                        rows={2}
-                        defaultValue={s.feedback ?? ""}
-                        placeholder="Constructive feedback for the student…"
-                        className={`${INPUT_CLS} h-auto py-2`}
-                      />
-                    </div>
-                  </form>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+function PaneHeader({
+  headingId,
+  backHref,
+  title,
+  status,
+  sub,
+  subject,
+  actions,
+}: {
+  headingId: string;
+  backHref: string;
+  title: string;
+  status?: string;
+  sub: string;
+  subject: string | null;
+  actions: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 pl-2 pr-2.5 sm:pl-3.5">
+      <div className="flex min-w-0 items-center gap-3">
+        <Link
+          href={backHref}
+          aria-label="Back to marking"
+          title="Back to marking"
+          className={cn(
+            buttonVariants({ variant: "glass", size: "icon" }),
+            "h-10 w-10 shrink-0 rounded-[12px] xl:hidden",
+          )}
+        >
+          <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
+        </Link>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex flex-wrap items-center gap-2">
+            <h2 id={headingId} className="text-[20px] font-extrabold leading-tight text-ink">
+              {title}
+            </h2>
+            {status && (
+              <Pill tone={STATUS_TONE[status] ?? "default"} className="uppercase">
+                {HOMEWORK_STATUS_LABEL[status] ?? status}
+              </Pill>
+            )}
+          </span>
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
+            {subject && <SubjectDot subject={subject} />}
+            <span>{sub}</span>
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">{actions}</div>
     </div>
   );
 }
