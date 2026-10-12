@@ -132,8 +132,8 @@ export function MarkForm({
               min="0"
               max="999.99"
               defaultValue={score ?? ""}
-              placeholder="-"
-              className={cn(FIELD_CLS, "h-[42px] px-3 text-[16px] font-extrabold tabular-nums")}
+              placeholder="Optional"
+              className={cn(FIELD_CLS, "h-[42px] px-3 text-[16px] font-extrabold tabular-nums placeholder:font-normal placeholder:text-muted")}
             />
           </div>
         </div>
