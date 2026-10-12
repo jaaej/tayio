@@ -48,7 +48,7 @@ export function GlassPanel({
             </span>
           )}
           {action && (
-            <div className="ml-auto flex flex-wrap items-center gap-1.5">{action}</div>
+            <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1.5">{action}</div>
           )}
         </div>
       )}

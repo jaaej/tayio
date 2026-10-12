@@ -255,7 +255,7 @@ function AdminNotesField({
         rows={1}
         aria-label={`Admin note for ${studentName}`}
         aria-describedby={statusId}
-        placeholder="Admin note for this enrolment (not visible to student or parent)"
+        placeholder="Private note (admins only)"
         className="min-h-9 w-full resize-y rounded-[10px] border border-line-field bg-[#FAFBFD] px-3 py-[7px] text-[13px] leading-5 text-ink placeholder:text-muted focus:border-ink focus:bg-surface focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:opacity-60"
       />
       <span id={statusId} role="status" className="text-[12px] font-semibold">
