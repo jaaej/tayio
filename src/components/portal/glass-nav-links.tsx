@@ -88,7 +88,13 @@ export function GlassNavLinks({ sections }: { sections: NavSection[] }) {
   );
 }
 
-export function GlassNavLinksMobile({ sections }: { sections: NavSection[] }) {
+export function GlassNavLinksMobile({
+  sections,
+  offMenuPages,
+}: {
+  sections: NavSection[];
+  offMenuPages?: readonly { href: string; label: string }[];
+}) {
   const items = sections.flatMap((s) => s.items);
-  return <MobilePortalNav items={items} />;
+  return <MobilePortalNav items={items} offMenuPages={offMenuPages} />;
 }

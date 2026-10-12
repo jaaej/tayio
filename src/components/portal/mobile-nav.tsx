@@ -20,13 +20,19 @@ export type MobilePortalNavItem = {
 
 export function MobilePortalNav({
   items,
+  offMenuPages = [],
 }: {
   items: MobilePortalNavItem[];
+  /** Pages reached from outside the menu (e.g. Profile from the avatar), so
+   *  the menu button can still say where you are. */
+  offMenuPages?: readonly { href: string; label: string }[];
 }) {
   const pathname = usePathname();
   const panelId = useId();
   const [open, setOpen] = useState(false);
-  const active = items.find((item) => isNavItemActive(pathname, item.href, item.also));
+  const active =
+    items.find((item) => isNavItemActive(pathname, item.href, item.also)) ??
+    offMenuPages.find((page) => isNavItemActive(pathname, page.href));
 
   useEffect(() => setOpen(false), [pathname]);
 

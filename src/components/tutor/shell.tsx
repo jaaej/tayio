@@ -212,7 +212,12 @@ export async function TutorShell({
               {avatar("h-9 w-9 text-[12px]")}
             </Link>
           }
-          nav={<GlassNavLinksMobile sections={sections} />}
+          nav={
+            <GlassNavLinksMobile
+              sections={sections}
+              offMenuPages={[{ href: "/tutor/profile", label: "Profile" }]}
+            />
+          }
         />
       }
     >
