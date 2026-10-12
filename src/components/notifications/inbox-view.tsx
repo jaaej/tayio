@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { relativeTime } from "@/lib/format";
 import {
   AlertCircle,
   Bell,
@@ -386,7 +387,10 @@ function Row({
           dateTime={item.createdAtIso}
           className="whitespace-nowrap text-[12px] tabular-nums text-muted"
         >
-          {item.timeLabel}
+          <LiveRelativeTime
+            createdAtIso={item.createdAtIso}
+            initialLabel={item.timeLabel}
+          />
         </time>
         {item.isUnread && (
           <span aria-hidden className="h-[9px] w-[9px] rounded-full bg-brand-500" />
@@ -426,4 +430,37 @@ function EmptyState({
       </div>
     </GlassPanel>
   );
+}
+
+/** "5m ago" style time that keeps ticking while the inbox is open. */
+function LiveRelativeTime({
+  createdAtIso,
+  initialLabel,
+}: {
+  createdAtIso: string;
+  initialLabel: string;
+}) {
+  const [label, setLabel] = useState(initialLabel);
+
+  useEffect(() => {
+    const update = () => setLabel(relativeTime(new Date(createdAtIso)));
+    update();
+
+    // Align the first tick to the next wall-clock minute, then update once per
+    // minute, so 5m becomes 6m at the right moment rather than up to a minute
+    // late depending on when the page mounted.
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const delay = 60_000 - (Date.now() % 60_000) + 25;
+    const timeout = setTimeout(() => {
+      update();
+      interval = setInterval(update, 60_000);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [createdAtIso]);
+
+  return label;
 }

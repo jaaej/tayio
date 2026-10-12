@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, like, max } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { Search } from "lucide-react";
+import { Lock, Search } from "lucide-react";
 import { STUDENT_TIERS, isUnrestrictedAdmin } from "@/lib/roles";
 import { db } from "@/db/client";
 import { familyLinks, invoices, notifications, profiles } from "@/db/schema";
@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth";
 import { relativeTime } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
+import { AdminPinPrompt } from "@/components/admin/pin-gate";
 import {
   Avatar,
   Empty,
@@ -80,11 +81,13 @@ export default async function PaymentsPage({
   const query = (params.q ?? "").trim().slice(0, 100);
 
   // Same rule as the revenue page and dashboard: reception (admin_restricted)
-  // sees money totals only after the PIN. Individual invoice amounts stay
-  // visible - reception needs them to take payments and answer families.
+  // sees no dollar figures until the admin PIN is entered - not the totals,
+  // not a family's balance, not a single invoice amount. Locked, they can
+  // still find a family, mark an invoice paid, change its status and send a
+  // reminder. Editing is hidden while locked because the form shows the amount.
   const owner = isUnrestrictedAdmin(user.app_metadata?.role as UserRole | undefined);
-  const { unlocked } = await getAdminSecurityState();
-  const showTotals = owner || unlocked;
+  const { unlocked, pinSet } = await getAdminSecurityState();
+  const showMoney = owner || unlocked;
 
   const parent = alias(profiles, "parent");
   const student = alias(profiles, "student");
@@ -218,6 +221,16 @@ export default async function PaymentsPage({
         }
       />
 
+      {!showMoney && (
+        <GlassPanel bodyClassName="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <p className="flex items-center gap-2 text-[13px] font-semibold text-ink-soft">
+            <Lock className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+            Amounts are hidden until the admin PIN is entered.
+          </p>
+          <AdminPinPrompt pinSet={pinSet} label="Admin PIN" />
+        </GlassPanel>
+      )}
+
       <nav aria-label="Filter by status" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {TILE_STATUSES.map((tile) => {
           const { count, totals } = summary[tile.status];
@@ -227,8 +240,8 @@ export default async function PaymentsPage({
             <MetricTile
               key={tile.status}
               label={tile.label}
-              value={showTotals ? formatTotals(totals) : count}
-              sub={showTotals ? `${count} ${noun}` : noun}
+              value={showMoney ? formatTotals(totals) : count}
+              sub={showMoney ? `${count} ${noun}` : noun}
               tone={count > 0 ? tile.tone : "default"}
               href={paymentsHref(active ? null : tile.status, query)}
               active={active}
@@ -298,9 +311,17 @@ export default async function PaymentsPage({
                         owes ? "text-bad" : "text-good",
                       )}
                     >
-                      {owes ? formatTotals(family.owing) : "Paid up"}
+                      {owes
+                        ? showMoney
+                          ? formatTotals(family.owing)
+                          : `${family.openCount} open`
+                        : "Paid up"}
                     </span>
-                    {owes && <span className="text-[12px] font-semibold text-ink-soft">owing</span>}
+                    {owes && (
+                      <span className="text-[12px] font-semibold text-ink-soft">
+                        {showMoney ? "owing" : family.openCount === 1 ? "invoice" : "invoices"}
+                      </span>
+                    )}
                   </span>
                   {owes && (
                     <SendReminderButton parentId={family.parentId} parentName={family.parentName} />
@@ -322,7 +343,14 @@ export default async function PaymentsPage({
                         {r.studentName && <div className="text-[12px] text-muted">{r.studentName}</div>}
                       </div>
                       <div className="text-right font-extrabold tabular-nums text-ink">
-                        {invoiceMoney(r.amount, r.currency)}
+                        {showMoney ? (
+                          invoiceMoney(r.amount, r.currency)
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-muted">
+                            <Lock className="h-3.5 w-3.5" aria-hidden />
+                            <span className="sr-only">Amount hidden</span>
+                          </span>
+                        )}
                       </div>
                       <div className={cn("font-semibold tabular-nums", pastDue ? "text-bad" : "text-ink-soft")}>
                         <span className="sr-only">Due </span>
@@ -333,6 +361,7 @@ export default async function PaymentsPage({
                       </div>
                       <div className="col-span-2 flex justify-end gap-1.5 md:col-span-1">
                         {r.status !== "paid" && <MarkPaidButton id={r.id} />}
+                        {showMoney && (
                         <EditInvoicePanel
                           key={`${r.id}:${r.status}:${r.amount}:${r.dueDate}:${r.parentId}:${r.studentId ?? ""}`}
                           label={name}
@@ -350,6 +379,7 @@ export default async function PaymentsPage({
                           parents={parentOptions}
                           students={studentOptions}
                         />
+                        )}
                       </div>
                     </li>
                   );

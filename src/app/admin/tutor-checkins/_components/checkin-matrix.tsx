@@ -308,6 +308,12 @@ export function CheckinMatrix({
                 <strong>Tutor note:</strong> {panelTutor.disputeMessage}
               </p>
             )}
+            {panelTutor.matrix.status === "approved" && (
+              <p className="rounded-[12px] bg-info-bg px-3.5 py-3 text-[12px] font-semibold text-info">
+                {panelTutor.name} already approved this week. Saving a correction
+                sends it back to them to approve again.
+              </p>
+            )}
             {panelTutor.matrix.hasMissingRate && (
               <p className="rounded-[12px] bg-warn-bg px-3.5 py-3 text-[12px] font-semibold text-warn">
                 An hourly rate is missing. Set it on{" "}

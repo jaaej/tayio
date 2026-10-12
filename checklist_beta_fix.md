@@ -201,8 +201,8 @@ Last updated: 11 October 2026
 - [x] Leave a notification inbox open across a minute boundary and confirm its
   timestamp advances from `5m ago` to `6m ago` without refreshing. Confirm the
   label changes to `1h ago` at 60 minutes and then advances hourly.
-  (Superseded 11 October 2026: the glass inbox shows fixed Melbourne-time
-  stamps, matching the messages list, so there is no live ticking label.)
+  (12 October 2026: the live `5m ago` label was restored in the glass inbox
+  at the owner's request; re-check it in the glass inbox QA item.)
 - [x] Open Messages as admin, tutor, parent, and student. Confirm thread dates
   render without the `lastActivityAt.toLocaleDateString` runtime error.
 - [x] From the admin users list, confirm the gear menu exposes password reset
