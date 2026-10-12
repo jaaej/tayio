@@ -12,7 +12,7 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { lessonTiming, nearDayLabel } from "@/lib/tutor-today";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
-import { getTutorClasses, getTutorStudents, requireTutor } from "../_data";
+import { getTutorClasses, requireTutor } from "../_data";
 import {
   getLessonWeekSummary,
   getTutorUpcomingLesson,
@@ -33,9 +33,8 @@ export default async function TutorClassesPage() {
   const now = new Date();
   const todayIso = melbourneDate(now);
 
-  const [list, students, nextLesson, nextByClass] = await Promise.all([
+  const [list, nextLesson, nextByClass] = await Promise.all([
     getTutorClasses(tutor.id),
-    getTutorStudents(tutor.id),
     getTutorUpcomingLesson(tutor.id, now),
     getNextLessonDateByClass(tutor.id, todayIso),
   ]);
@@ -68,11 +67,6 @@ export default async function TutorClassesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Classes"
-        sub={
-          list.length > 0
-            ? `${plural(list.length, "active class", "active classes")} · ${plural(students.length, "student")} · admin manages enrolment`
-            : undefined
-        }
         actions={
           <Link
             href="/tutor/timetable"
