@@ -784,8 +784,13 @@ export async function markSubmission(formData: FormData) {
     markedBy: tutor.id,
   };
   if (scoreRaw) {
+    // A score is the percentage the tutor awards (0-100); averages and the
+    // term report read it that way.
     const n = Number(scoreRaw);
-    if (Number.isFinite(n)) update.score = String(n);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      throw new Error("Score must be a percentage from 0 to 100");
+    }
+    update.score = String(Math.round(n * 100) / 100);
   } else {
     update.score = null;
   }

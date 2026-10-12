@@ -121,20 +121,28 @@ export function MarkForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`${id}-score`} className="text-[13px] font-bold text-ink">
-              Score
+              Score <span className="sr-only">(percent)</span>
             </label>
-            <input
-              id={`${id}-score`}
-              name="score"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              max="999.99"
-              defaultValue={score ?? ""}
-              placeholder="Optional"
-              className={cn(FIELD_CLS, "h-[42px] px-3 text-[16px] font-extrabold tabular-nums placeholder:font-normal placeholder:text-muted")}
-            />
+            <div className="relative">
+              <input
+                id={`${id}-score`}
+                name="score"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                max="100"
+                defaultValue={score === null ? "" : Number(score)}
+                placeholder="Optional"
+                className={cn(FIELD_CLS, "h-[42px] pl-3 pr-8 text-[16px] font-extrabold tabular-nums placeholder:font-normal placeholder:text-muted")}
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[14px] font-bold text-muted"
+              >
+                %
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -157,7 +165,7 @@ export function MarkForm({
         <p className="text-[13px] font-semibold text-ink-soft" aria-live="polite">
           {outcome === "error" ? (
             <span role="alert" className="text-bad">
-              The mark could not be saved. Check the score and try again.
+              The mark could not be saved. Check the score is from 0 to 100 and try again.
             </span>
           ) : outcome === "saved" ? (
             <span className="inline-flex items-center gap-1 font-bold text-good">

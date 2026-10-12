@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, CheckCircle2, Clock, Trophy } from "lucide-react";
+import { formatScore } from "@/lib/format";
+import { getLatestQuizAttempts } from "@/lib/quiz-scores";
+import { averageScore } from "@/lib/score-average";
 import { requireRole } from "@/lib/auth";
 import {
   getStudentOverallSubjectRank,
@@ -99,15 +102,10 @@ export default async function StudentProgressSubjectPage({
   const marked = detail.homework.filter(
     (h) => h.score !== null && (h.status === "marked" || h.status === "returned"),
   );
-  const averageScore = (() => {
-    if (marked.length === 0) return null;
-    const nums = marked
-      .map((h) => Number(h.score))
-      .filter((n) => Number.isFinite(n));
-    if (nums.length === 0) return null;
-    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    return Math.round(avg * 10) / 10;
-  })();
+  const avg = averageScore(
+    marked.map((h) => h.score),
+    await getLatestQuizAttempts(user.id, [id]),
+  );
   const submittedCount = detail.homework.filter(
     (h) =>
       h.status === "submitted" ||
@@ -202,7 +200,7 @@ export default async function StudentProgressSubjectPage({
         />
         <StatTile
           label="Average score"
-          value={averageScore !== null ? `${averageScore}%` : "-"}
+          value={avg.percent !== null ? `${avg.percent}%` : "-"}
           icon={<CheckCircle2 className="h-4 w-4" />}
           color={tokens.arrow}
           bg={tokens.bgFrom}
@@ -297,7 +295,7 @@ export default async function StudentProgressSubjectPage({
                       }}
                     >
                       <div className="text-[22px] font-bold tabular-nums leading-none tracking-[-0.02em]">
-                        {hasScore ? `${Number(h.score)}` : "-"}
+                        {hasScore ? formatScore(h.score!) : "-"}
                       </div>
                       <div className="mt-1 text-[9px] uppercase tracking-[0.14em] font-bold">
                         {hasScore ? "score" : "ungraded"}

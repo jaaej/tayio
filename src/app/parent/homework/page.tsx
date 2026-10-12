@@ -2,7 +2,7 @@ import { ClipboardList, Clock, AlertTriangle } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
-import { formatDueDate } from "@/lib/format";
+import { formatDueDate, formatScore } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL, HOMEWORK_STATUS_STYLE } from "@/lib/status";
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
@@ -175,7 +175,7 @@ export default async function ParentHomeworkPage({
                       />
                     </Td>
                     <Td className="text-right tabular-nums font-extrabold text-ink">
-                      {r.score !== null ? r.score : "-"}
+                      {r.score !== null ? formatScore(r.score) : "-"}
                     </Td>
                   </Tr>
                 ))}

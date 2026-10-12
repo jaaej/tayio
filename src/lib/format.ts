@@ -72,6 +72,11 @@ export function formatDueDate(d: Date) {
   }).format(d);
 }
 
+/** A homework score is a percentage the tutor awards: "85%", "92.5%". */
+export function formatScore(score: string | number): string {
+  return `${Math.round(Number(score) * 10) / 10}%`;
+}
+
 export function formatMoney(n: number, currency = "AUD") {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",

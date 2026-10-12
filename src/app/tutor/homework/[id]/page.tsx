@@ -12,6 +12,7 @@ import {
 import { FileViewerButton } from "@/components/ui/file-viewer";
 import { db } from "@/db/client";
 import { classes, subjects } from "@/db/schema";
+import { formatScore } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
@@ -182,7 +183,7 @@ export default async function HomeworkMarkingPage({
                       </span>
                       {s.score !== null && (
                         <span className="text-[13px] font-extrabold tabular-nums text-ink">
-                          {Number(s.score)}
+                          {formatScore(s.score)}
                         </span>
                       )}
                       <Pill tone={STATUS_TONE[s.status] ?? "default"}>

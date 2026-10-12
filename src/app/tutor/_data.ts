@@ -18,6 +18,7 @@ import {
   studentTrials,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { getLatestQuizAttempts } from "@/lib/quiz-scores";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
 
 export async function requireTutor() {
@@ -402,7 +403,24 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     )
     .orderBy(desc(homework.dueDate));
 
-  return { student, attendance: attendanceRows, notes, homework: homeworkRows };
+  // Quizzes count in the subjects this tutor teaches the student.
+  const sharedSubjects = await db
+    .selectDistinct({ id: classes.subjectId })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(classes.tutorId, tutorId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    );
+  const quizAttempts = await getLatestQuizAttempts(
+    studentId,
+    sharedSubjects.map((r) => r.id),
+  );
+
+  return { student, attendance: attendanceRows, notes, homework: homeworkRows, quizAttempts };
 }
 
 export async function getLessonForTutor(tutorId: string, lessonId: string) {

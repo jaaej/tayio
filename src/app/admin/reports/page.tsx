@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
-import { isoDate } from "@/lib/format";
+import { isoDate, formatScore } from "@/lib/format";
 import {
   Empty,
   GlassPanel,
@@ -25,7 +25,7 @@ function pct(value: number | null): string {
 }
 
 function score(value: number | null): string {
-  return value === null ? "-" : String(value);
+  return value === null ? "-" : formatScore(value);
 }
 
 /** Meter fill: strong at 90%+, ink in the normal band, amber below 75%. */

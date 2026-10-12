@@ -17,7 +17,7 @@ import { db } from "@/db/client";
 import { homeworkAssignments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDueDate } from "@/lib/format";
+import { formatDueDate, formatScore } from "@/lib/format";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
 import { FileViewerButton } from "@/components/ui/file-viewer";
@@ -151,7 +151,7 @@ export default async function HomeworkDetailPage({
                 Score
               </div>
               <div className="mt-0.5 text-[26px] font-extrabold tabular-nums leading-none">
-                {hw.score}
+                {formatScore(hw.score)}
               </div>
             </div>
           )}
@@ -252,7 +252,7 @@ export default async function HomeworkDetailPage({
                     className="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-bold tabular-nums"
                     style={{ background: tokens.pillBg, color: tokens.pillText }}
                   >
-                    Score <span className="text-[15px]">{hw.score}</span>
+                    Score <span className="text-[15px]">{formatScore(hw.score)}</span>
                   </span>
                 )}
                 {testRank && (

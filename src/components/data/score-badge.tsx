@@ -1,3 +1,5 @@
+import { formatScore } from "@/lib/format";
+
 /**
  * Coloured score pill: green ≥80, brand ≥60, amber below.
  * Accepts a numeric string (e.g. "85") or any string fallback.
@@ -22,7 +24,7 @@ export function ScoreBadge({
     <span
       className={`shrink-0 inline-flex items-center rounded-md font-medium tabular-nums border ${tone} ${sizing}`}
     >
-      {Number.isFinite(num) ? `${num}` : score}
+      {Number.isFinite(num) ? formatScore(num) : score}
     </span>
   );
 }

@@ -8,7 +8,8 @@ import {
   buttonVariants,
   type PillTone,
 } from "@/components/admin/ui";
-import { formatDateLong, formatDateShort, formatWeekday } from "@/lib/format";
+import { formatDateLong, formatDateShort, formatWeekday, formatScore } from "@/lib/format";
+import { averageScore, scoreAverageBasis } from "@/lib/score-average";
 import { ATTENDANCE_STATUS_LABEL } from "@/lib/status";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,7 @@ export default async function TutorStudentProfilePage({
   const tutor = await requireTutor();
   const profile = await getStudentProfile(tutor.id, id);
   const context = await getStudentHeaderContext(tutor.id, id);
-  const { student, attendance, notes, homework } = profile;
+  const { student, attendance, notes, homework, quizAttempts } = profile;
   const { today } = context;
 
   const name = `${student.firstName} ${student.lastName}`.trim();
@@ -86,6 +87,10 @@ export default async function TutorStudentProfilePage({
   const handedIn = dueSoFar.filter((h) => h.state === "marked" || h.state === "to_mark");
   const overdue = homeworkRows.filter((h) => h.state === "overdue").length;
   const toMark = homeworkRows.filter((h) => h.state === "to_mark").length;
+  const avg = averageScore(
+    homework.filter((h) => h.status === "marked" || h.status === "returned").map((h) => h.score),
+    quizAttempts,
+  );
 
   const parentLabel =
     context.parents.length === 0
@@ -210,7 +215,7 @@ export default async function TutorStudentProfilePage({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         <MetricTile
           label="Attendance"
           value={att.percent === null ? "-" : `${att.percent}%`}
@@ -230,6 +235,11 @@ export default async function TutorStudentProfilePage({
               .join(" · ") || (dueSoFar.length === 0 ? "nothing due yet" : "all handed in")
           }
           tone={overdue > 0 ? "bad" : "default"}
+        />
+        <MetricTile
+          label="Average score"
+          value={avg.percent === null ? "-" : `${avg.percent}%`}
+          sub={avg.percent === null ? "nothing marked yet" : scoreAverageBasis(avg)}
         />
         <MetricTile
           label="Lesson notes"
@@ -314,7 +324,7 @@ function HomeworkList({ rows }: { rows: HomeworkRow[] }) {
               </span>
               {h.score !== null && (
                 <span className="shrink-0 text-[13px] font-extrabold tabular-nums">
-                  {Number(h.score)}
+                  {formatScore(h.score)}
                   <span className="sr-only"> score</span>
                 </span>
               )}

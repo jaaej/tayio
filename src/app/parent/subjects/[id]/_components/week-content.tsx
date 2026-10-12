@@ -7,7 +7,7 @@ import {
   Link2 as LinkIcon,
 } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import { formatDueDate, relativeTime } from "@/lib/format";
+import { formatDueDate, relativeTime, formatScore } from "@/lib/format";
 import { httpHref } from "@/lib/safe-url";
 import {
   colorFamilyForSubject,
@@ -348,7 +348,7 @@ export async function WeekContentParent({
                       </StatusChip>
                       {h.score && (
                         <span className="text-[14px] font-extrabold tabular-nums text-ink">
-                          {h.score}
+                          {formatScore(h.score)}
                         </span>
                       )}
                     </div>
