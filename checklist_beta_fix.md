@@ -515,10 +515,15 @@ Last updated: 11 October 2026
     `/admin/users`. Cause: postgres-js pipelined queries over Supabase's
     transaction pooler (Supavisor, port 6543, used by dev and production);
     when a page fired more parallel queries than the pool size, the pooler
-    left backends "active / ClientRead" forever. `src/db/client.ts` now sets
-    `max_pipeline: 0`. Verified with the real users loaders (6/6 stalled
-    before, 0/6 after) and 20 concurrent `/admin/users` loads (all complete in
-    0.25-1.1s). This likely explains the earlier unresolved "dev /admin/users
+    left backends "active / ClientRead" forever. `src/db/client.ts` now uses
+    two clients: ordinary queries with pipelining off (`max_pipeline: 0`), and
+    a separate small client for `begin()` (postgres-js cannot reserve a
+    transaction's connection with pipelining off; it fails
+    UNSAFE_TRANSACTION). Drizzle's parser overrides are mirrored onto both, so
+    values read inside a transaction keep the same shape (checked). Verified:
+    users loaders stalled 8/8 with any pipelining and 0/8 after, with and
+    without concurrent transactions; 15 concurrent page loads including
+    tutor check-ins all completed in 0.3-2.5s. This likely explains the earlier unresolved "dev /admin/users
     hang" note too; check production for the same symptom after deploy.
 
 - [x] Admin Attendance glass split view (11 October 2026).
