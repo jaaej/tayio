@@ -39,6 +39,8 @@ import {
   type TodoKind,
 } from "./_lib/dashboard-queries";
 import { RevenueBars } from "./_components/revenue-bars";
+import { TodoPanel } from "@/components/dashboard/todo-panel";
+import { PersonStatusTable } from "@/components/dashboard/person-status-table";
 
 export const dynamic = "force-dynamic";
 
@@ -189,42 +191,18 @@ export default async function AdminDashboard({
 
       {/* To do + Revenue */}
       <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]" style={{ animationDelay: "40ms" }}>
-        <GlassPanel
-          title={
-            <span className="inline-flex items-center gap-2">
-              To do
-              {todo.length > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[11px] font-extrabold tabular-nums text-white">
-                  {todo.length}
-                </span>
-              )}
-            </span>
-          }
-        >
-          {todo.length === 0 ? (
-            <Empty>All clear. Nothing needs your attention right now.</Empty>
-          ) : (
-            <ul className="divide-y divide-line">
-              {todo.map((item) => (
-                <li key={item.kind} className="flex items-center gap-3.5 px-4 py-[13px] transition-colors hover:bg-[#F8F9FC]">
-                  <span
-                    aria-hidden
-                    className={`grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[11px] ${TODO_ICON[item.kind].tone}`}
-                  >
-                    {TODO_ICON[item.kind].icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-bold text-ink">{item.title}</div>
-                    <div className="text-[13px] text-muted">{item.detail}</div>
-                  </div>
-                  <Link href={item.href} className={cn(LINE_SM, "shrink-0")}>
-                    {item.action}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </GlassPanel>
+        <TodoPanel
+          empty="All clear. Nothing needs your attention right now."
+          items={todo.map((item) => ({
+            key: item.kind,
+            icon: TODO_ICON[item.kind].icon,
+            tone: TODO_ICON[item.kind].tone,
+            title: item.title,
+            detail: item.detail,
+            href: item.href,
+            action: item.action,
+          }))}
+        />
 
         <GlassPanel title="Revenue" meta={revenue ? "Last 6 months" : undefined}>
           {revenue && thisMonth ? (
@@ -297,89 +275,27 @@ export default async function AdminDashboard({
           </Link>
         }
       >
-        {watch.length === 0 ? (
-          <Empty>No students with repeated absences or overdue homework.</Empty>
-        ) : (
-          <>
-          {/* Phones: one stacked row per student so the reason stays visible. */}
-          <ul className="divide-y divide-line sm:hidden">
-            {watch.map((s) => (
-              <li key={s.studentId}>
-                <Link
-                  href={`/admin/users/${s.studentId}`}
-                  className="block px-4 py-3 transition-colors hover:bg-surface-2"
-                >
-                  <div className="text-[13px] font-bold text-ink">
-                    {s.firstName} {s.lastName}
-                  </div>
-                  {s.className && (
-                    <div className="text-[12px] text-ink-soft">{s.className}</div>
-                  )}
-                  <span
-                    className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                      s.tone === "bad" ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn"
-                    }`}
-                  >
-                    {s.reason}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full min-w-[640px] text-left">
-              <thead>
-                <tr className="border-b border-line text-[11px] font-bold text-muted">
-                  <th className="px-4 py-2.5">Student</th>
-                  <th className="px-4 py-2.5">Class</th>
-                  <th className="px-4 py-2.5">Why</th>
-                  <th className="px-4 py-2.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {watch.map((s) => (
-                  <tr key={s.studentId}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          aria-hidden
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-2 text-[11px] font-extrabold text-ink"
-                        >
-                          {s.firstName.charAt(0)}
-                          {s.lastName.charAt(0)}
-                        </span>
-                        <span className="text-[13px] font-bold text-ink">
-                          {s.firstName} {s.lastName}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-ink-soft">
-                      {s.className ?? "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          s.tone === "bad" ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn"
-                        }`}
-                      >
-                        {s.reason}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/users/${s.studentId}`}
-                        className="text-[12px] font-bold text-brand-700 hover:underline"
-                      >
-                        View student
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
+        <PersonStatusTable
+          empty="No students with repeated absences or overdue homework."
+          phoneAction={false}
+          rows={watch.map((s) => ({
+            id: s.studentId,
+            firstName: s.firstName,
+            lastName: s.lastName,
+            context: s.className,
+            reason: s.reason,
+            tone: s.tone,
+            href: `/admin/users/${s.studentId}`,
+            action: (
+              <Link
+                href={`/admin/users/${s.studentId}`}
+                className="text-[12px] font-bold text-brand-700 hover:underline"
+              >
+                View student
+              </Link>
+            ),
+          }))}
+        />
       </GlassPanel>
 
       {/* Announcements + Recent activity */}
