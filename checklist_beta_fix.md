@@ -1634,17 +1634,11 @@ Last updated: 12 October 2026
 
 ## Deployment required for the next larger workflow batch
 
-- [ ] Apply `supabase/migrations/0061_discussion_board_access.sql` and
-  `0062_homework_score_percent.sql` to Production with the same deploy as
-  0060 (both are safe before or after the code; 0062 needs no homework score
-  above 100, which was true on 12 October 2026).
-- [ ] Apply `supabase/migrations/0060_class_week_plans.sql` to Production
-  together with the tutor redesign deploy (the old code reads the dropped
-  `classes.lesson_plan` column and `tutor_week_sections`, so code and
-  migration must ship together). Production had no lesson plans or week notes
-  on 12 October 2026, so nothing is copied or lost; re-check with a count
-  before applying. Then run `npm run db:check-rls`.
-
+- [x] Deploy the tutor redesign batch and apply migrations 0060, 0061 and
+  0062 to Production (12 October 2026). Pushed `1fb0976`; once Vercel
+  reported the Production build successful, the three migrations were applied
+  (ledger 59 of 59, RLS check green). Subjects, classes, users and curriculum
+  weeks were the same counts before and after (3, 3, 26, 4).
 - [x] Apply `supabase/migrations/0053` through `0059` to Production
   (10 October 2026). Production had been deployed at `21a3d98` without them,
   so `/admin/subjects/[id]/curriculum` was failing with

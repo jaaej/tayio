@@ -332,7 +332,7 @@ drop table if exists public.student_curriculum_term_grants;
 ### 0060 - Class week plans
 
 **File:** `supabase/migrations/0060_class_week_plans.sql`
-**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Status:** Applied to dev and Production on 2026-10-12 (Production right after the `1fb0976` deploy went live).
 **Risk:** Medium. Renames `tutor_week_sections` / `tutor_week_attachments` to `class_week_plans` / `class_week_plan_attachments`, re-keys them by class, drops `classes.lesson_plan`, and replaces the 0010/0011 policies and helpers.
 The migration raises instead of dropping content it cannot place.
 
@@ -353,7 +353,7 @@ Reads are now scoped to the class, not to every class the tutor teaches in the s
 ### 0061 - Discussion board access
 
 **File:** `supabase/migrations/0061_discussion_board_access.sql`
-**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Status:** Applied to dev and Production on 2026-10-12 (Production right after the `1fb0976` deploy went live).
 **Risk:** Low. Only narrows SELECT; the app reads discussions through server-side Drizzle, which bypasses RLS.
 
 **What it does:** Replaces the 0012/0016 `using (true)` read policies on `discussion_threads`, `discussion_replies` and `discussion_attachments`, which let any signed-in user (including a parent, a withdrawn student or a student of another subject) read every board through the client SDK.
@@ -372,7 +372,7 @@ Verified with JWT impersonation: a student withdrawn from a subject loses its th
 ### 0062 - Homework score is a percentage
 
 **File:** `supabase/migrations/0062_homework_score_percent.sql`
-**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Status:** Applied to dev and Production on 2026-10-12 (Production right after the `1fb0976` deploy went live).
 **Risk:** Low. Adds `homework_assignments_score_percent` (`score` null or 0-100). No dev or production rows were outside the range.
 
 **Reversible:** yes, drop the constraint.
