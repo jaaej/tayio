@@ -508,8 +508,12 @@ Last updated: 11 October 2026
   - Availability and tutor bank-detail actions now return
     `{ ok: false, error }` instead of throwing, so production shows the real
     message.
-  - Verified: `tsc`, 270 unit tests, production build, and 1440px screenshots
-    of every admin page. Scroll panes now contain their `sr-only` labels
+  - Verified (12 October 2026): `tsc`, 270 unit tests, production build;
+    screenshots of every admin page at 1440px and 390px (no page scrolls
+    sideways); users split view selection, New class glass panel, sidebar
+    active-item scroll; shared messages, notifications, discussions and
+    curriculum checked as tutor, student and parent at 1440px.
+    Not yet checked: reception (PIN-locked) views and real form submissions. Scroll panes now contain their `sr-only` labels
     (they had stretched the attendance page to 2600px).
   - Fixed (12 October 2026): intermittent request hangs, worst on
     `/admin/users`. Cause: postgres-js pipelined queries over Supabase's
