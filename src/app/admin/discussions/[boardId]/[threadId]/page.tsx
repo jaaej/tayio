@@ -6,7 +6,7 @@ import {
   canSeeBoard,
   getThreadWithReplies,
 } from "@/lib/discussions-queries";
-import { resolveBoardId } from "@/lib/discussions";
+import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
 import { softDelete } from "@/app/_actions/discussions";
 
@@ -22,7 +22,7 @@ export default async function AdminThreadPage({
   if (!(await canSeeBoard(user.id, "admin", board))) notFound();
 
   const thread = await getThreadWithReplies(threadId);
-  if (!thread) notFound();
+  if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   const liveReplies = thread.replies.filter((r) => !r.deletedAt);
 

@@ -4,7 +4,7 @@ import {
   canSeeBoard,
   getThreadWithReplies,
 } from "@/lib/discussions-queries";
-import { resolveBoardId } from "@/lib/discussions";
+import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { AskedByCard } from "@/components/discussions/asked-by-card";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
 import { getThreadAskerForTutor } from "../../_lib/asker";
@@ -21,7 +21,7 @@ export default async function TutorThreadPage({
   if (!(await canSeeBoard(user.id, "tutor", board))) notFound();
 
   const thread = await getThreadWithReplies(threadId);
-  if (!thread) notFound();
+  if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   const asker = await getThreadAskerForTutor(user.id, thread);
 

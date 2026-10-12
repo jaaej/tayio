@@ -88,7 +88,8 @@ async function accessibleSubjectIds(
     .selectDistinct({ id: classes.subjectId })
     .from(enrollments)
     .innerJoin(classes, eq(enrollments.classId, classes.id))
-    .where(eq(enrollments.studentId, userId));
+    // A withdrawn student loses the board along with the class.
+    .where(and(eq(enrollments.studentId, userId), isNull(enrollments.withdrawnAt)));
   return rows.map((r) => r.id);
 }
 

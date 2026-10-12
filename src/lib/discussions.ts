@@ -20,6 +20,16 @@ export function boardSegment(board: BoardId): string {
   return board.kind === "admin" ? ADMIN_BOARD_SEGMENT : board.subjectId;
 }
 
+/**
+ * True when a thread lives on the board in the URL. Access is checked per
+ * board, so a thread page must also refuse a thread from another board.
+ */
+export function threadIsOnBoard(threadSubjectId: string | null, board: BoardId): boolean {
+  return board.kind === "admin"
+    ? threadSubjectId === null
+    : threadSubjectId === board.subjectId;
+}
+
 export function adminBoardLabel(): string {
   return "Admin / Tech";
 }

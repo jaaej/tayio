@@ -4,7 +4,7 @@ import {
   canSeeBoard,
   getThreadWithReplies,
 } from "@/lib/discussions-queries";
-import { resolveBoardId } from "@/lib/discussions";
+import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
 
 export default async function StudentThreadPage({
@@ -19,7 +19,7 @@ export default async function StudentThreadPage({
   if (!(await canSeeBoard(user.id, "student", board))) notFound();
 
   const thread = await getThreadWithReplies(threadId);
-  if (!thread) notFound();
+  if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   return (
     <DiscussionThreadDetail
