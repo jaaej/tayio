@@ -20,7 +20,6 @@ export default async function AdminAttendancePage({
       <AttendanceQueue
         queue={queue}
         basePath="/admin/attendance"
-        className="xl:w-[360px] xl:shrink-0 2xl:w-[400px]"
       />
       {/* Desktop only: the marking pane's resting state. On phones the queue
           is the whole page and a lesson opens on its own route. */}

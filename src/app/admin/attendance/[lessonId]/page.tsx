@@ -176,7 +176,7 @@ export default async function AdminLessonAttendancePage({
         basePath={`/admin/attendance/${lesson.id}`}
         currentLessonId={lesson.id}
         headingLevel="h2"
-        className="hidden xl:flex xl:w-[360px] xl:shrink-0 2xl:w-[400px]"
+        className="hidden xl:flex"
       />
 
       <MarkingPane

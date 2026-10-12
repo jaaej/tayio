@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import Link from "next/link";
 import { StickyNote } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Empty, SegmentedLinks } from "@/components/admin/ui";
+import {
+  Empty,
+  ListPane,
+  ListPaneGroup,
+  ListPaneRow,
+  ListPaneTitle,
+  SegmentedLinks,
+} from "@/components/admin/ui";
 import { initialsOf } from "@/components/admin/ui/glass";
 import { matchingAliasSubjectIds, type SubjectAlias } from "@/lib/directory-search";
 import type { CoarseRole } from "@/lib/roles";
@@ -90,75 +96,59 @@ export function UserDirectoryPane({
   };
 
   return (
-    <section
-      aria-labelledby="users-list-heading"
-      className={cn(
-        "glass min-w-0 flex-col rounded-[24px] p-1.5 xl:sticky xl:top-[var(--portal-sticky-top)] xl:flex xl:max-h-[calc(100dvh_-_2*var(--portal-sticky-top))] xl:w-[380px] xl:shrink-0 2xl:w-[420px]",
-        selectedId ? "hidden" : "flex",
-      )}
-    >
-      <div className="flex flex-col gap-2.5 px-2 pb-2.5 pt-2 sm:pl-3">
-        <div className="flex items-center justify-between gap-3">
-          <h1
-            id="users-list-heading"
-            className="text-[20px] font-extrabold leading-tight text-ink"
-          >
-            Users{" "}
-            <span className="text-[14px] font-bold tabular-nums text-ink-soft">
-              {listedCount}
-            </span>
-          </h1>
-          <CreateUserPanel
-            canManagePrivilegedRoles={canManagePrivilegedRoles}
-            defaultOpen={searchParams.get("new") === "1"}
+    <ListPane
+      labelledBy="users-list-heading"
+      hiddenBelowXl={Boolean(selectedId)}
+      scrollRef={scroller}
+      header={
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <ListPaneTitle id="users-list-heading" count={listedCount}>
+              Users
+            </ListPaneTitle>
+            <CreateUserPanel
+              canManagePrivilegedRoles={canManagePrivilegedRoles}
+              defaultOpen={searchParams.get("new") === "1"}
+            />
+          </div>
+          <UserDirectoryControls schools={schools} />
+          <SegmentedLinks
+            label="Filter by role"
+            stretch
+            items={[
+              { label: "All", href: roleHref(null), active: role === null },
+              ...ROLE_ORDER.map((r) => ({
+                label: ROLE_PLURAL[r],
+                href: roleHref(r),
+                active: role === r,
+              })),
+            ]}
           />
-        </div>
-        <UserDirectoryControls schools={schools} />
-        <SegmentedLinks
-          label="Filter by role"
-          stretch
-          items={[
-            { label: "All", href: roleHref(null), active: role === null },
-            ...ROLE_ORDER.map((r) => ({
-              label: ROLE_PLURAL[r],
-              href: roleHref(r),
-              active: role === r,
-            })),
-          ]}
-        />
-      </div>
-
-      <div
-        ref={scroller}
-        className="panel relative flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5"
-      >
-        {groups.length === 0 ? (
-          <Empty>No one matches these filters.</Empty>
-        ) : (
-          groups.map((group) => (
-            <div key={group.key} role="group" aria-labelledby={`users-group-${group.key}`}>
-              <h2
-                id={`users-group-${group.key}`}
-                className="px-2.5 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted"
-              >
-                {group.label}
-              </h2>
-              <ul className="flex flex-col gap-0.5">
-                {group.people.map((person) => (
-                  <li key={person.id}>
-                    <PersonRow
-                      person={person}
-                      href={withListQuery(`/admin/users/${person.id}`, searchParams)}
-                      selected={person.id === selectedId}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
+        </>
+      }
+    >
+      {groups.length === 0 ? (
+        <Empty>No one matches these filters.</Empty>
+      ) : (
+        groups.map((group) => (
+          <ListPaneGroup
+            key={group.key}
+            id={`users-group-${group.key}`}
+            label={group.label}
+          >
+            {group.people.map((person) => (
+              <li key={person.id}>
+                <PersonRow
+                  person={person}
+                  href={withListQuery(`/admin/users/${person.id}`, searchParams)}
+                  selected={person.id === selectedId}
+                />
+              </li>
+            ))}
+          </ListPaneGroup>
+        ))
+      )}
+    </ListPane>
   );
 }
 
@@ -173,14 +163,7 @@ function PersonRow({
 }) {
   const name = `${person.firstName} ${person.lastName}`.trim();
   return (
-    <Link
-      href={href}
-      aria-current={selected ? "page" : undefined}
-      className={cn(
-        "flex min-h-[50px] items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400",
-        selected ? "bg-surface-3" : "hover:bg-surface-2",
-      )}
-    >
+    <ListPaneRow href={href} selected={selected}>
       <span
         aria-hidden
         className={cn(
@@ -217,6 +200,6 @@ function PersonRow({
           {person.flag.label}
         </span>
       )}
-    </Link>
+    </ListPaneRow>
   );
 }

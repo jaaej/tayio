@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Empty, SegmentedLinks, SubjectDot } from "@/components/admin/ui";
+import { Empty, ListPane, SegmentedLinks, SubjectDot } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateLong, formatTime, formatWeekday } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,15 +54,11 @@ export function AttendanceQueue({
   const query = queueQueryString(filters);
 
   return (
-    <section
-      aria-labelledby="attendance-queue-heading"
-      className={cn(
-        "glass flex min-w-0 flex-col rounded-[24px] p-1.5",
-        "xl:sticky xl:top-[var(--portal-sticky-top)] xl:max-h-[calc(100dvh-var(--portal-sticky-top)-20px)]",
-        className,
-      )}
-    >
-      <div className="flex flex-col gap-2.5 px-2 pb-2.5 pt-2 sm:pl-3">
+    <ListPane
+      labelledBy="attendance-queue-heading"
+      className={className}
+      header={
+        <>
         <Heading
           id="attendance-queue-heading"
           className="text-[20px] font-extrabold leading-tight text-ink"
@@ -80,9 +76,9 @@ export function AttendanceQueue({
           }))}
         />
         <DayPicker />
-      </div>
-
-      <div className="panel relative min-h-0 flex-1 overflow-y-auto p-1.5">
+        </>
+      }
+    >
         {items.length === 0 ? (
           <Empty>{EMPTY_TEXT[filters.view][filters.date ? "day" : "range"]}</Empty>
         ) : (
@@ -137,7 +133,6 @@ export function AttendanceQueue({
             })}
           </ul>
         )}
-      </div>
-    </section>
+    </ListPane>
   );
 }
