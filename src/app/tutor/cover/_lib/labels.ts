@@ -1,5 +1,4 @@
 import type { PillTone } from "@/components/admin/ui";
-import { formatDateLong } from "@/lib/format";
 import {
   COVER_URGENT_24_HOURS,
   MIN_COVER_NOTICE_HOURS,
@@ -17,10 +16,22 @@ export const LEAVE_STATUS: Record<
   cancelled: { label: "Cancelled", tone: "default" },
 };
 
+const DAY = new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", timeZone: "UTC" });
+const DAY_MONTH = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+// en-AU writes "Mon, 21 Dec"; the comma is dropped to match the rest of the portal.
+const format = (formatter: Intl.DateTimeFormat, date: string) =>
+  formatter.format(new Date(`${date}T00:00:00.000Z`)).replace(",", "");
+
+/** "Thu 15 Oct", or a range such as "Mon 21 – Thu 24 Dec". */
 export function leaveRangeLabel(startDate: string, endDate: string): string {
-  return startDate === endDate
-    ? formatDateLong(startDate)
-    : `${formatDateLong(startDate)} – ${formatDateLong(endDate)}`;
+  if (startDate === endDate) return format(DAY_MONTH, startDate);
+  const sameMonth = startDate.slice(0, 7) === endDate.slice(0, 7);
+  return `${format(sameMonth ? DAY : DAY_MONTH, startDate)} – ${format(DAY_MONTH, endDate)}`;
 }
 
 function classes(count: number) {

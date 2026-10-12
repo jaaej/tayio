@@ -11,7 +11,12 @@ import {
   type PillTone,
 } from "@/components/admin/ui";
 import { requireTutor } from "@/app/tutor/_data";
-import { formatDateLong, formatTimeRange, weekRangeLabel } from "@/lib/format";
+import {
+  formatDateShort,
+  formatTimeRange,
+  formatWeekday,
+  weekRangeLabel,
+} from "@/lib/format";
 import {
   addIsoDays,
   checkinPay,
@@ -112,7 +117,7 @@ export default async function TutorCheckinPage({
         }
       />
 
-      <div className="glass grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] gap-1.5 rounded-[22px] p-1.5">
+      <div className="glass grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-1.5 rounded-[22px] p-1.5">
         <MetricTile label="Week" value={weekRangeLabel(week)} />
         <MetricTile
           label="Worked hours"
@@ -180,7 +185,7 @@ export default async function TutorCheckinPage({
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-muted">
-                        {formatDateLong(entry.workDate)} · {formatTimeRange(entry.startTime, entry.endTime)}
+                        {formatWeekday(entry.workDate, "short")} {formatDateShort(entry.workDate)} · {formatTimeRange(entry.startTime, entry.endTime)}
                       </td>
                       <td
                         className={cn(

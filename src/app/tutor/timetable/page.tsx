@@ -241,7 +241,7 @@ export default async function TutorTimetablePage({
     ...timeAway.absences.map((row) => ({
       key: `cover-${row.id}`,
       sort: row.date,
-      when: formatDateLong(row.date),
+      when: leaveRangeLabel(row.date, row.date),
       status:
         row.status === "claimed"
           ? { label: "Covered", tone: "good" as PillTone }
@@ -324,10 +324,10 @@ export default async function TutorTimetablePage({
             {(legendSubjects.length > 0 || legendHanded || legendCover) && (
               <ul className="flex flex-wrap gap-x-3.5 gap-y-1.5 px-2.5 pb-1.5 pt-1 text-[12px] font-semibold text-ink-soft">
                 {legendSubjects.map((subject) => (
-                  <LegendItem key={subject} color={subjectTone(subject).bg} label={subject} />
+                  <LegendItem key={subject} color={subjectTone(subject).dot} label={subject} />
                 ))}
-                {legendCover && <LegendItem color="var(--warn-bg)" label="Cover requested" />}
-                {legendHanded && <LegendItem color="var(--surface-3)" label="Handed to cover" />}
+                {legendCover && <LegendItem color="var(--warn)" label="Cover requested" />}
+                {legendHanded && <LegendItem color="var(--muted)" label="Handed to cover" />}
               </ul>
             )}
           </section>
@@ -398,9 +398,9 @@ export default async function TutorTimetablePage({
                   <ul className="divide-y divide-line">
                     {awayItems.map((item) => (
                       <li key={item.key} className="flex flex-col gap-1.5 px-3.5 py-3">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[14px] font-bold text-ink">{item.when}</span>
-                          <Pill tone={item.status.tone}>{item.status.label}</Pill>
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="min-w-0 pt-0.5 text-[14px] font-bold text-ink">{item.when}</span>
+                          <Pill tone={item.status.tone} className="shrink-0">{item.status.label}</Pill>
                         </span>
                         <span className="text-[12px] text-muted">{item.detail}</span>
                       </li>

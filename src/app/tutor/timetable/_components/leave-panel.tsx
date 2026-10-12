@@ -134,7 +134,7 @@ export function LeavePanelProvider({
         open={open}
         onClose={close}
         title="Hours & time away"
-        sub={tab === "hours" ? undefined : "Admin is notified as soon as you submit."}
+        sub="Admin is notified when you report an absence or leave."
         sections
         footer={
           <>
@@ -318,9 +318,9 @@ function RegularHoursForm({
         <form
           id={formId}
           action={(formData) => run(() => addRecurringAvailability(formData))}
-          className="grid gap-3.5 sm:grid-cols-2"
+          className="grid grid-cols-2 gap-3.5"
         >
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <div className="col-span-2 flex flex-col gap-1.5">
             <label htmlFor={`${ids}-day`} className={LABEL}>
               Day
             </label>
