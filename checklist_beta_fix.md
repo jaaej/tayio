@@ -13,6 +13,17 @@ Last updated: 12 October 2026
 
 ## Manual QA required
 
+- [ ] Owner follow-ups to the tutor redesign (12 October 2026):
+  withdraw a student from every class of a subject and confirm that board
+  leaves their Discussions and its links show not found, while their other
+  boards still work. Open a Messages conversation in each role (admin, tutor,
+  student, parent) and check the header reads who the person is and the
+  classes that connect you ("Parent of ... · class", "Sarah's tutor · class",
+  "Tutor · class"). Mark a homework with a score above 100 (refused) and
+  65 (shows "65%" to the student and parent); confirm a tutor's Students page
+  Average score counts marked homework and quizzes. Tutor Profile shows no
+  hourly rate. Notifications fill the page width in all four roles.
+
 - [ ] Tutor glass redesign (12 October 2026): sign in as a tutor at 1440px and
   390px and walk every sidebar item. Today: each To do row opens the right
   place (the single "missing a note" row opens the oldest lesson without a
@@ -24,8 +35,8 @@ Last updated: 12 October 2026
   link. Marking: Save & next through the queue and Homework settings panel.
   Students: search and `?q=` from the sidebar search. Quizzes, Resources
   share switch, Profile photo and icon. Discussions "Tutor answer" tag and
-  Asked by card, Messages header for a tutor-parent conversation (no such
-  conversation exists in dev), Notifications sections. Schedule: each tab of
+  Asked by card, Messages header for a tutor-parent conversation,
+  Notifications sections. Schedule: each tab of
   the "Hours & time away" panel, post a class for cover, have another tutor
   take and release it, request and withdraw extended leave. Check-in: the
   current week shows In progress; approve last week. Then reopen admin
@@ -514,6 +525,26 @@ Last updated: 12 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Owner follow-ups to the tutor redesign (12 October 2026). Typecheck and
+  unit tests pass; each change was checked in the browser.
+  - Discussions: withdrawn students lose the subject board
+    (`canSeeBoard` in `src/lib/discussions-queries.ts`), thread pages 404 a
+    thread from another board (`threadIsOnBoard`), and migration
+    `0061_discussion_board_access.sql` scopes the read policies to match.
+  - Messages header: one helper for every role,
+    `src/lib/dm-context.ts` + `dm-context-label.ts`, replacing the tutor-only
+    context. Classes are comma-separated because class names contain " · ".
+    Non-admins see the office as "Admin" rather than the owner/reception tier.
+  - Scores: a homework score is the percentage the tutor enters (0-100,
+    validated in `markSubmission`, constraint in
+    `0062_homework_score_percent.sql`) and shows as "65%" everywhere
+    (`formatScore`). Average score (`src/lib/score-average.ts`) weighs each
+    marked homework and each quiz's latest attempt (correct / questions)
+    equally; used on the tutor Students page and student subject progress.
+  - Tutor Profile no longer shows the hourly rate (Check-in still shows pay).
+  - Notifications inbox fills the content width.
+  - Dev data: the offensive internal note on tutor Wei Chen was cleared.
 
 - [x] Tutor portal pages on the glass kit (12 October 2026, `taiyo-tutor-design`
   handoff). Each page was checked in the browser at 1440px and 390px with no
@@ -1593,6 +1624,10 @@ Last updated: 12 October 2026
 
 ## Deployment required for the next larger workflow batch
 
+- [ ] Apply `supabase/migrations/0061_discussion_board_access.sql` and
+  `0062_homework_score_percent.sql` to Production with the same deploy as
+  0060 (both are safe before or after the code; 0062 needs no homework score
+  above 100, which was true on 12 October 2026).
 - [ ] Apply `supabase/migrations/0060_class_week_plans.sql` to Production
   together with the tutor redesign deploy (the old code reads the dropped
   `classes.lesson_plan` column and `tutor_week_sections`, so code and

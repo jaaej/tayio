@@ -350,6 +350,35 @@ Reads are now scoped to the class, not to every class the tutor teaches in the s
 
 ---
 
+### 0061 - Discussion board access
+
+**File:** `supabase/migrations/0061_discussion_board_access.sql`
+**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Risk:** Low. Only narrows SELECT; the app reads discussions through server-side Drizzle, which bypasses RLS.
+
+**What it does:** Replaces the 0012/0016 `using (true)` read policies on `discussion_threads`, `discussion_replies` and `discussion_attachments`, which let any signed-in user (including a parent, a withdrawn student or a student of another subject) read every board through the client SDK.
+Adds `can_read_discussion_subject(subject_id)` plus `subject_of_discussion_thread` / `subject_of_discussion_reply` (`SECURITY DEFINER`, pinned `search_path`, execute revoked from `public`/`anon`):
+
+- admin board (`subject_id is null`): any signed-in student, tutor or admin;
+- subject board: admins, tutors of a class in the subject, and students with an active (not withdrawn) enrolment in it.
+
+The app layer matches: `canSeeBoard` ignores withdrawn enrolments, and each role's thread page 404s a thread opened under another board's URL (`threadIsOnBoard`).
+Verified with JWT impersonation: a student withdrawn from a subject loses its threads, keeps the others, and a parent reads none.
+
+**Reversible:** yes, by recreating the `using (true)` policies.
+
+---
+
+### 0062 - Homework score is a percentage
+
+**File:** `supabase/migrations/0062_homework_score_percent.sql`
+**Status:** Applied to dev on 2026-10-12. Production pending, to ship with the tutor redesign deploy.
+**Risk:** Low. Adds `homework_assignments_score_percent` (`score` null or 0-100). No dev or production rows were outside the range.
+
+**Reversible:** yes, drop the constraint.
+
+---
+
 ## Access matrix
 
 Read access. "✓" = full row visibility for own data; "limited" = subset of columns or rows; "no" = denied at RLS level.
@@ -379,8 +408,8 @@ Read access. "✓" = full row visibility for own data; "limited" = subset of col
 | `subject_weeks`        | no   | all              | all                     | all                            | all   |
 | `student_week_progress`| no   | own              | child's                 | no                             | all   |
 | `student_curriculum_term_grants` | no | no | no | no | no (server-only) |
-| `discussion_threads`   | no   | all              | all                     | all                            | all   |
-| `discussion_replies`   | no   | all              | all                     | all                            | all   |
+| `discussion_threads`   | no   | admin board + subjects actively enrolled in | no | admin board + subjects taught | all |
+| `discussion_replies`   | no   | same as threads  | no                      | same as threads                | all   |
 | `dm_threads`           | no   | participant      | participant             | participant                    | all (read) |
 | `dm_messages`          | no   | participant      | participant             | participant                    | all (read) |
 | `dm_reads`             | no   | own              | own                     | own                            | own   |
