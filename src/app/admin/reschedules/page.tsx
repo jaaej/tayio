@@ -8,21 +8,21 @@ import {
   SubjectDot,
   type PillTone,
 } from "@/components/admin/ui";
+import { CoverBoardColumn, CoverCard } from "@/components/cover/cover-board";
 import { RescheduleRequestList } from "@/components/reschedule/request-list";
 import { getCreditsOverview } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatDateShort, formatTime } from "@/lib/format";
+import { formatDateLong, formatDateShort } from "@/lib/format";
 import { type CreditStatus } from "@/lib/reschedule-credits";
 import { listPendingRequests } from "@/lib/reschedule";
 import {
   getAdminCoverOverview,
+  getLeaveAffectedLessonCounts,
   runTutorCoverReminders,
   type CoverBoardRow,
 } from "@/lib/tutor-cover";
 import {
   melbourneDate,
-  tutorCoverClassLabel,
-  tutorCoverDateLabel,
 } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import {
@@ -37,10 +37,7 @@ import {
   isInsideNoticeWindow,
   type CoverColumn,
 } from "./_lib/cover-columns";
-import {
-  getLeaveAffectedLessonCounts,
-  getRecentLeaveDecisions,
-} from "./_lib/queries";
+import { getRecentLeaveDecisions } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -212,38 +209,18 @@ export default async function AdminReschedulesPage({
           ) : (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] items-start gap-4">
               {COVER_COLUMNS.map((column) => (
-                <section
+                <CoverBoardColumn
                   key={column}
-                  aria-labelledby={`cover-${column}-heading`}
-                  className="glass flex min-w-0 flex-col rounded-[24px] p-1.5"
+                  id={`cover-${column}`}
+                  title={COVER_COLUMN_LABEL[column]}
+                  dotClassName={COLUMN_DOT[column]}
+                  count={columns[column].length}
+                  empty={COLUMN_EMPTY[column]}
                 >
-                  <div className="flex items-center gap-2 pb-2.5 pl-3 pr-2 pt-2">
-                    <span
-                      aria-hidden
-                      className={cn("h-[9px] w-[9px] rounded-full", COLUMN_DOT[column])}
-                    />
-                    <h2
-                      id={`cover-${column}-heading`}
-                      className="text-[15px] font-extrabold text-ink"
-                    >
-                      {COVER_COLUMN_LABEL[column]}
-                    </h2>
-                    <span className="text-[13px] font-bold tabular-nums text-ink-soft">
-                      {columns[column].length}
-                    </span>
-                  </div>
-                  {columns[column].length === 0 ? (
-                    <div className="panel">
-                      <Empty className="py-6">{COLUMN_EMPTY[column]}</Empty>
-                    </div>
-                  ) : (
-                    <ul className="flex flex-col gap-1.5">
-                      {columns[column].map((row) => (
-                        <CoverCard key={row.id} row={row} now={now} tutors={tutors} />
-                      ))}
-                    </ul>
-                  )}
-                </section>
+                  {columns[column].map((row) => (
+                    <AdminCoverCard key={row.id} row={row} now={now} tutors={tutors} />
+                  ))}
+                </CoverBoardColumn>
               ))}
             </div>
           )}
@@ -435,7 +412,7 @@ export default async function AdminReschedulesPage({
   );
 }
 
-function CoverCard({
+function AdminCoverCard({
   row,
   now,
   tutors,
@@ -446,36 +423,34 @@ function CoverCard({
 }) {
   const covered = row.status === "claimed";
   return (
-    <li className="panel flex flex-col gap-2.5 p-3.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <SubjectDot subject={row.subjectName} className="h-2 w-2" />
-        <span className="min-w-0 flex-1 text-[14px] font-extrabold text-ink">
-          {tutorCoverClassLabel(row.subjectName, row.className)}
-        </span>
-        {isInsideNoticeWindow(row, now) && <Pill tone="bad">Under 48h</Pill>}
-      </div>
-      <div className="flex flex-col gap-0.5 text-[13px]">
-        <span className="font-bold text-ink">
-          {tutorCoverDateLabel(row.date, row.className)} · {formatTime(row.startTime)} –{" "}
-          {formatTime(row.endTime)}
-        </span>
-        <span className="text-muted">{row.location ?? "Location TBC"}</span>
-      </div>
-      <p className="rounded-[10px] bg-surface-2 px-2.5 py-2 text-[12px] text-ink-soft">
-        {row.originalTutorFirst} {row.originalTutorLast}: {row.reason}
-      </p>
-      {covered && (
-        <p className="text-[12px] font-bold text-good">
-          Covered by {row.replacementTutorFirst} {row.replacementTutorLast}
-        </p>
-      )}
-      <AssignCoverForm
-        coverRequestId={row.id}
-        originalTutorId={row.originalTutorId}
-        currentReplacementTutorId={row.replacementTutorId}
-        tutors={tutors}
-      />
-      {covered && <ReopenCoverButton coverRequestId={row.id} />}
-    </li>
+    <CoverCard
+      subjectName={row.subjectName}
+      className={row.className}
+      date={row.date}
+      startTime={row.startTime}
+      endTime={row.endTime}
+      location={row.location}
+      reason={`${row.originalTutorFirst} ${row.originalTutorLast}: ${row.reason}`}
+      urgency={isInsideNoticeWindow(row, now) ? "Under 48h" : null}
+      state={
+        covered
+          ? {
+              text: `Covered by ${row.replacementTutorFirst} ${row.replacementTutorLast}`,
+              tone: "good",
+            }
+          : null
+      }
+      actions={
+        <div className="flex w-full flex-col gap-2.5">
+          <AssignCoverForm
+            coverRequestId={row.id}
+            originalTutorId={row.originalTutorId}
+            currentReplacementTutorId={row.replacementTutorId}
+            tutors={tutors}
+          />
+          {covered && <ReopenCoverButton coverRequestId={row.id} />}
+        </div>
+      }
+    />
   );
 }

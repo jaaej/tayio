@@ -43,6 +43,7 @@ export function MonthGrid({
   month,
   chips,
   shadedDates,
+  dayBadges,
   onChipClick,
 }: {
   year: number;
@@ -50,6 +51,8 @@ export function MonthGrid({
   month: number;
   chips: MonthChip[];
   shadedDates?: Set<string>;
+  /** A short label for a date, e.g. "Away", shown in place of the chip count. */
+  dayBadges?: Map<string, string>;
   onChipClick?: (chipId: string) => void;
 }) {
   const firstOfMonth = new Date(year, month, 1);
@@ -138,7 +141,11 @@ export function MonthGrid({
                   {day.dayNum}
                 </span>
               )}
-              {day.chips.length > 0 && day.inMonth && (
+              {day.inMonth && dayBadges?.has(day.iso) ? (
+                <span className="inline-flex h-[18px] items-center rounded-full bg-warn-bg px-1.5 text-[10px] font-extrabold uppercase tracking-[0.06em] text-warn">
+                  {dayBadges.get(day.iso)}
+                </span>
+              ) : day.chips.length > 0 && day.inMonth && (
                 <span className="text-[10px] font-bold uppercase tracking-[0.1em] tabular-nums text-muted-2">
                   {day.chips.length}
                 </span>

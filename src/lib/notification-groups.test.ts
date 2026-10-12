@@ -64,6 +64,15 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("keeps a withdrawn tutor leave request as an update, not an action", () => {
+    expect(
+      notificationGroupFor({
+        title: "Tutor leave withdrawn",
+        href: "/admin/reschedules?tab=leave",
+      }),
+    ).toBe("updates");
+  });
+
   it("routes permanent class relocation requests to action needed", () => {
     expect(
       notificationGroupFor({

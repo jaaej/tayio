@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import {
   approveTutorCheckin,
   disputeTutorCheckin,
 } from "@/app/_actions/tutor-checkins";
+import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export function TutorCheckinActions({
@@ -15,12 +16,15 @@ export function TutorCheckinActions({
   status,
   hasEntries,
   hasMissingRate,
+  correctedCount,
   initialMessage,
 }: {
   weekStart: string;
   status: "pending" | "approved" | "disputed";
   hasEntries: boolean;
   hasMissingRate: boolean;
+  /** Lessons admin corrected, which the tutor should check before approving. */
+  correctedCount: number;
   initialMessage: string | null;
 }) {
   const router = useRouter();
@@ -28,10 +32,12 @@ export function TutorCheckinActions({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [action, setAction] = useState<"approve" | "report" | null>(null);
 
   function approve() {
     setError(null);
     setSaved(null);
+    setAction("approve");
     start(async () => {
       const result = await approveTutorCheckin({ weekStart });
       if (!result.ok) {
@@ -46,6 +52,7 @@ export function TutorCheckinActions({
   function report() {
     setError(null);
     setSaved(null);
+    setAction("report");
     start(async () => {
       const result = await disputeTutorCheckin({ weekStart, message });
       if (!result.ok) {
@@ -58,80 +65,99 @@ export function TutorCheckinActions({
   }
 
   return (
-    <div className="space-y-4">
-      {status === "approved" ? (
-        <div className="flex items-start gap-3 rounded-[12px] border border-good/25 bg-good-bg p-4 text-good">
+    <div className="flex flex-col gap-3.5">
+      {!hasEntries ? (
+        // Nothing to approve, but a missing lesson can still be reported.
+        <p className="text-[14px] text-ink-soft">
+          There are no lessons to approve this week.
+        </p>
+      ) : status === "approved" ? (
+        <div className="flex items-start gap-3 rounded-[12px] bg-good-bg p-3.5 text-good">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <div>
-            <p className="text-[13px] font-extrabold">You approved this week</p>
-            <p className="mt-0.5 text-[12px] leading-relaxed">
-              If something is still wrong, report it below. Admin can correct
-              the record and send it back for approval.
+            <p className="text-[14px] font-extrabold">You approved this week</p>
+            <p className="mt-0.5 text-[13px] leading-relaxed">
+              If something is still wrong, report it below. Admin can correct the
+              record and send it back for approval.
             </p>
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={pending || !hasEntries || hasMissingRate}
-          onClick={approve}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-600 px-5 text-[13px] font-extrabold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ActionButtonLabel pending={pending} pendingLabel="Saving…">
-            <>
-              <CheckCircle2 className="h-4 w-4" aria-hidden />
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="min-w-0 flex-[1_1_300px] text-[14px] leading-normal text-ink">
+            {hasMissingRate
+              ? "Approval is unavailable until admin sets your hourly rate."
+              : "Approving tells admin these hours are right so they can go into payroll."}
+            {correctedCount > 0 &&
+              ` Admin corrected ${correctedCount === 1 ? "1 lesson" : `${correctedCount} lessons`} - check ${correctedCount === 1 ? "it matches" : "they match"} what you worked.`}
+          </p>
+          <Button
+            type="button"
+            size="lg"
+            variant="primary"
+            disabled={pending || hasMissingRate}
+            onClick={approve}
+          >
+            <ActionButtonLabel pending={pending && action === "approve"} pendingLabel="Saving…">
               Approve these hours
-            </>
-          </ActionButtonLabel>
-        </button>
-      )}
-
-      {status !== "approved" && hasMissingRate && (
-        <p className="text-[12px] font-semibold text-warn">
-          Approval is unavailable until admin sets a valid hourly rate.
-        </p>
+            </ActionButtonLabel>
+          </Button>
+        </div>
       )}
 
       <details
-        open={status === "disputed"}
-        className="rounded-[12px] border border-line bg-surface-2/60 p-4"
+        open={status === "disputed" || undefined}
+        className="group border-t border-line pt-3"
       >
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-extrabold text-ink [&::-webkit-details-marker]:hidden">
-          <AlertCircle className="h-4 w-4 text-warn" aria-hidden />
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-[8px] text-[13px] font-bold text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [&::-webkit-details-marker]:hidden">
+          <ChevronDown
+            className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+            aria-hidden
+          />
           Something is wrong with these hours
         </summary>
-        <div className="mt-3 space-y-3">
-          <p className="text-[12px] leading-relaxed text-muted">
-            Explain the incorrect class, date or time. The owner-admin will be
-            notified and can edit the record. You can also open{" "}
-            <Link href="/tutor/messages" className="font-bold text-brand-700 underline">
+        <div className="flex flex-col gap-2 pt-1">
+          <label htmlFor="checkin-report" className="text-[13px] text-ink-soft">
+            Explain which class, date or time is wrong. Admin is notified and can
+            correct the record, or you can use{" "}
+            <Link href="/tutor/messages" className="font-bold text-ink underline underline-offset-2">
               Messages
             </Link>
             .
-          </p>
+          </label>
           <textarea
+            id="checkin-report"
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            rows={5}
+            rows={3}
             maxLength={2000}
-            placeholder="For example: Tuesday's class finished at 6:00pm, not 5:30pm."
-            className="w-full rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink placeholder:text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/25"
+            placeholder="What’s wrong? For example: Tuesday ran 30 minutes over"
+            className="w-full resize-y rounded-[12px] border border-line-field bg-surface p-3 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
             disabled={pending || message.trim().length < 5}
             onClick={report}
-            className="min-h-10 rounded-full border border-line-strong bg-surface px-4 text-[12px] font-bold text-ink hover:border-warn hover:text-warn disabled:opacity-50"
+            className="h-10 self-end"
           >
-            <ActionButtonLabel pending={pending} pendingLabel="Sending…">
+            <ActionButtonLabel pending={pending && action === "report"} pendingLabel="Sending…">
               Report to admin
             </ActionButtonLabel>
-          </button>
+          </Button>
         </div>
       </details>
 
-      {error && <p className="text-[12px] font-semibold text-bad">{error}</p>}
-      {saved && <p className="text-[12px] font-semibold text-good">{saved}</p>}
+      {error && (
+        <p role="alert" className="text-[13px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
+      {saved && (
+        <p role="status" className="text-[13px] font-semibold text-good">
+          {saved}
+        </p>
+      )}
     </div>
   );
 }
