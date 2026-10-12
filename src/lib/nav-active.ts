@@ -5,8 +5,19 @@
  * A portal root such as `/admin` or `/tutor` is the dashboard and only matches
  * exactly; deeper destinations also match their child routes, so
  * `/admin/users` stays active on `/admin/users/[id]`.
+ *
+ * `also` lists other sections the item is the home of (admin Classes owns
+ * `/admin/subjects`, `/admin/quizzes` and `/admin/terms`), matched the same way.
  */
-export function isNavItemActive(pathname: string, href: string): boolean {
+export function isNavItemActive(
+  pathname: string,
+  href: string,
+  also: readonly string[] = [],
+): boolean {
+  return [href, ...also].some((target) => matches(pathname, target));
+}
+
+function matches(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   const routeDepth = href.split("/").filter(Boolean).length;
   return routeDepth > 1 && pathname.startsWith(`${href}/`);

@@ -4,8 +4,8 @@ import { SubjectDot } from "@/components/admin/ui";
 import { yearLevelLabel } from "@/lib/format";
 
 /**
- * One subject as a small white block that opens its curriculum. Shared by the
- * Classes page's subject list and the Curriculum page so both read the same.
+ * One subject as a small white block that opens its curriculum, in the
+ * Classes page's Subjects panel.
  */
 export function SubjectBlock({
   id,

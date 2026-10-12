@@ -18,4 +18,11 @@ describe("isNavItemActive", () => {
     expect(isNavItemActive("/admin/users-archive", "/admin/users")).toBe(false);
     expect(isNavItemActive("/tutor/classes", "/tutor/class")).toBe(false);
   });
+
+  it("also matches the sections an item is the home of", () => {
+    const also = ["/admin/subjects", "/admin/terms"];
+    expect(isNavItemActive("/admin/subjects/s1/curriculum", "/admin/classes", also)).toBe(true);
+    expect(isNavItemActive("/admin/terms", "/admin/classes", also)).toBe(true);
+    expect(isNavItemActive("/admin/termsheet", "/admin/classes", also)).toBe(false);
+  });
 });

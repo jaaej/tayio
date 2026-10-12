@@ -2,7 +2,16 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, enrollments, lessons, profiles, subjects } from "@/db/schema";
+import {
+  classes,
+  enrollments,
+  lessons,
+  profiles,
+  quizzes,
+  subjects,
+  subjectWeeks,
+} from "@/db/schema";
+import { resolveCurrentTerm } from "@/lib/curriculum";
 import {
   Empty,
   GlassPanel,
@@ -75,6 +84,11 @@ type SearchParams = Promise<{
   tutor?: string;
 }>;
 
+function weekLabel(weeks: number) {
+  if (weeks === 0) return "No weeks this term";
+  return `${weeks} week${weeks === 1 ? "" : "s"} this term`;
+}
+
 export default async function ClassesPage({
   searchParams,
 }: {
@@ -84,7 +98,7 @@ export default async function ClassesPage({
   const isMonth = view === "month";
   const todayIso = melbourneDate(new Date());
 
-  const [allRows, tutors, subjectList] = await Promise.all([
+  const [allRows, tutors, subjectList, currentTerm, quizzesToReview] = await Promise.all([
     db
       .select({
         id: classes.id,
@@ -123,7 +137,24 @@ export default async function ClassesPage({
       .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
       .from(subjects)
       .orderBy(subjects.name),
+    resolveCurrentTerm(),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(quizzes)
+      .where(eq(quizzes.status, "pending_review"))
+      .then(([row]) => row?.n ?? 0),
   ]);
+
+  // Weeks planned this term, per subject: one grouped count, only in term.
+  const weekCounts = new Map<string, number>();
+  if (currentTerm) {
+    const weekRows = await db
+      .select({ subjectId: subjectWeeks.subjectId, n: sql<number>`count(*)::int` })
+      .from(subjectWeeks)
+      .where(eq(subjectWeeks.termId, currentTerm.id))
+      .groupBy(subjectWeeks.subjectId);
+    for (const row of weekRows) weekCounts.set(row.subjectId, row.n);
+  }
 
   const tutorFilter = tutor && tutors.some((t) => t.id === tutor) ? tutor : null;
   const rows = tutorFilter
@@ -240,7 +271,23 @@ export default async function ClassesPage({
               href="/admin/terms"
               className={buttonVariants({ variant: "glass", size: "lg" })}
             >
-              Manage terms
+              Terms
+            </Link>
+            <Link
+              href="/admin/quizzes"
+              aria-label={
+                quizzesToReview > 0
+                  ? `Quizzes, ${quizzesToReview} waiting for review`
+                  : undefined
+              }
+              className={buttonVariants({ variant: "glass", size: "lg" })}
+            >
+              Quizzes
+              {quizzesToReview > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1.5 text-[11px] font-extrabold tabular-nums text-white">
+                  {quizzesToReview}
+                </span>
+              )}
             </Link>
             <CreateClassPanel
               tutors={tutors}
@@ -272,7 +319,16 @@ export default async function ClassesPage({
           >
             {subjectList.map((s) => (
               <li key={s.id} className="min-w-0">
-                <SubjectBlock id={s.id} name={s.name} yearLevel={s.yearLevel} />
+                <SubjectBlock
+                  id={s.id}
+                  name={s.name}
+                  yearLevel={s.yearLevel}
+                  detail={
+                    currentTerm
+                      ? weekLabel(weekCounts.get(s.id) ?? 0)
+                      : undefined
+                  }
+                />
               </li>
             ))}
           </ul>

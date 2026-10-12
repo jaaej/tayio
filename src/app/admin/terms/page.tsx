@@ -19,7 +19,10 @@ export default async function AdminTermsPage() {
 
   return (
     <div className="flex max-w-[1000px] flex-col gap-5">
-      <PageHeader title="Terms" />
+      <PageHeader
+        back={{ href: "/admin/classes", label: "Back to classes" }}
+        title="Terms"
+      />
 
       <GlassPanel title="Add a term" titleId="add-term-heading">
         <div className="p-4">

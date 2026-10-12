@@ -13,6 +13,8 @@ export type NavItem = {
   icon: ReactNode;
   badge?: number;
   badgeTone?: "brand" | "danger";
+  /** Other sections this item is the home of; see isNavItemActive. */
+  also?: readonly string[];
 };
 
 export type NavSection = {
@@ -77,7 +79,7 @@ export function GlassNavLinks({ sections }: { sections: NavSection[] }) {
             <NavRow
               key={item.href}
               item={item}
-              active={isNavItemActive(pathname, item.href)}
+              active={isNavItemActive(pathname, item.href, item.also)}
             />
           ))}
         </div>

@@ -64,7 +64,7 @@ export default async function AdminSubjectCurriculumPage({
     return (
       <div className="flex flex-col gap-5">
         <PageHeader
-          back={{ href: "/admin/subjects", label: "Back to curriculum" }}
+          back={{ href: "/admin/classes", label: "Back to classes" }}
           eyebrow={
             <>
               <SubjectDot subject={subject.name} />

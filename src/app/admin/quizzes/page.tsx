@@ -104,6 +104,7 @@ export default async function AdminQuizzesPage({
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
+        back={{ href: "/admin/classes", label: "Back to classes" }}
         title="Quizzes"
         actions={
           <NewQuizPanel

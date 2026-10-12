@@ -14,6 +14,8 @@ export type MobilePortalNavItem = {
   badge?: number;
   badgeTone?: "brand" | "danger";
   featured?: boolean;
+  /** Other sections this item is the home of; see isNavItemActive. */
+  also?: readonly string[];
 };
 
 export function MobilePortalNav({
@@ -24,7 +26,7 @@ export function MobilePortalNav({
   const pathname = usePathname();
   const panelId = useId();
   const [open, setOpen] = useState(false);
-  const active = items.find((item) => isNavItemActive(pathname, item.href));
+  const active = items.find((item) => isNavItemActive(pathname, item.href, item.also));
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -58,7 +60,7 @@ export function MobilePortalNav({
           className="mt-2 grid max-h-[min(60dvh,520px)] grid-cols-2 gap-1.5 overflow-y-auto rounded-[14px] border border-line bg-surface p-2 shadow-[0_16px_34px_-22px_rgba(31,40,90,0.45)]"
         >
           {items.map((item) => {
-            const itemActive = isNavItemActive(pathname, item.href);
+            const itemActive = isNavItemActive(pathname, item.href, item.also);
             return (
               <Link
                 key={item.href}

@@ -16,9 +16,6 @@ import {
   Wallet,
   Settings,
   FolderOpen,
-  ListChecks,
-  Layers,
-  CalendarDays,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { isUnrestrictedAdmin } from "@/lib/roles";
@@ -57,7 +54,13 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className={IC} /> },
       { label: "Users", href: "/admin/users", icon: <Users className={IC} /> },
-      { label: "Classes", href: "/admin/classes", icon: <BookOpen className={IC} /> },
+      {
+        label: "Classes",
+        href: "/admin/classes",
+        icon: <BookOpen className={IC} />,
+        // Curriculum, quizzes and terms are run from Classes.
+        also: ["/admin/subjects", "/admin/quizzes", "/admin/terms"],
+      },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
     ],
@@ -85,14 +88,6 @@ const SECTIONS: NavSection[] = [
       { label: "Resources", href: "/admin/resources", icon: <FolderOpen className={IC} /> },
       { label: "Messages", href: "/admin/messages", icon: <MessageCircle className={IC} /> },
       { label: "Notifications", href: "/admin/notifications", icon: <Bell className={IC} /> },
-    ],
-  },
-  {
-    heading: "Curriculum",
-    items: [
-      { label: "Curriculum", href: "/admin/subjects", icon: <Layers className={IC} /> },
-      { label: "Quizzes", href: "/admin/quizzes", icon: <ListChecks className={IC} /> },
-      { label: "Terms", href: "/admin/terms", icon: <CalendarDays className={IC} /> },
     ],
   },
   {
@@ -154,14 +149,18 @@ export async function AdminShell({
         return item;
       }),
   })).filter((s) => s.items.length > 0);
-  const searchDestinations: PortalSearchDestination[] = sections.flatMap(
-    (section) =>
+  const searchDestinations: PortalSearchDestination[] = [
+    ...sections.flatMap((section) =>
       section.items.map((item) => ({
         label: item.label,
         href: item.href,
         section: section.heading,
       })),
-  );
+    ),
+    // Reached from Classes rather than the menu, but still searchable.
+    { label: "Quizzes", href: "/admin/quizzes", section: "Classes" },
+    { label: "Terms", href: "/admin/terms", section: "Classes" },
+  ];
   const initial = userName.charAt(0).toUpperCase();
   const roleLabel = canSeeOwnerNav ? "Owner" : "Reception";
 
