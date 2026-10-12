@@ -33,7 +33,10 @@ Last updated: 11 October 2026
   status from the pill, mark one paid, and edit one.
   Send a reminder to a family, confirm a second send the same day is refused,
   and confirm the parent sees "Payment reminder" under Action needed.
-  As reception without the PIN, confirm the tiles show counts, not dollars.
+  As reception without the PIN, confirm no dollar amount appears anywhere on
+  the page (tiles, family headers, invoice rows), Edit is hidden, Mark paid
+  still works, and entering the PIN on the page reveals the amounts.
+  (No reception account exists in dev; create one to test this.)
 - [ ] (11 October 2026) As reception, confirm Admin Revenue is locked and
   unlocks with the PIN; as owner, confirm the tiles match the six-month chart
   and the dashboard, and the PDF downloads.
@@ -555,9 +558,11 @@ Last updated: 11 October 2026
     Melbourne day via `dedupe_key` `payment-reminder:<parentId>:<date>`.
     "Last reminded" is read from those notifications.
     The type is classified as Action needed in `src/lib/notification-groups.ts`.
-  - Locked reception sees invoice counts, not money totals, on the Payments
-    tiles; individual invoice amounts and family balances stay visible for
-    taking payments.
+  - Locked reception sees no dollar figures on Payments (12 October 2026,
+    owner decision): tiles show counts, family headers show "N open
+    invoices", invoice amounts show a lock, and Edit is hidden (its form shows
+    the amount). Mark paid, status changes and reminders still work, and the
+    page has an inline admin PIN prompt to unlock.
   - Revenue keeps the PIN gate unchanged; tiles and a new six-month
     `RevenueBars` chart both use Melbourne-month `getMonthlyRevenue`, so they
     agree with the dashboard. `getRevenueSummary` became `getOverdueSummary`
@@ -741,6 +746,10 @@ Last updated: 11 October 2026
   toggle, capacity stepper, create), and a class detail page (add, delivery,
   admin note, withdraw, save details).
 - [x] Admin Tutor check-ins glass redesign (2026-10-11).
+  - Owner decision (12 October 2026): admins check hours but never approve
+    them; only the tutor approves. Admins can correct any row, including in a
+    week the tutor already approved; saving sends the week back to the tutor
+    to approve again, and the side panel says so before saving.
   `/admin/tutor-checkins` is now a week matrix (tutors x Mon-Sun) inside its own horizontal scroller, with the tutor column sticky on phones.
   Cells are coloured by status (approved, waiting on tutor, issue reported, admin corrected, removed from pay), derived by the tested pure helpers in `src/app/admin/tutor-checkins/_lib/matrix.ts`, which also compute row totals, rate labels, and the header's approved pay and awaiting count.
   Clicking a cell opens a `SidePanel` with that tutor's rows for the day and the existing correction editor (`_components/entry-editor.tsx`, restyled); disputed weeks show in a "Needs your decision" card and a row Review button that open the whole week with the tutor's note.
