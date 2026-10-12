@@ -186,7 +186,7 @@ export function NotificationsInboxView({
   }
 
   return (
-    <div className="flex w-full max-w-[980px] flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <PageHeader
         title="Notifications"
         actions={

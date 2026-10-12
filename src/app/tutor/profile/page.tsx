@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { profiles, tutorBankDetails } from "@/db/schema";
+import { profiles } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { Avatar, GlassPanel } from "@/components/admin/ui";
 import { ProfileAvatar } from "@/components/profile-avatar";
@@ -13,16 +13,9 @@ import { setMyTutorProfileAvatar } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const rateFmt = new Intl.NumberFormat("en-AU", {
-  style: "currency",
-  currency: "AUD",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
 export default async function TutorProfilePage() {
   const user = await requireRole("tutor");
-  const [[profile], [bank], roster] = await Promise.all([
+  const [[profile], roster] = await Promise.all([
     db
       .select({
         firstName: profiles.firstName,
@@ -33,13 +26,6 @@ export default async function TutorProfilePage() {
       })
       .from(profiles)
       .where(eq(profiles.id, user.id))
-      .limit(1),
-    // Only the tutor's own rate: the rest of the payroll row (bank details)
-    // stays out of the tutor portal.
-    db
-      .select({ hourlyRate: tutorBankDetails.hourlyRate })
-      .from(tutorBankDetails)
-      .where(eq(tutorBankDetails.tutorId, user.id))
       .limit(1),
     getTutorStudentsByClass(user.id),
   ]);
@@ -53,14 +39,10 @@ export default async function TutorProfilePage() {
   const subjects = Array.from(new Set(roster.classes.map((c) => c.subjectName))).sort((a, b) =>
     a.localeCompare(b),
   );
-  const rate = bank?.hourlyRate != null && Number(bank.hourlyRate) > 0 ? Number(bank.hourlyRate) : null;
-  // Only values that exist: a rate the office has not set yet is left out
-  // rather than shown as a placeholder.
   const details = [
-    rate !== null ? { k: "Hourly rate", v: `${rateFmt.format(rate)} / hr` } : null,
     { k: "Classes", v: String(roster.classes.length) },
     { k: "Students", v: String(roster.totalStudents) },
-  ].filter((d): d is { k: string; v: string } => d !== null);
+  ];
 
   return (
     <div className="flex max-w-[980px] flex-col gap-5">
