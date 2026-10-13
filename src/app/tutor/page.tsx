@@ -193,8 +193,8 @@ export default async function TutorToday({
       tone: "bg-brand-50 text-brand-700",
       title: `${changes ? "Quiz changes requested" : "Quiz requested"}: ${q.subjectName}, Week ${q.weekNumber}`,
       detail: q.note?.trim() || q.title,
-      href: `/tutor/quizzes/${q.id}`,
-      action: changes ? "Edit quiz" : "Start quiz",
+      href: q.href,
+      action: "Open week",
     });
   }
   if (checkin) {

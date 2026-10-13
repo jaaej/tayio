@@ -9,8 +9,7 @@ import { LabelledSelect } from "@/components/admin/ui/labelled-select";
 const DEBOUNCE_MS = 250;
 
 /**
- * Search, status and subject controls for the quiz table (admin and tutor
- * Quizzes), sitting on the table's glass title row. Everything lives in the URL so a filtered view is
+ * Search, status and subject controls for the admin quiz table, sitting on the table's glass title row. Everything lives in the URL so a filtered view is
  * shareable and the back button restores it; the search box keeps local state
  * so typing never waits on the server.
  */

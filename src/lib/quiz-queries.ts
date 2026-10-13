@@ -6,7 +6,6 @@ import {
   eq,
   inArray,
   isNull,
-  or,
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -159,29 +158,6 @@ export async function listQuizzesForAdmin(filter?: {
 }): Promise<QuizListRow[]> {
   const rows = await baseListSelect()
     .where(filter?.status ? eq(quizzes.status, filter.status) : undefined)
-    .orderBy(desc(quizzes.updatedAt));
-  return rows.map(toListRow);
-}
-
-export async function listQuizzesForTutor(tutorId: string): Promise<QuizListRow[]> {
-  const taughtSubjects = await db
-    .selectDistinct({ subjectId: classes.subjectId })
-    .from(classes)
-    .where(eq(classes.tutorId, tutorId));
-  const taughtSubjectIds = taughtSubjects.map((row) => row.subjectId);
-  const visible =
-    taughtSubjectIds.length > 0
-      ? or(
-          eq(quizzes.assignedTutorId, tutorId),
-          and(
-            inArray(quizzes.status, liveStatuses),
-            inArray(quizzes.subjectId, taughtSubjectIds),
-          ),
-        )
-      : eq(quizzes.assignedTutorId, tutorId);
-
-  const rows = await baseListSelect()
-    .where(visible)
     .orderBy(desc(quizzes.updatedAt));
   return rows.map(toListRow);
 }

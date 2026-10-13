@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { canTutorViewQuiz, getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
+import { quizWeekPlanHrefs } from "@/app/tutor/_lib/quiz-week";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default async function TutorQuizDetailPage({
 
   const { quiz, questions } = content;
   const editable = quiz.status === "requested" || quiz.status === "changes_requested";
+  const weekHref =
+    (await quizWeekPlanHrefs(user.id, [quiz])).get(quiz.subjectWeekId) ?? "/tutor/classes";
 
   return (
     <QuizMaker
@@ -27,8 +30,8 @@ export default async function TutorQuizDetailPage({
       canEditTitle={editable}
       canSubmit={editable}
       canApprove={false}
-      hrefBack="/tutor/quizzes"
-      backLabel="Back to quizzes"
+      hrefBack={weekHref}
+      backLabel="Back to week plan"
       note={
         quiz.note
           ? {

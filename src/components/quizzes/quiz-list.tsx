@@ -7,9 +7,8 @@ import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { cn } from "@/lib/utils";
 
 /*
- * The quiz list pieces shared by admin Quizzes and tutor Quizzes: the queue
- * card for quizzes waiting on the viewer, and the all-quizzes table grouped
- * by subject. Each role passes its own links and actions.
+ * The admin quiz list pieces: the queue card for quizzes waiting on review,
+ * and the all-quizzes table grouped by subject.
  */
 
 export const quizDateFmt = new Intl.DateTimeFormat("en-AU", {
@@ -37,7 +36,7 @@ export function QuestionCountTile({ count }: { count: number }) {
 }
 
 /**
- * Quizzes waiting on the viewer (admin: to review; tutor: to write or fix),
+ * Quizzes waiting on the viewer (admin: to review),
  * as a glass panel with a count badge and one card per quiz.
  */
 export function QuizQueue({

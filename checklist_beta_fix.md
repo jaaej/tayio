@@ -526,6 +526,20 @@ Last updated: 12 October 2026
 
 ## Recently implemented
 
+- [x] Tutor quizzes live in the week plan (13 October 2026).
+  The Quizzes sidebar item and the `/tutor/quizzes` list are gone; an old `/tutor/quizzes` link redirects to `/tutor/classes`.
+  A tutor reaches a quiz in two ways: the quiz card on its week in a class's week plan, or the admin's "Quiz requested" notification.
+  The notification now says what admin wants: `Build "<title>" for <subject>, Term N Week N. Admin's note: <note>` (`src/lib/quiz-notifications.ts`, tested).
+  Pressing it opens the quiz builder (`/tutor/quizzes/[id]`), which shows "Instructions from admin" at the top.
+  The builder's back arrow returns to that quiz's week (`src/app/tutor/_lib/quiz-week.ts`).
+  When the tutor teaches several classes in the subject, it uses the first class by name.
+  The Classes sidebar item stays highlighted on the builder.
+  The Today to-do for a quiz request now opens that week too, with the action "Open week".
+  Removed as orphaned: the tutor quiz nav badge (`getTutorQuizTodoCount`), `listQuizzesForTutor`, `tutorQuizBuckets` and `tutorQuizAction`.
+  Verified in the browser end to end on dev: admin requested a quiz from a curriculum week; the tutor saw the full request in Notifications; it opened the builder with the instructions; back went to the exact week plan week; and "Write quiz" there reopened the builder.
+  The test quiz and its notification were then deleted from dev.
+  Requests made before this change keep their old "Please build the ... quiz" text but still open the builder.
+
 - [x] Tutor Schedule & availability header (13 October 2026): removed the "Cover board" button.
   The board is still reachable from the sidebar's Cover board item, so the button was a duplicate.
   The header now has one action: "Absence or leave".
@@ -591,8 +605,8 @@ Last updated: 12 October 2026
     and `updateHomework` no longer redirects.
   - Students `/tutor/students` split view (`students/layout.tsx`, `?q=`,
     `?year=`, `?tab=`); search box shared with admin Users (`ListPaneSearch`).
-  - Quizzes list and filters shared with admin in `src/components/quizzes/`;
-    the shared quiz editor hides reorder arrows when read-only.
+  - The shared quiz editor hides reorder arrows when read-only. (The tutor
+    Quizzes list was removed on 13 October 2026; see Recently implemented.)
   - Resources rows with a share switch; resource type chip shared with admin.
   - Profile: photo, icon picker (now compact tiles, also on student profile),
     read-only hourly rate, classes and students. No start date or average
@@ -636,8 +650,8 @@ Last updated: 12 October 2026
   handoff). The glass shell, sidebar nav, search and account row moved to
   `src/components/portal/` (`glass-shell`, `glass-nav-links`, `glass-chrome`,
   `global-search`) and are shared by admin and tutor; `.theme-admin` was
-  renamed `.theme-glass`. Tutor nav adds Quizzes and badges for marking, quiz
-  requests, claimable covers, messages and notifications
+  renamed `.theme-glass`. Tutor nav has badges for marking, claimable covers,
+  messages and notifications (the Quizzes item was removed on 13 October 2026)
   (`src/app/tutor/_lib/nav-badges.ts`); the account row opens
   `/tutor/profile`. Shared pieces extracted from admin for reuse:
   `TodoPanel`, `PersonStatusTable` (`src/components/dashboard/`) and

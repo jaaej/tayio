@@ -12,12 +12,15 @@ import {
   quizOptions,
   notifications,
   subjectWeeks,
+  subjects,
+  terms,
   profiles,
   type UserRole,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { requireAdmin } from "@/app/admin/_lib/guard";
 import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
+import { quizRequestBody } from "@/lib/quiz-notifications";
 import {
   gradeQuizAnswers,
   validateQuizForSubmit,
@@ -40,7 +43,7 @@ type CreateResult = { ok: true; id: string } | { ok: false; error: string };
 function revalidate(quizId: string) {
   revalidatePath("/admin/quizzes");
   revalidatePath(`/admin/quizzes/${quizId}`);
-  revalidatePath("/tutor/quizzes");
+  revalidatePath("/tutor");
   revalidatePath(`/tutor/quizzes/${quizId}`);
   revalidatePath(`/student/quizzes/${quizId}`);
   revalidatePath("/student/subjects/[id]", "page");
@@ -217,8 +220,15 @@ export async function requestQuiz(input: {
   const { subjectWeekId, title, tutorId, note } = parsed.data;
 
   const [week] = await db
-    .select({ subjectId: subjectWeeks.subjectId })
+    .select({
+      subjectId: subjectWeeks.subjectId,
+      subjectName: subjects.name,
+      termNumber: terms.termNumber,
+      weekNumber: subjectWeeks.weekNumber,
+    })
     .from(subjectWeeks)
+    .innerJoin(subjects, eq(subjects.id, subjectWeeks.subjectId))
+    .innerJoin(terms, eq(terms.id, subjectWeeks.termId))
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
   if (!week) return { ok: false, error: "Subject week not found." };
@@ -261,7 +271,9 @@ export async function requestQuiz(input: {
     userId: tutorId,
     channel: "in_app" as const,
     title: "Quiz requested",
-    body: `Please build the "${title}" quiz`,
+    // The tutor should see what admin wants before opening the builder,
+    // which repeats the note as its instructions.
+    body: quizRequestBody({ ...week, title, note }),
     href: `/tutor/quizzes/${row.id}`,
   });
 

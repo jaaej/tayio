@@ -18,6 +18,7 @@ import { getCoverBoardRows } from "@/lib/tutor-cover";
 import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { TUTOR_QUIZ_TODO_STATUSES } from "./nav-badges";
+import { quizWeekPlanHrefs } from "./quiz-week";
 
 // Queries behind the tutor Today page and the Classes next-class strip. Every
 // query is scoped to the signed-in tutor's id.
@@ -260,15 +261,19 @@ export type QuizRequest = {
   subjectName: string;
   weekNumber: number;
   note: string | null;
+  /** The quiz's week in the tutor's class week plan, where the quiz lives. */
+  href: string;
 };
 
 /** Quizzes an admin asked this tutor to write or fix, oldest ask first. */
 export async function getQuizRequests(tutorId: string): Promise<QuizRequest[]> {
-  return db
+  const rows = await db
     .select({
       id: quizzes.id,
       status: quizzes.status,
       title: quizzes.title,
+      subjectId: quizzes.subjectId,
+      subjectWeekId: quizzes.subjectWeekId,
       subjectName: subjects.name,
       weekNumber: subjectWeeks.weekNumber,
       note: quizzes.note,
@@ -283,6 +288,11 @@ export async function getQuizRequests(tutorId: string): Promise<QuizRequest[]> {
       ),
     )
     .orderBy(asc(quizzes.updatedAt));
+  const hrefs = await quizWeekPlanHrefs(tutorId, rows);
+  return rows.map(({ subjectId: _subjectId, ...row }) => ({
+    ...row,
+    href: hrefs.get(row.subjectWeekId) ?? "/tutor/classes",
+  }));
 }
 
 /** Open covers this tutor could take (not their own), soonest first. */

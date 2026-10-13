@@ -4,7 +4,6 @@ import {
   BookOpen,
   Users,
   SquarePen,
-  CircleHelp,
   FolderOpen,
   CalendarDays,
   ArrowLeftRight,
@@ -38,10 +37,7 @@ import {
   type PortalSearchDestination,
 } from "@/components/portal/global-search";
 import { getPendingMarkCount } from "@/app/tutor/_data";
-import {
-  getClaimableCoverCount,
-  getTutorQuizTodoCount,
-} from "@/app/tutor/_lib/nav-badges";
+import { getClaimableCoverCount } from "@/app/tutor/_lib/nav-badges";
 
 const IC = "h-[17px] w-[17px]";
 
@@ -50,10 +46,15 @@ const SECTIONS: NavSection[] = [
     heading: "Teaching",
     items: [
       { label: "Today", href: "/tutor", icon: <LayoutDashboard className={IC} /> },
-      { label: "Classes", href: "/tutor/classes", icon: <BookOpen className={IC} /> },
+      {
+        label: "Classes",
+        href: "/tutor/classes",
+        icon: <BookOpen className={IC} />,
+        // Quizzes are opened from their week in a class's week plan.
+        also: ["/tutor/quizzes"],
+      },
       { label: "Students", href: "/tutor/students", icon: <Users className={IC} /> },
       { label: "Marking", href: "/tutor/homework", icon: <SquarePen className={IC} /> },
-      { label: "Quizzes", href: "/tutor/quizzes", icon: <CircleHelp className={IC} /> },
       { label: "Resources", href: "/tutor/resources", icon: <FolderOpen className={IC} /> },
     ],
   },
@@ -104,14 +105,13 @@ export async function TutorShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  const badges = { marking: 0, quizzes: 0, cover: 0, messages: 0, notifications: 0 };
+  const badges = { marking: 0, cover: 0, messages: 0, notifications: 0 };
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [marking, quizzes, cover, messages, notifications, avatarResult] =
+    const [marking, cover, messages, notifications, avatarResult] =
       await Promise.allSettled([
         getPendingMarkCount(user.id),
-        getTutorQuizTodoCount(user.id),
         getClaimableCoverCount(user.id),
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
@@ -125,7 +125,6 @@ export async function TutorShell({
           .limit(1),
       ]);
     badges.marking = settled(marking, "marking");
-    badges.quizzes = settled(quizzes, "quiz");
     badges.cover = settled(cover, "cover");
     badges.messages = settled(messages, "message");
     badges.notifications = settled(notifications, "notification");
@@ -139,7 +138,6 @@ export async function TutorShell({
 
   const BADGE_BY_HREF: Record<string, number> = {
     "/tutor/homework": badges.marking,
-    "/tutor/quizzes": badges.quizzes,
     "/tutor/cover": badges.cover,
     "/tutor/messages": badges.messages,
   };
