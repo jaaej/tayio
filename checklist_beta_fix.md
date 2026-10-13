@@ -526,6 +526,11 @@ Last updated: 12 October 2026
 
 ## Recently implemented
 
+- [x] Tutor Schedule & availability header (13 October 2026): removed the "Cover board" button.
+  The board is still reachable from the sidebar's Cover board item, so the button was a duplicate.
+  The header now has one action: "Absence or leave".
+  Checked in the browser at 1440 and 390 widths.
+
 - [x] Lint (12 October 2026): ESLint 9 with `eslint-config-next`
   (`eslint.config.mjs`, `npm run lint`; `next lint` is deprecated in Next 15.5).
   All 49 first-run findings were fixed, and lint now reports nothing. Unused

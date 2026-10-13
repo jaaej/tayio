@@ -278,14 +278,9 @@ export default async function TutorTimetablePage({
           <h1 className="text-[22px] font-extrabold leading-tight text-ink">
             Schedule &amp; availability
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/tutor/cover" className={buttonVariants({ variant: "glass", size: "lg" })}>
-              Cover board
-            </Link>
-            <LeavePanelTrigger tab="class" size="lg" variant="primary">
-              Absence or leave
-            </LeavePanelTrigger>
-          </div>
+          <LeavePanelTrigger tab="class" size="lg" variant="primary">
+            Absence or leave
+          </LeavePanelTrigger>
         </header>
 
         <div className="flex flex-wrap items-start gap-5">
