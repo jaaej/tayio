@@ -1,155 +1,164 @@
 "use client";
 
 import { useState } from "react";
-import { Trophy } from "lucide-react";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { cn } from "@/lib/utils";
 import type { Difficulty } from "./question-generator";
+import { LEVELS, levelInfo } from "./level-info";
+import { formatYear } from "./standing";
 import type { LeaderboardBoards, LeaderboardRow } from "../_queries";
 
-const TABS: { key: Difficulty; label: string }[] = [
-  { key: "sprint", label: "Sprint" },
-  { key: "easy", label: "Easy" },
-  { key: "medium", label: "Medium" },
-  { key: "hard", label: "Hard" },
-  { key: "genius", label: "Genius" },
-];
-
-const MEDAL: Record<number, string> = {
-  1: "#f5b301",
-  2: "#9aa4b2",
-  3: "#cd7f32",
+/** Podium look per place, from the design: block colour, avatar ring and size. */
+const PODIUM: Record<number, { block: string; ring: string; avatar: string; height: number }> = {
+  1: { block: "#FFD600", ring: "#FFD600", avatar: "h-[54px] w-[54px]", height: 96 },
+  2: { block: "#DADCE6", ring: "#C7CAD8", avatar: "h-11 w-11", height: 70 },
+  3: { block: "#F4B886", ring: "#F0A56A", avatar: "h-11 w-11", height: 56 },
 };
-
-function Row({ row }: { row: LeaderboardRow }) {
-  const medal = MEDAL[row.rank];
-  return (
-    <div
-      className={`flex items-center justify-between px-3 py-2.5 rounded-[12px] text-[13px] ${
-        row.isMe ? "bg-brand-50 text-brand-700" : "text-ink hover:bg-surface-2"
-      }`}
-    >
-      <span className="flex items-center gap-3 min-w-0">
-        <span
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold tabular-nums text-muted"
-          style={medal ? { backgroundColor: `${medal}22`, color: medal } : undefined}
-        >
-          {row.rank}
-        </span>
-        <ProfileAvatar
-          avatarKey={row.avatarKey}
-          fallback={row.initials}
-          className="h-9 w-9 shrink-0 text-[11px]"
-        />
-        <span className={`truncate ${row.isMe ? "font-bold" : "font-medium"}`}>
-          {row.name}
-          {row.isMe && <span className="text-brand-500"> (you)</span>}
-        </span>
-      </span>
-      <span className="tabular-nums font-extrabold">{row.score}</span>
-    </div>
-  );
-}
 
 export function Leaderboard({
   allBoards,
   yearBoards,
   yearLevel,
+  level,
+  onLevelChange,
 }: {
   allBoards: LeaderboardBoards;
   yearBoards: LeaderboardBoards | null;
   yearLevel: string | null;
+  level: Difficulty;
+  onLevelChange: (level: Difficulty) => void;
 }) {
-  const [tab, setTab] = useState<Difficulty>("sprint");
-  const [scope, setScope] = useState<"year" | "all">(
-    yearBoards ? "year" : "all",
-  );
-  const board = (scope === "year" && yearBoards ? yearBoards : allBoards)[tab];
+  const [scope, setScope] = useState<"year" | "all">(yearBoards ? "year" : "all");
+  const board = (scope === "year" && yearBoards ? yearBoards : allBoards)[level];
+  const podium = board.top.slice(0, 3);
+  const rest = board.top.slice(3);
+  const scopes = [
+    ...(yearBoards ? [{ key: "year" as const, label: formatYear(yearLevel) }] : []),
+    { key: "all" as const, label: "All Taiyo" },
+  ];
 
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-        <Trophy className="h-[18px] w-[18px] text-brand-500" />
-        <h2 className="text-[16px] font-extrabold text-ink tracking-tight">
-          Leaderboard
-        </h2>
+    <section
+      id="blitz-leaderboard"
+      aria-labelledby="lb-h"
+      className="glass min-w-[min(300px,100%)] max-w-[440px] flex-[1_1_360px] scroll-mt-36 rounded-[24px] p-1.5 lg:scroll-mt-5"
+    >
+      <div className="flex flex-col gap-2 pb-2 pl-3 pr-1.5 pt-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="lb-h" className="text-[16px] font-extrabold text-ink">
+            Leaderboard
+          </h2>
+          <div
+            role="tablist"
+            aria-label="Scope"
+            className="flex gap-0.5 rounded-[10px] border border-white/90 bg-white/60 p-[3px]"
+          >
+            {scopes.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="tab"
+                aria-selected={scope === option.key}
+                onClick={() => setScope(option.key)}
+                className={cn(
+                  "h-7 rounded-[7px] px-2.5 text-[12px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                  scope === option.key ? "bg-ink text-white" : "text-ink-soft",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div
-          className="inline-flex rounded-full border border-line bg-surface-2 p-1"
-          role="group"
-          aria-label="Leaderboard group"
+          role="tablist"
+          aria-label="Level"
+          className="flex gap-0.5 rounded-[10px] border border-white/90 bg-white/60 p-[3px]"
         >
-          {yearBoards ? (
+          {LEVELS.map((option) => (
             <button
+              key={option.key}
               type="button"
-              onClick={() => setScope("year")}
-              className={`min-h-8 rounded-full px-3 text-[12px] font-bold transition-colors ${
-                scope === "year"
-                  ? "bg-brand-500 text-white"
-                  : "text-muted hover:text-ink"
-              }`}
+              role="tab"
+              aria-selected={level === option.key}
+              onClick={() => onLevelChange(option.key)}
+              className={cn(
+                "h-7 min-w-0 flex-1 rounded-[7px] text-[12px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                level === option.key ? "bg-ink text-white" : "text-ink-soft",
+              )}
             >
-              {formatYear(yearLevel)}
+              {option.label}
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setScope("all")}
-            className={`min-h-8 rounded-full px-3 text-[12px] font-bold transition-colors ${
-              scope === "all"
-                ? "bg-brand-500 text-white"
-                : "text-muted hover:text-ink"
-            }`}
-          >
-            All Taiyo
-          </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex gap-1.5 mb-3 flex-wrap">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`h-8 px-3.5 rounded-full text-[12px] font-semibold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-              tab === t.key
-                ? "bg-brand-500 text-white"
-                : "text-muted hover:bg-surface-2"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="panel overflow-hidden">
+        {board.top.length === 0 ? (
+          <p className="px-5 py-12 text-center text-[14px] text-muted">
+            No scores yet. Play {levelInfo(level).label} to set the first one.
+          </p>
+        ) : (
+          <>
+            <ol className="grid grid-cols-3 items-end gap-2 px-3.5 pt-5">
+              {[podium[1], podium[0], podium[2]].map((row, index) =>
+                row ? <PodiumPlace key={row.rank} row={row} /> : <li key={`empty-${index}`} aria-hidden />,
+              )}
+            </ol>
+            <ol>
+              {rest.map((row) => (
+                <Row key={row.rank} row={row} />
+              ))}
+              {board.me && <Row row={board.me} />}
+            </ol>
+          </>
+        )}
       </div>
-
-      {board.top.length === 0 ? (
-        <div className="py-10 text-center text-[13px] text-muted">
-          No scores yet - be the first to set one!
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
-            <span>Player</span>
-            <span>Solved</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {board.top.map((r) => (
-              <Row key={r.rank} row={r} />
-            ))}
-            {board.me && (
-              <>
-                <div className="text-center text-muted text-[11px] py-1">···</div>
-                <Row row={board.me} />
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+    </section>
   );
 }
 
-function formatYear(yearLevel: string | null) {
-  if (!yearLevel) return "My year";
-  return /^year\s/i.test(yearLevel) ? yearLevel : `Year ${yearLevel}`;
+function PodiumPlace({ row }: { row: LeaderboardRow }) {
+  const look = PODIUM[row.rank];
+  return (
+    <li className="flex min-w-0 flex-col items-center gap-1.5">
+      <span className="rounded-full border-[3px]" style={{ borderColor: look.ring }}>
+        <ProfileAvatar
+          avatarKey={row.avatarKey}
+          fallback={row.initials}
+          className={cn("shrink-0 text-[13px] font-extrabold", look.avatar)}
+        />
+      </span>
+      <span className="max-w-full truncate text-center text-[12px] font-extrabold text-ink" title={row.name}>
+        {row.isMe ? `${row.name} (you)` : row.name}
+      </span>
+      <span
+        className="flex w-full flex-col items-center justify-center gap-0.5 rounded-t-[12px] leading-[1.1] text-[#1B1240]"
+        style={{ height: look.height, background: look.block }}
+      >
+        <span className="text-[12px] font-extrabold opacity-70">#{row.rank}</span>
+        <span className="text-[20px] font-extrabold tabular-nums">{row.score}</span>
+      </span>
+    </li>
+  );
+}
+
+function Row({ row }: { row: LeaderboardRow }) {
+  return (
+    <li
+      className="flex items-center gap-2.5 border-t border-[#EFF0F5] px-3.5 py-2.5"
+      style={{ background: row.isMe ? "#FFF7D6" : "#FFFFFF" }}
+    >
+      <span className="w-[26px] text-center text-[13px] font-extrabold tabular-nums text-muted">{row.rank}</span>
+      <ProfileAvatar
+        avatarKey={row.avatarKey}
+        fallback={row.initials}
+        className="h-[30px] w-[30px] shrink-0 text-[11px] font-extrabold"
+      />
+      <span className={cn("min-w-0 flex-1 truncate text-[14px] text-ink", row.isMe ? "font-extrabold" : "font-semibold")}>
+        {row.isMe ? `${row.name} (you)` : row.name}
+      </span>
+      <span className="text-[15px] font-extrabold tabular-nums text-ink">{row.score}</span>
+    </li>
+  );
 }

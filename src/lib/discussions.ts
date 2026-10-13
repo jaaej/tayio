@@ -1,7 +1,7 @@
 import type { UserRole } from "@/db/schema";
 
 /**
- * Sentinel URL segment for the cross-subject Admin / Tech board.
+ * Sentinel URL segment for the cross-subject General help board.
  * Subject boards use the subject UUID; "admin" maps to subject_id IS NULL.
  */
 export const ADMIN_BOARD_SEGMENT = "admin";
@@ -31,7 +31,7 @@ export function threadIsOnBoard(threadSubjectId: string | null, board: BoardId):
 }
 
 export function adminBoardLabel(): string {
-  return "Admin / Tech";
+  return "General help";
 }
 
 export function subjectBoardLabel(subject: {

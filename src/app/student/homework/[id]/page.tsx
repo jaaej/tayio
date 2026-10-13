@@ -1,504 +1,286 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
-  ClipboardList,
-  FileCheck2,
-  FileText,
-  MessageSquareText,
-  PenLine,
-  Trophy,
-  Upload,
-} from "lucide-react";
-import { db } from "@/db/client";
-import { homeworkAssignments } from "@/db/schema";
-import { requireRole } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import { formatDueDate, formatScore } from "@/lib/format";
-import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
-import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
+import { AlertCircle, CheckCircle2, ChevronLeft, Lock, Trophy } from "lucide-react";
+import { buttonVariants } from "@/components/admin/ui";
 import { FileViewerButton } from "@/components/ui/file-viewer";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { requireRole } from "@/lib/auth";
+import { classDisplayName } from "@/lib/class-display";
+import { formatClockTime, formatScore } from "@/lib/format";
+import { subjectTone } from "@/lib/subject-tone";
+import { cn } from "@/lib/utils";
+import { loadHomeworkDetail } from "../_lib/homework-detail";
 import {
-  getHomeworkDetail,
-  getStudentTestRank,
-} from "../../_lib/queries";
-import { HOMEWORK_BUCKET, signHomeworkAttachment } from "../_storage";
+  daysUntil,
+  formatHomeworkDate,
+  homeworkHref,
+  parseHomeworkView,
+  submissionFileName,
+} from "../_lib/homework-list";
+import { SubmissionForm } from "./_components/submission-form";
 
+export const dynamic = "force-dynamic";
+
+const STATUS_LABEL: Record<string, string> = {
+  not_started: "Not started",
+  viewed: "Not started",
+  resubmission_requested: "Resubmission requested",
+  submitted: "Submitted",
+  late: "Submitted late",
+  marked: "Marked",
+  returned: "Returned",
+};
+
+const LINE_BTN =
+  "h-[34px] min-h-0 shrink-0 rounded-[10px] border border-[#DFE1EC] bg-white px-3 text-[12px] font-bold text-ink hover:bg-[#F5F6FA]";
+
+/** "in 3 days", "today", "tomorrow" or "overdue" beside the due date. */
+function relativeDue(due: Date): string {
+  const now = new Date();
+  if (due.getTime() < now.getTime()) return "overdue";
+  const days = daysUntil(due, now);
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
+
+/** File type badge text from a stored path ("PDF", "DOCX"), or "FILE". */
+function fileKind(path: string | null): string {
+  const ext = path?.split("?")[0].split(".").pop() ?? "";
+  return /^[a-z0-9]{2,4}$/i.test(ext) ? ext.toUpperCase() : "FILE";
+}
+
+/**
+ * Right pane of the Homework split view: instructions, worksheet and
+ * solution, the student's work with Submit or Resubmit, and the tutor's
+ * feedback and score once marked.
+ */
 export default async function HomeworkDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ submitted?: string; error?: string }>;
+  searchParams: Promise<{ submitted?: string; error?: string; view?: string; q?: string }>;
 }) {
   const { id } = await params;
-  const { submitted, error } = await searchParams;
+  const sp = await searchParams;
   const user = await requireRole("student");
-  const hw = await getHomeworkDetail(user.id, id);
-  if (!hw) notFound();
+  const detail = await loadHomeworkDetail(user.id, id);
+  if (!detail) notFound();
 
-  // Mark as viewed on first open.
-  let effectiveStatus = hw.status;
-  if (effectiveStatus === "not_started") {
-    await db
-      .update(homeworkAssignments)
-      .set({ status: "viewed" })
-      .where(
-        and(
-          eq(homeworkAssignments.homeworkId, id),
-          eq(homeworkAssignments.studentId, user.id),
-        ),
-      );
-    effectiveStatus = "viewed";
-  }
-
-  const supabase = await createClient();
-  const submissionLink = await signedSubmissionLink(supabase, hw.submissionUrl);
-  const attachmentHref = await signHomeworkAttachment(hw.attachmentUrl);
-  const solutionHref =
-    homeworkSolutionIsAvailable({
-      solutionUrl: hw.solutionUrl,
-      dueDate: hw.dueDate,
-    })
-      ? await signHomeworkAttachment(hw.solutionUrl)
-      : null;
-
-  // effectiveStatus is "not_started" → "viewed" by now, so omit it here.
-  const canSubmit =
-    effectiveStatus === "viewed" ||
-    effectiveStatus === "resubmission_requested" ||
-    (effectiveStatus === "submitted" && hw.allowResubmission) ||
-    (effectiveStatus === "late" && hw.allowResubmission);
-
-  const isOverdue = !hw.submittedAt && hw.dueDate < new Date();
-
-  // Test rank - only fetched when this homework is flagged as a test and the
-  // student has been marked. Anonymous: returns rank + total only.
-  const testRank =
-    hw.isTest && hw.score !== null
-      ? await getStudentTestRank(user.id, id)
-      : null;
-
-  const tokens = getAccentTokens(colorFamilyForSubject(hw.subjectName ?? ""));
-  const statusLabel = HOMEWORK_STATUS_LABEL[effectiveStatus] ?? effectiveStatus;
+  const { hw, status, canSubmit, submissionHref, attachmentHref, solutionHref, solutionLocked, testRank } =
+    detail;
+  const backHref = homeworkHref("/student/homework", {
+    view: parseHomeworkView(sp.view),
+    q: (sp.q ?? "").trim(),
+  });
+  const classLabel = hw.subjectName || hw.className ? classDisplayName(hw.subjectName, hw.className) : "Independent task";
+  const marked = status === "marked" || status === "returned";
+  const open = !hw.submittedAt && !marked;
+  const overdue = open && hw.dueDate.getTime() < Date.now();
+  const hasFeedback = Boolean(hw.feedback || hw.score !== null || testRank);
 
   return (
-    <div className="space-y-4 max-w-[860px]">
-      <Link
-        href="/student/subjects"
-        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] font-bold text-ink-soft hover:text-ink transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        All homework
-      </Link>
-
-      {submitted && (
-        <Banner
-          tone="good"
-          icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
-          text="Submission received. Your tutor will mark it soon."
-        />
-      )}
-      {error && (
-        <Banner
-          tone="bad"
-          icon={<AlertCircle className="h-4 w-4" aria-hidden />}
-          text={`Couldn't upload: ${decodeURIComponent(error)}`}
-        />
-      )}
-
-      {/* HERO - subject-coloured */}
-      <section
-        className="relative overflow-hidden rounded-[24px] px-6 py-6 text-white shadow-[0_16px_36px_-20px_rgba(31,40,90,0.5)]"
-        style={{
-          background: `radial-gradient(140% 160% at 0% 0%, ${withAlpha(tokens.bgFrom, 0.6)} 0%, transparent 46%), radial-gradient(120% 150% at 100% 0%, ${withAlpha(tokens.bgFrom, 0.36)} 0%, transparent 55%), linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
-        }}
-      >
-        <svg
-          aria-hidden
-          viewBox="0 0 100 100"
-          className="absolute -right-8 -top-12 w-[210px] h-[210px] opacity-50 pointer-events-none"
-          fill="none"
-        >
-          <circle cx="70" cy="30" r="34" fill="rgba(255,255,255,0.12)" />
-          <circle cx="70" cy="30" r="22" fill="rgba(255,255,255,0.10)" />
-          <circle cx="70" cy="30" r="11" fill="rgba(255,255,255,0.14)" />
-        </svg>
-
-        <div className="relative z-10 flex items-start justify-between gap-5 flex-wrap">
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold opacity-85">
-              {hw.className ?? "Homework"}
-            </div>
-            <h1 className="m-0 mt-1 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.02em] leading-tight">
+    <section aria-labelledby="homework-heading" className="glass flex min-w-0 flex-col rounded-[24px] p-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 pl-3.5 pr-2.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href={backHref}
+            aria-label="Back to homework"
+            title="Back to homework"
+            className={cn(
+              buttonVariants({ variant: "glass", size: "icon" }),
+              "h-10 w-10 shrink-0 rounded-[12px] xl:hidden",
+            )}
+          >
+            <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
+          </Link>
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink-soft">
+              <span
+                aria-hidden
+                className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+                style={{ backgroundColor: subjectTone(hw.subjectName ?? "").dot }}
+              />
+              {classLabel}
+              {hw.isTest && " · Test"}
+            </span>
+            <h2 id="homework-heading" className="text-[20px] font-extrabold leading-tight text-ink">
               {hw.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <HeroChip icon={<Clock3 />}>Due {formatDueDate(hw.dueDate)}</HeroChip>
-              {isOverdue && <HeroChip strong>Overdue</HeroChip>}
-              <HeroChip>{statusLabel}</HeroChip>
-              {hw.isTest && <HeroChip icon={<Trophy className="h-3 w-3" />}>Test</HeroChip>}
-            </div>
+            </h2>
           </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <span
+            className={cn(
+              "flex h-7 items-center rounded-[14px] px-2.5 text-[12px] font-extrabold",
+              !open ? "bg-white text-ink-soft" : overdue ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn",
+            )}
+          >
+            Due {formatHomeworkDate(hw.dueDate)}
+            {open && ` · ${relativeDue(hw.dueDate)}`}
+          </span>
+          <span className="flex h-7 items-center rounded-[14px] bg-white px-2.5 text-[12px] font-extrabold text-ink-soft">
+            {STATUS_LABEL[status] ?? status}
+          </span>
+        </div>
+      </div>
 
-          {hw.score && (
-            <div className="shrink-0 rounded-[16px] bg-white/15 border border-white/25 px-5 py-3 text-center backdrop-blur-sm">
-              <div className="text-[10px] uppercase tracking-[0.16em] font-extrabold opacity-85">
-                Score
-              </div>
-              <div className="mt-0.5 text-[26px] font-extrabold tabular-nums leading-none">
-                {formatScore(hw.score)}
-              </div>
+      <div className="panel flex flex-1 flex-col overflow-hidden">
+        {sp.submitted && (
+          <p
+            role="status"
+            className="flex items-center gap-2.5 border-b border-[#EFF0F5] bg-good-bg px-4 py-3 text-[13px] font-semibold text-good"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+            Submission received. Your tutor will mark it soon.
+          </p>
+        )}
+        {sp.error && (
+          <p
+            role="alert"
+            className="flex items-center gap-2.5 border-b border-[#EFF0F5] bg-bad-bg px-4 py-3 text-[13px] font-semibold text-bad"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+            {`Couldn't submit: ${safeDecode(sp.error)}`}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-3 border-b border-[#EFF0F5] p-4">
+          <h3 className="text-[13px] font-extrabold text-muted">Instructions</h3>
+          <p className="whitespace-pre-wrap text-[14px] leading-[1.6] text-ink">
+            {hw.description || "No written instructions for this homework."}
+          </p>
+          {(attachmentHref || solutionHref || solutionLocked) && (
+            <div className="flex flex-wrap gap-2">
+              {attachmentHref && (
+                <FileTile kind={fileKind(hw.attachmentUrl)} title="Worksheet" detail="Worksheet from your tutor">
+                  <FileViewerButton url={attachmentHref} title={`${hw.title} worksheet`} className={LINE_BTN}>
+                    View file
+                  </FileViewerButton>
+                </FileTile>
+              )}
+              {solutionHref && (
+                <FileTile kind={fileKind(hw.solutionUrl)} title="Solution" detail="Check your answers">
+                  <FileViewerButton url={solutionHref} title={`${hw.title} solution`} className={LINE_BTN}>
+                    View file
+                  </FileViewerButton>
+                </FileTile>
+              )}
+              {solutionLocked && (
+                <div className="flex flex-[1_1_240px] items-center gap-3 rounded-[12px] bg-[#F8F9FC] px-3 py-2.5 opacity-70">
+                  <span
+                    aria-hidden
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[#EEEFF6] text-muted"
+                  >
+                    <Lock className="h-4 w-4" strokeWidth={2} />
+                  </span>
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[14px] font-bold text-ink">Solution</span>
+                    <span className="text-[12px] text-muted">Opens after the due date</span>
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </section>
 
-      {/* INSTRUCTIONS */}
-      {hw.description && (
-        <SectionCard
-          tokens={tokens}
-          icon={<ClipboardList className="h-4 w-4" />}
-          title="Instructions"
-        >
-          <div className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed">
-            {hw.description}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* WORKSHEET */}
-      {attachmentHref && (
-        <SectionCard
-          tokens={tokens}
-          icon={<FileText className="h-4 w-4" />}
-          title="Worksheet"
-        >
-          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 sm:flex-nowrap">
-            <span
-              className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
-              style={{ background: tokens.bgFrom, color: tokens.arrow }}
-            >
-              <FileText className="h-5 w-5" aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-ink">
-                Homework worksheet
-              </span>
-              <span className="block text-[12px] text-muted">
-                Provided by your tutor
-              </span>
-            </span>
-            <FileViewerButton
-              url={attachmentHref}
-              title={`${hw.title} worksheet`}
-              className="w-full shrink-0 sm:w-auto"
-            >
-              View file
-            </FileViewerButton>
-          </div>
-        </SectionCard>
-      )}
-
-      {solutionHref && (
-        <SectionCard
-          tokens={tokens}
-          icon={<FileCheck2 className="h-4 w-4" />}
-          title="Solution"
-        >
-          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-background px-4 py-3 sm:flex-nowrap">
-            <span
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
-              style={{ background: tokens.bgFrom, color: tokens.arrow }}
-            >
-              <FileCheck2 className="h-5 w-5" aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-ink">
-                Homework solution
-              </span>
-              <span className="block text-[12px] text-muted">
-                Available after the due date
-              </span>
-            </span>
-            <FileViewerButton
-              url={solutionHref}
-              title={`${hw.title} solution`}
-              className="w-full shrink-0 sm:w-auto"
-            >
-              View solution
-            </FileViewerButton>
-          </div>
-        </SectionCard>
-      )}
-
-      {/* TUTOR FEEDBACK */}
-      {(hw.feedback || hw.score) && (
-        <SectionCard
-          tokens={tokens}
-          icon={<MessageSquareText className="h-4 w-4" />}
-          title="Tutor feedback"
-          accentTop
-        >
-          <div className="space-y-3">
-            {(hw.score || testRank) && (
-              <div className="flex flex-wrap items-center gap-2.5">
-                {hw.score && (
-                  <span
-                    className="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-bold tabular-nums"
-                    style={{ background: tokens.pillBg, color: tokens.pillText }}
-                  >
-                    Score <span className="text-[15px]">{formatScore(hw.score)}</span>
+        {hasFeedback && (
+          <div className="flex flex-col gap-3 border-b border-[#EFF0F5] p-4">
+            <h3 className="text-[13px] font-extrabold text-muted">Feedback</h3>
+            {(hw.score !== null || testRank) && (
+              <div className="flex flex-wrap gap-1.5">
+                {hw.score !== null && (
+                  <span className="flex h-7 items-center rounded-[14px] bg-good-bg px-2.5 text-[12px] font-extrabold tabular-nums text-good">
+                    Score {formatScore(hw.score)}
                   </span>
                 )}
                 {testRank && (
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full px-3 py-1.5"
-                    style={{ background: tokens.pillBg, color: tokens.pillText }}
-                  >
-                    <Trophy className="h-4 w-4" aria-hidden />
-                    <span className="text-[11px] font-bold uppercase tracking-[0.14em]">
-                      Test rank
-                    </span>
-                    <span className="text-[14px] font-bold tabular-nums">
-                      #{testRank.rank}
-                      <span className="opacity-70 text-[12px]"> / {testRank.total}</span>
-                    </span>
+                  <span className="flex h-7 items-center gap-1.5 rounded-[14px] bg-[#EEEBFD] px-2.5 text-[12px] font-extrabold tabular-nums text-[#3A1AA8]">
+                    <Trophy className="h-3.5 w-3.5" aria-hidden />
+                    Test rank #{testRank.rank} of {testRank.total}
                   </span>
                 )}
               </div>
             )}
             {hw.feedback && (
-              <div className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed">
-                {hw.feedback}
-              </div>
+              <p className="whitespace-pre-wrap text-[14px] leading-[1.6] text-ink">{hw.feedback}</p>
             )}
           </div>
-        </SectionCard>
-      )}
+        )}
 
-      {/* YOUR SUBMISSION */}
-      <SectionCard
-        tokens={tokens}
-        icon={<PenLine className="h-4 w-4" />}
-        title="Your submission"
-      >
-        <div className="space-y-4">
-          {hw.submittedAt && (
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-good-bg text-good px-2.5 py-1 text-[11px] font-bold">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                Submitted {hw.submittedAt.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
-              </span>
-              {submissionLink && (
-                <a
-                  href={submissionLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-background px-3 py-1 text-[12px] font-bold text-ink hover:bg-surface-2 transition-colors"
-                >
-                  <FileText className="h-3.5 w-3.5" style={{ color: tokens.arrow }} aria-hidden />
-                  View file
-                </a>
-              )}
-            </div>
-          )}
+        {(hw.submittedAt || hw.submissionText || hw.submissionUrl || (!canSubmit && !marked)) && (
+          <div className={cn("flex flex-col gap-3 p-4", canSubmit && "border-b border-[#EFF0F5]")}>
+            <h3 className="text-[13px] font-extrabold text-muted">Your submission</h3>
+            {hw.submittedAt && (
+              <p className="text-[13px] text-ink-soft">
+                Submitted {formatHomeworkDate(hw.submittedAt)}, {formatClockTime(hw.submittedAt)}
+              </p>
+            )}
+            {hw.submissionUrl && (
+              <FileTile kind={fileKind(hw.submissionUrl)} title={submissionFileName(hw.submissionUrl)} detail="Your upload">
+                {submissionHref ? (
+                  <FileViewerButton url={submissionHref} title={`${hw.title} - your submission`} className={LINE_BTN}>
+                    View file
+                  </FileViewerButton>
+                ) : (
+                  <span className="shrink-0 text-[12px] text-muted">File unavailable</span>
+                )}
+              </FileTile>
+            )}
+            {hw.submissionText && (
+              <p className="whitespace-pre-wrap rounded-[12px] bg-[#F8F9FC] px-4 py-3 text-[14px] leading-[1.6] text-ink">
+                {hw.submissionText}
+              </p>
+            )}
+            {!canSubmit && !marked && (
+              <p className="rounded-[12px] bg-[#F8F9FC] px-4 py-3 text-[13px] text-ink-soft">
+                {hw.submittedAt
+                  ? "Waiting for your tutor to mark this."
+                  : "Submissions are closed for this homework."}
+              </p>
+            )}
+          </div>
+        )}
 
-          {hw.submissionText && (
-            <div
-              className="text-[14px] text-ink whitespace-pre-wrap leading-relaxed rounded-[12px] bg-surface-2 px-4 py-3 border-l-[3px]"
-              style={{ borderLeftColor: tokens.arrow }}
-            >
-              {hw.submissionText}
-            </div>
-          )}
-
-          {canSubmit ? (
-            <form
-              action={`/api/student/homework/${id}/submit`}
-              method="post"
-              encType="multipart/form-data"
-              className="space-y-4"
-            >
-              <div>
-                <label
-                  htmlFor="submission-file"
-                  className="block text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2"
-                >
-                  Upload your work
-                </label>
-                <div
-                  className="rounded-[14px] border-2 border-dashed p-4 flex items-center gap-3"
-                  style={{ borderColor: tokens.ring, background: tokens.bgTo }}
-                >
-                  <span
-                    className="h-10 w-10 rounded-[11px] grid place-items-center shrink-0"
-                    style={{ background: tokens.bgFrom, color: tokens.arrow }}
-                  >
-                    <Upload className="h-5 w-5" aria-hidden />
-                  </span>
-                  <input
-                    id="submission-file"
-                    name="file"
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.heic"
-                    className="block w-full text-[13px] text-ink file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface file:px-3.5 file:py-2 file:text-[13px] file:font-bold file:text-ink hover:file:bg-surface-2 file:cursor-pointer cursor-pointer"
-                  />
-                </div>
-                <p className="mt-1.5 text-[11px] text-muted">
-                  PDF, image, or document · 10 MB max
-                </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="submission-text"
-                  className="block text-[11px] uppercase tracking-[0.16em] font-bold text-muted mb-2"
-                >
-                  Or type your answer
-                </label>
-                <textarea
-                  id="submission-text"
-                  name="text"
-                  rows={5}
-                  className="w-full rounded-[14px] border border-line bg-surface px-4 py-3 text-[14px] text-ink placeholder:text-muted focus:outline-none focus:border-line-strong transition-colors"
-                  placeholder="Write your answer here…"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-[1px] shadow-[0_10px_24px_-12px_rgba(31,40,90,0.5)]"
-                style={{ background: tokens.arrow }}
-              >
-                <Upload className="h-4 w-4" aria-hidden />
-                {hw.submittedAt ? "Resubmit" : "Submit homework"}
-              </button>
-            </form>
-          ) : (
-            <div className="rounded-[12px] bg-surface-2 px-4 py-3 text-[13px] text-ink-soft">
-              {effectiveStatus === "marked" || effectiveStatus === "returned"
-                ? "This homework has been marked - no further submissions needed."
-                : "Submissions are closed for this homework."}
-            </div>
-          )}
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-function SectionCard({
-  tokens,
-  icon,
-  title,
-  accentTop,
-  children,
-}: {
-  tokens: ReturnType<typeof getAccentTokens>;
-  icon: React.ReactNode;
-  title: string;
-  accentTop?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_8px_24px_-18px_rgba(31,40,90,0.16)]">
-      {accentTop && (
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 h-1"
-          style={{ background: tokens.arrow }}
-        />
-      )}
-      <div className="flex items-center gap-2.5 mb-3">
-        <span
-          className="h-8 w-8 rounded-[10px] grid place-items-center shrink-0"
-          style={{ background: tokens.bgFrom, color: tokens.arrow }}
-        >
-          {icon}
-        </span>
-        <h2 className="m-0 text-[15px] font-extrabold tracking-[-0.01em] text-ink">
-          {title}
-        </h2>
+        {canSubmit && <SubmissionForm homeworkId={hw.homeworkId} resubmit={Boolean(hw.submittedAt)} />}
       </div>
-      {children}
     </section>
   );
 }
 
-function HeroChip({
-  icon,
-  strong,
+function FileTile({
+  kind,
+  title,
+  detail,
   children,
 }: {
-  icon?: React.ReactNode;
-  strong?: boolean;
-  children: React.ReactNode;
+  kind: string;
+  title: string;
+  detail: string;
+  children?: React.ReactNode;
 }) {
   return (
-    <span
-      className={
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border " +
-        (strong
-          ? "bg-white/95 border-white text-ink"
-          : "bg-white/15 border-white/30 text-white")
-      }
-    >
-      {icon}
+    <div className="flex min-w-0 flex-[1_1_240px] items-center gap-3 rounded-[12px] bg-[#F8F9FC] px-3 py-2.5">
+      <span
+        aria-hidden
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[#FDE8E8] text-[10px] font-extrabold text-[#B42318]"
+      >
+        {kind}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[14px] font-bold text-ink">{title}</span>
+        <span className="text-[12px] text-muted">{detail}</span>
+      </span>
       {children}
-    </span>
-  );
-}
-
-function Clock3() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-function Banner({
-  tone,
-  icon,
-  text,
-}: {
-  tone: "good" | "bad";
-  icon: React.ReactNode;
-  text: string;
-}) {
-  const cls =
-    tone === "good"
-      ? "border-good/40 bg-good-bg text-good"
-      : "border-bad/40 bg-bad-bg text-bad";
-  return (
-    <div className={`flex items-center gap-2.5 rounded-[14px] border px-4 py-3 text-[13px] font-semibold ${cls}`}>
-      {icon}
-      {text}
     </div>
   );
 }
 
-function withAlpha(rgb: string, a: number): string {
-  // Input format is "rgb(r, g, b)" from AccentTokens.bgFrom etc.
-  const match = rgb.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
-  if (!match) return rgb;
-  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${a})`;
-}
-
-async function signedSubmissionLink(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  path: string | null,
-): Promise<string | null> {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  const { data } = await supabase.storage
-    .from(HOMEWORK_BUCKET)
-    .createSignedUrl(path, 3600);
-  return data?.signedUrl ?? null;
+/** The submit route encodes its message once; tolerate a malformed value. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }

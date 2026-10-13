@@ -1,31 +1,18 @@
-import { Card } from "@/components/student/card";
-import { PageHead } from "@/components/student/page-head";
+import Link from "next/link";
+import { PageHeader, buttonVariants } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
-import {
-  MonthCalendar,
-  monthBounds,
-  parseMonthParam,
-  type MonthHomework,
-  type MonthLesson,
-} from "../_components/month-calendar";
+import { parseMonthParam } from "../_components/month-calendar";
 import {
   InteractiveTimetable,
+  RailCard,
   type TimetableHw,
 } from "../_components/interactive-timetable";
-import {
-  getAdminContactForStudent,
-  getStudentHomework,
-  getStudentTimetableLessons,
-} from "../_lib/queries";
+import { termAllowanceLabel } from "../_components/timetable-helpers";
+import { getAdminContactForStudent, getStudentHomework } from "../_lib/queries";
 import { listRedeemableCredits } from "@/lib/credits";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 type SearchParams = Promise<{ month?: string }>;
 
@@ -37,6 +24,12 @@ function isoLocal(d: Date | string) {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * One timetable for both student levels. A student with billing access
+ * (`student_unrestricted`) can reschedule, cancel and spend class credits; a
+ * base student sees the same calendar and lesson details and is pointed to a
+ * parent. The reschedule/cancel/credit server actions enforce the same split.
+ */
 export default async function TimetablePage({
   searchParams,
 }: {
@@ -47,124 +40,75 @@ export default async function TimetablePage({
     (user.app_metadata?.role as string | undefined) === "student_unrestricted";
   const params = await searchParams;
   const { year, month } = parseMonthParam(params.month);
-  const now = new Date();
-  const isCurrentMonth =
-    now.getFullYear() === year && now.getMonth() === month;
 
-  // Unrestricted students get the interactive timetable (click a lesson to go
-  // to the subject or reschedule it inline). It manages the month client-side,
-  // so load a wide window of data.
-  if (isUnrestricted) {
-    const from = new Date(year, month - 1, 1);
-    const to = new Date(year, month + 3, 1);
-    const [chips, homeworkRows, adminContact, credits, classMoves] = await Promise.all([
-      buildTimetableChips(user.id, from, to),
-      getStudentHomework(user.id),
-      getAdminContactForStudent(),
-      listRedeemableCredits(user.id),
-      getClassMoveData(user.id),
-    ]);
-
-    const fromIso = isoLocal(from);
-    const toIso = isoLocal(to);
-    const hw: TimetableHw[] = homeworkRows
-      .map((h) => ({
-        id: h.homeworkId,
-        dueDate: isoLocal(h.dueDate),
-        title: h.title,
-        done: h.status === "submitted" || h.status === "marked",
-        href: `/student/homework/${h.homeworkId}`,
-      }))
-      .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
-
-    return (
-      <div className="space-y-5">
-        <PageHead
-          eyebrow="Timetable"
-          title="Your schedule"
-        />
-        <Card className="calendar-glass-panel overflow-visible">
-          <div className="p-4 lg:p-5">
-            <InteractiveTimetable
-              initialYear={year}
-              initialMonth={month}
-              lessons={chips}
-              homework={hw}
-              credits={credits}
-              adminId={adminContact?.id ?? null}
-            />
-          </div>
-          <ClassMoveRequestPanel
-            studentId={user.id}
-            classes={classMoves.classes}
-            requests={classMoves.requests}
-            embedded
-          />
-        </Card>
-      </div>
-    );
-  }
-
-  // Restricted students: static month calendar.
-  const { fromIso, toIso } = monthBounds(year, month);
-  const from = new Date(`${fromIso}T00:00:00`);
-  const to = new Date(`${toIso}T00:00:00`);
-  const [lessonRows, homeworkRows, classMoves] = await Promise.all([
-    getStudentTimetableLessons(user.id, { from, to }),
+  // The calendar moves month by month on the client, so load a window around
+  // the requested month; moving it updates ?month and re-centres the window.
+  const from = new Date(year, month - 1, 1);
+  const to = new Date(year, month + 3, 1);
+  const [chips, homeworkRows, classMoves, adminContact, credits] = await Promise.all([
+    buildTimetableChips(user.id, from, to),
     getStudentHomework(user.id),
     getClassMoveData(user.id),
+    isUnrestricted ? getAdminContactForStudent() : Promise.resolve(null),
+    isUnrestricted ? listRedeemableCredits(user.id) : Promise.resolve([]),
   ]);
 
-  const lessons: MonthLesson[] = lessonRows.map((l) => ({
-    id: l.id,
-    subjectId: l.subjectId,
-    date: l.date,
-    startTime: l.startTime,
-    endTime: l.endTime,
-    status: l.status,
-    subjectName: l.subjectName,
-    className: l.className,
-    location: l.location,
-    studentState: l.studentState,
-    moveLabel: l.moveLabel,
-  }));
-
-  const homework: MonthHomework[] = homeworkRows
-    .filter((h) => {
-      const due = isoLocal(h.dueDate);
-      return due >= fromIso && due < toIso;
-    })
+  const fromIso = isoLocal(from);
+  const toIso = isoLocal(to);
+  const homework: TimetableHw[] = homeworkRows
     .map((h) => ({
       id: h.homeworkId,
       dueDate: isoLocal(h.dueDate),
       title: h.title,
-      status: h.status,
-      className: h.className,
-    }));
+      done: h.status === "submitted" || h.status === "marked",
+      href: `/student/homework/${h.homeworkId}`,
+    }))
+    .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
+
+  const allowance = isUnrestricted ? termAllowanceLabel(chips, new Date()) : null;
 
   return (
     <div className="space-y-5">
-      <PageHead
-        eyebrow="Timetable"
-        title={isCurrentMonth ? "Your schedule" : `${MONTH_NAMES[month]} ${year}`}
+      <PageHeader
+        title="Timetable"
+        sub={allowance ?? undefined}
+        actions={
+          isUnrestricted ? (
+            adminContact && (
+              <Link
+                href={`/student/messages/with/${adminContact.id}`}
+                className={buttonVariants({ variant: "glass", size: "lg" })}
+              >
+                Message the office
+              </Link>
+            )
+          ) : (
+            <Link href="/student/homework" className={buttonVariants({ variant: "glass", size: "lg" })}>
+              Homework
+            </Link>
+          )
+        }
       />
-      <Card className="calendar-glass-panel overflow-hidden">
-        <div className="p-4 lg:p-5">
-          <MonthCalendar
-            year={year}
-            month={month}
-            lessons={lessons}
-            homework={homework}
-            basePath="/student/timetable"
-          />
-        </div>
-        <ClassMoveRequestPanel
-          studentId={user.id}
-          classes={classMoves.classes}
-          requests={classMoves.requests}
-          embedded
-        />
-      </Card>
+      <InteractiveTimetable
+        initialYear={year}
+        initialMonth={month}
+        lessons={chips}
+        homework={homework}
+        credits={credits}
+        adminId={adminContact?.id ?? null}
+        canSelfServe={isUnrestricted}
+        glass
+        aside={
+          <RailCard key="class-move" glass title="Permanent class time" titleId="timetable-class-move">
+            <ClassMoveRequestPanel
+              studentId={user.id}
+              classes={classMoves.classes}
+              requests={classMoves.requests}
+              headless
+            />
+          </RailCard>
+        }
+      />
     </div>
   );
 }

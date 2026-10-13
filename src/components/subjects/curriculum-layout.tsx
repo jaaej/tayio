@@ -40,21 +40,25 @@ export function CurriculumLayout({
   attached = false,
   framed = false,
   subjectName,
+  defaultOpen = false,
 }: {
   rail: React.ReactNode;
   children: React.ReactNode;
   attached?: boolean;
   framed?: boolean;
   subjectName?: string;
+  /** Attached rail state before the viewer has opened or closed it. */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     try {
-      setOpen(localStorage.getItem(STORAGE_KEY) === "1");
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null) setOpen(stored === "1");
     } catch {
-      /* localStorage unavailable - stay closed */
+      /* localStorage unavailable - keep the default */
     }
   }, []);
 

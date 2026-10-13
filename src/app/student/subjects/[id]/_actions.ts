@@ -34,7 +34,8 @@ export async function markVideoWatched(subjectWeekId: string) {
     return { ok: false as const, error: "This week is not available yet" };
   }
   await upsertProgress(user.id, subjectWeekId, "videoWatchedAt");
-  revalidatePath(`/student/subjects`);
+  // Refreshes the open subject page so the week's checklist ticks it off.
+  revalidatePath("/student/subjects/[id]", "page");
   return { ok: true as const };
 }
 
@@ -53,5 +54,6 @@ export async function markBookletOpened(subjectWeekId: string) {
   if (!url) return { ok: false as const, error: "Booklet unavailable" };
 
   await upsertProgress(user.id, subjectWeekId, "bookletOpenedAt");
+  revalidatePath("/student/subjects/[id]", "page");
   return { ok: true as const, url };
 }

@@ -28,6 +28,8 @@ export type RailWeek = {
   pills?: { label: string; tone?: "neutral" | "good" | "warn" }[];
   /** Learners can see that the week exists, but cannot open it before release. */
   locked?: boolean;
+  /** Tooltip on a locked week, e.g. "Unlocks Mon 20 Oct". */
+  lockedHint?: string;
 };
 
 export function CurriculumRail({
@@ -40,6 +42,7 @@ export function CurriculumRail({
   currentWeekIdHint = null,
   footer,
   showTermSelect = true,
+  accent,
 }: {
   basePath: string;
   extraParams?: Record<string, string>;
@@ -51,6 +54,9 @@ export function CurriculumRail({
   footer?: React.ReactNode;
   /** Term switcher at the top of the rail. Off for learner views. */
   showTermSelect?: boolean;
+  /** Fill for the selected week instead of ink (a subject colour that
+   *  carries white text at 4.5:1). */
+  accent?: string;
 }) {
   const active =
     selectedWeekId ??
@@ -180,7 +186,10 @@ export function CurriculumRail({
                   <div
                     key={w.id}
                     aria-disabled="true"
-                    title={`Week ${w.weekNumber} unlocks when that teaching week begins`}
+                    title={
+                      w.lockedHint ??
+                      `Week ${w.weekNumber} unlocks when that teaching week begins`
+                    }
                     className="block cursor-not-allowed rounded-[10px] p-2 text-muted opacity-70"
                   >
                     {content}
@@ -193,6 +202,7 @@ export function CurriculumRail({
                   key={w.id}
                   href={`${basePath}?${qs({ term: currentTermId, week: w.id })}`}
                   aria-current={isActive ? "page" : undefined}
+                  style={isActive && accent ? { backgroundColor: accent } : undefined}
                   className={cn(
                     "block rounded-[10px] p-2 transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",

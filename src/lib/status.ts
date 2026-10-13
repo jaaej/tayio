@@ -75,6 +75,19 @@ export const INVOICE_STATUS_STYLE: Record<string, string> = {
   cancelled: "bg-brand-50 text-ink-soft",
 };
 
+/** Invoice status as a glass-kit `Pill` tone. */
+export const INVOICE_STATUS_TONE: Record<
+  string,
+  "default" | "good" | "warn" | "bad" | "info"
+> = {
+  unpaid: "warn",
+  paid: "good",
+  overdue: "bad",
+  partially_paid: "warn",
+  refunded: "info",
+  cancelled: "default",
+};
+
 export const MASTERY_LABEL: Record<string, string> = {
   not_started: "Not started",
   needs_work: "Needs work",

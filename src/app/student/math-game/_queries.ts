@@ -5,6 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mathGameScores, profiles } from "@/db/schema";
 import type { Difficulty } from "./_components/question-generator";
+import { compareStanding, rankOf } from "./_components/standing";
 
 const DIFFICULTIES: Difficulty[] = [
   "sprint",
@@ -97,12 +98,7 @@ function boardFromRows(
   meId: string,
 ): LeaderboardBoard {
   const ranked: LeaderboardRow[] = rows
-    .sort(
-      (a, b) =>
-        Number(b.best) - Number(a.best) ||
-        new Date(a.firstAt).getTime() - new Date(b.firstAt).getTime() ||
-        a.studentId.localeCompare(b.studentId),
-    )
+    .sort(compareStanding)
     .map((row, index) => ({
       rank: index + 1,
       name: displayName(row.firstName, row.lastName),
@@ -120,6 +116,32 @@ function boardFromRows(
     top,
     me: me && !top.some((row) => row.isMe) ? me : null,
   };
+}
+
+/** The student's rank on one level's board, using the same scope and order
+ * as the leaderboard: peers in `yearLevel` when given, else all of Taiyo. */
+export async function getLevelRank(
+  studentId: string,
+  difficulty: Difficulty,
+  yearLevel: string | null,
+): Promise<number | null> {
+  const rows = await db
+    .select({
+      studentId: mathGameScores.studentId,
+      best: sql<number>`max(${mathGameScores.score})`.as("best"),
+      firstAt: sql<Date>`min(${mathGameScores.playedAt})`.as("first_at"),
+    })
+    .from(mathGameScores)
+    .innerJoin(profiles, eq(profiles.id, mathGameScores.studentId))
+    .where(
+      and(
+        eq(mathGameScores.difficulty, difficulty),
+        eq(profiles.isActive, true),
+        yearLevel ? eq(profiles.yearLevel, yearLevel) : undefined,
+      ),
+    )
+    .groupBy(mathGameScores.studentId);
+  return rankOf(rows, studentId);
 }
 
 export type MyBests = Record<Difficulty, number>;

@@ -10,6 +10,7 @@ import type {
 } from "@/lib/class-moves";
 import { SidePanel } from "@/components/ui/side-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { buttonVariants } from "@/components/admin/ui/button";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL = {
@@ -25,12 +26,17 @@ export function ClassMoveRequestPanel({
   classes,
   requests,
   embedded = false,
+  headless = false,
 }: {
   studentId: string;
   studentName?: string;
   classes: ClassMoveOption[];
   requests: ClassMoveHistoryRow[];
   embedded?: boolean;
+  /** Rendered inside a titled frame (the glass timetable's side rail): the
+   *  frame supplies the "Permanent class time" heading, so the panel drops its
+   *  own title row and stacks the copy above an outline button. */
+  headless?: boolean;
 }) {
   const router = useRouter();
   const current = classes.filter((item) => item.isCurrent);
@@ -79,11 +85,32 @@ export function ClassMoveRequestPanel({
     <section
       className={cn(
         "overflow-hidden",
-        embedded
-          ? "calendar-glass-footer rounded-b-[14px] border-t"
-          : "rounded-[16px] border border-line bg-surface",
+        headless
+          ? ""
+          : embedded
+            ? "calendar-glass-footer rounded-b-[14px] border-t"
+            : "rounded-[16px] border border-line bg-surface",
       )}
     >
+      {headless ? (
+        <div className="flex flex-col gap-3 p-4">
+          <p className="text-[13px] leading-relaxed text-ink-soft">
+            Request a different weekly class. The office must approve before
+            the timetable changes.
+          </p>
+          <button
+            type="button"
+            disabled={!hasAlternative}
+            onClick={() => {
+              setOpen(true);
+              setSuccess(null);
+            }}
+            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+          >
+            Request class move
+          </button>
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[14px] font-extrabold text-ink">
@@ -107,6 +134,7 @@ export function ClassMoveRequestPanel({
           Request class move
         </button>
       </div>
+      )}
 
       {!hasAlternative && current.length > 0 && (
         <p className="border-t border-line bg-surface-2 px-4 py-3 text-[12px] text-muted sm:px-5">

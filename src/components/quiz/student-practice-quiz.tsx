@@ -3,27 +3,44 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
-  ArrowLeft,
   Check,
-  CheckCircle2,
+  ChevronLeft,
   FileText,
   ImageIcon,
-  ListChecks,
   RotateCcw,
   X,
 } from "lucide-react";
 import { gradePracticeQuiz } from "@/app/_actions/quizzes";
 import type { StudentQuiz } from "@/lib/quiz-queries";
+import { buttonVariants } from "@/components/admin/ui/button";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { cn } from "@/lib/utils";
 
 type Grade = Extract<
   Awaited<ReturnType<typeof gradePracticeQuiz>>,
   { ok: true }
 >["grade"];
+type QuestionResult = Grade["results"][number];
 
 type StudentQuestion = StudentQuiz["questions"][number];
 type StudentAttachment = StudentQuiz["attachments"][number];
 
+const TYPE_LABEL: Record<string, string> = {
+  multiple_choice: "Multiple choice",
+  true_false: "True / False",
+};
+
+function questionAnchor(id: string) {
+  return `quiz-question-${id}`;
+}
+
+/**
+ * A student's practice quiz, laid out like the shared quiz editor: a glass
+ * header, the question outline beside every question on one page, and a
+ * sticky footer that checks the answers. Grading runs on the server
+ * (gradePracticeQuiz), so the answer key never reaches the browser until the
+ * student submits.
+ */
 export function StudentPracticeQuiz({
   content,
   hrefBack,
@@ -44,6 +61,8 @@ export function StudentPracticeQuiz({
   const answeredCount = leafQuestions.filter((question) =>
     Boolean(answers[question.id]),
   ).length;
+  const resultFor = (id: string) =>
+    grade?.results.find((item) => item.questionId === id);
 
   const topLevel = questions
     .filter((question) => question.parentId === null)
@@ -98,262 +117,396 @@ export function StudentPracticeQuiz({
     setError(null);
   }
 
-  function renderQuestion(question: StudentQuestion, label: string) {
-    const result = grade?.results.find(
-      (item) => item.questionId === question.id,
-    );
-    const questionAttachments = attachmentsByQuestion.get(question.id) ?? [];
-    return (
-      <fieldset
-        key={question.id}
-        className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-22px_rgba(31,40,90,0.22)]"
-      >
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 h-1 bg-brand-500"
-        />
-        <legend className="w-full pt-1">
-          <span className="flex items-start gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-brand-100 text-[13px] font-extrabold text-brand-ink">
-              {label}
-            </span>
-            <span className="min-w-0 flex-1 pt-1 text-[16px] font-extrabold leading-snug text-ink">
-              {question.prompt}
-            </span>
-            {result && (
-              <span
-                className={
-                  "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold " +
-                  (result.isCorrect
-                    ? "bg-good-bg text-good"
-                    : "bg-bad-bg text-bad")
-                }
-              >
-                {result.isCorrect ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <X className="h-3.5 w-3.5" />
-                )}
-                {result.isCorrect ? "Correct" : "Review"}
-              </span>
-            )}
-          </span>
-        </legend>
+  function choose(questionId: string, optionId: string) {
+    setAnswers((current) => ({ ...current, [questionId]: optionId }));
+  }
 
-        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-          {question.options.map((option) => {
-            const selected = answers[question.id] === option.id;
+  return (
+    <div className="flex flex-col gap-5">
+      <header className="glass flex flex-wrap items-center justify-between gap-3.5 rounded-[24px] px-3.5 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Link
+            href={hrefBack}
+            aria-label={`Back to week ${quiz.weekNumber}`}
+            title={`Back to week ${quiz.weekNumber}`}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
+          </Link>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <h1 className="break-words text-[20px] font-extrabold leading-tight text-ink">
+              {quiz.title}
+            </h1>
+            <p className="text-[13px] font-semibold text-ink-soft">
+              {quiz.subjectName} · practice quiz
+            </p>
+          </div>
+        </div>
+        <span className="flex h-8 items-center rounded-full bg-white px-3 text-[13px] font-extrabold tabular-nums text-ink">
+          {grade
+            ? `${grade.correctCount} of ${grade.total} correct`
+            : `${answeredCount} of ${leafQuestions.length} answered`}
+        </span>
+      </header>
+
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <QuestionOutline
+          topLevel={topLevel}
+          childrenByParent={childrenByParent}
+          answers={answers}
+          resultFor={resultFor}
+          graded={Boolean(grade)}
+          answered={answeredCount}
+          total={leafQuestions.length}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {generalAttachments.length > 0 && (
+            <section
+              aria-labelledby="quiz-materials-heading"
+              className="glass rounded-[24px] p-1.5"
+            >
+              <h2
+                id="quiz-materials-heading"
+                className="px-3 pb-2.5 pt-2 text-[16px] font-extrabold text-ink"
+              >
+                Quiz materials
+              </h2>
+              <div className="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {generalAttachments.map((attachment) => (
+                  <AttachmentCard key={attachment.id} attachment={attachment} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {topLevel.length === 0 && (
+            <p className="glass rounded-[24px] p-1.5">
+              <span className="panel block px-6 py-10 text-center text-[13px] text-muted">
+                This quiz has no questions yet.
+              </span>
+            </p>
+          )}
+
+          {topLevel.map((question, index) => {
+            const number = String(index + 1);
+            if (question.type !== "context") {
+              return (
+                <QuestionCard
+                  key={question.id}
+                  question={question}
+                  label={number}
+                  attachments={attachmentsByQuestion.get(question.id) ?? []}
+                  selected={answers[question.id]}
+                  result={resultFor(question.id)}
+                  locked={Boolean(grade) || pending}
+                  onChoose={choose}
+                />
+              );
+            }
+            const children = childrenByParent.get(question.id) ?? [];
+            const passageAttachments = attachmentsByQuestion.get(question.id) ?? [];
+            return (
+              <div key={question.id} className="flex flex-col gap-5">
+                <section
+                  id={questionAnchor(question.id)}
+                  aria-labelledby={`${questionAnchor(question.id)}-title`}
+                  className="glass scroll-mt-[var(--portal-sticky-top)] rounded-[24px] p-1.5"
+                >
+                  <div className="flex min-h-11 items-center justify-between gap-3 px-3 py-1.5">
+                    <h2
+                      id={`${questionAnchor(question.id)}-title`}
+                      className="text-[15px] font-extrabold text-ink"
+                    >
+                      Passage for question {number}
+                    </h2>
+                  </div>
+                  <div className="panel flex flex-col gap-4 p-4">
+                    <p className="whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed text-ink">
+                      {question.prompt}
+                    </p>
+                    {passageAttachments.length > 0 && (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {passageAttachments.map((attachment) => (
+                          <AttachmentCard key={attachment.id} attachment={attachment} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+                {children.map((child, childIndex) => (
+                  <QuestionCard
+                    key={child.id}
+                    question={child}
+                    label={`${number}${String.fromCharCode(97 + childIndex)}`}
+                    attachments={attachmentsByQuestion.get(child.id) ?? []}
+                    selected={answers[child.id]}
+                    result={resultFor(child.id)}
+                    locked={Boolean(grade) || pending}
+                    onChoose={choose}
+                  />
+                ))}
+              </div>
+            );
+          })}
+
+          <div className="glass sticky bottom-4 z-10 rounded-[20px] p-1.5">
+            <div className="panel flex flex-wrap items-center justify-between gap-3 px-3.5 py-3">
+              {grade ? (
+                <p aria-live="polite" className="text-[15px] font-extrabold text-ink">
+                  You scored {grade.correctCount} out of {grade.total}
+                </p>
+              ) : (
+                <p className="text-[14px] font-bold tabular-nums text-ink">
+                  {answeredCount} of {leafQuestions.length} answered
+                </p>
+              )}
+              {grade ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className={buttonVariants({ variant: "outline", size: "lg" })}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  Try again
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending || leafQuestions.length === 0}
+                  onClick={checkAnswers}
+                  className={cn(buttonVariants({ variant: "primary", size: "lg" }), "px-5")}
+                >
+                  <ActionButtonLabel pending={pending} pendingLabel="Checking…">
+                    Check answers
+                  </ActionButtonLabel>
+                </button>
+              )}
+              {error && (
+                <p role="alert" className="basis-full text-[13px] font-semibold text-bad">
+                  {error}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Numbered grid of the questions with an answered bar; each square jumps to
+ *  its question and shows the result once checked. */
+function QuestionOutline({
+  topLevel,
+  childrenByParent,
+  answers,
+  resultFor,
+  graded,
+  answered,
+  total,
+}: {
+  topLevel: StudentQuestion[];
+  childrenByParent: Map<string, StudentQuestion[]>;
+  answers: Record<string, string>;
+  resultFor: (id: string) => QuestionResult | undefined;
+  graded: boolean;
+  answered: number;
+  total: number;
+}) {
+  const percent = total === 0 ? 0 : Math.round((answered / total) * 100);
+  if (topLevel.length === 0) return null;
+
+  return (
+    <nav
+      aria-labelledby="quiz-outline-heading"
+      className="glass flex shrink-0 flex-col rounded-[24px] p-1.5 lg:sticky lg:top-[var(--portal-sticky-top)] lg:w-[240px]"
+    >
+      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-2">
+        <h2 id="quiz-outline-heading" className="text-[16px] font-extrabold text-ink">
+          Questions
+        </h2>
+        <span
+          role="progressbar"
+          aria-label="Questions answered"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="block h-1.5 overflow-hidden rounded-[3px] bg-white/80"
+        >
+          <span
+            className="block h-full rounded-[3px] bg-ink transition-[width] duration-200 motion-reduce:transition-none"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
+      </div>
+      <ol className="panel grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-1.5 p-2 lg:grid-cols-5">
+        {topLevel.map((question, index) => {
+          const isContext = question.type === "context";
+          const leaves = isContext ? (childrenByParent.get(question.id) ?? []) : [question];
+          const done = leaves.length > 0 && leaves.every((q) => Boolean(answers[q.id]));
+          const results = leaves.map((q) => resultFor(q.id));
+          const correct = graded && results.every((r) => r?.isCorrect);
+          const state = graded
+            ? correct
+              ? "Correct"
+              : "Incorrect"
+            : done
+              ? "Answered"
+              : "Not answered";
+          return (
+            <li key={question.id}>
+              <a
+                href={`#${questionAnchor(question.id)}`}
+                title={state}
+                className={cn(
+                  "flex aspect-square items-center justify-center rounded-[9px] border text-[13px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                  graded
+                    ? correct
+                      ? "border-good-bg bg-good-bg text-good"
+                      : "border-bad-bg bg-bad-bg text-bad"
+                    : done
+                      ? "border-[#EEEFF6] bg-[#EEEFF6] text-ink"
+                      : "border-[#DCDEE9] bg-white text-ink hover:bg-surface-2",
+                )}
+              >
+                {index + 1}
+                <span className="sr-only"> {state}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function QuestionCard({
+  question,
+  label,
+  attachments,
+  selected,
+  result,
+  locked,
+  onChoose,
+}: {
+  question: StudentQuestion;
+  label: string;
+  attachments: StudentAttachment[];
+  selected: string | undefined;
+  result: QuestionResult | undefined;
+  locked: boolean;
+  onChoose: (questionId: string, optionId: string) => void;
+}) {
+  const anchor = questionAnchor(question.id);
+  return (
+    <section
+      id={anchor}
+      aria-labelledby={`${anchor}-title`}
+      className="glass scroll-mt-[var(--portal-sticky-top)] rounded-[24px] p-1.5"
+    >
+      <div className="flex min-h-11 items-center justify-between gap-3 px-3 py-1.5">
+        <h2 id={`${anchor}-title`} className="text-[15px] font-extrabold text-ink">
+          Question {label}
+        </h2>
+        {result ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[12px] font-extrabold",
+              result.isCorrect ? "text-good" : "text-bad",
+            )}
+          >
+            {result.isCorrect ? (
+              <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+            ) : (
+              <X className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+            )}
+            {result.isCorrect ? "Correct" : "Incorrect"}
+          </span>
+        ) : (
+          <span className="text-[12px] font-bold text-ink-soft">
+            {TYPE_LABEL[question.type] ?? ""}
+          </span>
+        )}
+      </div>
+      <fieldset className="panel flex min-w-0 flex-col gap-3 p-4">
+        <legend className="sr-only">Question {label}</legend>
+        <p className="whitespace-pre-wrap break-words text-[15px] font-semibold leading-normal text-ink">
+          {question.prompt}
+        </p>
+        {attachments.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {attachments.map((attachment) => (
+              <AttachmentCard key={attachment.id} attachment={attachment} />
+            ))}
+          </div>
+        )}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-2">
+          {question.options.map((option, optionIndex) => {
+            const isSelected = selected === option.id;
             const isCorrect = result?.correctOptionId === option.id;
-            const selectedWrong = Boolean(result && selected && !isCorrect);
+            const selectedWrong = Boolean(result && isSelected && !isCorrect);
             return (
               <label
                 key={option.id}
-                className={
-                  "flex min-h-14 cursor-pointer items-center gap-3 rounded-[14px] border px-4 py-3 text-[14px] font-semibold transition-all duration-200 motion-reduce:transition-none " +
-                  (isCorrect
-                    ? "border-good bg-good-bg text-good"
+                className={cn(
+                  "flex min-h-[52px] items-center gap-2.5 rounded-[12px] border p-3 transition-colors duration-150 motion-reduce:transition-none",
+                  isCorrect
+                    ? "border-good bg-good-bg"
                     : selectedWrong
-                      ? "border-bad bg-bad-bg text-bad"
-                      : selected
-                        ? "border-brand-500 bg-brand-50 text-brand-ink shadow-[0_8px_18px_-14px_rgba(79,91,213,0.7)]"
-                        : "border-line bg-background text-ink hover:border-brand-300 hover:bg-brand-50/50") +
-                  (grade ? " cursor-default" : "")
-                }
+                      ? "border-bad bg-bad-bg"
+                      : isSelected
+                        ? "border-ink bg-brand-50"
+                        : "border-[#DCDEE9] bg-surface",
+                  locked ? "cursor-default" : "cursor-pointer hover:bg-surface-2",
+                  !locked && isSelected && "hover:bg-brand-50",
+                )}
               >
                 <input
                   type="radio"
                   name={`question-${question.id}`}
                   value={option.id}
-                  checked={selected}
-                  disabled={Boolean(grade) || pending}
-                  onChange={() =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.id]: option.id,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 accent-brand-600"
+                  checked={isSelected}
+                  disabled={locked}
+                  onChange={() => onChoose(question.id, option.id)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                <span className="flex-1">{option.text}</span>
-                {isCorrect && <CheckCircle2 className="h-5 w-5 shrink-0" />}
-                {selectedWrong && <X className="h-5 w-5 shrink-0" />}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[8px] text-[12px] font-extrabold",
+                    isCorrect
+                      ? "bg-good text-white"
+                      : selectedWrong
+                        ? "bg-bad text-white"
+                        : isSelected
+                          ? "bg-ink text-white"
+                          : "bg-surface-3 text-ink-soft",
+                  )}
+                >
+                  {String.fromCharCode(65 + optionIndex)}
+                </span>
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 break-words text-[15px] font-semibold",
+                    isCorrect ? "text-good" : selectedWrong ? "text-bad" : "text-ink",
+                  )}
+                >
+                  {option.text}
+                </span>
+                {isCorrect && (
+                  <span className="sr-only">Correct answer</span>
+                )}
               </label>
             );
           })}
         </div>
-
-        {questionAttachments.length > 0 && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {questionAttachments.map((attachment) => (
-              <AttachmentCard key={attachment.id} attachment={attachment} />
-            ))}
-          </div>
-        )}
       </fieldset>
-    );
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-5">
-      <Link
-        href={hrefBack}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-bold text-brand-ink transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to week {quiz.weekNumber}
-      </Link>
-
-      <section className="relative overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#4F5BD5_0%,#3F4AB5_54%,#2B3287_100%)] px-5 py-6 text-white shadow-[0_18px_42px_-24px_rgba(31,40,90,0.72)] sm:px-7">
-        <div
-          aria-hidden
-          className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[38px] border-white/10"
-        />
-        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
-          <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/75">
-              {quiz.subjectName} - {quiz.termYear} Term {quiz.termNumber}, Week{" "}
-              {quiz.weekNumber}
-            </div>
-            <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-[-0.025em] sm:text-[34px]">
-              {quiz.title}
-            </h1>
-            <p className="mt-2 max-w-2xl text-[13px] font-medium leading-relaxed text-white/80">
-              Choose one answer for each question, then check your work.
-              This is an unranked practice quiz.
-            </p>
-          </div>
-          <div className="rounded-[18px] border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-[12px] font-bold text-white/80">
-              <ListChecks className="h-4 w-4" />
-              Progress
-            </div>
-            <div className="mt-2 text-[28px] font-extrabold tabular-nums">
-              {grade ? `${grade.correctCount}/${grade.total}` : `${answeredCount}/${leafQuestions.length}`}
-            </div>
-            <div className="text-[11px] font-semibold text-white/70">
-              {grade ? "correct answers" : "questions answered"}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {generalAttachments.length > 0 && (
-        <section className="rounded-[20px] border border-line bg-surface p-5 shadow-[0_8px_24px_-20px_rgba(31,40,90,0.2)]">
-          <div className="mb-3 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-brand-600" />
-            <h2 className="text-[14px] font-extrabold text-ink">
-              Quiz materials
-            </h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {generalAttachments.map((attachment) => (
-              <AttachmentCard key={attachment.id} attachment={attachment} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <div className="space-y-4">
-        {topLevel.map((question, index) => {
-          const displayNumber = index + 1;
-          if (question.type === "context") {
-            const children = childrenByParent.get(question.id) ?? [];
-            const passageAttachments = attachmentsByQuestion.get(question.id) ?? [];
-            return (
-              <div key={question.id} className="space-y-4">
-                <section className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,17,30,0.04),0_12px_28px_-22px_rgba(31,40,90,0.22)]">
-                  <div
-                    aria-hidden
-                    className="absolute inset-x-0 top-0 h-1 bg-brand-300"
-                  />
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-brand-100 text-[13px] font-extrabold text-brand-ink">
-                      {displayNumber}
-                    </span>
-                    <div className="min-w-0 flex-1 pt-1">
-                      <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                        Passage
-                      </div>
-                      <p className="mt-1 whitespace-pre-wrap text-[15px] font-semibold leading-relaxed text-ink">
-                        {question.prompt}
-                      </p>
-                    </div>
-                  </div>
-                  {passageAttachments.length > 0 && (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {passageAttachments.map((attachment) => (
-                        <AttachmentCard key={attachment.id} attachment={attachment} />
-                      ))}
-                    </div>
-                  )}
-                </section>
-                {children.map((child, childIndex) =>
-                  renderQuestion(
-                    child,
-                    `${displayNumber}${String.fromCharCode(97 + childIndex)}`,
-                  ),
-                )}
-              </div>
-            );
-          }
-          return renderQuestion(question, String(displayNumber));
-        })}
-      </div>
-
-      <section className="sticky bottom-3 z-10 rounded-[20px] border border-line bg-surface/95 p-4 shadow-[0_20px_50px_-24px_rgba(31,40,90,0.45)] backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {grade ? (
-              <div aria-live="polite">
-                <div className="text-[15px] font-extrabold text-ink">
-                  You scored {grade.correctCount} out of {grade.total}
-                </div>
-                <div className="text-[12px] font-semibold text-muted">
-                  Correct answers are highlighted above.
-                </div>
-              </div>
-            ) : (
-              <div className="text-[13px] font-semibold text-muted">
-                {answeredCount} of {leafQuestions.length} answered
-              </div>
-            )}
-          </div>
-
-          {grade ? (
-            <button
-              type="button"
-              onClick={retry}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line px-5 text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-            >
-              <RotateCcw className="h-4 w-4" /> Try again
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={pending || leafQuestions.length === 0}
-              onClick={checkAnswers}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand-600 px-6 text-[13px] font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ActionButtonLabel pending={pending} pendingLabel="Checking…">
-                Check answers
-              </ActionButtonLabel>
-            </button>
-          )}
-        </div>
-        {error && (
-          <p role="alert" className="mt-2 text-[13px] font-semibold text-bad">
-            {error}
-          </p>
-        )}
-      </section>
-    </div>
+    </section>
   );
 }
 
-function AttachmentCard({
-  attachment,
-}: {
-  attachment: StudentQuiz["attachments"][number];
-}) {
+function AttachmentCard({ attachment }: { attachment: StudentAttachment }) {
   const isImage = attachment.contentType.startsWith("image/");
   const body = (
     <>
@@ -366,19 +519,19 @@ function AttachmentCard({
           loading="lazy"
         />
       ) : (
-        <span className="grid h-12 w-12 place-items-center rounded-[12px] bg-brand-100 text-brand-700">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-surface-3 text-ink-soft">
           {isImage ? (
-            <ImageIcon className="h-5 w-5" />
+            <ImageIcon className="h-5 w-5" aria-hidden />
           ) : (
-            <FileText className="h-5 w-5" />
+            <FileText className="h-5 w-5" aria-hidden />
           )}
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12px] font-bold text-ink">
+        <span className="block truncate text-[13px] font-bold text-ink">
           {attachment.fileName}
         </span>
-        <span className="mt-0.5 block text-[10px] font-semibold text-muted">
+        <span className="mt-0.5 block text-[12px] text-muted">
           {formatBytes(attachment.sizeBytes)}
         </span>
       </span>
@@ -390,12 +543,12 @@ function AttachmentCard({
       href={attachment.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex min-h-16 items-center gap-3 rounded-[14px] border border-line bg-background p-3 transition-colors hover:border-brand-300 hover:bg-brand-50"
+      className="flex min-h-16 flex-wrap items-center gap-3 rounded-[12px] border border-line-strong bg-surface p-3 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
     >
       {body}
     </a>
   ) : (
-    <div className="flex min-h-16 items-center gap-3 rounded-[14px] border border-line bg-background p-3 opacity-70">
+    <div className="flex min-h-16 flex-wrap items-center gap-3 rounded-[12px] border border-line-strong bg-surface-2 p-3 text-muted">
       {body}
     </div>
   );

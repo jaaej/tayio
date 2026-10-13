@@ -4,12 +4,21 @@ import { useState, useTransition } from "react";
 import { PdfViewerDialog } from "@/components/ui/pdf-viewer";
 import { markBookletOpened } from "../_actions";
 
+/**
+ * Opens the week booklet in the PDF viewer and records that the student
+ * opened it. The signed URL is fetched on the first click, so the booklet
+ * only counts as opened when the student actually opens it.
+ */
 export function BookletLink({
   subjectWeekId,
-  alreadyOpened,
+  className,
+  style,
+  children,
 }: {
   subjectWeekId: string;
-  alreadyOpened: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
   const [url, setUrl] = useState<string | null>(null);
@@ -20,6 +29,7 @@ export function BookletLink({
       <button
         type="button"
         disabled={pending}
+        aria-busy={pending || undefined}
         onClick={() => {
           if (url) {
             setOpen(true);
@@ -33,13 +43,10 @@ export function BookletLink({
             } else alert(res.error);
           });
         }}
-        className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-4 py-2 text-sm font-medium hover:bg-brand-50"
+        className={className}
+        style={style}
       >
-        {pending
-          ? "Opening…"
-          : alreadyOpened
-            ? "View PDF (opened earlier)"
-            : "View PDF →"}
+        {children}
       </button>
       <PdfViewerDialog
         open={open}

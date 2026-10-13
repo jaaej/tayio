@@ -5,7 +5,7 @@ import { ConversationPanel } from "@/components/dm/conversation-panel";
 import { MessagesLayout } from "@/components/dm/messages-layout";
 import { markThreadRead } from "@/app/_actions/dm";
 import { getConversationContext } from "@/lib/dm-context";
-import { loadStudentMessagesInbox } from "../_lib/inbox";
+import { loadStudentMessagesInbox, tutorSubjectLink } from "../_lib/inbox";
 
 export default async function StudentThreadPage({
   params,
@@ -25,12 +25,15 @@ export default async function StudentThreadPage({
   const isUnrestricted =
     (user.app_metadata?.role as string | undefined) === "student_unrestricted";
   // Loaded after marking read so the list shows this thread as read.
-  const [{ threads, groups }, context] = await Promise.all([
+  const [{ threads, groups }, context, subjectLink] = await Promise.all([
     loadStudentMessagesInbox(user.id, isUnrestricted),
     getConversationContext(
       { id: user.id, role: "student" },
       { id: thread.otherUserId, role: thread.otherRole },
     ),
+    thread.otherRole === "tutor"
+      ? tutorSubjectLink(user.id, thread.otherUserId)
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -48,8 +51,8 @@ export default async function StudentThreadPage({
         messages={thread.messages}
         rolePrefix="student"
         context={context.context ?? undefined}
-        profileHref={context.profileHref}
-        profileLabel={context.profileLabel}
+        profileHref={context.profileHref ?? subjectLink?.href}
+        profileLabel={context.profileLabel ?? subjectLink?.label}
       />
     </MessagesLayout>
   );

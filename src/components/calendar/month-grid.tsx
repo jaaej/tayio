@@ -25,6 +25,8 @@ export type MonthChip = {
   interactive?: boolean;
   title?: string;
   ariaLabel?: string;
+  /** A clickable chip that is the current selection (sets aria-pressed). */
+  pressed?: boolean;
 };
 
 function isoLocal(d: Date) {
@@ -221,6 +223,7 @@ function GridChip({
       <button
         type="button"
         onClick={() => onClick(chip.id)}
+        aria-pressed={chip.pressed}
         className={cn(className, "w-full text-left")}
         style={chip.style}
         title={chip.title}

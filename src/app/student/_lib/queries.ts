@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import {
@@ -120,7 +120,8 @@ export type SubjectSummary = {
   masteryPercent: number; // 0..100
 };
 
-const MASTERY_PERCENT = {
+/** Bar width per topic mastery level; a subject's mastery is their mean. */
+export const MASTERY_PERCENT = {
   not_started: 0,
   needs_work: 30,
   improving: 65,
@@ -464,6 +465,8 @@ export type SubjectProgressDetail = {
     score: string | null;
     feedback: string | null;
     submittedAt: Date | null;
+    markedAt: Date | null;
+    isTest: boolean;
     className: string | null;
   }>;
 };
@@ -528,6 +531,8 @@ export async function getStudentProgressSubjectDetail(
       score: homeworkAssignments.score,
       feedback: homeworkAssignments.feedback,
       submittedAt: homeworkAssignments.submittedAt,
+      markedAt: homeworkAssignments.markedAt,
+      isTest: homework.isTest,
       className: classes.name,
     })
     .from(homeworkAssignments)
@@ -903,8 +908,14 @@ export type LessonWithNoteListItem = {
   recordingUrl: string | null;
 };
 
+/**
+ * The student's most recent lessons (newest first) with whether a recap note
+ * exists. `until` (YYYY-MM-DD, inclusive) drops lessons after that day, so a
+ * list of past lessons never shows ones that have not happened yet.
+ */
 export async function getStudentLessonsWithNotes(
   studentId: string,
+  opts: { until?: string } = {},
 ): Promise<LessonWithNoteListItem[]> {
   const enrolledClassIds = await getEnrolledClassIds(studentId);
   if (enrolledClassIds.length === 0) return [];
@@ -930,7 +941,12 @@ export async function getStudentLessonsWithNotes(
         eq(lessonNotes.studentId, studentId),
       ),
     )
-    .where(inArray(lessons.classId, enrolledClassIds))
+    .where(
+      and(
+        inArray(lessons.classId, enrolledClassIds),
+        opts.until ? lte(lessons.date, opts.until) : undefined,
+      ),
+    )
     .orderBy(desc(lessons.date), desc(lessons.startTime))
     .limit(30);
 
@@ -953,6 +969,8 @@ export type TimetableLesson = {
   subjectName: string;
   className: string;
   location: string | null;
+  /** The lesson's tutor, "First Last"; null on a synthetic pending chip. */
+  tutorName: string | null;
   studentState:
     | "normal"
     | "moved_out"
@@ -985,6 +1003,7 @@ export async function getStudentTimetableLessons(
     subjectName: subjects.name,
     className: classes.name,
     location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
+    tutorName: sql<string | null>`nullif(trim(concat_ws(' ', ${profiles.firstName}, ${profiles.lastName})), '')`,
   };
 
   const enrolledLessons = enrolledClassIds.length
@@ -993,6 +1012,7 @@ export async function getStudentTimetableLessons(
         .from(lessons)
         .innerJoin(classes, eq(classes.id, lessons.classId))
         .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+        .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
         .where(and(inArray(lessons.classId, enrolledClassIds), ...range()))
     : [];
 
@@ -1013,6 +1033,7 @@ export async function getStudentTimetableLessons(
         .from(lessons)
         .innerJoin(classes, eq(classes.id, lessons.classId))
         .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+        .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
         .where(inArray(lessons.id, makeupIds))
     : [];
 
@@ -1131,6 +1152,7 @@ export async function getStudentTimetableLessons(
         subjectName: orig?.subjectName ?? "Lesson",
         className: orig?.className ?? "",
         location: orig?.location ?? null,
+        tutorName: null,
         studentState: "pending_in",
         moveLabel: "Waiting for approval",
       });

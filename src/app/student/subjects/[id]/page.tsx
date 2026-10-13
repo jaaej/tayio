@@ -1,21 +1,23 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { and, eq, isNull } from "drizzle-orm";
-import { Card, CardBody } from "@/components/student/card";
-import { db } from "@/db/client";
-import { classes, enrollments } from "@/db/schema";
-import { requireRole } from "@/lib/auth";
-import { currentWeekNumber } from "@/lib/curriculum";
-import { getStudentCurriculum } from "./_queries";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
-import {
-  CurriculumRail,
-  type RailWeek,
-} from "@/components/subjects/curriculum-rail";
-import { WeekContent } from "./_components/week-content";
+import { CurriculumRail } from "@/components/subjects/curriculum-rail";
+import { requireRole } from "@/lib/auth";
+import { getStudentSubjectPage } from "../_lib/subject-page";
+import { subjectBg } from "./_components/subject-colour";
+import { SubjectHeader } from "./_components/subject-header";
+import { Recording, TutorNote, WeekGoals } from "./_components/week-panels";
+import { WeekWork } from "./_components/week-work";
+
+export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
 
+/*
+ * My subjects, colourful option of the student design handoff
+ * (StudentSubjectColourPage): the list and the detail merged into one page.
+ * Subject tabs in the hero, the shared weeks rail on the left, this week's
+ * work as colour cards, then the objectives and the tutor's note.
+ */
 export default async function StudentSubjectPage({
   params,
   searchParams,
@@ -25,105 +27,46 @@ export default async function StudentSubjectPage({
 }) {
   const user = await requireRole("student");
   const { id: subjectId } = await params;
-  const { term: termParam, week: weekParam } = await searchParams;
+  const { term, week: weekParam } = await searchParams;
+  const now = new Date();
 
-  const data = await getStudentCurriculum(user.id, subjectId, termParam, weekParam);
-  if (!data) {
-    const [stillEnrolled] = await db
-      .select({ id: classes.id })
-      .from(enrollments)
-      .innerJoin(classes, eq(classes.id, enrollments.classId))
-      .where(
-        and(
-          eq(enrollments.studentId, user.id),
-        eq(classes.subjectId, subjectId),
-        isNull(enrollments.withdrawnAt),
-        ),
-      )
-      .limit(1);
-    if (!stillEnrolled) notFound();
-    return <EmptyCurriculum />;
+  const page = await getStudentSubjectPage(user.id, subjectId, term, weekParam, now);
+  if (page.kind === "not-enrolled") notFound();
+
+  if (page.kind === "no-curriculum") {
+    return (
+      <div className="flex flex-col gap-5 text-ink">
+        <SubjectHeader
+          tabs={page.tabs}
+          subjectId={subjectId}
+          subjectName={page.subjectName}
+          title={page.subjectName}
+        />
+        <Notice>Your tutor is preparing this term&apos;s lessons. They appear here once they&apos;re ready.</Notice>
+      </div>
+    );
   }
 
-  const maxWeek = data.weeks.reduce(
-    (acc, w) => Math.max(acc, w.weekNumber),
-    0,
-  );
-  const currentWeekHint =
-    data.weeks.find(
-      (w) =>
-        w.weekNumber ===
-        currentWeekNumber(
-          {
-            startDate: data.currentTerm.startDate,
-            endDate: data.currentTerm.endDate,
-          },
-          maxWeek,
-        ),
-    )?.subjectWeekId ?? null;
-
-  const selectedWeek =
-    data.weeks.find(
-      (w) => w.subjectWeekId === data.selectedWeekId && !w.locked,
-    ) ??
-    data.weeks.find(
-      (w) => w.subjectWeekId === currentWeekHint && !w.locked,
-    ) ??
-    data.weeks.find((w) => !w.locked);
-
-  const railWeeks: RailWeek[] = data.weeks.map((w) => {
-    const homeworkTotal = w.homework.length;
-    const homeworkDone = w.homework.filter(
-      (h) =>
-        h.status === "marked" ||
-        h.status === "submitted" ||
-        h.status === "returned",
-    ).length;
-    const tasksTotal = 2 + (homeworkTotal > 0 ? 1 : 0);
-    const tasksDone =
-      (w.videoWatchedAt ? 1 : 0) +
-      (w.bookletOpenedAt ? 1 : 0) +
-      (homeworkTotal > 0 && homeworkDone >= homeworkTotal ? 1 : 0);
-    return {
-      id: w.subjectWeekId,
-      weekNumber: w.weekNumber,
-      title: w.title,
-      topicId: w.topicId,
-      topicName: w.topicName,
-      locked: w.locked,
-      complete: tasksTotal > 0 && tasksDone === tasksTotal,
-      pills:
-        homeworkTotal > 0
-          ? [
-              {
-                label: `${homeworkDone}/${homeworkTotal}`,
-                tone: homeworkDone >= homeworkTotal ? "good" : "warn",
-              },
-            ]
-          : [],
-    };
-  });
-
-  // Bleed the entire page past the global shell's px-5/lg:px-7 padding and
-  // re-add a smaller inner padding so the subject view takes the whole main
-  // area (next to the nav sidebar) instead of being inset like other pages.
-  //
-  // The subject identity lives in the weeks tab (see CurriculumLayout) and the
-  // way back out lives in the week hero, so nothing sits above the grid - the
-  // hero runs straight into the top bar.
+  const { data, week, tasks, progress, tutorFirstName } = page;
   return (
-    <div
-      className="-mx-3 -mt-4 -mb-4 flex min-h-[calc(100vh-56px)] flex-col sm:-mx-5 sm:-mt-6 sm:-mb-6 lg:-mx-7 lg:-mb-16"
-    >
-      {/* The subject is shown in the weeks tab, but the document still needs
-          an h1 so the week hero's h2 isn't the first heading on the page. */}
-      <h1 className="sr-only">{data.subjectName}</h1>
+    <div className="flex flex-col gap-5 text-ink">
+      <SubjectHeader
+        tabs={page.tabs}
+        subjectId={subjectId}
+        subjectName={data.subjectName}
+        title={week?.title ?? data.subjectName}
+        kicker={[week ? `Week ${week.weekNumber}` : null, data.tutorName]
+          .filter(Boolean)
+          .join(" · ")}
+        progress={progress}
+        tutorId={data.tutorId}
+        tutorFirstName={tutorFirstName}
+      />
 
-
-      {/* Full-bleed 2-col: rail attached to the nav, content fills the rest */}
       <CurriculumLayout
         attached
-        subjectName={data.subjectName}
+        framed
+        defaultOpen
         rail={
           <CurriculumRail
             basePath={`/student/subjects/${subjectId}`}
@@ -132,58 +75,44 @@ export default async function StudentSubjectPage({
               id: t.id,
               label: `Term ${t.termNumber} · ${t.year}`,
             }))}
-            weeks={railWeeks}
-            selectedWeekId={data.selectedWeekId}
-            currentWeekIdHint={currentWeekHint}
+            weeks={page.railWeeks}
+            selectedWeekId={week?.subjectWeekId ?? null}
+            currentWeekIdHint={page.currentWeekId}
             showTermSelect
+            accent={subjectBg(data.subjectName)}
           />
         }
       >
-        {selectedWeek ? (
-          <WeekContent
-            week={selectedWeek}
-            subjectName={data.subjectName}
-            backHref="/student/subjects"
-          />
+        {week ? (
+          <div className="flex flex-col gap-5">
+            <WeekWork tasks={tasks} subjectWeekId={week.subjectWeekId} />
+            <div className="flex flex-wrap gap-5">
+              <WeekGoals week={week} subjectName={data.subjectName} />
+              <TutorNote
+                week={week}
+                subjectName={data.subjectName}
+                tutorFirstName={tutorFirstName}
+                now={now}
+              />
+            </div>
+            <Recording week={week} src={page.videoSrc} />
+          </div>
         ) : (
-          <LockedTermMessage />
+          <Notice>
+            {page.firstUnlock
+              ? `Week 1 is locked. ${page.firstUnlock}.`
+              : "This term's lessons are locked."}
+          </Notice>
         )}
       </CurriculumLayout>
     </div>
   );
 }
 
-function LockedTermMessage() {
+function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <Card>
-      <CardBody>
-        <div className="py-8 text-center">
-          <div className="text-[15px] font-bold text-ink">Lessons are locked</div>
-          <p className="mt-1 text-[13px] text-muted">
-            Week 1 will open when this term begins.
-          </p>
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
-
-function EmptyCurriculum() {
-  return (
-    <div className="space-y-4">
-      <Link
-        href="/student/subjects"
-        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink"
-      >
-        ← All subjects
-      </Link>
-      <Card>
-        <CardBody>
-          <div className="text-sm text-muted">
-            Curriculum coming soon - your tutor is preparing this term&apos;s content.
-          </div>
-        </CardBody>
-      </Card>
+    <div className="glass rounded-[24px] p-1.5">
+      <p className="panel px-5 py-10 text-center text-[14px] text-[#5E5A73]">{children}</p>
     </div>
   );
 }

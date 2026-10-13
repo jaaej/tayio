@@ -173,6 +173,7 @@ export async function buildTimetableChips(
       subjectName: l.subjectName,
       className: l.className,
       location: l.location,
+      tutorName: l.tutorName,
       studentState: l.studentState,
       moveLabel: l.moveLabel,
       canManage,

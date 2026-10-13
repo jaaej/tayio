@@ -47,7 +47,13 @@ const SECTIONS: NavSection[] = [
     heading: "Learning",
     items: [
       { label: "Dashboard", href: "/student", icon: <LayoutDashboard className={IC} /> },
-      { label: "My subjects", href: "/student/subjects", icon: <BookOpen className={IC} /> },
+      {
+        label: "My subjects",
+        href: "/student/subjects",
+        icon: <BookOpen className={IC} />,
+        // A practice quiz is opened from its week in My subjects.
+        also: ["/student/quizzes"],
+      },
       { label: "Homework", href: "/student/homework", icon: <ClipboardList className={IC} /> },
       { label: "Timetable", href: "/student/timetable", icon: <CalendarDays className={IC} /> },
       { label: "Progress", href: "/student/progress", icon: <TrendingUp className={IC} /> },

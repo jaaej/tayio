@@ -1,48 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardLabel } from "@/components/ui/card";
-import { requireRole } from "@/lib/auth";
-import { StatusBadge } from "../../_components/badge";
-import {
-  formatDateLong,
-  formatTime,
-  LESSON_STATUS_LABEL,
-  LESSON_STATUS_STYLE,
-} from "../../_lib/format";
-import { getLessonRecap } from "../../_lib/queries";
+import { Empty, PageHeader } from "@/components/admin/ui";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { requireRole } from "@/lib/auth";
+import { formatTimeRange } from "@/lib/format";
+import { LESSON_STATUS_LABEL } from "@/lib/status";
+import { subjectTone } from "@/lib/subject-tone";
+import { hostedEmbedUrl } from "@/lib/video-embed";
+import { getLessonRecap } from "../../_lib/queries";
 
-/**
- * Turn a hosted video URL into an embeddable player src for the common hosts
- * (YouTube, Vimeo). Returns null for anything we can't safely embed, so the
- * caller falls back to a plain "Watch recording" link.
- */
-function videoEmbedSrc(raw: string): string | null {
-  let u: URL;
-  try {
-    u = new URL(raw);
-  } catch {
-    return null;
-  }
-  const host = u.hostname.replace(/^www\./, "");
-  if (host === "youtu.be") {
-    const id = u.pathname.slice(1);
-    return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
-  }
-  if (host === "youtube.com" || host === "m.youtube.com") {
-    if (u.pathname === "/watch") {
-      const id = u.searchParams.get("v");
-      return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
-    }
-    if (u.pathname.startsWith("/embed/"))
-      return `https://www.youtube-nocookie.com${u.pathname}`;
-  }
-  if (host === "vimeo.com") {
-    const id = u.pathname.split("/").filter(Boolean)[0];
-    return id && /^\d+$/.test(id) ? `https://player.vimeo.com/video/${id}` : null;
-  }
-  return null;
-}
+const dayLabel = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
 
 export default async function LessonRecapPage({
   params,
@@ -54,126 +24,108 @@ export default async function LessonRecapPage({
   const lesson = await getLessonRecap(user.id, id);
   if (!lesson) notFound();
 
-  const hasAnyNotes =
-    !!lesson.topicCovered ||
-    !!lesson.keyConcepts ||
-    !!lesson.strengths ||
-    !!lesson.struggles ||
-    !!lesson.nextLessonFocus ||
-    !!lesson.parentVisibleComment;
+  // Parent-visible note fields only. `getLessonRecap` never selects the
+  // tutor's internal note, so it cannot leak here. Accent colours per block
+  // come from the StudentRecapPage handoff.
+  const blocks = [
+    { label: "Topic covered", body: lesson.topicCovered, accent: "#17152B" },
+    { label: "Key concepts", body: lesson.keyConcepts, accent: "#3B4FD8" },
+    { label: "What went well", body: lesson.strengths, accent: "#15803D" },
+    { label: "What to revise", body: lesson.struggles, accent: "#D97706" },
+    { label: "Next lesson focus", body: lesson.nextLessonFocus, accent: "#7C62F0" },
+    { label: "From your tutor", body: lesson.parentVisibleComment, accent: "#2E9C86" },
+  ].filter((b): b is { label: string; body: string; accent: string } =>
+    Boolean(b.body?.trim()),
+  );
 
-  const embedSrc = lesson.recordingUrl
-    ? videoEmbedSrc(lesson.recordingUrl)
-    : null;
+  const embedSrc = lesson.recordingUrl ? hostedEmbedUrl(lesson.recordingUrl) : null;
+  const statusNote =
+    lesson.status === "cancelled" || lesson.status === "missed"
+      ? LESSON_STATUS_LABEL[lesson.status]
+      : null;
+  const tutorName = `${lesson.tutorFirstName} ${lesson.tutorLastName}`.trim();
 
   return (
-    <div className="space-y-10">
-      <div className="rise">
-        <Link
-          href="/student/resources"
-          className="inline-flex items-center gap-2 rounded-lg border border-hairline/60 bg-card px-3 py-2 text-sm font-medium text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
-        >
-          ← All Resources
-        </Link>
-      </div>
-
-      <header className="rise" style={{ animationDelay: "60ms" }}>
-        <CardLabel>{lesson.className}</CardLabel>
-        <h1 className="mt-2 text-3xl lg:text-4xl font-light tracking-tight text-ink">
-          {lesson.subjectName}
-        </h1>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
-          <span>{formatDateLong(lesson.date)}</span>
-          <span>
-            {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
-          </span>
-          <span>
-            with {lesson.tutorFirstName} {lesson.tutorLastName}
-          </span>
-          <StatusBadge
-            label={LESSON_STATUS_LABEL[lesson.status] ?? lesson.status}
-            className={LESSON_STATUS_STYLE[lesson.status]}
-          />
-        </div>
-      </header>
+    <div className="max-w-[1080px] space-y-5">
+      <PageHeader
+        back={{ href: "/student/resources", label: "All resources" }}
+        eyebrow={
+          <>
+            <span
+              aria-hidden
+              className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+              style={{ backgroundColor: subjectTone(lesson.subjectName).dot }}
+            />
+            <span>
+              {[
+                lesson.className,
+                dayLabel.format(new Date(`${lesson.date}T12:00:00`)),
+                formatTimeRange(lesson.startTime, lesson.endTime),
+                tutorName && `with ${tutorName}`,
+                statusNote,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </>
+        }
+        title={lesson.topicCovered?.trim() || lesson.subjectName}
+      />
 
       {lesson.recordingUrl && (
-        <section className="rise" style={{ animationDelay: "90ms" }}>
-          <CardLabel>Lesson recording</CardLabel>
+        <section aria-label="Lesson recording" className="glass rounded-[24px] p-1.5">
           {embedSrc ? (
-            <div className="mt-3 aspect-video w-full overflow-hidden rounded-2xl border border-hairline/60 bg-black">
+            <div className="aspect-video w-full overflow-hidden rounded-[18px] bg-ink">
               <iframe
                 src={embedSrc}
-                title="Lesson recording"
+                title={`${lesson.subjectName} lesson recording`}
                 className="h-full w-full"
                 allow="accelerated-media; autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
               />
             </div>
           ) : (
-            <Card className="mt-3">
+            <div className="flex aspect-[16/7] w-full flex-col items-center justify-center gap-3 rounded-[18px] bg-[linear-gradient(135deg,#17152B,#2E2944)] text-white">
               <VideoViewerButton
                 url={lesson.recordingUrl}
                 title={`${lesson.subjectName} lesson recording`}
-                className="border-brand-600 bg-brand-600 text-white hover:bg-brand-700"
+                className="h-16 w-16 gap-0 border-0 bg-white p-0 text-ink hover:bg-white [&>svg]:h-[26px] [&>svg]:w-[26px]"
               >
-                Watch recording
+                <span className="sr-only">Play recording</span>
               </VideoViewerButton>
-            </Card>
+              <span className="text-[13px] font-semibold opacity-80">Lesson recording</span>
+            </div>
           )}
         </section>
       )}
 
-      {!hasAnyNotes ? (
-        <Card>
-          <div className="py-6 text-sm text-ink-soft">
-            Your tutor hasn&apos;t written a recap for this lesson yet. Check back later.
+      <section aria-labelledby="rc-h" className="glass rounded-[24px] p-1.5">
+        <h2 id="rc-h" className="px-3 pb-2.5 pt-2 text-[16px] font-extrabold text-ink">
+          {lesson.tutorFirstName ? `Recap from ${lesson.tutorFirstName}` : "Recap"}
+        </h2>
+        {blocks.length === 0 ? (
+          <div className="panel">
+            <Empty>Your tutor hasn&apos;t written a recap for this lesson yet. Check back later.</Empty>
           </div>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {lesson.topicCovered && (
-            <RecapBlock label="Topic covered" body={lesson.topicCovered} />
-          )}
-          {lesson.keyConcepts && (
-            <RecapBlock label="Key concepts" body={lesson.keyConcepts} />
-          )}
-          {lesson.strengths && (
-            <RecapBlock label="What went well" body={lesson.strengths} />
-          )}
-          {lesson.struggles && (
-            <RecapBlock
-              label="What to revise"
-              body={lesson.struggles}
-            />
-          )}
-          {lesson.nextLessonFocus && (
-            <RecapBlock
-              label="Next lesson focus"
-              body={lesson.nextLessonFocus}
-            />
-          )}
-          {lesson.parentVisibleComment && (
-            <RecapBlock
-              label="From your tutor"
-              body={lesson.parentVisibleComment}
-            />
-          )}
-        </div>
-      )}
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-1.5">
+            {blocks.map((b) => (
+              <div
+                key={b.label}
+                className="panel flex flex-col gap-1.5 p-4"
+                style={{ borderTop: `3px solid ${b.accent}` }}
+              >
+                <span className="text-[12px] font-extrabold uppercase tracking-[0.04em] text-muted">
+                  {b.label}
+                </span>
+                <span className="whitespace-pre-wrap text-[14px] leading-[1.55] text-ink">
+                  {b.body}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-  );
-}
-
-function RecapBlock({ label, body }: { label: string; body: string }) {
-  return (
-    <section className="rise">
-      <CardLabel>{label}</CardLabel>
-      <Card className="mt-3">
-        <div className="text-sm text-ink whitespace-pre-wrap leading-relaxed">
-          {body}
-        </div>
-      </Card>
-    </section>
   );
 }

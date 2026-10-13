@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatTime, formatDateLong } from "@/lib/format";
+import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
+import { subjectTone } from "@/lib/subject-tone";
 import {
   loadRescheduleOptions,
   submitReschedule,
@@ -18,8 +20,10 @@ import {
 } from "@/app/_actions/credits";
 import type { PanelCredit } from "@/components/reschedule/credit-panel";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { GlassPanel, SubjectDot, buttonVariants } from "@/components/admin/ui";
+import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
+import { defaultSelectedLessonId } from "./timetable-helpers";
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -35,6 +39,8 @@ export type TimetableChip = {
   subjectName: string;
   className: string;
   location: string | null;
+  /** The lesson's tutor; null on a synthetic pending chip. */
+  tutorName: string | null;
   studentState:
     | "normal"
     | "moved_out"
@@ -43,8 +49,8 @@ export type TimetableChip = {
     | "pending_in";
   moveLabel: string | null;
   /** Base eligibility - lesson is upcoming, in the future, and in a state
-   *  self-serve actions make sense for. Every lesson opens the action menu;
-   *  this only gates whether the reschedule/cancel actions are live vs shown
+   *  self-serve actions make sense for. Every lesson can be selected; this
+   *  only gates whether the reschedule/cancel actions are live vs shown
    *  greyed-out with a reason. */
   canManage: boolean;
   /** canManage AND in a resolved term AND 7-day notice met AND reschedule cap
@@ -59,22 +65,20 @@ export type TimetableChip = {
   /** Remaining cancellations this term, or null if the lesson isn't in a
    *  resolved term. */
   cancelRemaining: number | null;
-  /** Effective per-term caps (base 3 + admin allowance bonus) - the denominator
-   *  shown in the "N of X left" labels. */
+  /** Effective per-term caps (base 3 + admin allowance bonus) - the
+   *  denominator in the cancel confirmation. */
   rescheduleCap: number;
   cancelCap: number;
   /** When reschedule is unavailable, a short reason ("Passed", "Needs 7 days
-   *  notice", ...) shown on the greyed-out action. null when reschedulable. */
+   *  notice", ...) shown under the greyed-out action. null when reschedulable. */
   rescheduleReason: string | null;
-  /** When cancel is unavailable, a short reason shown on the greyed-out
+  /** When cancel is unavailable, a short reason shown under the greyed-out
    *  action. null when cancellable. */
   cancelReason: string | null;
-  /** This lesson has been cancelled by the student (a credit was granted).
-   *  Rendered struck-through in red with a single "Cancelled" status. */
+  /** This lesson has been cancelled by the student (a credit was granted). */
   cancelled: boolean;
   /** This lesson was converted to a class credit via a no-slot reschedule
-   *  (credit granted from it, but not a cancellation). Rendered struck-through
-   *  in grey with a "Converted to class credit" status. */
+   *  (credit granted from it, but not a cancellation). */
   convertedToCredit: boolean;
 };
 export type TimetableHw = {
@@ -88,16 +92,6 @@ export type TimetableHw = {
   href: string;
 };
 
-function isoLocal(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1";
-
 /** The two things that share the calendar slot-picking overlay: rescheduling a
  *  lesson, and redeeming a class credit. */
 type PickAction =
@@ -105,7 +99,6 @@ type PickAction =
   | { type: "credit"; creditId: string };
 type Mode =
   | { kind: "idle" }
-  | { kind: "menu"; lessonId: string }
   | { kind: "cancel-confirm"; lessonId: string }
   | {
       kind: "picking";
@@ -115,6 +108,20 @@ type Mode =
       picked: RescheduleSlot | null;
     };
 
+const slotKey = (s: RescheduleSlot) => `${s.tutorId}|${s.date}|${s.startTime}`;
+
+function monthParam(year: number, month: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+/**
+ * The month timetable shared by the student's own Timetable page and the
+ * parent's per-child Classes page: the shared month grid on the left, and a
+ * side rail with the selected lesson, class credits and any extra panels the
+ * page passes in. Clicking a lesson selects it; reschedule and cancel act on
+ * the selected lesson. `canSelfServe` is false for a student without billing
+ * access, who sees the same lesson details but is pointed to a parent.
+ */
 export function InteractiveTimetable({
   initialYear,
   initialMonth,
@@ -126,6 +133,9 @@ export function InteractiveTimetable({
   subjectBase = "/student/subjects",
   subjectQuery = "",
   messageBase = "/student/messages/with",
+  canSelfServe = true,
+  glass = false,
+  aside,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -134,85 +144,80 @@ export function InteractiveTimetable({
   /** The student's active class credits, redeemed via the same calendar
    *  slot-picking overlay as a reschedule. */
   credits: PanelCredit[];
-  /** Admin office profile id to message when no reschedule slot is
-   *  available. Null if no admin contact is available (empty state
-   *  falls back to plain text with no link). */
+  /** Admin office profile id to message when an action is blocked or no
+   *  reschedule slot is available. Null hides those links. */
   adminId: string | null;
   /** Acting on behalf of this student (parent portal). Undefined on the
    *  student's own timetable, where every action defaults to the caller. */
   studentId?: string;
-  /** Base path for the "Go to subject" link - `${subjectBase}/${lesson.subjectId}${subjectQuery}`. */
+  /** Base path for the subject link - `${subjectBase}/${lesson.subjectId}${subjectQuery}`. */
   subjectBase?: string;
   /** Query string appended after the subject id, e.g. `?child=${studentId}` so
-   *  the parent portal's subject page (which otherwise defaults to the
-   *  parent's first child) resolves the same child this timetable is for. */
+   *  the parent portal's subject page resolves the same child. */
   subjectQuery?: string;
   /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
   messageBase?: string;
+  /** False for a student without billing access: no reschedule, cancel or
+   *  credits; the selected lesson says to ask a parent instead. The server
+   *  actions enforce the same rule. */
+  canSelfServe?: boolean;
+  /** Render the calendar and rail in glass frames (portals on the glass
+   *  shell). The parent portal, not yet on the glass shell, uses plain cards. */
+  glass?: boolean;
+  /** Extra rail panels below the selected lesson and credits. */
+  aside?: ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    defaultSelectedLessonId(lessons, new Date()),
+  );
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [loading, startLoad] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
+  const selectedRef = useRef<HTMLDivElement>(null);
 
   const picking = mode.kind === "picking" ? mode : null;
-  const cancelConfirming = mode.kind === "cancel-confirm" ? mode : null;
+  const selected = lessons.find((l) => l.id === selectedId) ?? null;
 
-  const lessonsByDate = useMemo(() => {
-    const m = new Map<string, TimetableChip[]>();
-    for (const l of lessons) (m.get(l.date) ?? m.set(l.date, []).get(l.date)!).push(l);
-    for (const list of m.values()) list.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    return m;
-  }, [lessons]);
-  const hwByDate = useMemo(() => {
-    const m = new Map<string, TimetableHw[]>();
-    for (const h of homework) (m.get(h.dueDate) ?? m.set(h.dueDate, []).get(h.dueDate)!).push(h);
-    return m;
-  }, [homework]);
-  const slotsByDate = useMemo(() => {
-    const m = new Map<string, RescheduleSlot[]>();
-    if (picking) {
-      for (const s of picking.slots)
-        (m.get(s.date) ?? m.set(s.date, []).get(s.date)!).push(s);
-      for (const list of m.values()) list.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    }
-    return m;
-  }, [picking]);
-
-  // Build a Mon-first 6-row grid for the viewed month.
-  const firstOfMonth = new Date(view.year, view.month, 1);
-  const mondayOffset = (firstOfMonth.getDay() + 6) % 7;
-  const gridStart = new Date(view.year, view.month, 1 - mondayOffset);
-  const todayIso = isoLocal(new Date());
-  const days = Array.from({ length: 42 }, (_, i) => {
-    const d = new Date(gridStart);
-    d.setDate(gridStart.getDate() + i);
-    const iso = isoLocal(d);
-    return {
-      iso,
-      dayNum: d.getDate(),
-      inMonth: d.getMonth() === view.month,
-      isToday: iso === todayIso,
-    };
-  });
-  const usedRows =
-    days.slice(35, 42).every((d) => !d.inMonth) ? 5 : 6;
-  const visibleDays = days.slice(0, usedRows * 7);
-
-  function navMonth(delta: number) {
-    setView((v) => {
-      const d = new Date(v.year, v.month + delta, 1);
-      return { year: d.getFullYear(), month: d.getMonth() };
-    });
+  // The page loads a window of months around ?month, so moving the calendar
+  // also moves the URL: the server re-centres the window and the month is
+  // shareable. Other query params (the parent's ?child=) are kept.
+  function showMonth(year: number, month: number) {
+    setView({ year, month });
+    const params = new URLSearchParams(window.location.search);
+    params.set("month", monthParam(year, month));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
-
+  function navMonth(delta: number) {
+    const d = new Date(view.year, view.month + delta, 1);
+    showMonth(d.getFullYear(), d.getMonth());
+  }
   function jumpToFirstSlot(slots: RescheduleSlot[]) {
     if (slots.length === 0) return;
     const first = slots.reduce((a, b) => (a.date <= b.date ? a : b));
     const d = new Date(`${first.date}T00:00:00`);
-    setView({ year: d.getFullYear(), month: d.getMonth() });
+    if (d.getFullYear() !== view.year || d.getMonth() !== view.month) {
+      showMonth(d.getFullYear(), d.getMonth());
+    }
+  }
+
+  function selectLesson(id: string) {
+    setSelectedId(id);
+    setMode({ kind: "idle" });
+    setFlash(null);
+    // When the rail sits below the calendar, bring the card into view.
+    if (!window.matchMedia("(min-width: 80rem)").matches) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      requestAnimationFrame(() =>
+        selectedRef.current?.scrollIntoView({
+          behavior: reduce ? "auto" : "smooth",
+          block: "nearest",
+        }),
+      );
+    }
   }
 
   function openReschedule(lessonId: string) {
@@ -294,9 +299,9 @@ export function InteractiveTimetable({
   }
 
   function confirmCancel() {
-    if (!cancelConfirming) return;
+    if (mode.kind !== "cancel-confirm") return;
     const fd = new FormData();
-    fd.set("lessonId", cancelConfirming.lessonId);
+    fd.set("lessonId", mode.lessonId);
     if (studentId) fd.set("studentId", studentId);
     startSubmit(async () => {
       const res = await cancelLesson(fd);
@@ -306,15 +311,123 @@ export function InteractiveTimetable({
     });
   }
 
+  const chips = useMemo<MonthChip[]>(() => {
+    const out: MonthChip[] = lessons.map((l) =>
+      lessonChip(l, l.id === selectedId && !picking, !!picking),
+    );
+    if (picking) {
+      for (const s of picking.slots) {
+        const active = picking.picked ? slotKey(picking.picked) === slotKey(s) : false;
+        out.push({
+          id: `slot:${slotKey(s)}`,
+          date: s.date,
+          label: formatTime(s.startTime),
+          sublabel: s.taken ? "Taken" : "Open",
+          sortKey: `1-${s.startTime}`,
+          tone: s.taken
+            ? "bg-surface-3 text-muted line-through"
+            : active
+              ? "bg-[#17152B] text-white"
+              : "bg-good-bg text-good ring-1 ring-inset ring-good/40",
+          interactive: !s.taken,
+          pressed: active,
+          title: s.taken ? "This tutor is already booked at this time" : undefined,
+        });
+      }
+    }
+    for (const h of homework) {
+      out.push({
+        id: `hw:${h.id}`,
+        date: h.dueDate,
+        label: "Due",
+        sublabel: h.title,
+        sortKey: `2-${h.title}`,
+        tone: cn(
+          "rounded-[8px] border border-dashed border-[#E8B66A] bg-white text-[#8A4A06]",
+          h.done && "opacity-60",
+        ),
+        href: h.href,
+        dimmed: !!picking,
+        title: `${h.title} - ${h.done ? "handed in" : "due"}`,
+      });
+    }
+    return out;
+  }, [lessons, homework, selectedId, picking]);
+
+  function onChipClick(id: string) {
+    if (id.startsWith("lesson:") && !picking) selectLesson(id.slice("lesson:".length));
+    if (id.startsWith("slot:") && picking) {
+      const s = picking.slots.find((x) => `slot:${slotKey(x)}` === id);
+      if (s && !s.taken) setMode({ ...picking, picked: s });
+    }
+  }
+
+  const navButton = cn(
+    buttonVariants({ variant: glass ? "glass" : "outline", size: "icon" }),
+    "h-9 w-9 rounded-[10px]",
+  );
+  const monthNav = (
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={() => navMonth(-1)} aria-label="Previous month" className={navButton}>
+        <ChevronLeft className="h-4 w-4" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const now = new Date();
+          showMonth(now.getFullYear(), now.getMonth());
+        }}
+        className={cn(
+          buttonVariants({ variant: glass ? "glass" : "outline" }),
+          "h-9 rounded-[10px] px-3 text-[13px] font-bold",
+        )}
+      >
+        Today
+      </button>
+      <button type="button" onClick={() => navMonth(1)} aria-label="Next month" className={navButton}>
+        <ChevronRight className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
+  );
+  const legendSubjects = Array.from(
+    new Map(lessons.map((l) => [subjectTone(l.subjectName).family, l.subjectName])).values(),
+  );
+  const legend = (
+    <div className="flex flex-wrap gap-3.5 px-2.5 pb-1.5 pt-2.5 text-[12px] font-semibold text-[#2E2944]">
+      {legendSubjects.map((name) => (
+        <span key={name} className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[4px]" style={{ backgroundColor: subjectTone(name).bg }} />
+          {name}
+        </span>
+      ))}
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-[4px] border border-dashed border-[#E8B66A]" />
+        Homework due
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-[4px] bg-[#E3F4EC]" />
+        Make-up
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-[4px] bg-[#F1F2F7]" />
+        Cancelled
+      </span>
+    </div>
+  );
+  const monthTitle = (
+    <span className="tabular-nums">
+      {MONTH_NAMES[view.month]} <span className="font-medium text-[#2E2944]">{view.year}</span>
+    </span>
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {flash && (
         <div
+          role="status"
           className={cn(
-            "rounded-[12px] border px-4 py-2.5 text-[13px] font-bold",
-            flash.ok
-              ? "border-good/40 bg-good-bg text-good"
-              : "border-bad/40 bg-bad-bg text-bad",
+            "rounded-[12px] px-4 py-2.5 text-[13px] font-bold",
+            flash.ok ? "bg-good-bg text-good" : "bg-bad-bg text-bad",
           )}
         >
           {flash.text}
@@ -322,17 +435,19 @@ export function InteractiveTimetable({
       )}
 
       {picking && (
-        <div className="calendar-glass-panel sticky top-[72px] lg:top-[76px] z-30 flex items-center justify-between gap-3 rounded-[16px] border px-4 py-2.5">
-          <div className="text-[13px] font-bold text-brand-800">
+        <div
+          className={cn(
+            "sticky top-[72px] z-30 flex flex-wrap items-center justify-between gap-3 rounded-[16px] px-4 py-2.5 lg:top-[76px]",
+            glass ? "glass" : "border border-line bg-surface shadow-sm",
+          )}
+        >
+          <p className="text-[13px] font-bold text-ink">
             {picking.picked ? (
               <>
-                {picking.action.type === "credit" ? "Book" : "Move"}{" "}
-                {picking.subjectName}{" "}
+                {picking.action.type === "credit" ? "Book" : "Move"} {picking.subjectName}{" "}
                 {picking.action.type === "credit" ? "make-up at" : "to"}{" "}
                 <span className="tabular-nums">
-                  {new Date(
-                    `${picking.picked.date}T00:00:00`,
-                  ).toLocaleDateString("en-AU", {
+                  {new Date(`${picking.picked.date}T00:00:00`).toLocaleDateString("en-AU", {
                     weekday: "short",
                     day: "numeric",
                     month: "short",
@@ -341,75 +456,57 @@ export function InteractiveTimetable({
                 </span>
                 ?
               </>
+            ) : picking.slots.length > 0 ? (
+              picking.action.type === "credit"
+                ? `Pick a time on the calendar for your ${picking.subjectName} credit.`
+                : `Pick a new time on the calendar for ${picking.subjectName}.`
             ) : (
-              <>
-                {picking.action.type === "credit"
-                  ? `Pick a time for your ${picking.subjectName} credit`
-                  : `Pick a new time for ${picking.subjectName}`}{" "}
-                - open slots are highlighted.
-              </>
+              `No open times for ${picking.subjectName} in the next few weeks.`
             )}
-          </div>
+          </p>
           <div className="flex shrink-0 items-center gap-2">
             {picking.picked && (
               <button
                 type="button"
                 onClick={confirm}
                 disabled={submitting}
-                className={cn(
-                  "min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white hover:bg-brand-600 disabled:opacity-50",
-                  FOCUS_RING,
-                )}
+                className={buttonVariants({ variant: "primary" })}
               >
-                {submitting
-                  ? "…"
-                  : picking.action.type === "credit"
-                    ? "Book with credit"
-                    : "Confirm reschedule"}
+                <ActionButtonLabel pending={submitting} pendingLabel="Saving…">
+                  {picking.action.type === "credit" ? "Book with credit" : "Confirm reschedule"}
+                </ActionButtonLabel>
               </button>
             )}
             <button
               type="button"
               onClick={() => setMode({ kind: "idle" })}
-              className={cn(
-                "min-h-11 rounded-[10px] px-3 text-[12px] font-bold text-brand-700 hover:text-brand-900",
-                FOCUS_RING,
-              )}
+              className={buttonVariants({ variant: glass ? "glass" : "outline" })}
             >
-              Cancel
+              Back
             </button>
           </div>
         </div>
       )}
 
       {picking && picking.action.type === "reschedule" && !picking.action.hasSlots && (
-        <div className="rounded-[12px] border border-line bg-surface px-4 py-3">
-          <div className="text-[13px] text-muted">
-            Your tutor has no open slots in the next few weeks. Please contact
-            the office, or convert this lesson to a class credit instead.
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <div className="rounded-[16px] border border-line bg-surface px-4 py-3">
+          <p className="text-[13px] text-ink-soft">
+            Your tutor has no open slots in the next few weeks. Contact the
+            office, or turn this lesson into a class credit instead.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={useCreditInstead}
               disabled={submitting}
-              className={cn(
-                "inline-flex min-h-11 items-center justify-center rounded-[12px] bg-brand-500 px-5 text-[14px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
-                FOCUS_RING,
-              )}
+              className={buttonVariants({ variant: "primary" })}
             >
               <ActionButtonLabel pending={submitting} pendingLabel="Working…">
                 Get a class credit instead
               </ActionButtonLabel>
             </button>
             {adminId && (
-              <Link
-                href={`${messageBase}/${adminId}`}
-                className={cn(
-                  "inline-flex min-h-11 items-center justify-center rounded-[12px] border border-line bg-surface px-5 text-[14px] font-bold text-ink transition-colors hover:border-brand-300",
-                  FOCUS_RING,
-                )}
-              >
+              <Link href={`${messageBase}/${adminId}`} className={buttonVariants({ variant: "outline" })}>
                 Message the office
               </Link>
             )}
@@ -417,459 +514,328 @@ export function InteractiveTimetable({
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-ink tabular-nums sm:text-[22px]">
-          {MONTH_NAMES[view.month]} {view.year}
-        </h2>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => navMonth(-1)}
-            aria-label="Previous month"
-            className={cn(
-              "calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors",
-              FOCUS_RING,
-            )}
+      <div className="flex flex-wrap items-start gap-5">
+        {glass ? (
+          <section
+            aria-labelledby="timetable-month"
+            className="glass min-w-0 flex-[999_1_640px] rounded-[24px] p-1.5"
           >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => navMonth(1)}
-            aria-label="Next month"
-            className={cn(
-              "calendar-glass-control h-9 w-9 inline-flex items-center justify-center rounded-xl border text-lg text-ink-soft hover:text-ink transition-colors",
-              FOCUS_RING,
-            )}
-          >
-            ›
-          </button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto overscroll-x-contain pb-2">
-        <div className="calendar-glass-grid min-w-[680px] rounded-[22px] border p-1.5 sm:min-w-0">
-        <div className="grid grid-cols-7 gap-0 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-2 font-bold">
-          {DAY_LABELS.map((d, i) => (
-            <div key={d} className={cn("text-center py-2", (i === 5 || i === 6) && "text-muted")}>
-              {d}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-2 pl-3 pr-1.5 pt-1.5">
+              <h2 id="timetable-month" className="text-[20px] font-extrabold text-[#17152B]">
+                {monthTitle}
+              </h2>
+              {monthNav}
             </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {visibleDays.map((d) => (
-            <div
-              key={d.iso}
-              className={cn(
-                "calendar-glass-day min-h-[140px] rounded-[18px] border flex flex-col transition-[border-color,background-color,box-shadow] lg:min-h-[160px]",
-                !d.inMonth
-                  ? "calendar-glass-day-muted"
-                  : d.isToday
-                    ? "border-brand-400/70 bg-white/65 ring-1 ring-brand-300/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_30px_-20px_rgba(79,91,213,0.55)]"
-                    : "",
+            <MonthGrid year={view.year} month={view.month} chips={chips} onChipClick={onChipClick} />
+            {legend}
+          </section>
+        ) : (
+          <section aria-labelledby="timetable-month" className="min-w-0 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="timetable-month" className="text-[20px] font-extrabold text-ink">
+                {monthTitle}
+              </h2>
+              {monthNav}
+            </div>
+            <MonthGrid year={view.year} month={view.month} chips={chips} onChipClick={onChipClick} />
+            {legend}
+          </section>
+        )}
+
+        <div className="flex min-w-[280px] max-w-[360px] flex-[1_1_300px] flex-col gap-5 max-sm:min-w-0 max-sm:max-w-none">
+          <RailCard glass={glass} title="Selected lesson" titleId="timetable-selected">
+            <div ref={selectedRef} className="scroll-mt-24">
+              {selected ? (
+                <SelectedLesson
+                  lesson={selected}
+                  canSelfServe={canSelfServe}
+                  busy={loading || submitting || !!picking}
+                  loading={loading}
+                  submitting={submitting}
+                  confirmingCancel={mode.kind === "cancel-confirm" && mode.lessonId === selected.id}
+                  picking={picking?.action.type === "reschedule" && picking.action.lessonId === selected.id}
+                  adminId={adminId}
+                  subjectHref={
+                    selected.subjectId ? `${subjectBase}/${selected.subjectId}${subjectQuery}` : null
+                  }
+                  messageHref={adminId ? `${messageBase}/${adminId}` : null}
+                  onReschedule={() => openReschedule(selected.id)}
+                  onCancel={() => setMode({ kind: "cancel-confirm", lessonId: selected.id })}
+                  onAbortCancel={() => setMode({ kind: "idle" })}
+                  onConfirmCancel={confirmCancel}
+                />
+              ) : (
+                <p className="p-4 text-[13px] text-muted">
+                  Select a lesson on the calendar to see its details.
+                </p>
               )}
-            >
-              <div className="px-2.5 pt-2 pb-1.5">
-                <span
-                  className={cn(
-                    "text-[15px] font-bold tabular-nums leading-none",
-                    d.isToday ? "text-brand-700" : d.inMonth ? "text-ink" : "text-muted-2/60",
-                  )}
-                >
-                  {d.dayNum}
-                </span>
-              </div>
-              <div className="px-1.5 pb-1.5 flex-1 space-y-1 overflow-visible">
-                {(lessonsByDate.get(d.iso) ?? []).map((l) => (
-                  <LessonChip
-                    key={l.id}
-                    lesson={l}
-                    dimmed={!d.inMonth}
-                    picking={!!picking}
-                    menuOpen={mode.kind === "menu" && mode.lessonId === l.id}
-                    cancelConfirming={
-                      mode.kind === "cancel-confirm" && mode.lessonId === l.id
-                    }
-                    loading={loading}
-                    cancelling={submitting}
-                    adminId={adminId}
-                    subjectBase={subjectBase}
-                    subjectQuery={subjectQuery}
-                    messageBase={messageBase}
-                    onOpenMenu={() => setMode({ kind: "menu", lessonId: l.id })}
-                    onCloseMenu={() => setMode({ kind: "idle" })}
-                    onReschedule={() => openReschedule(l.id)}
-                    onOpenCancelConfirm={() =>
-                      setMode({ kind: "cancel-confirm", lessonId: l.id })
-                    }
-                    onAbortCancel={() => setMode({ kind: "menu", lessonId: l.id })}
-                    onConfirmCancel={confirmCancel}
-                  />
-                ))}
-                {picking &&
-                  (slotsByDate.get(d.iso) ?? []).map((s) => {
-                    if (s.taken) {
-                      return (
-                        <div
-                          key={`${s.date}-${s.startTime}`}
-                          aria-disabled="true"
-                          title="This tutor is already booked at this time"
-                          className="block w-full rounded-md px-2 py-1 leading-tight border border-line bg-surface-2 text-muted opacity-70 cursor-not-allowed"
-                        >
-                          <div className="text-[10px] font-extrabold tabular-nums line-through">
-                            {formatTime(s.startTime)}
-                          </div>
-                          <div className="text-[10px] font-bold truncate uppercase tracking-wide">
-                            Taken
-                          </div>
-                        </div>
-                      );
-                    }
-                    const active =
-                      picking.picked?.date === s.date &&
-                      picking.picked?.startTime === s.startTime;
-                    return (
+            </div>
+          </RailCard>
+
+          {canSelfServe && credits.length > 0 && (
+            <RailCard glass={glass} title="Class credits" titleId="timetable-credits">
+              <ul className="p-1.5">
+                {credits.map((c) => {
+                  const active = picking?.action.type === "credit" && picking.action.creditId === c.id;
+                  return (
+                    <li key={c.id} className="flex items-center gap-2.5 p-2.5">
+                      <SubjectDot subject={c.subjectName} />
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[14px] font-bold text-[#17152B]">{c.subjectName}</span>
+                        <span className="text-[12px] text-[#5E5A73]">Expires {formatDateLong(c.expiresAt)}</span>
+                      </div>
                       <button
                         type="button"
-                        key={`${s.date}-${s.startTime}`}
-                        onClick={() =>
-                          setMode({ ...picking, picked: s })
-                        }
-                        className={cn(
-                          "block w-full text-left rounded-md px-2 py-1 leading-tight border transition-colors",
-                          active
-                            ? "bg-brand-500 border-brand-500 text-white"
-                            : "bg-good-bg border-good/40 text-good hover:brightness-95",
-                          FOCUS_RING,
-                        )}
+                        onClick={() => openCreditRedemption(c.id)}
+                        disabled={loading || submitting || !!picking}
+                        className="h-8 rounded-[9px] border border-[#DFE1EC] bg-white px-2.5 text-[12px] font-bold text-[#17152B] hover:bg-[#F5F6FA] disabled:opacity-50"
                       >
-                        <div className="text-[10px] font-extrabold tabular-nums">
-                          {formatTime(s.startTime)}
-                        </div>
-                        <div className="text-[10px] font-bold truncate opacity-90">
-                          Open
-                        </div>
+                        {active ? "Picking a time…" : "Use credit"}
                       </button>
-                    );
-                  })}
-                {(hwByDate.get(d.iso) ?? []).map((h) => (
-                  <Link
-                    key={h.id}
-                    href={h.href}
-                    className={cn(
-                      "block rounded-md px-2 py-1 leading-tight text-[11px] font-bold truncate",
-                      picking && "opacity-40",
-                      h.done ? "bg-good-bg text-good" : "bg-warn-bg text-warn",
-                    )}
-                  >
-                    {h.title}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </RailCard>
+          )}
+
+          {aside}
         </div>
       </div>
-
-      {credits.length > 0 && (
-        <div className="rounded-[14px] border border-line bg-surface">
-          <div className="border-b border-line px-4 py-3.5">
-            <h3 className="m-0 text-[14px] font-bold text-ink">Class credits</h3>
-          </div>
-          <div className="divide-y divide-line">
-            {credits.map((c) => {
-              const active =
-                picking?.action.type === "credit" &&
-                picking.action.creditId === c.id;
-              return (
-                <div key={c.id} className="flex items-center justify-between gap-3 p-4">
-                  <div>
-                    <div className="text-[13px] font-bold text-ink">{c.subjectName}</div>
-                    <div className="text-[12px] text-muted">
-                      Expires {formatDateLong(c.expiresAt)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => openCreditRedemption(c.id)}
-                    disabled={loading || submitting || !!picking}
-                    className={cn(
-                      "shrink-0 min-h-11 rounded-full bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:opacity-50",
-                      FOCUS_RING,
-                    )}
-                  >
-                    {active ? "Picking a slot…" : "Use credit"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function LessonChip({
+/** A rail section: a glass frame on the glass shell, a plain card elsewhere. */
+export function RailCard({
+  glass,
+  title,
+  titleId,
+  children,
+}: {
+  glass: boolean;
+  title: string;
+  titleId: string;
+  children: ReactNode;
+}) {
+  if (glass) {
+    return (
+      <GlassPanel title={title} titleId={titleId}>
+        {children}
+      </GlassPanel>
+    );
+  }
+  return (
+    <section aria-labelledby={titleId} className="min-w-0 overflow-hidden rounded-[14px] border border-line bg-surface">
+      <h3 id={titleId} className="border-b border-line px-4 py-3 text-[14px] font-extrabold text-ink">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function lessonChip(l: TimetableChip, selected: boolean, picking: boolean): MonthChip {
+  const off = l.cancelled || l.convertedToCredit || l.studentState === "moved_out";
+  const status = l.cancelled
+    ? "Cancelled"
+    : l.convertedToCredit
+      ? "Class credit"
+      : l.studentState === "makeup_in"
+        ? "Make-up"
+        : l.studentState === "pending_in"
+          ? "Waiting for approval"
+          : l.studentState === "pending_out"
+            ? "Move pending"
+            : l.studentState === "moved_out"
+              ? "Moved"
+              : null;
+  // Design handoff tones: subject colour for lessons, green for a make-up,
+  // grey struck-through for a cancelled or moved lesson.
+  const subject = subjectTone(l.subjectName);
+  const colours = off
+    ? { bg: "#F1F2F7", fg: "#5E5A73" }
+    : l.studentState === "makeup_in"
+      ? { bg: "#E3F4EC", fg: "#15803D" }
+      : { bg: subject.bg, fg: subject.fg };
+  return {
+    id: `lesson:${l.id}`,
+    date: l.date,
+    label: formatTime(l.startTime),
+    sublabel: status ? `${l.subjectName} · ${status}` : l.subjectName,
+    sortKey: `0-${l.startTime}`,
+    tone: cn(
+      "rounded-[8px]",
+      off && "line-through",
+      l.studentState === "pending_in" && "opacity-70",
+      selected && "ring-2 ring-inset ring-[#17152B]",
+    ),
+    style: { backgroundColor: colours.bg, color: colours.fg },
+    dimmed: picking,
+    interactive: !picking,
+    pressed: selected,
+    title: [l.subjectName, formatTimeRange(l.startTime, l.endTime), l.location, l.tutorName, status]
+      .filter(Boolean)
+      .join(" · "),
+    ariaLabel: `${l.subjectName}, ${formatTime(l.startTime)}${status ? `, ${status}` : ""}`,
+  };
+}
+
+function SelectedLesson({
   lesson,
-  dimmed,
-  picking,
-  menuOpen,
-  cancelConfirming,
+  canSelfServe,
+  busy,
   loading,
-  cancelling,
+  submitting,
+  confirmingCancel,
+  picking,
   adminId,
-  subjectBase,
-  subjectQuery,
-  messageBase,
-  onOpenMenu,
-  onCloseMenu,
+  subjectHref,
+  messageHref,
   onReschedule,
-  onOpenCancelConfirm,
+  onCancel,
   onAbortCancel,
   onConfirmCancel,
 }: {
   lesson: TimetableChip;
-  dimmed: boolean;
-  picking: boolean;
-  menuOpen: boolean;
-  cancelConfirming: boolean;
+  canSelfServe: boolean;
+  busy: boolean;
   loading: boolean;
-  cancelling: boolean;
+  submitting: boolean;
+  confirmingCancel: boolean;
+  picking: boolean;
   adminId: string | null;
-  subjectBase: string;
-  subjectQuery: string;
-  messageBase: string;
-  onOpenMenu: () => void;
-  onCloseMenu: () => void;
+  subjectHref: string | null;
+  messageHref: string | null;
   onReschedule: () => void;
-  onOpenCancelConfirm: () => void;
+  onCancel: () => void;
   onAbortCancel: () => void;
   onConfirmCancel: () => void;
 }) {
-  // Dismiss the open menu / cancel-confirm on a click anywhere outside this
-  // cell, or on Escape - not only via the explicit Close button.
-  const popRef = useRef<HTMLDivElement>(null);
-  const popoverOpen = menuOpen || cancelConfirming;
-  useEffect(() => {
-    if (!popoverOpen) return;
-    function onDown(e: MouseEvent) {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) {
-        onCloseMenu();
-      }
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCloseMenu();
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [popoverOpen, onCloseMenu]);
-
-  const cancelled = lesson.cancelled;
-  const convertedToCredit = lesson.convertedToCredit;
-  const moved = lesson.studentState === "moved_out";
-  const makeup = lesson.studentState === "makeup_in";
-  const pending =
-    lesson.studentState === "pending_in" || lesson.studentState === "pending_out";
-  const tone = cancelled
-    ? "bg-bad-bg text-bad"
-    : convertedToCredit
-      ? "bg-surface-2 text-muted"
-      : moved
-        ? "bg-surface-2 text-muted"
-        : makeup
-          ? "bg-good-bg text-good"
-          : pending
-            ? "bg-warn-bg text-warn border border-dashed border-warn/50"
-            : "bg-brand-50 text-brand-700";
-  const struck = cancelled || convertedToCredit || moved;
-
-  const chip = (
-    <div
-      className={cn(
-        "relative rounded-md pl-2 pr-1.5 py-1 leading-tight overflow-hidden",
-        tone,
-        (dimmed || (picking && !menuOpen && !cancelConfirming)) && "opacity-40",
-        !picking && "cursor-pointer hover:brightness-95",
-      )}
-    >
-      <div className={cn("text-[10px] font-extrabold tabular-nums", struck && "line-through")}>
-        {formatTime(lesson.startTime)}
-      </div>
-      <div className={cn("mt-0.5 text-[11px] truncate font-bold", struck && "line-through")}>
-        {lesson.subjectName}
-      </div>
-      {lesson.location && (
-        <div className="mt-0.5 truncate text-[9px] font-semibold" title={lesson.location}>
-          Location: {lesson.location}
-        </div>
-      )}
-      {cancelled ? (
-        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
-          Cancelled
-        </div>
-      ) : convertedToCredit ? (
-        <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide truncate">
-          Converted to class credit
-        </div>
-      ) : lesson.moveLabel ? (
-        <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide truncate">
-          {lesson.moveLabel}
-        </div>
-      ) : null}
-    </div>
-  );
-
-  if (picking) return chip;
-
-  // Show the office escape when at least one action is gated for a reason the
-  // office can act on (notice window or cap) - not for a passed/already-done
-  // lesson, where it can't help.
-  const showOfficeLink =
-    !!adminId && (!lesson.canReschedule || !lesson.canCancel);
-  const messageOfficeLink = showOfficeLink ? (
-    <Link
-      href={`${messageBase}/${adminId}`}
-      className={cn(
-        "flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-brand-600 hover:bg-brand-50",
-        FOCUS_RING,
-      )}
-    >
-      Message the office
-    </Link>
-  ) : null;
-
-  const disabledRow =
-    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-semibold text-muted opacity-70 cursor-not-allowed";
+  const date = new Date(`${lesson.date}T00:00:00`);
+  const weekday = date.toLocaleDateString("en-AU", { weekday: "short" });
+  const detail = [formatTimeRange(lesson.startTime, lesson.endTime), lesson.location, lesson.tutorName]
+    .filter(Boolean)
+    .join(" · ");
+  const status = lesson.cancelled
+    ? "Cancelled. A class credit was added."
+    : lesson.convertedToCredit
+      ? "Turned into a class credit."
+      : lesson.moveLabel;
+  const settled = lesson.cancelled || lesson.convertedToCredit;
+  // Offer the office when an action is blocked for a reason the office can
+  // act on (notice window or cap), not for a passed lesson.
+  const showOffice =
+    canSelfServe &&
+    !!adminId &&
+    !settled &&
+    (!lesson.canReschedule || !lesson.canCancel) &&
+    lesson.rescheduleReason !== "Passed";
 
   return (
-    <div ref={popRef} className="relative">
-      <button type="button" onClick={onOpenMenu} className={cn("block w-full text-left", FOCUS_RING)}>
-        {chip}
-      </button>
-      {menuOpen && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 origin-top scale-100 rounded-[10px] border border-line bg-surface p-1 shadow-lg">
-          <Link
-            href={`${subjectBase}/${lesson.subjectId}${subjectQuery}`}
-            className={cn(
-              "block rounded-md px-2.5 py-1.5 text-[12px] font-bold text-ink hover:bg-surface-2",
-              FOCUS_RING,
-            )}
-          >
-            Go to subject
-          </Link>
-
-          {lesson.location && (
-            <div className="rounded-md px-2.5 py-2 text-[11px] text-muted">
-              <span className="font-bold text-ink">Location:</span>{" "}
-              {lesson.location}
-            </div>
-          )}
-
-          {cancelled ? (
-            <div
-              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-bad"
-              aria-disabled="true"
-            >
-              Cancelled
-            </div>
-          ) : convertedToCredit ? (
-            <div
-              className="flex min-h-11 w-full items-center rounded-md px-2.5 text-[12px] font-bold text-muted"
-              aria-disabled="true"
-            >
-              Converted to class credit
-            </div>
-          ) : (
-            <>
-              {lesson.canReschedule ? (
-                <button
-                  type="button"
-                  onClick={onReschedule}
-                  disabled={loading}
-                  className={cn(
-                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-brand-600 hover:bg-brand-50 disabled:opacity-50",
-                    FOCUS_RING,
-                  )}
-                >
-                  {loading
-                    ? "Loading…"
-                    : `Reschedule (${lesson.rescheduleRemaining} left)`}
-                </button>
-              ) : (
-                <div className={disabledRow} aria-disabled="true">
-                  Reschedule - {lesson.rescheduleReason ?? "unavailable"}
-                </div>
-              )}
-
-              {lesson.canCancel ? (
-                <button
-                  type="button"
-                  onClick={onOpenCancelConfirm}
-                  className={cn(
-                    "flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-[12px] font-bold text-bad hover:bg-bad-bg",
-                    FOCUS_RING,
-                  )}
-                >
-                  {`Cancel (${lesson.cancelRemaining} left)`}
-                </button>
-              ) : (
-                <div className={disabledRow} aria-disabled="true">
-                  Cancel - {lesson.cancelReason ?? "unavailable"}
-                </div>
-              )}
-
-              {messageOfficeLink}
-            </>
-          )}
-
-          <button
-            type="button"
-            onClick={onCloseMenu}
-            className={cn(
-              "block w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold text-muted hover:bg-surface-2",
-              FOCUS_RING,
-            )}
-          >
-            Close
-          </button>
+    <div className="flex flex-col gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex w-[46px] shrink-0 flex-col items-center leading-[1.1]">
+          <span className="text-[11px] font-extrabold uppercase text-[#5E5A73]">{weekday}</span>
+          <span className="text-[20px] font-extrabold tabular-nums text-[#17152B]">{date.getDate()}</span>
         </div>
-      )}
-      {cancelConfirming && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-[10px] border border-bad/40 bg-surface p-2.5 shadow-lg">
-          <div className="text-[11px] font-semibold text-ink">
-            This uses 1 of your {lesson.cancelCap} term cancellations and adds a
-            class credit.
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-[15px] font-extrabold text-[#17152B]">
+            <SubjectDot subject={lesson.subjectName} />
+            <span className="truncate">{lesson.subjectName}</span>
           </div>
-          <div className="mt-2 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onAbortCancel}
-              className={cn(
-                "min-h-11 rounded-md px-3 text-[11px] font-bold text-muted hover:bg-surface-2",
-                FOCUS_RING,
-              )}
-            >
-              Back
+          <p className="text-[13px] text-[#5E5A73]">{detail}</p>
+        </div>
+      </div>
+
+      {status && <p className="text-[13px] font-semibold text-ink-soft">{status}</p>}
+
+      {!canSelfServe ? (
+        <p className="flex gap-2.5 rounded-[12px] bg-[#F4F5F9] px-3 py-2.5 text-[13px] leading-[1.45] text-[#2E2944]">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden />
+          Can’t make it? Ask a parent to reschedule or cancel from their portal.
+        </p>
+      ) : settled ? null : confirmingCancel ? (
+        <div className="space-y-3 rounded-[12px] bg-bad-bg px-3 py-3">
+          <p className="text-[13px] font-semibold text-ink">
+            This uses 1 of your {lesson.cancelCap} cancellations this term and
+            adds a class credit.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onAbortCancel} className={buttonVariants({ variant: "outline" })}>
+              Keep lesson
             </button>
             <button
               type="button"
               onClick={onConfirmCancel}
-              disabled={cancelling}
-              className={cn(
-                "min-h-11 rounded-md bg-bad px-3 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50",
-                FOCUS_RING,
-              )}
+              disabled={submitting}
+              className={cn(buttonVariants({ variant: "primary" }), "border-bad bg-bad hover:bg-bad/90")}
             >
-              {cancelling ? "Cancelling…" : "Cancel lesson"}
+              <ActionButtonLabel pending={submitting} pendingLabel="Cancelling…">
+                Cancel lesson
+              </ActionButtonLabel>
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onReschedule}
+              disabled={!lesson.canReschedule || busy}
+              className="h-[38px] rounded-[10px] border-0 bg-[#17152B] text-[13px] font-bold text-white hover:bg-[#2b2847] disabled:opacity-50"
+            >
+              {picking
+                ? "Picking a time…"
+                : loading
+                  ? "Loading…"
+                  : lesson.canReschedule
+                    ? `Reschedule · ${lesson.rescheduleRemaining} left`
+                    : "Reschedule"}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={!lesson.canCancel || busy}
+              className="h-[38px] rounded-[10px] border border-[#DFE1EC] bg-white text-[13px] font-bold text-[#17152B] hover:bg-[#F5F6FA] disabled:opacity-50"
+            >
+              {lesson.canCancel ? `Cancel · ${lesson.cancelRemaining} left` : "Cancel"}
+            </button>
+          </div>
+          {(lesson.rescheduleReason || lesson.cancelReason) && (
+            <p className="text-[12px] text-muted">
+              {lesson.rescheduleReason === lesson.cancelReason
+                ? lesson.rescheduleReason
+                : [
+                    lesson.rescheduleReason && `Reschedule: ${lesson.rescheduleReason.toLowerCase()}`,
+                    lesson.cancelReason && `Cancel: ${lesson.cancelReason.toLowerCase()}`,
+                  ]
+                    .filter(Boolean)
+                    .join(". ")}
+            </p>
+          )}
+        </div>
+      )}
+
+      {(subjectHref || showOffice) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {subjectHref && (
+            <Link
+              href={subjectHref}
+              className="rounded-[6px] text-[13px] font-bold text-[#3A1AA8] hover:text-[#21106B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Go to this week in {lesson.subjectName} →
+            </Link>
+          )}
+          {showOffice && messageHref && (
+            <Link
+              href={messageHref}
+              className="rounded-[6px] text-[13px] font-bold text-brand-600 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Message the office
+            </Link>
+          )}
         </div>
       )}
     </div>

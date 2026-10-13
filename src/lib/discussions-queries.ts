@@ -250,7 +250,7 @@ export async function listRecentThreads(
 ): Promise<RecentThreadSummary[]> {
   const subjectIds = await accessibleSubjectIds(userId, role);
 
-  // The Admin / Tech board (subject_id IS NULL) is open to everyone.
+  // The General help board (subject_id IS NULL) is open to everyone.
   const visible = subjectIds.length
     ? or(
         isNull(discussionThreads.subjectId),

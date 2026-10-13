@@ -6,6 +6,8 @@ import {
   enrollments,
   homework,
   homeworkAssignments,
+  profiles,
+  quizAttempts,
   studentWeekProgress,
   subjectTopics,
   subjectWeeks,
@@ -21,6 +23,7 @@ import {
   melbourneDateKey,
   releasedCurriculumWeek,
 } from "@/lib/curriculum-access-rules";
+import { curriculumWeekUnlockDate } from "../_lib/week-checklist";
 
 export type StudentCurriculumWeek = {
   subjectWeekId: string;
@@ -33,6 +36,8 @@ export type StudentCurriculumWeek = {
   topicId: string | null;
   topicName: string | null;
   tutorNote: string | null;
+  /** When the tutor last saved the week's "For students this week" plan. */
+  tutorNoteUpdatedAt: Date | null;
   tutorAttachments: Array<{
     id: string;
     kind: "file" | "link";
@@ -53,13 +58,20 @@ export type StudentCurriculumWeek = {
     title: string;
     questionCount: number;
   } | null;
+  /** The student's latest attempt at this week's quiz, if any. */
+  quizAttempt: { correctCount: number; total: number } | null;
   locked: boolean;
+  /** Melbourne date (YYYY-MM-DD) the week releases: term start + 7 days per week. */
+  unlocksOn: string;
 };
 
 export type StudentCurriculumData = {
   subjectName: string;
   className: string;
   classId: string;
+  /** The enrolled class's tutor, for "From {tutor}" and the message link. */
+  tutorId: string;
+  tutorName: string | null;
   currentTerm: {
     id: string;
     year: number;
@@ -84,10 +96,14 @@ export async function getStudentCurriculum(
       className: classes.name,
       subjectName: subjects.name,
       enrolledAt: enrollments.enrolledAt,
+      tutorId: classes.tutorId,
+      tutorFirstName: profiles.firstName,
+      tutorLastName: profiles.lastName,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(profiles, eq(profiles.id, classes.tutorId))
     .where(
       and(
         eq(enrollments.studentId, userId),
@@ -165,6 +181,36 @@ export async function getStudentCurriculum(
   const quizByWeek = new Map(
     quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
   );
+  const quizIds = quizRows.map((quiz) => quiz.id);
+  const attemptRows = quizIds.length
+    ? await db
+        .select({
+          quizId: quizAttempts.quizId,
+          correctCount: quizAttempts.correctCount,
+          total: quizAttempts.total,
+          submittedAt: quizAttempts.submittedAt,
+        })
+        .from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.studentId, userId),
+            inArray(quizAttempts.quizId, quizIds),
+          ),
+        )
+    : [];
+  const latestAttempt = new Map<string, (typeof attemptRows)[number]>();
+  for (const attempt of attemptRows) {
+    const prev = latestAttempt.get(attempt.quizId);
+    if (!prev || attempt.submittedAt > prev.submittedAt) {
+      latestAttempt.set(attempt.quizId, attempt);
+    }
+  }
+  const attemptFor = (quizId: string | undefined) => {
+    const attempt = quizId ? latestAttempt.get(quizId) : undefined;
+    return attempt
+      ? { correctCount: attempt.correctCount, total: attempt.total }
+      : null;
+  };
 
   // Topic names for this subject
   const topicRows = await db
@@ -243,6 +289,7 @@ export async function getStudentCurriculum(
   const weeks: StudentCurriculumWeek[] = await Promise.all(
     templateWeeks.map(async (tpl) => {
       const locked = tpl.weekNumber > releasedThroughWeek;
+      const unlocksOn = curriculumWeekUnlockDate(term.startDate, tpl.weekNumber);
       if (locked) {
         return {
           subjectWeekId: tpl.id,
@@ -255,12 +302,15 @@ export async function getStudentCurriculum(
           topicId: tpl.topicId,
           topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
           tutorNote: null,
+          tutorNoteUpdatedAt: null,
           tutorAttachments: [],
           videoWatchedAt: null,
           bookletOpenedAt: null,
           homework: [],
           quiz: null,
+          quizAttempt: null,
           locked: true,
+          unlocksOn,
         } satisfies StudentCurriculumWeek;
       }
       const p = progressByWeek.get(tpl.id);
@@ -287,6 +337,7 @@ export async function getStudentCurriculum(
         topicId: tpl.topicId,
         topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
         tutorNote: section?.body ?? null,
+        tutorNoteUpdatedAt: section?.updatedAt ?? null,
         tutorAttachments,
         videoWatchedAt: p?.videoWatchedAt ?? null,
         bookletOpenedAt: p?.bookletOpenedAt ?? null,
@@ -298,7 +349,9 @@ export async function getStudentCurriculum(
           score: h.score,
         })),
         quiz: quizByWeek.get(tpl.id) ?? null,
+        quizAttempt: attemptFor(quizByWeek.get(tpl.id)?.id),
         locked: false,
+        unlocksOn,
       };
     }),
   );
@@ -307,6 +360,12 @@ export async function getStudentCurriculum(
     subjectName: enrollment.subjectName,
     className: enrollment.className,
     classId: enrollment.classId,
+    tutorId: enrollment.tutorId,
+    tutorName:
+      [enrollment.tutorFirstName, enrollment.tutorLastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || null,
     currentTerm: {
       id: term.id,
       year: term.year,

@@ -2,22 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   generateQuestion,
   type Difficulty,
   type Question,
 } from "./question-generator";
 import { playSound, playError, type SoundName } from "./sound";
+import { levelInfo } from "./level-info";
+import { formatYear, roundOutcome, type RankChange } from "./standing";
 import { submitScore } from "../_actions";
-
-const SPRINT_SECONDS = 30;
-const STANDARD_ROUND_SECONDS = 60;
-
-function roundSeconds(difficulty: Difficulty) {
-  return difficulty === "sprint" ? SPRINT_SECONDS : STANDARD_ROUND_SECONDS;
-}
+import { BLITZ_BACKGROUND, BLITZ_INDIGO } from "./blitz-pattern";
+import styles from "./blitz.module.css";
 
 type Phase = "countdown" | "playing" | "done";
+type Save =
+  | { status: "idle" }
+  | { status: "saving" }
+  | { status: "saved"; rank: RankChange | null }
+  | { status: "error" };
 
 export function GameClient({
   difficulty,
@@ -28,10 +32,12 @@ export function GameClient({
   difficulty: Difficulty;
   sound: SoundName;
   myBest: number;
-  onExit: () => void;
+  /** Leave the round; `toLeaderboard` opens this level's board. */
+  onExit: (toLeaderboard: boolean) => void;
 }) {
   const router = useRouter();
-  const durationSeconds = roundSeconds(difficulty);
+  const level = levelInfo(difficulty);
+  const durationSeconds = level.seconds;
   const [phase, setPhase] = useState<Phase>("countdown");
   const [count, setCount] = useState(3);
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
@@ -43,6 +49,11 @@ export function GameClient({
   const [wrong, setWrong] = useState(false);
   const [score, setScore] = useState(0);
   const [correctBurst, setCorrectBurst] = useState(0);
+  // The best this round has to beat, fixed when the round starts. The prop
+  // refreshes once the score is saved, which would otherwise turn a new
+  // record back into "not a record" on the result screen.
+  const [roundBest, setRoundBest] = useState(myBest);
+  const [save, setSave] = useState<Save>({ status: "idle" });
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const correctTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -81,14 +92,20 @@ export function GameClient({
     submitted.current = true;
     // A scoreless run isn't recorded, so there's nothing to submit or refresh.
     if (score === 0) return;
-    void submitScore(difficulty, score).then(() => router.refresh());
+    setSave({ status: "saving" });
+    submitScore(difficulty, score)
+      .then((result) => {
+        setSave(result.ok ? { status: "saved", rank: result.rank } : { status: "error" });
+        if (result.ok) router.refresh();
+      })
+      .catch(() => setSave({ status: "error" }));
   }, [phase, difficulty, score, router]);
 
   const advance = useCallback(() => {
     setScore((s) => s + 1);
     setCorrectBurst((burst) => burst + 1);
     if (correctTimer.current) clearTimeout(correctTimer.current);
-    correctTimer.current = setTimeout(() => setCorrectBurst(0), 720);
+    correctTimer.current = setTimeout(() => setCorrectBurst(0), 1200);
     playSound(sound);
     setQuestion(generateQuestion(difficulty));
     setInput("");
@@ -148,6 +165,8 @@ export function GameClient({
 
   const restart = () => {
     submitted.current = false;
+    setRoundBest((best) => Math.max(best, myBest, score));
+    setSave({ status: "idle" });
     setScore(0);
     setTimeLeft(durationSeconds);
     setInput("");
@@ -160,120 +179,220 @@ export function GameClient({
     setPhase("countdown");
   };
 
-  if (phase === "countdown") {
-    return (
-      <div className="grid place-items-center py-20">
-        <div className="text-[64px] font-extrabold text-brand-600 tabular-nums">
-          {count > 0 ? count : "Go!"}
-        </div>
-      </div>
-    );
-  }
+  const shownBest = Math.max(roundBest, phase === "done" ? score : 0);
+  const timerShare = (timeLeft / durationSeconds) * 100;
 
   if (phase === "done") {
-    const isRecord = score > myBest;
     return (
-      <div className="grid place-items-center gap-4 py-16 text-center">
-        <div className="text-[13px] uppercase tracking-[0.16em] text-muted">
-          Time&apos;s up
-        </div>
-        <div className="text-[56px] font-extrabold text-ink tabular-nums leading-none">
-          {score}
-        </div>
-        <div className="text-[14px] text-muted">questions solved</div>
-        <div className="text-[13px] font-semibold text-brand-600">
-          {isRecord
-            ? "🎉 New personal best!"
-            : `Your best: ${Math.max(myBest, score)}`}
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button
-            onClick={restart}
-            className="h-10 px-5 rounded-[14px] bg-brand-500 text-white text-[14px] font-semibold hover:bg-brand-600 transition-colors"
-          >
-            Play again
-          </button>
-          <button
-            onClick={onExit}
-            className="h-10 px-5 rounded-[14px] border border-line-strong text-ink text-[14px] font-semibold hover:bg-surface-2 transition-colors"
-          >
-            Back to levels
-          </button>
-        </div>
-      </div>
+      <RoundResult
+        level={level.label}
+        score={score}
+        previousBest={roundBest}
+        save={save}
+        onPlayAgain={restart}
+        onLeaderboard={() => onExit(true)}
+      />
     );
   }
 
-  // phase === "playing"
   return (
-    <div className="relative grid place-items-center gap-8 py-14">
-      <span className="sr-only" aria-live="polite">
-        {correctBurst > 0 ? `Correct. Score ${score}.` : ""}
-      </span>
-      {correctBurst > 0 && (
-        <div key={correctBurst} className="blitz-correct-burst" aria-hidden>
-          <span>+1 Correct!</span>
-          {Array.from({ length: 10 }, (_, index) => (
-            <i key={index} />
-          ))}
-        </div>
-      )}
-      <div className="flex w-full max-w-md items-center justify-between text-[15px] font-semibold">
-        <span className="text-muted">
-          Score{" "}
-          <span
-            key={score}
-            className={`${score > 0 ? "blitz-score-pop" : ""} inline-block text-[17px] text-ink tabular-nums`}
-          >
-            {score}
-          </span>
-        </span>
-        <span
-          className={
-            timeLeft <= 10
-              ? "text-bad tabular-nums text-[17px]"
-              : "text-muted tabular-nums text-[17px]"
-          }
-        >
-          {timeLeft}s
-        </span>
-      </div>
-      <div className="text-[60px] leading-none font-extrabold text-ink tabular-nums text-center">
-        {question.text}
-      </div>
-      <div className="flex items-center gap-2.5">
-        {difficulty === "genius" && (
+    <section
+      aria-label="Taiyo Blitz game"
+      className="flex min-h-[640px] flex-col gap-6 rounded-[30px] px-[18px] pb-[30px] pt-[22px] text-white sm:px-[26px] lg:min-h-[820px]"
+      style={{ background: BLITZ_BACKGROUND }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={toggleSign}
-            aria-label="Toggle negative sign"
-            aria-pressed={neg}
-            className={`h-[72px] w-[72px] shrink-0 rounded-[18px] border text-[30px] font-bold transition-colors ${
-              neg
-                ? "border-brand-500 bg-brand-500 text-white"
-                : "border-line-strong bg-surface text-ink hover:bg-surface-2"
-            }`}
+            onClick={() => onExit(false)}
+            aria-label="Back to levels"
+            className="grid h-[42px] w-[42px] place-items-center rounded-[13px] bg-white/[0.16] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            &minus;
+            <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
           </button>
-        )}
-        <input
-          ref={inputRef}
-          value={neg ? `-${input}` : input}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") tryAnswer(input, neg);
-          }}
-          inputMode="numeric"
-          autoComplete="off"
-          aria-label="Your answer"
-          className={`h-[72px] w-56 rounded-[18px] border-2 bg-surface text-center text-[36px] font-bold text-ink outline-none transition-colors ${
-            wrong
-              ? "border-bad ring-4 ring-bad/25"
-              : "border-line-strong focus:border-brand-500"
-          }`}
-        />
+          <h1 className="text-[22px] font-extrabold">{level.label}</h1>
+        </div>
+        <span className="text-[14px] font-bold opacity-85">Best {shownBest}</span>
       </div>
-    </div>
+
+      <div className="flex items-center justify-between gap-4 px-2.5">
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[12px] font-extrabold tracking-[0.1em] opacity-75">SCORE</span>
+          <span className="text-[56px] font-extrabold leading-none tabular-nums sm:text-[72px]">{score}</span>
+        </span>
+        <div
+          role="timer"
+          aria-label={`${timeLeft} seconds left`}
+          className="grid h-[120px] w-[120px] shrink-0 place-items-center rounded-full sm:h-[150px] sm:w-[150px]"
+          style={{
+            background: `conic-gradient(#FFD600 0 ${timerShare}%, rgba(255,255,255,.16) 0)`,
+          }}
+        >
+          <span
+            className="flex h-[98px] w-[98px] flex-col items-center justify-center rounded-full leading-none sm:h-[124px] sm:w-[124px]"
+            style={{ background: BLITZ_INDIGO }}
+          >
+            <span className="text-[40px] font-extrabold tabular-nums sm:text-[52px]">{timeLeft}</span>
+            <span className="text-[12px] font-extrabold tracking-[0.1em] opacity-75">SEC</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center gap-7 rounded-[28px] bg-white px-5 py-10 text-[#1B1240] shadow-[0_10px_0_rgba(0,0,0,0.18)]">
+        {phase === "countdown" ? (
+          <span aria-live="assertive" className="text-[104px] font-extrabold leading-none tabular-nums">
+            {count > 0 ? count : "Go!"}
+          </span>
+        ) : (
+          <>
+            <span className="sr-only" aria-live="polite">
+              {correctBurst > 0 ? `Correct. Score ${score}.` : ""}
+            </span>
+            {/* Fixed slot so the sum does not jump when "+1" appears. */}
+            <span className="flex h-8 items-center">
+              {correctBurst > 0 && (
+                <span
+                  key={correctBurst}
+                  aria-hidden
+                  className={`${styles.pop} flex h-8 items-center rounded-2xl bg-[#18B57E] px-3.5 text-[15px] font-extrabold text-white`}
+                >
+                  +1
+                </span>
+              )}
+            </span>
+            <span className="max-w-full break-words text-center text-[clamp(48px,12vw,104px)] font-extrabold leading-none tracking-[-0.03em] tabular-nums">
+              {question.text}
+            </span>
+            <div className="flex items-center gap-3">
+              {difficulty === "genius" && (
+                <button
+                  type="button"
+                  onClick={toggleSign}
+                  aria-label="Toggle negative sign"
+                  aria-pressed={neg}
+                  className={cn(
+                    "h-[96px] w-[80px] shrink-0 rounded-[24px] text-[40px] font-extrabold",
+                    neg ? "bg-[#3B2BD1] text-white" : "bg-[#F1EEFF] text-[#1B1240]",
+                  )}
+                >
+                  &minus;
+                </button>
+              )}
+              <input
+                ref={inputRef}
+                value={neg ? `-${input}` : input}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") tryAnswer(input, neg);
+                }}
+                inputMode="numeric"
+                autoComplete="off"
+                aria-label="Your answer"
+                aria-invalid={wrong || undefined}
+                className="h-[96px] w-[min(260px,56vw)] rounded-[24px] border-0 bg-[#F1EEFF] text-center text-[56px] font-extrabold tabular-nums text-[#1B1240] outline outline-4"
+                style={{ outlineColor: wrong ? "#E5484D" : "#3B2BD1" }}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Confetti pieces from the design, falling once. */
+const CONFETTI_COLOURS = ["#FFD600", "#18B57E", "#3B6BFF", "#FF5A6E", "#FFFFFF", "#FF9F1C"];
+const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
+  x: (i * 37) % 100,
+  w: 8 + (i % 3) * 3,
+  h: 12 + (i % 4) * 3,
+  colour: CONFETTI_COLOURS[i % CONFETTI_COLOURS.length],
+  duration: 4 + (i % 5),
+  delay: (i % 6) * 0.6,
+}));
+
+function RoundResult({
+  level,
+  score,
+  previousBest,
+  save,
+  onPlayAgain,
+  onLeaderboard,
+}: {
+  level: string;
+  score: number;
+  previousBest: number;
+  save: Save;
+  onPlayAgain: () => void;
+  onLeaderboard: () => void;
+}) {
+  const rank = save.status === "saved" ? save.rank : null;
+  const outcome = roundOutcome(score, previousBest, rank);
+  const scope = rank ? (rank.scope === "year" ? formatYear(rank.yearLevel) : "All Taiyo") : "";
+  const parts: string[] = [];
+  if (outcome.upFrom !== null) parts.push(`Up from ${outcome.upFrom}`);
+  if (!outcome.isRecord && previousBest > 0) parts.push(`Best ${previousBest}`);
+  if (outcome.newRank !== null) {
+    parts.push(`${parts.length ? "now" : "Now"} #${outcome.newRank} in ${scope}`);
+  }
+
+  return (
+    <section
+      aria-labelledby="rs-h"
+      className="relative flex min-h-[640px] flex-col items-center justify-center gap-[18px] overflow-hidden rounded-[30px] px-[26px] py-10 text-center text-white lg:min-h-[820px]"
+      style={{ background: BLITZ_BACKGROUND }}
+    >
+      {outcome.isRecord &&
+        CONFETTI.map((piece, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className={`${styles.fall} absolute -top-5 rounded-[3px]`}
+            style={{
+              left: `${piece.x}%`,
+              width: piece.w,
+              height: piece.h,
+              background: piece.colour,
+              animationDuration: `${piece.duration}s`,
+              animationDelay: `${piece.delay}s`,
+            }}
+          />
+        ))}
+      <span className="text-[14px] font-extrabold tracking-[0.14em] text-[#FFD600]">
+        TIME&rsquo;S UP · {level.toUpperCase()}
+      </span>
+      <h1 id="rs-h" className="text-[34px] font-extrabold sm:text-[42px]">
+        {outcome.isRecord ? "New personal best" : "Round complete"}
+      </h1>
+      <span className="text-[112px] font-extrabold leading-none tabular-nums text-[#FFD600] sm:text-[140px]">
+        {score}
+      </span>
+      <span className="min-h-[1.5em] text-[17px] font-bold opacity-90" aria-live="polite">
+        {save.status === "saving" ? "Saving your score..." : save.status === "error" ? null : parts.join(" · ")}
+      </span>
+      {save.status === "error" && (
+        <span role="alert" className="max-w-md text-balance text-[15px] font-bold text-[#FFD9DC]">
+          This score couldn&apos;t be saved. Check your connection, then play again.
+        </span>
+      )}
+      <div className="flex flex-wrap justify-center gap-3 pt-3.5">
+        <button
+          type="button"
+          onClick={onPlayAgain}
+          autoFocus
+          className="flex h-[58px] items-center rounded-[18px] bg-[#FFD600] px-[30px] text-[18px] font-extrabold text-[#1B1240] shadow-[0_8px_0_#C9A800] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70"
+        >
+          Play again
+        </button>
+        <button
+          type="button"
+          onClick={onLeaderboard}
+          className="flex h-[58px] items-center rounded-[18px] bg-white px-6 text-[16px] font-extrabold text-[#1B1240] shadow-[0_8px_0_rgba(0,0,0,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70"
+        >
+          Leaderboard
+        </button>
+      </div>
+    </section>
   );
 }
