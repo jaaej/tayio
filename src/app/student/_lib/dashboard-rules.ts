@@ -60,6 +60,8 @@ export type StudentTodo = {
   subjectName: string | null;
   /** How many things the row stands for (more than 1 for a summary row). */
   count: number;
+  /** Due day of a homework row. */
+  dueDay?: string;
 };
 
 const OPEN_HOMEWORK = new Set(["not_started", "viewed", "resubmission_requested"]);
@@ -236,6 +238,7 @@ export function buildStudentTodo(input: {
         href,
         action: homeworkAction(hw.status),
         subjectName: hw.subjectName,
+        dueDay: hw.dueDay,
         sort: hw.dueDay,
       });
       continue;

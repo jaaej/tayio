@@ -17,7 +17,9 @@ import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getUnreadThreadCount } from "@/lib/dm-queries";
 import { getUnreadCount } from "@/lib/notifications";
-import { getOverallBlitzRank } from "@/app/student/math-game/_queries";
+import { getOverallBlitzRank, getStudentYearLevel } from "@/app/student/math-game/_queries";
+import { getDueHomeworkCount } from "@/app/student/_lib/queries";
+import { yearLevelLabel } from "@/lib/format";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { ProfileAvatar } from "@/components/profile-avatar";
@@ -71,32 +73,29 @@ function settled<T>(result: PromiseSettledResult<T>, label: string, fallback: T)
   return fallback;
 }
 
-/**
- * Taiyo Blitz entry between search and the menu. The rank is new information
- * (where the student stands), so it is the second line rather than a tagline.
- */
-function BlitzFeature({ rank }: { rank: { rank: number; totalPlayers: number } | null }) {
+/** Taiyo Blitz tile between search and the menu (student handoff design). */
+function BlitzFeature({ rank }: { rank: { rank: number } | null }) {
   return (
     <Link
       href={BLITZ_HREF}
       title="Taiyo Blitz"
-      // White, not ink: the ink fill means "you are here" in this menu.
-      className="portal-feature mb-1.5 flex items-center gap-2.5 rounded-[16px] bg-white px-2.5 py-2.5 text-ink shadow-[0_1px_2px_rgba(23,21,43,0.06)] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-[2px] hover:shadow-[0_10px_24px_-14px_rgba(23,21,43,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      className="portal-feature mx-1 mb-0.5 flex items-center gap-2.5 rounded-[14px] bg-ink px-3 py-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
     >
       <span
         aria-hidden
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-ink text-[#FFD43B]"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white/[0.14]"
       >
-        <Zap className="h-[17px] w-[17px]" fill="currentColor" strokeWidth={1.5} />
+        <Zap className="h-[17px] w-[17px] text-[#FFD66B]" strokeWidth={2} />
       </span>
       <span className="portal-feature-text flex min-w-0 flex-1 flex-col leading-[1.2]">
         <span className="text-[14px] font-extrabold">Taiyo Blitz</span>
-        <span className="text-[12px] text-ink-soft">
-          {rank
-            ? `#${rank.rank} of ${rank.totalPlayers} ${rank.totalPlayers === 1 ? "player" : "players"}`
-            : "Maths speed game"}
-        </span>
+        <span className="text-[11px] opacity-75">Play &amp; climb the board</span>
       </span>
+      {rank && (
+        <span className="portal-feature-text flex h-[22px] items-center rounded-[11px] bg-[#FFD66B] px-2 text-[11px] font-extrabold text-ink">
+          #{rank.rank}
+        </span>
+      )}
     </Link>
   );
 }
@@ -115,11 +114,13 @@ export async function StudentShell({
   const user = await getCurrentUser();
   let messages = 0;
   let notifications = 0;
+  let homeworkDue = 0;
+  let yearLevel: string | null = null;
   let blitzRank: Awaited<ReturnType<typeof getOverallBlitzRank>> = null;
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [messageResult, notificationResult, rankResult, avatarResult] =
+    const [messageResult, notificationResult, rankResult, avatarResult, homeworkResult, yearResult] =
       await Promise.allSettled([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
@@ -132,7 +133,11 @@ export async function StudentShell({
           .from(profiles)
           .where(eq(profiles.id, user.id))
           .limit(1),
+        getDueHomeworkCount(user.id),
+        getStudentYearLevel(user.id),
       ]);
+    homeworkDue = settled(homeworkResult, "homework count", 0);
+    yearLevel = settled(yearResult, "year level", null);
     messages = settled(messageResult, "message count", 0);
     notifications = settled(notificationResult, "notification count", 0);
     blitzRank = settled(rankResult, "Taiyo Blitz rank", null);
@@ -156,6 +161,7 @@ export async function StudentShell({
       ...section,
       items: items.map((item) => {
         if (item.href === "/student/messages") return { ...item, badge: messages };
+        if (item.href === "/student/homework") return { ...item, badge: homeworkDue };
         if (item.href === "/student/notifications") {
           return { ...item, badge: notifications, badgeTone: "danger" as const };
         }
@@ -200,7 +206,13 @@ export async function StudentShell({
       account={
         <GlassAccount
           name={userName}
-          roleLabel="Student"
+          roleLabel={
+            isUnrestricted
+              ? "Student · billing access"
+              : yearLevel
+                ? `Student · ${yearLevelLabel(yearLevel)}`
+                : "Student"
+          }
           href="/student/profile"
           avatar={avatar("h-8 w-8 text-[13px]")}
         />

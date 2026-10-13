@@ -183,3 +183,31 @@ export const getOverallBlitzRank = cache(
     };
   },
 );
+
+/** Rank among active students in one year level, by the same summed
+ * personal bests as the overall rank. */
+export async function getYearBlitzRank(
+  studentId: string,
+  yearLevel: string,
+): Promise<BlitzOverallRank> {
+  const rows = await db
+    .select({
+      studentId: mathGameScores.studentId,
+      difficulty: mathGameScores.difficulty,
+      best: sql<number>`max(${mathGameScores.score})`.as("best"),
+    })
+    .from(mathGameScores)
+    .innerJoin(profiles, eq(profiles.id, mathGameScores.studentId))
+    .where(and(eq(profiles.isActive, true), eq(profiles.yearLevel, yearLevel)))
+    .groupBy(mathGameScores.studentId, mathGameScores.difficulty);
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    totals.set(row.studentId, (totals.get(row.studentId) ?? 0) + Number(row.best));
+  }
+  const ranked = Array.from(totals, ([id, score]) => ({ id, score })).sort(
+    (a, b) => b.score - a.score || a.id.localeCompare(b.id),
+  );
+  const index = ranked.findIndex((row) => row.id === studentId);
+  if (index < 0) return null;
+  return { rank: index + 1, totalPlayers: ranked.length, score: ranked[index].score };
+}

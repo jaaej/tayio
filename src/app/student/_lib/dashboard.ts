@@ -6,6 +6,12 @@ import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { getStudentCurriculum } from "@/app/student/subjects/[id]/_queries";
 import {
+  getMyBests,
+  getStudentYearLevel,
+  getYearBlitzRank,
+} from "@/app/student/math-game/_queries";
+import { formatTime, yearLevelLabel } from "@/lib/format";
+import {
   getOutstandingBalanceForStudent,
   getStudentHomework,
   getStudentLessons,
@@ -17,6 +23,7 @@ import {
   featuredSubjectName,
   nextLessonBySubject,
   nextLessonLabel,
+  shortSubject,
   type DashHomework,
   type DashLesson,
   type DashWeekItem,
@@ -31,6 +38,9 @@ export type DashboardSubject = {
   thisWeek: string | null;
   nextLesson: string;
   featured: boolean;
+  /** This week's checklist (video, booklet, homework, quiz): done / total. */
+  weekDone: number;
+  weekTotal: number;
 };
 
 export type StudentDashboard = {
@@ -41,6 +51,9 @@ export type StudentDashboard = {
   week: WeekDay[];
   /** The header's main action: the most urgent open homework, if any. */
   nextHomework: { href: string; label: string } | null;
+  /** Hero status line, e.g. "English is on now · 2 things due this week". */
+  status: string | null;
+  blitz: { yearRank: number | null; yearLabel: string | null; best: string | null };
 };
 
 /** Lessons far enough ahead to find every subject's next one. */
@@ -50,11 +63,15 @@ const LOOKAHEAD_DAYS = 28;
  * This week's curriculum week per subject, using the student's own access
  * rules (entry term, grants, weekly release). Holidays have no current week.
  */
+type WeekProgress = { weekDone: number; weekTotal: number };
+
+const DONE_HOMEWORK = new Set(["submitted", "marked", "returned", "late"]);
+
 async function currentWeeks(
   studentId: string,
   subjects: Array<{ subjectId: string; subjectName: string }>,
   todayIso: string,
-): Promise<DashWeekItem[]> {
+): Promise<Array<DashWeekItem & WeekProgress & { bookletOpened: boolean; hasBooklet: boolean; homeworkDone: number; homeworkTotal: number }>> {
   const curricula = await Promise.all(
     subjects.map((subject) =>
       getStudentCurriculum(studentId, subject.subjectId, undefined, undefined).then(
@@ -62,7 +79,7 @@ async function currentWeeks(
       ),
     ),
   );
-  const items: DashWeekItem[] = [];
+  const items: Array<DashWeekItem & { bookletOpened: boolean; hasBooklet: boolean; homeworkDone: number; homeworkTotal: number }> = [];
   for (const { subject, data } of curricula) {
     if (!data) continue;
     const term = data.currentTerm;
@@ -84,6 +101,10 @@ async function currentWeeks(
       quizDone: false,
       hasVideo: Boolean(week.videoUrl),
       videoWatched: Boolean(week.videoWatchedAt),
+      hasBooklet: Boolean(week.bookletUrl),
+      bookletOpened: Boolean(week.bookletOpenedAt),
+      homeworkTotal: week.homework.length,
+      homeworkDone: week.homework.filter((h) => DONE_HOMEWORK.has(h.status)).length,
     });
   }
   const attempts = await getLatestQuizAttempts(
@@ -91,10 +112,21 @@ async function currentWeeks(
     items.map((item) => item.subjectId),
   );
   const attempted = new Set(attempts.map((a) => a.quizId));
-  return items.map((item) => ({
-    ...item,
-    quizDone: item.quiz ? attempted.has(item.quiz.id) : false,
-  }));
+  return items.map((item) => {
+    const quizDone = item.quiz ? attempted.has(item.quiz.id) : false;
+    const parts: Array<[boolean, boolean]> = [
+      [item.hasVideo, item.videoWatched],
+      [item.hasBooklet, item.bookletOpened],
+      [Boolean(item.quiz), quizDone],
+    ];
+    const present = parts.filter(([has]) => has);
+    return {
+      ...item,
+      quizDone,
+      weekTotal: present.length + item.homeworkTotal,
+      weekDone: present.filter(([, done]) => done).length + item.homeworkDone,
+    };
+  });
 }
 
 export async function getStudentDashboard(
@@ -107,13 +139,20 @@ export async function getStudentDashboard(
   const from = new Date(`${weekStartIso}T00:00:00`);
   const to = new Date(`${addIsoDays(todayIso, LOOKAHEAD_DAYS)}T00:00:00`);
 
-  const [enrolled, homeworkRows, lessonRows, termLabel, outstanding] = await Promise.all([
+  const [enrolled, homeworkRows, lessonRows, termLabel, outstanding, yearLevel, bests] = await Promise.all([
     getStudentSubjects(studentId),
     getStudentHomework(studentId),
     getStudentLessons(studentId, { from, to }),
     termWeekLabel(todayIso),
     opts.isUnrestricted ? getOutstandingBalanceForStudent(studentId) : Promise.resolve(null),
+    getStudentYearLevel(studentId),
+    getMyBests(studentId),
   ]);
+  const yearRank = yearLevel ? await getYearBlitzRank(studentId, yearLevel) : null;
+  const bestEntry = Object.entries(bests).reduce<[string, number] | null>(
+    (top, [level, score]) => (score > 0 && (!top || score > top[1]) ? [level, score] : top),
+    null,
+  );
 
   // One card per subject even if the student is in two classes of it.
   const subjects = [...new Map(enrolled.map((s) => [s.subjectId, s])).values()];
@@ -163,11 +202,46 @@ export async function getStudentDashboard(
       thisWeek: weekBySubject.get(s.subjectId)?.weekTitle ?? null,
       nextLesson: nextLessonLabel(next.get(s.subjectName), todayIso),
       featured: s.subjectName === featured,
+      weekDone: weekBySubject.get(s.subjectId)?.weekDone ?? 0,
+      weekTotal: weekBySubject.get(s.subjectId)?.weekTotal ?? 0,
     })),
     todo,
     week: buildWeekDays({ weekStartIso, todayIso, lessons, homework, now }),
     nextHomework: nextHomework
       ? { href: nextHomework.href, label: `${nextHomework.action} homework` }
       : null,
+    status: statusLine(next, homework, weekStartIso, todayIso),
+    blitz: {
+      yearRank: yearRank?.rank ?? null,
+      yearLabel: yearLevel ? yearLevelLabel(yearLevel) : null,
+      best: bestEntry
+        ? `Best on ${bestEntry[0].charAt(0).toUpperCase()}${bestEntry[0].slice(1)}: ${bestEntry[1]}`
+        : null,
+    },
   };
+}
+
+function statusLine(
+  next: ReturnType<typeof nextLessonBySubject>,
+  homework: DashHomework[],
+  weekStartIso: string,
+  todayIso: string,
+): string | null {
+  const parts: string[] = [];
+  const live = [...next.values()].find((lesson) => lesson.live);
+  if (live) {
+    parts.push(`${shortSubject(live.subjectName)} is on now`);
+  } else {
+    const today = [...next.values()].find((lesson) => lesson.date === todayIso);
+    if (today) parts.push(`${shortSubject(today.subjectName)} at ${formatTime(today.startTime)}`);
+  }
+  const weekEnd = addIsoDays(weekStartIso, 7);
+  const due = homework.filter(
+    (hw) =>
+      ["not_started", "viewed", "resubmission_requested"].includes(hw.status) &&
+      hw.dueDay >= todayIso &&
+      hw.dueDay < weekEnd,
+  ).length;
+  if (due > 0) parts.push(`${due} ${due === 1 ? "thing" : "things"} due this week`);
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
