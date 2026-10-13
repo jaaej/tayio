@@ -1,6 +1,6 @@
 /**
- * Subject colours for the admin glass redesign: one dot colour and one
- * block fill/text pair per subject family, matched by name. Kept separate from
+ * Subject colours for the glass redesign: one dot colour, one block
+ * fill/text pair and one saturated fill per subject family, matched by name. Kept separate from
  * subject-colors.ts (the older periwinkle families the other roles still use)
  * until the redesign rolls out to every role.
  */
@@ -14,14 +14,17 @@ export type SubjectTone = {
   bg: string;
   /** Text on `bg`; meets 4.5:1. */
   fg: string;
+  /** Saturated fill for the one featured block (the student's next subject);
+   *  white text on it meets 4.5:1. */
+  solid: string;
 };
 
 const TONES: Record<SubjectFamily, Omit<SubjectTone, "family">> = {
-  maths: { dot: "#2E9C86", bg: "#DDF3EE", fg: "#0B5C4E" },
-  english: { dot: "#7C62F0", bg: "#EEEBFD", fg: "#3A1AA8" },
-  science: { dot: "#4C7FE8", bg: "#E7EFFD", fg: "#1E4FB8" },
-  senior: { dot: "#D2588F", bg: "#FBE8F1", fg: "#9D2C61" },
-  other: { dot: "#8C8AA0", bg: "#EEEFF6", fg: "#4A4660" },
+  maths: { dot: "#2E9C86", bg: "#DDF3EE", fg: "#0B5C4E", solid: "#1B7A67" },
+  english: { dot: "#7C62F0", bg: "#EEEBFD", fg: "#3A1AA8", solid: "#5E3FE0" },
+  science: { dot: "#4C7FE8", bg: "#E7EFFD", fg: "#1E4FB8", solid: "#2F62CF" },
+  senior: { dot: "#D2588F", bg: "#FBE8F1", fg: "#9D2C61", solid: "#B33F75" },
+  other: { dot: "#8C8AA0", bg: "#EEEFF6", fg: "#4A4660", solid: "#5E5A73" },
 };
 
 export function subjectFamily(name: string): SubjectFamily {

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/auth";
 import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
-import { relativeTime } from "@/lib/format";
+import { melbourneGreeting, relativeTime } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { termWeekLabel } from "@/lib/curriculum";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
@@ -51,19 +51,6 @@ const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
 };
 
 const LINE_SM = buttonVariants({ variant: "outline", size: "md" });
-
-function greeting(now: Date) {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Melbourne",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(now),
-  );
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 function money(n: number) {
   return n.toLocaleString("en-AU", {
@@ -133,7 +120,7 @@ export default async function AdminDashboard({
   return (
     <div className="space-y-5">
       <PageHeader
-        title={`${greeting(now)}, ${firstName}`}
+        title={`${melbourneGreeting(now)}, ${firstName}`}
         sub={`${dateLabel}${termLabel ? ` · ${termLabel}` : ""}`}
         actions={
           <>

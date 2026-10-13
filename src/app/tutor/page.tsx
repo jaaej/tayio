@@ -21,7 +21,12 @@ import type { TimeGridEvent } from "@/components/data/week-time-grid";
 import { requireRole } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
 import { termWeekLabel } from "@/lib/curriculum";
-import { formatTime, formatTimeRange, weekRangeLabel } from "@/lib/format";
+import {
+  formatTime,
+  formatTimeRange,
+  melbourneGreeting,
+  weekRangeLabel,
+} from "@/lib/format";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { getTutorCheckinWeek } from "@/lib/tutor-checkins";
 import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
@@ -54,19 +59,6 @@ export const dynamic = "force-dynamic";
 const ICON = "h-[18px] w-[18px]";
 const LINE_BUTTON = buttonVariants({ variant: "outline", size: "md" });
 const INK_BUTTON = buttonVariants({ variant: "primary", size: "md" });
-
-function greeting(now: Date) {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Melbourne",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(now),
-  );
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 function hoursLabel(minutes: number) {
   const hours = minutes / 60;
@@ -263,7 +255,7 @@ export default async function TutorToday({
   return (
     <div className="space-y-5">
       <PageHeader
-        title={`${greeting(now)}, ${firstName}`}
+        title={`${melbourneGreeting(now)}, ${firstName}`}
         sub={`${dateLabel}${termLabel ? ` · ${termLabel}` : ""}`}
         actions={
           <>

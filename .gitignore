@@ -50,3 +50,6 @@ skills-lock.json
 
 # ...but the example file has no secrets and must be committed
 !.env.example
+
+# Impeccable review captures (regenerated each review)
+.impeccable/review/

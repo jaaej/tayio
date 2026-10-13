@@ -13,11 +13,12 @@ const SIDEBAR_STORAGE_KEY = "taiyo-portal-sidebar-collapsed";
  * person; the page column holds each page's own glass header. Phones keep a
  * compact sticky header with the menu.
  *
- * Student and parent still use CollapsiblePortalShell until their redesigns.
+ * Parent still uses CollapsiblePortalShell until its redesign.
  */
 export function GlassPortalShell({
   brand,
   search,
+  feature,
   nav,
   account,
   mobileHeader,
@@ -25,6 +26,10 @@ export function GlassPortalShell({
 }: {
   brand: ReactNode;
   search: ReactNode;
+  /** Optional highlighted link between search and the menu (student Taiyo
+   *  Blitz). Mark text that should hide in the collapsed rail with
+   *  `.portal-feature-text`. */
+  feature?: ReactNode;
   nav: ReactNode;
   account: ReactNode;
   mobileHeader: ReactNode;
@@ -69,7 +74,7 @@ export function GlassPortalShell({
             collapsed ? "w-[76px]" : "w-[236px]",
             !preferenceLoaded && "[&_*]:duration-0 duration-0",
             collapsed &&
-              "[&_.portal-nav-heading]:hidden [&_.portal-nav-label]:hidden [&_.portal-nav-item]:justify-center [&_.portal-nav-item]:gap-0 [&_.portal-nav-item]:px-0 [&_.portal-nav-badge]:absolute [&_.portal-nav-badge]:right-0.5 [&_.portal-nav-badge]:top-0.5 [&_.portal-nav-badge]:h-4 [&_.portal-nav-badge]:min-w-4 [&_.portal-nav-badge]:px-1 [&_.portal-nav-badge]:text-[9px] [&_.portal-sidebar-search]:justify-center [&_.portal-sidebar-search]:px-0 [&_.portal-brand-text]:hidden [&_.portal-account-text]:hidden [&_.portal-account]:flex-col [&_.portal-account]:px-0",
+              "[&_.portal-nav-heading]:hidden [&_.portal-nav-label]:hidden [&_.portal-nav-item]:justify-center [&_.portal-nav-item]:gap-0 [&_.portal-nav-item]:px-0 [&_.portal-nav-badge]:absolute [&_.portal-nav-badge]:right-0.5 [&_.portal-nav-badge]:top-0.5 [&_.portal-nav-badge]:h-4 [&_.portal-nav-badge]:min-w-4 [&_.portal-nav-badge]:px-1 [&_.portal-nav-badge]:text-[9px] [&_.portal-sidebar-search]:justify-center [&_.portal-sidebar-search]:px-0 [&_.portal-brand-text]:hidden [&_.portal-account-text]:hidden [&_.portal-account]:flex-col [&_.portal-account]:px-0 [&_.portal-feature-text]:hidden [&_.portal-feature]:justify-center [&_.portal-feature]:px-0",
           )}
         >
           <div
@@ -96,6 +101,7 @@ export function GlassPortalShell({
             </button>
           </div>
           <div className="px-1 pb-0.5">{search}</div>
+          {feature && <div className="px-1">{feature}</div>}
           <div
             className={cn(
               // Only the menu scrolls on short screens; brand, search and the

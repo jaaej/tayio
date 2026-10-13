@@ -3,8 +3,6 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import {
-  announcements,
-  announcementRecipients,
   attendance,
   classCredits,
   classes,
@@ -18,7 +16,6 @@ import {
   progressTopics,
   rescheduleRequests,
   subjects,
-  type UserRole,
 } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
 
@@ -108,41 +105,6 @@ export async function getRecentGrades(
           markedAt: r.markedAt as Date,
         })),
     );
-}
-
-export type StudentAnnouncement = {
-  id: string;
-  title: string;
-  body: string;
-  publishedAt: Date;
-  audienceRole: UserRole | null;
-};
-
-export async function getRelevantAnnouncements(
-  studentId: string,
-  limit = 4,
-): Promise<StudentAnnouncement[]> {
-  return db
-    .select({
-      id: announcements.id,
-      title: announcements.title,
-      body: announcements.body,
-      publishedAt: announcements.publishedAt,
-      audienceRole: announcements.audienceRole,
-    })
-    .from(announcements)
-    .innerJoin(
-      announcementRecipients,
-      eq(announcementRecipients.announcementId, announcements.id),
-    )
-    .where(
-      and(
-        eq(announcementRecipients.userId, studentId),
-        eq(announcements.status, "published"),
-      ),
-    )
-    .orderBy(desc(announcements.publishedAt))
-    .limit(limit);
 }
 
 export type SubjectSummary = {
@@ -739,7 +701,9 @@ export type HomeworkRow = {
   submissionText: string | null;
   score: string | null;
   feedback: string | null;
+  markedAt: Date | null;
   className: string | null;
+  subjectName: string | null;
 };
 
 export async function getStudentHomework(studentId: string): Promise<HomeworkRow[]> {
@@ -757,11 +721,14 @@ export async function getStudentHomework(studentId: string): Promise<HomeworkRow
       submissionText: homeworkAssignments.submissionText,
       score: homeworkAssignments.score,
       feedback: homeworkAssignments.feedback,
+      markedAt: homeworkAssignments.markedAt,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
     .leftJoin(classes, eq(classes.id, homework.classId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(eq(homeworkAssignments.studentId, studentId))
     .orderBy(asc(homework.dueDate));
 }
@@ -832,11 +799,14 @@ export async function getNextDueHomework(studentId: string): Promise<HomeworkRow
       submissionText: homeworkAssignments.submissionText,
       score: homeworkAssignments.score,
       feedback: homeworkAssignments.feedback,
+      markedAt: homeworkAssignments.markedAt,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
     .leftJoin(classes, eq(classes.id, homework.classId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),

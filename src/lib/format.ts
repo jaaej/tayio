@@ -218,3 +218,18 @@ export function conversationDayLabel(d: Date, now: Date = new Date()): string {
   }
   return dayMonth(d, now);
 }
+
+const melbourneHour = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
+  hour: "numeric",
+  hourCycle: "h23",
+});
+
+/** "Good morning" / "Good afternoon" / "Good evening" by Melbourne time, for
+ * every portal home header. */
+export function melbourneGreeting(now: Date): string {
+  const hour = Number(melbourneHour.format(now));
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}

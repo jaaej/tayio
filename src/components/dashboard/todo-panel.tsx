@@ -24,10 +24,14 @@ const LINE_BUTTON = buttonVariants({ variant: "outline", size: "md" });
 export function TodoPanel({
   items,
   empty,
+  count = items.length,
   className,
 }: {
   items: TodoItem[];
   empty: string;
+  /** Things waiting, when a row stands for several (the student's
+   *  "17 overdue" summary row); defaults to one per row. */
+  count?: number;
   className?: string;
 }) {
   return (
@@ -36,9 +40,9 @@ export function TodoPanel({
       title={
         <span className="inline-flex items-center gap-2">
           To do
-          {items.length > 0 && (
+          {count > 0 && (
             <span className="grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[11px] font-extrabold tabular-nums text-white">
-              {items.length}
+              {count}
             </span>
           )}
         </span>

@@ -1,249 +1,109 @@
-import { Wallet } from "lucide-react";
-import { Card, CardHead, CardBody } from "@/components/student/card";
-import { Badge } from "@/components/student/pill";
-import { StudentHero } from "@/components/student/student-hero";
-import { SubjectCard } from "@/components/student/subject-card";
-import { TodayTimeline, type TimelineItem } from "@/components/student/today-timeline";
-import { StatTile } from "@/components/student/kpi";
+import Link from "next/link";
 import {
-  MiniWeekCalendar,
-  type CalendarEvent,
-} from "@/components/data/mini-week-calendar";
+  AlertCircle,
+  CheckCircle2,
+  CircleHelp,
+  ClipboardList,
+  Clock,
+  PlayCircle,
+  RotateCcw,
+  Wallet,
+} from "lucide-react";
+import { GlassPanel, PageHeader, buttonVariants } from "@/components/admin/ui";
+import { TodoPanel, type TodoItem } from "@/components/dashboard/todo-panel";
 import { requireRole } from "@/lib/auth";
-import {
-  formatMoney,
-  isoDate,
-  relativeTime,
-  startOfMondayWeek,
-} from "@/lib/format";
-import {
-  getAdminContactForStudent,
-  getOutstandingBalanceForStudent,
-  getRelevantAnnouncements,
-  getStudentHomework,
-  getStudentLessons,
-  getStudentSubjects,
-  getStudentTutors,
-} from "./_lib/queries";
-import { StudentContacts } from "@/components/student/contacts";
+import { melbourneGreeting } from "@/lib/format";
+import { getStudentDashboard } from "./_lib/dashboard";
+import type { StudentTodoKind } from "./_lib/dashboard-rules";
+import { SubjectCards } from "./_components/subject-cards";
+import { WeekList } from "./_components/week-list";
+
+export const dynamic = "force-dynamic";
+
+const ICON = "h-[18px] w-[18px]";
+
+const TODO_LOOK: Record<StudentTodoKind, { icon: React.ReactNode; tone: string }> = {
+  overdue: { icon: <AlertCircle className={ICON} />, tone: "bg-bad-bg text-bad" },
+  resubmit: { icon: <RotateCcw className={ICON} />, tone: "bg-warn-bg text-warn" },
+  "due-soon": { icon: <Clock className={ICON} />, tone: "bg-warn-bg text-warn" },
+  payment: { icon: <Wallet className={ICON} />, tone: "bg-warn-bg text-warn" },
+  quiz: { icon: <CircleHelp className={ICON} />, tone: "bg-brand-50 text-brand-700" },
+  video: { icon: <PlayCircle className={ICON} />, tone: "bg-info-bg text-info" },
+  "due-later": { icon: <ClipboardList className={ICON} />, tone: "bg-surface-3 text-ink-soft" },
+  marked: { icon: <CheckCircle2 className={ICON} />, tone: "bg-good-bg text-good" },
+};
 
 export default async function StudentDashboard() {
   const user = await requireRole("student");
   const isUnrestricted =
     (user.app_metadata?.role as string | undefined) === "student_unrestricted";
-  const outstanding = isUnrestricted
-    ? await getOutstandingBalanceForStudent(user.id)
-    : 0;
+  const now = new Date();
+  const dashboard = await getStudentDashboard(user.id, { isUnrestricted, now });
 
   const firstName =
     (user.user_metadata?.first_name as string | undefined) ??
     user.email?.split("@")[0] ??
-    "Student";
-  const lastName = (user.user_metadata?.last_name as string | undefined) ?? "";
-  const initials = (
-    firstName.charAt(0) + (lastName.charAt(0) || "")
-  ).toUpperCase();
-  const yearLevel = (user.user_metadata?.year_level as string | undefined) ?? null;
-
-  const now = new Date();
-  const weekStart = startOfMondayWeek(now);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
-  const todayIso = isoDate(now);
-
-  const [subjects, allHomework, weekLessons, notices, tutors, adminContact] =
-    await Promise.all([
-      getStudentSubjects(user.id),
-      getStudentHomework(user.id),
-      getStudentLessons(user.id, { from: weekStart }),
-      getRelevantAnnouncements(user.id, 4),
-      getStudentTutors(user.id),
-      isUnrestricted ? getAdminContactForStudent() : Promise.resolve(null),
-    ]);
-
-  const todayLessons = weekLessons.filter((l) => l.date === todayIso);
-  const todayItems: TimelineItem[] = todayLessons.map((l) => {
-    const start = parseHHMM(l.startTime);
-    const end = parseHHMM(l.endTime);
-    const durHours = (end - start) / 60;
-    return {
-      time: l.startTime.slice(0, 5),
-      duration: durHours >= 1 ? `${trimZero(durHours)}h` : `${end - start}m`,
-      title: l.subjectName,
-      sub: l.className ?? "",
-      subjectName: l.subjectName,
-    };
+    "there";
+  const dateLabel = new Date(`${dashboard.todayIso}T12:00:00`).toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
   });
 
-  // Week calendar events
-  const calendarEvents: CalendarEvent[] = [];
-  for (const l of weekLessons) {
-    const d = new Date(`${l.date}T00:00:00`);
-    if (d < weekStart || d >= weekEnd) continue;
-    calendarEvents.push({
-      date: l.date,
-      time: l.startTime.slice(0, 5),
-      endTime: l.endTime.slice(0, 5),
-      label: l.subjectName,
-      kind: "lesson",
-    });
-  }
-  for (const h of allHomework) {
-    const due = new Date(h.dueDate);
-    if (due < weekStart || due >= weekEnd) continue;
-    if (h.status === "marked" || h.status === "submitted") continue;
-    calendarEvents.push({
-      date: isoDate(due),
-      time: null,
-      label: h.title,
-      meta: h.className ?? undefined,
-      kind: "homework",
-      href: `/student/homework/${h.homeworkId}`,
-    });
-  }
+  const todo: TodoItem[] = dashboard.todo.map((row) => ({
+    key: row.key,
+    icon: TODO_LOOK[row.kind].icon,
+    tone: TODO_LOOK[row.kind].tone,
+    title: row.title,
+    detail: row.detail,
+    href: row.href,
+    action: row.action,
+  }));
 
   return (
     <div className="space-y-5">
-      <StudentHero
-        firstName={firstName}
-        initials={initials}
-        yearLevel={yearLevel}
+      <PageHeader
+        title={`${melbourneGreeting(now)}, ${firstName}`}
+        sub={`${dateLabel}${dashboard.termLabel ? ` · ${dashboard.termLabel}` : ""}`}
+        actions={
+          dashboard.nextHomework && (
+            <Link
+              href={dashboard.nextHomework.href}
+              className={buttonVariants({ variant: "primary", size: "lg" })}
+            >
+              {dashboard.nextHomework.label}
+            </Link>
+          )
+        }
       />
 
-      <div className="grid lg:grid-cols-[2fr_1fr] gap-5 items-start">
-        {/* LEFT */}
-        <div className="space-y-5 min-w-0">
-          <div>
-            <SectionHead title="My subjects" actionHref="/student/subjects" actionLabel="All subjects →" />
-            {subjects.length === 0 ? (
-              <Card>
-                <CardBody>
-                  <div className="text-sm text-muted">
-                    You&apos;re not enrolled in any classes yet.
-                  </div>
-                </CardBody>
-              </Card>
-            ) : (
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                {subjects.map((s) => (
-                  <SubjectCard
-                    key={s.classId}
-                    name={s.subjectName}
-                    mastery={s.masteryPercent}
-                    href={`/student/subjects/${s.subjectId}`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Card accent="var(--sky)" className="overflow-hidden">
-            <CardHead
-              title="This week"
-              action={<a href="/student/timetable">Full timetable →</a>}
-            />
-            <CardBody>
-              <MiniWeekCalendar
-                events={calendarEvents}
-                weekStart={weekStart}
-              />
-            </CardBody>
-          </Card>
-
+      {/* This week runs the full height beside subjects and To do: the page
+          is the student's week, so the week frames everything on it. */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <SubjectCards subjects={dashboard.subjects} />
+          <TodoPanel
+            items={todo}
+            count={dashboard.todo.reduce((sum, row) => sum + row.count, 0)}
+            empty="All caught up. Nothing is due."
+          />
         </div>
 
-        {/* RIGHT */}
-        <div className="space-y-5 min-w-0">
-          {isUnrestricted && (
-            <StatTile
-              label="Outstanding balance"
-              value={formatMoney(outstanding)}
-              icon={<Wallet className="h-5 w-5" aria-hidden />}
-              tone={outstanding > 0 ? "bad" : "good"}
-              accent
-              sub={outstanding > 0 ? "View invoices →" : "All settled"}
-              subTone={outstanding > 0 ? "down" : "up"}
-              href="/student/payments"
-            />
-          )}
-
-          <Card accent="var(--sun-500)">
-            <CardHead
-              title="Today"
-              action={<a href="/student/timetable">Timetable →</a>}
-            />
-            <CardBody className="py-1.5">
-              <TodayTimeline items={todayItems} />
-            </CardBody>
-          </Card>
-
-          <StudentContacts tutors={tutors} admin={adminContact} />
-
-          <Card accent="var(--coral)">
-            <CardHead title="Announcements" />
-            <CardBody tight>
-              {notices.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-muted">
-                  No announcements right now.
-                </div>
-              ) : (
-                <div className="divide-y divide-line">
-                  {notices.map((n) => (
-                    <div key={n.id} className="px-4 py-3">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="text-[13px] font-bold text-ink truncate">
-                          {n.title}
-                        </div>
-                        <Badge tone="muted" className="shrink-0">
-                          {relativeTime(new Date(n.publishedAt))}
-                        </Badge>
-                      </div>
-                      <p className="text-[12px] text-muted mt-1 leading-snug line-clamp-2">
-                        {n.body}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+        <GlassPanel
+          title="This week"
+          titleId="student-week-heading"
+          action={
+            <Link
+              href="/student/timetable"
+              className="rounded-[8px] px-2 py-1 text-[13px] font-bold text-ink-soft transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Timetable
+            </Link>
+          }
+        >
+          <WeekList days={dashboard.week} />
+        </GlassPanel>
       </div>
     </div>
   );
-}
-
-function SectionHead({
-  title,
-  actionHref,
-  actionLabel,
-}: {
-  title: string;
-  actionHref?: string;
-  actionLabel?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between mb-3 px-0.5">
-      <h3 className="text-[17px] font-extrabold tracking-[-0.01em] text-ink m-0">
-        {title}
-      </h3>
-      {actionHref && actionLabel && (
-        <a
-          href={actionHref}
-          className="text-[12px] font-bold text-brand-ink hover:text-ink"
-        >
-          {actionLabel}
-        </a>
-      )}
-    </div>
-  );
-}
-
-function parseHHMM(s: string): number {
-  const [h, m] = s.split(":").map((x) => parseInt(x, 10));
-  return h * 60 + (m || 0);
-}
-
-function trimZero(n: number): string {
-  return n % 1 === 0 ? String(n) : n.toFixed(1).replace(/\.0$/, "");
 }

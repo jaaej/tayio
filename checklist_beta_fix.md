@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 12 October 2026
+Last updated: 13 October 2026
 
 ## Status key
 
@@ -12,6 +12,16 @@ Last updated: 12 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Student dashboard and glass shell (13 October 2026): sign in as a student at 1440px and 390px.
+  Confirm the sidebar matches admin and tutor (search, Taiyo Blitz card with your rank, collapse to the icon rail), and that Taiyo Blitz is in the phone menu.
+  On `/student`, check the header greeting and date, and that "Term N, Week N" shows once a current term exists (dev has none configured).
+  Check that the next subject's card is the saturated one and its next lesson reads correctly ("On now until ...", "Today 4 pm", "Next lesson Thu 4 pm").
+  Check that "This week: <topic>" appears on each subject card during a running term.
+  In To do, check that overdue work beyond two items becomes one "N overdue pieces of homework" row that opens Homework, and that the badge counts every item.
+  Check that this week's unattempted quiz and unwatched video appear and disappear once done, that marked work shows for a week with "See feedback", and that an unrestricted student with a balance sees "Invoice to pay".
+  In This week, check that finished lessons turn grey, the live lesson pulses, and due homework links to the homework page.
+  Walk every other student page inside the new shell; their inner styling is not redesigned yet.
 
 - [ ] Owner follow-ups to the tutor redesign (12 October 2026):
   withdraw a student from every class of a subject and confirm that board
@@ -537,6 +547,36 @@ Last updated: 12 October 2026
   Verified on :3003 as a tutor: redirect, menu, roster to profile and back, tabs keep the class, search by name, `/tutor/notes`; phone width has no overflow.
 - [ ] Manual QA: as a tutor, open a class, its Students tab and a student, switch profile tabs, press back, and find a student by name from the search box (⌘K).
 
+- [x] Student dashboard redesign and glass shell (13 October 2026), from the owner's "colourful option" comp with its AI-template tells removed.
+  The student portal now uses the shared `GlassPortalShell`, like admin and tutor (`src/components/student/shell.tsx`).
+  Taiyo Blitz sits in a new optional `feature` slot between search and the menu, and in the phone menu.
+  `src/components/student/nav-links.tsx` was removed.
+  `/student` (`src/app/student/page.tsx`) now has three parts:
+  - The shared `PageHeader`, with a greeting, the date and term week, and one action to the most urgent homework.
+  - Subject cards (`_components/subject-cards.tsx`): each subject is a pale fill of its colour, and only the subject on now or next is saturated, its next lesson the largest text on it.
+  - The shared `TodoPanel` beside a This week day list (`_components/week-list.tsx`).
+  The to-do list is ordered overdue, sent back, due within two days, unpaid balance, this week's quiz and video, later homework, then marks from the last week.
+  More than two overdue items collapse into one row.
+  The logic lives in `src/app/student/_lib/dashboard-rules.ts` (tested) and `dashboard.ts`.
+  It uses the student's own curriculum access rules through `getStudentCurriculum` and Melbourne time throughout.
+  Shared changes:
+  - `subjectTone` gains a contrast-tested `solid` fill.
+  - `TodoPanel` takes an optional `count` (admin and tutor unchanged).
+  - `melbourneGreeting` in `src/lib/format.ts` replaces the admin and tutor copies.
+  - `getStudentHomework` rows carry `markedAt` and `subjectName`.
+  Removed from the dashboard:
+  - Announcements and tutor contacts, which live in Notifications and Messages.
+  - The duplicate Blitz card.
+  - Progress rings and eyebrows.
+  The now-unused `student-hero`, `today-timeline`, `contacts`, `data/mini-week-calendar` and `getRelevantAnnouncements` were deleted.
+  Impeccable records: `PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json`, and the surface brief `.impeccable/surfaces/src-app-student-page-tsx.md`.
+  Verified with typecheck, lint, unit tests, browser captures at 1440 and 390, and an independent finish review (ship on all nine fixes).
+  Known follow-ups (not in this pass):
+  - The other student pages keep their older inner styling (eyebrow titles, accent stripes, the purple Blitz hero).
+  - The parent portal is still on `CollapsiblePortalShell`.
+  - The shared To do rows wrap tightly at 390px.
+  - `src/components/student/achievement-medal.tsx` was already unused before this change.
+
 - [x] Tutor quizzes live in the week plan (13 October 2026).
   The Quizzes sidebar item and the `/tutor/quizzes` list are gone; an old `/tutor/quizzes` link redirects to `/tutor/classes`.
   A tutor reaches a quiz in two ways: the quiz card on its week in a class's week plan, or the admin's "Quiz requested" notification.
@@ -669,7 +709,7 @@ Last updated: 12 October 2026
   `/tutor/profile`. Shared pieces extracted from admin for reuse:
   `TodoPanel`, `PersonStatusTable` (`src/components/dashboard/`) and
   `ListPane` (admin Users and Attendance now use it; both panes are now the
-  same width). Student and parent still use `CollapsiblePortalShell`.
+  same width). Parent still uses `CollapsiblePortalShell`; student moved to the glass shell on 13 October 2026.
 - [x] One "For students this week" field per class per week (12 October 2026,
   migration `0060_class_week_plans.sql`, applied to dev only). Replaces
   `classes.lesson_plan` and the per-tutor `tutor_week_sections` notes; tables
