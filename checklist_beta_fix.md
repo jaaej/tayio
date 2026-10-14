@@ -547,6 +547,15 @@ Last updated: 13 October 2026
   Verified on :3003 as a tutor: redirect, menu, roster to profile and back, tabs keep the class, search by name, `/tutor/notes`; phone width has no overflow.
 - [ ] Manual QA: as a tutor, open a class, its Students tab and a student, switch profile tabs, press back, and find a student by name from the search box (⌘K).
 
+- [x] Handoff build only (branch `student-handoff`): student Homework page reworked from the owner's mock (14 October 2026).
+  `/student/homework` is no longer a split view: a header with subject, To do / Done and search filters, then Due this week as cards with Start, Overdue (three shown, "Show N older"), and Coming up last.
+  The header has no subtitle, at the owner's request.
+  Done shows Waiting for marking and Marked.
+  Filters live in the URL (`subject`, `show`, `q`, `older`); the rules are in `_lib/homework-board.ts` (tested).
+  "Ask <tutor> which still count" opens a DM when every overdue item has the same tutor, otherwise Messages; list rows now carry the class tutor (`_lib/homework-data.ts`).
+  The detail page opens full width with a back button that keeps the filters.
+  Dev data has nothing due this week, so the cards were checked with the clock set back, then reverted.
+
 - [x] Student dashboard redesign and glass shell (13 October 2026), from the owner's "colourful option" comp with its AI-template tells removed.
   The student portal now uses the shared `GlassPortalShell`, like admin and tutor (`src/components/student/shell.tsx`).
   Taiyo Blitz sits in a new optional `feature` slot between search and the menu, and in the phone menu.

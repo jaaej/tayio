@@ -9,13 +9,8 @@ import { formatClockTime, formatScore } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
 import { loadHomeworkDetail } from "../_lib/homework-detail";
-import {
-  daysUntil,
-  formatHomeworkDate,
-  homeworkHref,
-  parseHomeworkView,
-  submissionFileName,
-} from "../_lib/homework-list";
+import { boardHref, parseBoardParams } from "../_lib/homework-board";
+import { daysUntil, formatHomeworkDate, submissionFileName } from "../_lib/homework-list";
 import { SubmissionForm } from "./_components/submission-form";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +45,7 @@ function fileKind(path: string | null): string {
 }
 
 /**
- * Right pane of the Homework split view: instructions, worksheet and
+ * One homework, opened from the Homework page: instructions, worksheet and
  * solution, the student's work with Submit or Resubmit, and the tutor's
  * feedback and score once marked.
  */
@@ -59,7 +54,7 @@ export default async function HomeworkDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ submitted?: string; error?: string; view?: string; q?: string }>;
+  searchParams: Promise<{ submitted?: string; error?: string; subject?: string; show?: string; q?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -69,10 +64,7 @@ export default async function HomeworkDetailPage({
 
   const { hw, status, canSubmit, submissionHref, attachmentHref, solutionHref, solutionLocked, testRank } =
     detail;
-  const backHref = homeworkHref("/student/homework", {
-    view: parseHomeworkView(sp.view),
-    q: (sp.q ?? "").trim(),
-  });
+  const backHref = boardHref("/student/homework", parseBoardParams(sp));
   const classLabel = hw.subjectName || hw.className ? classDisplayName(hw.subjectName, hw.className) : "Independent task";
   const marked = status === "marked" || status === "returned";
   const open = !hw.submittedAt && !marked;
@@ -89,7 +81,7 @@ export default async function HomeworkDetailPage({
             title="Back to homework"
             className={cn(
               buttonVariants({ variant: "glass", size: "icon" }),
-              "h-10 w-10 shrink-0 rounded-[12px] xl:hidden",
+              "h-10 w-10 shrink-0 rounded-[12px]",
             )}
           >
             <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
@@ -104,9 +96,9 @@ export default async function HomeworkDetailPage({
               {classLabel}
               {hw.isTest && " · Test"}
             </span>
-            <h2 id="homework-heading" className="text-[20px] font-extrabold leading-tight text-ink">
+            <h1 id="homework-heading" className="text-[20px] font-extrabold leading-tight text-ink">
               {hw.title}
-            </h2>
+            </h1>
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
