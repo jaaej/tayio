@@ -3,10 +3,12 @@ import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import { CurriculumRail } from "@/components/subjects/curriculum-rail";
 import { requireRole } from "@/lib/auth";
 import { getStudentSubjectPage } from "../_lib/subject-page";
+import type { ChecklistTask } from "../_lib/week-checklist";
+import type { StudentCurriculumWeek } from "./_queries";
 import { subjectBg } from "./_components/subject-colour";
 import { SubjectHeader } from "./_components/subject-header";
-import { Recording, TutorNote, WeekGoals } from "./_components/week-panels";
-import { WeekWork } from "./_components/week-work";
+import { LessonMaterials } from "./_components/lesson-materials";
+import { Overview, TutorNote, WeekHomework, WeeklyQuiz } from "./_components/week-panels";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +17,9 @@ type SearchParams = Promise<{ term?: string; week?: string }>;
 /*
  * My subjects, colourful option of the student design handoff
  * (StudentSubjectColourPage): the list and the detail merged into one page.
- * Subject tabs in the hero, the shared weeks rail on the left, this week's
- * work as colour cards, then the objectives and the tutor's note.
+ * Subject tabs in the hero, the shared weeks rail on the left, then the
+ * week's overview, lesson and materials, homework and quiz, and the tutor's
+ * note.
  */
 export default async function StudentSubjectPage({
   params,
@@ -84,19 +87,14 @@ export default async function StudentSubjectPage({
         }
       >
         {week ? (
-          <div className="flex flex-col gap-5">
-            <WeekWork tasks={tasks} subjectWeekId={week.subjectWeekId} />
-            <div className="flex flex-wrap gap-5">
-              <WeekGoals week={week} subjectName={data.subjectName} />
-              <TutorNote
-                week={week}
-                subjectName={data.subjectName}
-                tutorFirstName={tutorFirstName}
-                now={now}
-              />
-            </div>
-            <Recording week={week} src={page.videoSrc} />
-          </div>
+          <WeekBody
+            week={week}
+            tasks={tasks}
+            subjectName={data.subjectName}
+            videoSrc={page.videoSrc}
+            tutorFirstName={tutorFirstName}
+            now={now}
+          />
         ) : (
           <Notice>
             {page.firstUnlock
@@ -105,6 +103,46 @@ export default async function StudentSubjectPage({
           </Notice>
         )}
       </CurriculumLayout>
+    </div>
+  );
+}
+
+function WeekBody({
+  week,
+  tasks,
+  subjectName,
+  videoSrc,
+  tutorFirstName,
+  now,
+}: {
+  week: StudentCurriculumWeek;
+  tasks: ChecklistTask[];
+  subjectName: string;
+  videoSrc: string | null;
+  tutorFirstName: string | null;
+  now: Date;
+}) {
+  const video = tasks.find((t) => t.kind === "video");
+  const booklet = tasks.find((t) => t.kind === "booklet");
+  const quiz = tasks.find((t) => t.kind === "quiz");
+  const showQuiz = Boolean(quiz) || week.quizInProgress;
+  return (
+    <div className="flex flex-col gap-5">
+      <Overview week={week} subjectName={subjectName} />
+      {video && booklet && (
+        <LessonMaterials
+          video={video}
+          booklet={booklet}
+          videoSrc={videoSrc}
+          subjectWeekId={week.subjectWeekId}
+          accent={subjectBg(subjectName)}
+        />
+      )}
+      <div className={showQuiz ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" : undefined}>
+        <WeekHomework tasks={tasks.filter((t) => t.kind === "homework")} />
+        <WeeklyQuiz task={quiz} inProgress={week.quizInProgress} tutorFirstName={tutorFirstName} />
+      </div>
+      <TutorNote week={week} subjectName={subjectName} tutorFirstName={tutorFirstName} now={now} />
     </div>
   );
 }

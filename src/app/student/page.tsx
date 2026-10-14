@@ -165,7 +165,6 @@ export default async function StudentDashboard() {
                     <span className="text-[15px] font-extrabold">{s.thisWeek}</span>
                   </span>
                 )}
-                <span className="text-[13px] font-bold opacity-95">{s.nextLesson}</span>
               </Link>
             );
           })}

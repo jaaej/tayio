@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -8,6 +8,7 @@ import {
   homeworkAssignments,
   profiles,
   quizAttempts,
+  quizzes,
   studentWeekProgress,
   subjectTopics,
   subjectWeeks,
@@ -18,6 +19,7 @@ import {
 } from "@/db/schema";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
+import { LIVE_QUIZ_STATUSES } from "@/lib/quiz-status";
 import { accessibleCurriculumTermsForStudent } from "@/lib/curriculum-access";
 import {
   melbourneDateKey,
@@ -60,6 +62,8 @@ export type StudentCurriculumWeek = {
   } | null;
   /** The student's latest attempt at this week's quiz, if any. */
   quizAttempt: { correctCount: number; total: number } | null;
+  /** A quiz was requested for this week but is not approved yet. */
+  quizInProgress: boolean;
   locked: boolean;
   /** Melbourne date (YYYY-MM-DD) the week releases: term start + 7 days per week. */
   unlocksOn: string;
@@ -182,6 +186,21 @@ export async function getStudentCurriculum(
     quizRows.map((quiz) => [quiz.subjectWeekId, quiz]),
   );
   const quizIds = quizRows.map((quiz) => quiz.id);
+  const pendingQuizWeeks = new Set(
+    weekIds.length
+      ? (
+          await db
+            .select({ subjectWeekId: quizzes.subjectWeekId })
+            .from(quizzes)
+            .where(
+              and(
+                inArray(quizzes.subjectWeekId, weekIds),
+                notInArray(quizzes.status, [...LIVE_QUIZ_STATUSES]),
+              ),
+            )
+        ).map((row) => row.subjectWeekId)
+      : [],
+  );
   const attemptRows = quizIds.length
     ? await db
         .select({
@@ -309,6 +328,7 @@ export async function getStudentCurriculum(
           homework: [],
           quiz: null,
           quizAttempt: null,
+          quizInProgress: false,
           locked: true,
           unlocksOn,
         } satisfies StudentCurriculumWeek;
@@ -350,6 +370,7 @@ export async function getStudentCurriculum(
         })),
         quiz: quizByWeek.get(tpl.id) ?? null,
         quizAttempt: attemptFor(quizByWeek.get(tpl.id)?.id),
+        quizInProgress: pendingQuizWeeks.has(tpl.id),
         locked: false,
         unlocksOn,
       };

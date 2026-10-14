@@ -547,6 +547,13 @@ Last updated: 13 October 2026
   Verified on :3003 as a tutor: redirect, menu, roster to profile and back, tabs keep the class, search by name, `/tutor/notes`; phone width has no overflow.
 - [ ] Manual QA: as a tutor, open a class, its Students tab and a student, switch profile tabs, press back, and find a student by name from the search box (⌘K).
 
+- [x] Handoff build only (branch `student-handoff`): My subjects week view rebuilt from the owner's colourful mock (14 October 2026).
+  `/student/subjects/[id]` right column is now: Overview in the deep subject colour (description plus "By the end of this week you can" ticked objectives), Lesson & materials (recorded lesson and booklet cards; Watch opens the player in place and still ticks the lesson off), Homework rows with Start / Resubmit / Done beside a Weekly quiz card, then the note from the tutor.
+  The Weekly quiz card shows the approved quiz, or "Not ready yet" when a quiz was requested for that week but is not approved (new `quizInProgress` on `StudentCurriculumWeek` in `[id]/_queries.ts`); weeks with no quiz requested hide it.
+  The recording length in the mock ("24 min") is not stored, so it is left out.
+  `_components/week-work.tsx` (the colour task cards) was removed.
+- [x] Handoff build only: the dashboard subject cards no longer show the next lesson line (14 October 2026, owner request).
+
 - [x] Handoff build only (branch `student-handoff`): student Homework page reworked from the owner's mock (14 October 2026).
   `/student/homework` is no longer a split view: a header with subject, To do / Done and search filters, then Due this week as cards with Start, Overdue (three shown, "Show N older"), and Coming up last.
   The header has no subtitle, at the owner's request.
