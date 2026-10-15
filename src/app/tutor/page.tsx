@@ -339,14 +339,6 @@ export default async function TutorToday({
       <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <GlassPanel
           title="Students to bump"
-          action={
-            <Link
-              href="/tutor/students"
-              className="pr-1.5 text-[13px] font-bold text-brand-600 hover:text-brand-700"
-            >
-              All students
-            </Link>
-          }
         >
           <PersonStatusTable
             empty="No overdue homework. Your students are caught up."
@@ -365,14 +357,6 @@ export default async function TutorToday({
 
         <GlassPanel
           title="Recent notes"
-          action={
-            <Link
-              href="/tutor/students"
-              className="pr-1.5 text-[13px] font-bold text-brand-600 hover:text-brand-700"
-            >
-              All notes
-            </Link>
-          }
         >
           {recentNotes.length === 0 ? (
             <Empty>No lesson notes yet.</Empty>

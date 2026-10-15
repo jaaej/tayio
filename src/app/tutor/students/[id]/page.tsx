@@ -5,6 +5,7 @@ import {
   Empty,
   MetricTile,
   Pill,
+  TabLinks,
   buttonVariants,
   type PillTone,
 } from "@/components/admin/ui";
@@ -20,8 +21,8 @@ import {
   RECENT_LESSONS,
   attendanceSummary,
   homeworkState,
+  withListQuery,
 } from "../_lib/student-list";
-import { ListLink, ProfileTabLinks } from "../_components/list-link";
 import { StudentAvatar } from "../_components/student-avatar";
 
 export const dynamic = "force-dynamic";
@@ -50,12 +51,15 @@ const ATTENDANCE_PILL: Record<string, PillTone> = {
   makeup_attended: "info",
 };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type Profile = Awaited<ReturnType<typeof getStudentProfile>>;
 
 /**
- * The right pane of the students split view (the list comes from the
- * layout): the student's header, quick facts, and their attendance,
- * homework and lesson notes as tabs. Everything is limited to the classes,
+ * A student's profile, opened from a class's Students roster (`?class=` sends
+ * the back button there), Marking, lessons, Today, discussions or messages:
+ * the header, quick facts, and their attendance, homework and lesson notes as
+ * tabs. Everything is limited to the classes,
  * homework and notes of this tutor (getStudentProfile runs
  * assertTutorTeachesStudent first and 404s for anyone else's student).
  */
@@ -64,7 +68,7 @@ export default async function TutorStudentProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; class?: string }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -104,6 +108,10 @@ export default async function TutorStudentProfilePage({
   const primaryParent = context.parents[0] ?? null;
 
   const basePath = `/tutor/students/${id}`;
+  const fromClass = sp.class && UUID.test(sp.class) ? sp.class : null;
+  const back = fromClass
+    ? { href: `/tutor/classes/${fromClass}/students`, label: "Back to class" }
+    : { href: "/tutor/classes", label: "Classes" };
 
   const panels: Record<Tab, ReactNode> = {
     overview: (
@@ -151,23 +159,23 @@ export default async function TutorStudentProfilePage({
       className="glass flex min-w-0 flex-col gap-1.5 rounded-[24px] p-1.5"
     >
       <div className="flex flex-wrap items-center gap-3.5 px-2.5 pb-2 pt-2.5 sm:pl-3.5">
-        <ListLink
-          href="/tutor/students"
-          aria-label="All students"
-          title="All students"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 xl:hidden"
+        <Link
+          href={back.href}
+          aria-label={back.label}
+          title={back.label}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
         >
           <ChevronLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden />
-        </ListLink>
+        </Link>
         <StudentAvatar name={name} avatarKey={student.profileAvatarKey} size={52} />
         <div className="flex min-w-0 flex-1 basis-[240px] flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2
+            <h1
               id="student-profile-name"
               className="text-[20px] font-extrabold leading-tight text-ink"
             >
               {name}
-            </h2>
+            </h1>
             {student.yearLevel && (
               <span className="inline-flex h-[22px] items-center rounded-full bg-white px-[9px] text-[11px] font-extrabold uppercase text-ink">
                 {/^\d+$/.test(student.yearLevel.trim())
@@ -249,9 +257,14 @@ export default async function TutorStudentProfilePage({
       </div>
 
       <div className="panel min-w-0 overflow-hidden">
-        <ProfileTabLinks
-          basePath={basePath}
-          tabs={TABS.map((t) => ({ key: t.key, label: t.label, active: t.key === tab }))}
+        <TabLinks
+          label="Student sections"
+          items={TABS.map((t) => ({
+            label: t.label,
+            // Overview is the default tab, so it gets the clean URL.
+            href: withListQuery(basePath, sp, t.key === "overview" ? undefined : { tab: t.key }),
+            active: t.key === tab,
+          }))}
         />
         {panels[tab]}
       </div>

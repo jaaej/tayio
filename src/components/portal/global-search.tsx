@@ -13,12 +13,16 @@ export type PortalSearchDestination = {
 
 export function PortalSearch({
   destinations,
+  people,
   directory,
   compact = false,
   variant = "toolbar",
   shortcutEnabled = true,
 }: {
   destinations: PortalSearchDestination[];
+  /** People to match by name as the user types (`section` is shown under the
+   * name, e.g. their classes). Listed above the page matches. */
+  people?: PortalSearchDestination[];
   /** Free-text search over the role's people directory, offered under the
    * page matches. Omit when the role has no directory page. */
   directory?: { href: string; label: string; placeholder: string };
@@ -41,6 +45,15 @@ export function PortalSearch({
     [destinations, normalized],
   );
   const visible = normalized ? matching : destinations.slice(0, 6);
+  const matchingPeople = useMemo(
+    () =>
+      normalized && people
+        ? people
+            .filter((item) => `${item.label} ${item.section}`.toLowerCase().includes(normalized))
+            .slice(0, 8)
+        : [],
+    [people, normalized],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -151,10 +164,13 @@ export function PortalSearch({
                     onKeyDown={(event) => {
                       if (event.key !== "Enter") return;
                       event.preventDefault();
-                      if (visible[0]) go(visible[0].href);
+                      const first = matchingPeople[0] ?? visible[0];
+                      if (first) go(first.href);
                       else searchDirectory();
                     }}
-                    placeholder={directory?.placeholder ?? "Search pages…"}
+                    placeholder={
+                      directory?.placeholder ?? (people ? "Search students or pages…" : "Search pages…")
+                    }
                     className="h-10 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
                   />
                   <button
@@ -168,36 +184,42 @@ export function PortalSearch({
                 </div>
 
                 <div className="relative max-h-[62vh] overflow-y-auto p-2">
-                  <div className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
-                    {normalized ? "Matching pages" : "Portal pages"}
-                  </div>
-                  {visible.length > 0 ? (
-                    visible.map((item) => (
-                      <button
-                        key={item.href}
-                        type="button"
-                        onClick={() => go(item.href)}
-                        className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                      >
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-surface-2 text-muted">
-                          <Search className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-bold text-ink">
-                            {item.label}
-                          </span>
-                          <span className="block text-[11px] text-muted">
-                            {item.section}
-                          </span>
-                        </span>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-muted" />
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-3 py-3 text-[13px] text-muted">
-                      No portal page matches this phrase.
-                    </p>
+                  {matchingPeople.length > 0 && (
+                    <>
+                      <div className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                        Students
+                      </div>
+                      {matchingPeople.map((item) => (
+                        <ResultButton
+                          key={item.href}
+                          item={item}
+                          icon={<Users className="h-3.5 w-3.5" />}
+                          onSelect={() => go(item.href)}
+                        />
+                      ))}
+                    </>
                   )}
+                  {(visible.length > 0 || matchingPeople.length === 0) && (
+                    <div className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                      {normalized ? "Matching pages" : "Portal pages"}
+                    </div>
+                  )}
+                  {visible.length > 0
+                    ? visible.map((item) => (
+                        <ResultButton
+                          key={item.href}
+                          item={item}
+                          icon={<Search className="h-3.5 w-3.5" />}
+                          onSelect={() => go(item.href)}
+                        />
+                      ))
+                    : matchingPeople.length === 0 && (
+                        <p className="px-3 py-3 text-[13px] text-muted">
+                          {people
+                            ? "No student or page matches this phrase."
+                            : "No portal page matches this phrase."}
+                        </p>
+                      )}
 
                   {normalized && directory ? (
                     <>
@@ -233,5 +255,32 @@ export function PortalSearch({
           )
         : null}
     </>
+  );
+}
+
+function ResultButton({
+  item,
+  icon,
+  onSelect,
+}: {
+  item: PortalSearchDestination;
+  icon: React.ReactNode;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-surface-2 text-muted">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold text-ink">{item.label}</span>
+        <span className="block truncate text-[11px] text-muted">{item.section}</span>
+      </span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted" />
+    </button>
   );
 }

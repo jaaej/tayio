@@ -122,7 +122,6 @@ export async function setMyProfileAvatar(avatarKey: string) {
   });
   revalidatePath("/student", "layout");
   revalidatePath("/student/profile");
-  revalidatePath("/tutor/students", "page");
   revalidatePath("/tutor/students/[id]", "page");
   return { ok: true as const };
 }

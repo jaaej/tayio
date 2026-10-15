@@ -490,8 +490,9 @@ Last updated: 12 October 2026
   then select several icons. Confirm the header and leaderboard update, the
   choice persists after sign-out/sign-in, invalid free-form values are rejected,
   and only the signed-in student's profile changes. As an assigned tutor,
-  confirm the chosen icon appears in the Students list and that student's detail
-  page; an unrelated tutor must still be unable to open the profile.
+  confirm the chosen icon appears on that student's profile page (opened from
+  the class's Students tab); an unrelated tutor must still be unable to open
+  the profile.
 - [ ] As a tutor, open `Weekly check-in` for the current and a past week.
   Confirm scheduled lessons, dates, times, total hours, and estimated pay match
   the timetable, and cancelled/rescheduled lessons are not counted.
@@ -525,6 +526,16 @@ Last updated: 12 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Tutor Students tab removed (15 October 2026, owner request): students are reached from each class's Students tab, so the separate list duplicated the class page.
+  The Students menu item and the `/tutor/students` split-view list are gone; `/tutor/students` and `/tutor/notes` now redirect to `/tutor/classes`.
+  Student profiles stay at `/tutor/students/[id]`: they are linked from the class roster, Marking, lessons, Today, discussions and messages, and now open full width with Classes highlighted in the menu.
+  The class roster passes `?class=`, so the profile's back button returns to that class's Students tab (otherwise to Classes); tab links keep it.
+  The search box (`PortalSearch`, new optional `people` prop) now finds the tutor's students by name and lists their classes, replacing the "Search your students" link to the old list (`src/app/tutor/_lib/student-search.ts`, tested).
+  Today's "All students" and "All notes" links, which opened the old list, were removed.
+  Lost with the list: its per-student flags (on leave, overdue, due today, trial) at a glance; the class roster shows attendance only, and the flags remain on each profile.
+  Verified on :3003 as a tutor: redirect, menu, roster to profile and back, tabs keep the class, search by name, `/tutor/notes`; phone width has no overflow.
+- [ ] Manual QA: as a tutor, open a class, its Students tab and a student, switch profile tabs, press back, and find a student by name from the search box (⌘K).
 
 - [x] Tutor quizzes live in the week plan (13 October 2026).
   The Quizzes sidebar item and the `/tutor/quizzes` list are gone; an old `/tutor/quizzes` link redirects to `/tutor/classes`.
@@ -585,7 +596,7 @@ Last updated: 12 October 2026
     note, quiz requests, last week's check-in, claimable covers), Today card,
     shared week panel (`src/components/dashboard/week-panel.tsx`, also on the
     admin dashboard), shared `PersonStatusTable` for Students to bump, Recent
-    notes. `/tutor/notes` redirects to `/tutor/students`.
+    notes. `/tutor/notes` redirects to `/tutor/classes` (since 15 October 2026).
   - Classes `/tutor/classes`: next-class strip and class cards.
   - Class page `/tutor/classes/[id]/{curriculum,lessons,students,announcements}`
     with a shared header and tab badges (`classes/[id]/layout.tsx`).
@@ -605,6 +616,8 @@ Last updated: 12 October 2026
     and `updateHomework` no longer redirects.
   - Students `/tutor/students` split view (`students/layout.tsx`, `?q=`,
     `?year=`, `?tab=`); search box shared with admin Users (`ListPaneSearch`).
+    (The Students tab and list were removed on 15 October 2026; see Recently
+    implemented.)
   - The shared quiz editor hides reorder arrows when read-only. (The tutor
     Quizzes list was removed on 13 October 2026; see Recently implemented.)
   - Resources rows with a share switch; resource type chip shared with admin.

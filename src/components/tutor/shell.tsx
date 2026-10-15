@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   BookOpen,
-  Users,
   SquarePen,
   FolderOpen,
   CalendarDays,
@@ -36,8 +35,9 @@ import {
   PortalSearch,
   type PortalSearchDestination,
 } from "@/components/portal/global-search";
-import { getPendingMarkCount } from "@/app/tutor/_data";
+import { getPendingMarkCount, getTutorStudentsByClass } from "@/app/tutor/_data";
 import { getClaimableCoverCount } from "@/app/tutor/_lib/nav-badges";
+import { studentSearchEntries } from "@/app/tutor/_lib/student-search";
 
 const IC = "h-[17px] w-[17px]";
 
@@ -50,10 +50,10 @@ const SECTIONS: NavSection[] = [
         label: "Classes",
         href: "/tutor/classes",
         icon: <BookOpen className={IC} />,
-        // Quizzes are opened from their week in a class's week plan.
-        also: ["/tutor/quizzes"],
+        // Quizzes open from their week in a class's week plan, and student
+        // profiles from a class's Students roster.
+        also: ["/tutor/quizzes", "/tutor/students"],
       },
-      { label: "Students", href: "/tutor/students", icon: <Users className={IC} /> },
       { label: "Marking", href: "/tutor/homework", icon: <SquarePen className={IC} /> },
       { label: "Resources", href: "/tutor/resources", icon: <FolderOpen className={IC} /> },
     ],
@@ -80,12 +80,6 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-const DIRECTORY = {
-  href: "/tutor/students",
-  label: "Search your students",
-  placeholder: "Search your students or pages…",
-};
-
 /** A failed badge query must never take the whole portal down. */
 function settled(result: PromiseSettledResult<number>, label: string) {
   if (result.status === "fulfilled") return result.value;
@@ -106,10 +100,11 @@ export async function TutorShell({
 }) {
   const user = await getCurrentUser();
   const badges = { marking: 0, cover: 0, messages: 0, notifications: 0 };
+  let people: PortalSearchDestination[] = [];
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [marking, cover, messages, notifications, avatarResult] =
+    const [marking, cover, messages, notifications, avatarResult, roster] =
       await Promise.allSettled([
         getPendingMarkCount(user.id),
         getClaimableCoverCount(user.id),
@@ -123,6 +118,7 @@ export async function TutorShell({
           .from(profiles)
           .where(eq(profiles.id, user.id))
           .limit(1),
+        getTutorStudentsByClass(user.id),
       ]);
     badges.marking = settled(marking, "marking");
     badges.cover = settled(cover, "cover");
@@ -134,6 +130,10 @@ export async function TutorShell({
     } else {
       console.error("[tutor-shell] profile icon failed:", avatarResult.reason);
     }
+    // Students are found by name in the search box (there is no student
+    // list page; each class has its own roster).
+    if (roster.status === "fulfilled") people = studentSearchEntries(roster.value.classes);
+    else console.error("[tutor-shell] student search list failed:", roster.reason);
   }
 
   const BADGE_BY_HREF: Record<string, number> = {
@@ -177,7 +177,7 @@ export async function TutorShell({
       search={
         <PortalSearch
           destinations={searchDestinations}
-          directory={DIRECTORY}
+          people={people}
           variant="sidebar"
         />
       }
@@ -196,7 +196,7 @@ export async function TutorShell({
           search={
             <PortalSearch
               destinations={searchDestinations}
-              directory={DIRECTORY}
+              people={people}
               compact
               shortcutEnabled={false}
             />
