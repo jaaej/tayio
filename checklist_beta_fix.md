@@ -555,7 +555,7 @@ Last updated: 13 October 2026
   `--font-sans` and `--font-display` point at it, and `.theme-glass` uses `--font-sans`.
   Checked on :3004: sign in, forgot password, admin, tutor, student and parent all compute Satoshi with no errors. The admin check of the shared notification inbox restyle was done the same day.
 
-- [x] Sign-in page follow-ups (15 October 2026, owner request): the heading reads "Welcome back"; a small "Portal" label sits beside "Taiyo Tuition" on every sign-in page; under "Need an account? Ask your Taiyo admin." a link opens the website's contact page, https://taiyotuition.com/contact (a route of the taiyotuition.com app, found in its bundle), in a new tab (`CONTACT_PAGE_URL`, `src/lib/site-contact.ts`).
+- [x] Sign-in page follow-ups (15 October 2026, owner request): the heading reads "Welcome Back"; a small "Portal" label sits beside "Taiyo Tuition" on every sign-in page; under "Need an account? Ask your Taiyo admin." a link opens the website's contact page, https://taiyotuition.com/contact (a route of the taiyotuition.com app, found in its bundle), in a new tab (`CONTACT_PAGE_URL`, `src/lib/site-contact.ts`).
 - [x] Sign-in pages redesigned from the owner's mock (15 October 2026): one rounded card with the form on white at the left and a brand panel at the right (the torii, the rotating quote, four layers of drifting waves in the mock's blues).
   Shared by sign in, forgot password, reset password and sign up (`src/app/(auth)/_components/auth-shell.tsx`, fields and button in `auth-fields.tsx`), in the app font (Satoshi since 15 October 2026).
   Fields show their name as the placeholder with a screen-reader label; the password field has a show/hide toggle; "Forgot password?" sits under it.

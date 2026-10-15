@@ -6,7 +6,7 @@ import { LoginForm } from "./form";
 export default function LoginPage() {
   return (
     <AuthShell
-      title="Welcome back"
+      title="Welcome Back"
       footer={
         <>
           <span>Need an account? Ask your Taiyo admin.</span>
