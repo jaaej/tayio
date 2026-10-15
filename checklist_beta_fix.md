@@ -537,7 +537,7 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
-- [x] Student (branch `student-handoff`): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
+- [x] Student (shipped 15 October 2026): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
   Removed: the overall summary line ("8 topics tracked · 1 mastered ..."), each subject's "4 topics · focus: ..." line, the tiles' sub-text ("homework and quizzes"), and the Submitted and Pending tiles; Mastery and Average score remain.
   A term picker beside the Progress title (`?term=`, left out for the term running today) offers terms that have started since the student's first enrolment, newest first.
   The chosen term drives the average score, the test rank and Recent marks: homework by due date, quizzes by their curriculum week.
@@ -558,23 +558,23 @@ Last updated: 13 October 2026
   Verified on :3003 as a tutor: redirect, menu, roster to profile and back, tabs keep the class, search by name, `/tutor/notes`; phone width has no overflow.
 - [ ] Manual QA: as a tutor, open a class, its Students tab and a student, switch profile tabs, press back, and find a student by name from the search box (⌘K).
 
-- [x] Student (branch `student-handoff`): shared notification inbox restyled from the owner's mock (15 October 2026).
+- [x] Student (shipped 15 October 2026): shared notification inbox restyled from the owner's mock (15 October 2026).
   `src/components/notifications/inbox-view.tsx`, used by all four roles: header with "N unread" beside the title and Mark all read, filter pills with a coloured dot and count per kind, then one framed list.
   The owner chose to keep the inbox rule: Messages and Action needed keep their own dividers at the top; everything else falls under Today, This week (Monday onwards) and Earlier.
   Each row names its kind ("Message", "Announcement") and shows a fixed stamp ("3:12 pm", "Sun", "20 Sep") instead of a ticking "5m ago".
   Rules and tests: `notificationWhen` and the new `notificationSections` in `src/lib/notification-groups.ts`; pill labels are now "Learning" and "Updates".
   The red "New notifications" callout and the `showUnreadCallout` prop were removed; the Unread pill does the same job.
   Checked in the browser for student (desktop and phone), tutor and parent; admin not re-checked because the saved admin session expired.
-- [x] Student (branch `student-handoff`): the Play Sprint button was removed from the Taiyo Blitz hero (15 October 2026, owner request); every level, Sprint included, is still played from the level cards.
+- [x] Student (shipped 15 October 2026): the Play Sprint button was removed from the Taiyo Blitz hero (15 October 2026, owner request); every level, Sprint included, is still played from the level cards.
 
-- [x] Student (branch `student-handoff`): My subjects week view rebuilt from the owner's colourful mock (14 October 2026).
+- [x] Student (shipped 15 October 2026): My subjects week view rebuilt from the owner's colourful mock (14 October 2026).
   `/student/subjects/[id]` right column is now: Overview in the deep subject colour (description plus "By the end of this week you can" ticked objectives), Lesson & materials (recorded lesson and booklet cards; Watch opens the player in place and still ticks the lesson off), Homework rows with Start / Resubmit / Done beside a Weekly quiz card, then the note from the tutor.
   The Weekly quiz card shows the approved quiz, or "Not ready yet" when a quiz was requested for that week but is not approved (new `quizInProgress` on `StudentCurriculumWeek` in `[id]/_queries.ts`); weeks with no quiz requested hide it.
   The recording length in the mock ("24 min") is not stored, so it is left out.
   `_components/week-work.tsx` (the colour task cards) was removed.
-- [x] Student (branch `student-handoff`): the dashboard subject cards no longer show the next lesson line (14 October 2026, owner request).
+- [x] Student (shipped 15 October 2026): the dashboard subject cards no longer show the next lesson line (14 October 2026, owner request).
 
-- [x] Student (branch `student-handoff`): student Homework page reworked from the owner's mock (14 October 2026).
+- [x] Student (shipped 15 October 2026): student Homework page reworked from the owner's mock (14 October 2026).
   `/student/homework` is no longer a split view: a header with subject, To do / Done and search filters, then Due this week as cards with Start, Overdue (three shown, "Show N older"), and Coming up last.
   The header has no subtitle, at the owner's request.
   Done shows Waiting for marking and Marked.
@@ -583,7 +583,7 @@ Last updated: 13 October 2026
   The detail page opens full width with a back button that keeps the filters.
   Dev data has nothing due this week, so the cards were checked with the clock set back, then reverted.
 
-- [x] Student portal redesign from the design handoff (13-15 October 2026), on branch `student-handoff`, not yet on `main` or production.
+- [x] Student portal redesign from the design handoff (13-15 October 2026), pushed to production on 15 October 2026 (`2aab063`, after a passing `next build`; no migrations).
   Built from `taiyo-student-design.zip` as designed, using its colourful options, on the existing data and actions.
   The student portal uses the shared `GlassPortalShell`, like admin and tutor (`src/components/student/shell.tsx`), with the dark Taiyo Blitz tile in a new optional `feature` slot.
   Dashboard `/student`: violet hero, solid subject cards with a this-week ring, the Taiyo Blitz card, To do and This week (`src/app/student/page.tsx`).
