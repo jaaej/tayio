@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Figtree, Nunito_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { GlobalNavigationIndicator } from "@/components/ui/navigation-loading-indicator";
 import "./globals.css";
 
@@ -21,6 +22,17 @@ const figtree = Figtree({
   preload: false,
 });
 
+// Admin portal only (`.theme-admin` in globals.css). Satoshi by Indian Type
+// Foundry, from Fontshare (free for commercial use, https://fontshare.com/terms),
+// self-hosted as the variable font so every weight from 300 to 900 exists.
+const satoshi = localFont({
+  src: "../fonts/Satoshi-Variable.woff2",
+  variable: "--font-satoshi",
+  weight: "300 900",
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "Taiyo Tuition - Student Portal",
   description:
@@ -35,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunitoSans.variable} ${figtree.variable} h-full antialiased`}
+      className={`${nunitoSans.variable} ${figtree.variable} ${satoshi.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-ink">
         <Suspense fallback={null}>

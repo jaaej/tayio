@@ -537,6 +537,11 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Admin portal font is Satoshi (15 October 2026, owner request); tutor and student stay on Figtree, the sign-in pages and parent portal on Nunito Sans.
+  Satoshi (Indian Type Foundry, Fontshare, free for commercial use under https://fontshare.com/terms) is self-hosted as the variable font `src/fonts/Satoshi-Variable.woff2` (weights 300 to 900) and loaded in `src/app/layout.tsx` with `next/font/local`, not preloaded.
+  `GlassPortalShell` takes an optional `className`; the admin shell passes `theme-admin`, and `.theme-admin` / `body:has(.theme-admin)` in `globals.css` switch the font, so admin side panels and dialogs use it too.
+  Checked on :3004: admin Dashboard, Users and Notifications render in Satoshi; tutor and student still compute Figtree. This also closes the admin check of the shared notification inbox restyle.
+
 - [ ] **To do (owner):** create the contact page on taiyotuition.com, then set its URL in `CONTACT_PAGE_URL` (`src/lib/site-contact.ts`).
   Until it is set, the sign-in screen says "Need an account? Ask your Taiyo admin." instead of showing the mock's "Contact admin" button (owner decision, 15 October 2026).
 - [x] Sign-in pages redesigned from the owner's mock (15 October 2026): one rounded card with the form on white at the left and a brand panel at the right (the torii, the rotating quote, four layers of drifting waves in the mock's blues).
@@ -579,7 +584,7 @@ Last updated: 13 October 2026
   Each row names its kind ("Message", "Announcement") and shows a fixed stamp ("3:12 pm", "Sun", "20 Sep") instead of a ticking "5m ago".
   Rules and tests: `notificationWhen` and the new `notificationSections` in `src/lib/notification-groups.ts`; pill labels are now "Learning" and "Updates".
   The red "New notifications" callout and the `showUnreadCallout` prop were removed; the Unread pill does the same job.
-  Checked in the browser for student (desktop and phone), tutor and parent; admin not re-checked because the saved admin session expired.
+  Checked in the browser for student (desktop and phone), tutor and parent; admin checked on 15 October 2026 with the Satoshi change.
 - [x] Student (shipped 15 October 2026): the Play Sprint button was removed from the Taiyo Blitz hero (15 October 2026, owner request); every level, Sprint included, is still played from the level cards.
 
 - [x] Student (shipped 15 October 2026): My subjects week view rebuilt from the owner's colourful mock (14 October 2026).

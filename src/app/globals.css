@@ -358,6 +358,14 @@ body:has(.theme-glass) .theme-tutor {
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Admin portal font. Same double scope as the glass tokens above, so side
+ * panels and dialogs portalled out of the admin shell use it too. */
+.theme-admin,
+body:has(.theme-admin),
+body:has(.theme-admin) .theme-tutor {
+  font-family: var(--font-satoshi), var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+}
+
 .theme-glass {
   background-color: #dce0f4;
   background-image: linear-gradient(
