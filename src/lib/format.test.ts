@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatMonthShort,
   melbourneGreeting,
   formatTime,
   formatTimeRange,
@@ -116,5 +117,12 @@ describe("melbourneGreeting", () => {
     expect(melbourneGreeting(new Date("2026-10-12T20:00:00Z"))).toBe("Good morning");
     expect(melbourneGreeting(new Date("2026-10-13T03:00:00Z"))).toBe("Good afternoon");
     expect(melbourneGreeting(new Date("2026-10-13T07:00:00Z"))).toBe("Good evening");
+  });
+});
+
+describe("formatMonthShort", () => {
+  it("names the month of a lesson date", () => {
+    expect(formatMonthShort("2026-10-19")).toBe("Oct");
+    expect(formatMonthShort("2026-11-02")).toBe("Nov");
   });
 });

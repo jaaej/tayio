@@ -42,6 +42,8 @@ export type LeaveLessonOption = {
   id: string;
   weekday: string;
   day: string;
+  /** "OCT": the list runs across months, so each row names its month. */
+  month: string;
   name: string;
   subjectName: string;
   time: string;
@@ -456,9 +458,10 @@ function OneClassForm({
                     className="h-[18px] w-[18px] shrink-0 accent-ink"
                     aria-label={`${lesson.name}, ${lesson.dateLabel}, ${lesson.time}`}
                   />
-                  <span aria-hidden className="flex w-10 shrink-0 flex-col items-center leading-[1.1]">
+                  <span aria-hidden className="flex w-11 shrink-0 flex-col items-center leading-[1.1]">
                     <span className="text-[10px] font-extrabold text-muted">{lesson.weekday}</span>
                     <span className="text-[16px] font-extrabold tabular-nums text-ink">{lesson.day}</span>
+                    <span className="text-[10px] font-extrabold text-muted">{lesson.month}</span>
                   </span>
                   <span aria-hidden className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1.5 text-[14px] font-bold text-ink">

@@ -537,6 +537,8 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Tutor "Hours & time away" > One class (15 October 2026, owner request): each class row's date tile now shows the month under the day (SUN / 18 / OCT), since the list runs across months (`formatMonthShort` in `src/lib/format.ts`, tested; `src/app/tutor/timetable`). Checked on :3004 as a tutor at desktop and phone width.
+
 - [x] Satoshi is the font of every portal and the sign-in pages (15 October 2026, owner request), replacing Figtree (glass portals) and Nunito Sans (sign-in, parent).
   Satoshi (Indian Type Foundry, Fontshare, free for commercial use under https://fontshare.com/terms) is self-hosted as the variable font `src/fonts/Satoshi-Variable.woff2` (weights 300 to 900) and loaded in `src/app/layout.tsx` with `next/font/local`; it is the only web font the app loads.
   `--font-sans` and `--font-display` point at it, and `.theme-glass` uses `--font-sans`.

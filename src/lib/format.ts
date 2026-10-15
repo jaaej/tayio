@@ -5,6 +5,7 @@
 
 const weekdayLong = new Intl.DateTimeFormat("en-AU", { weekday: "long" });
 const weekdayShort = new Intl.DateTimeFormat("en-AU", { weekday: "short" });
+const monthShort = new Intl.DateTimeFormat("en-AU", { month: "short" });
 const dateLong = new Intl.DateTimeFormat("en-AU", {
   weekday: "long",
   day: "numeric",
@@ -32,6 +33,11 @@ export function formatWeekday(date: string, style: "long" | "short" = "long") {
   return (style === "long" ? weekdayLong : weekdayShort).format(
     parseLessonDate(date),
   );
+}
+
+/** Short month of a postgres DATE (YYYY-MM-DD): "Oct", "Sept". */
+export function formatMonthShort(date: string) {
+  return monthShort.format(parseLessonDate(date));
 }
 
 export function formatTime(t: string) {

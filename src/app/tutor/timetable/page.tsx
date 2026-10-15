@@ -7,7 +7,13 @@ import { db } from "@/db/client";
 import { classes, lessons, subjects, tutorCoverRequests } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateLong, formatTime, formatTimeRange, formatWeekday } from "@/lib/format";
+import {
+  formatDateLong,
+  formatMonthShort,
+  formatTime,
+  formatTimeRange,
+  formatWeekday,
+} from "@/lib/format";
 import { weeklyWindowsByDay } from "@/lib/availability-windows";
 import { subjectTone } from "@/lib/subject-tone";
 import { getTutorAbsenceLessonOptions } from "@/lib/tutor-cover";
@@ -231,6 +237,7 @@ export default async function TutorTimetablePage({
     id: lesson.id,
     weekday: formatWeekday(lesson.date, "short").toUpperCase(),
     day: String(Number(lesson.date.slice(8, 10))),
+    month: formatMonthShort(lesson.date).toUpperCase(),
     name: classDisplayName(lesson.subjectName, lesson.className),
     subjectName: lesson.subjectName,
     time: formatTimeRange(lesson.startTime, lesson.endTime),
