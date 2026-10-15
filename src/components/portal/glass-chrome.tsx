@@ -1,29 +1,52 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogOut } from "lucide-react";
-import { ToriiMark } from "@/components/brand/wordmark";
+import taiyoLogo from "@/components/brand/taiyo-logo.png";
+import taiyoTorii from "@/components/brand/taiyo-torii.png";
 import { signOutAction } from "@/app/auth/actions";
 
 // Brand mark and signed-in person row of the glass portal sidebar, shared by
 // every role that uses GlassPortalShell.
 
-export function GlassBrandMark({ href }: { href: string }) {
+/**
+ * The 2025 Taiyo logo (torii gate, TAIYO and TUITION) on the glass, with no
+ * tile behind it. Baked from the logo PSD with its blue background removed:
+ * the gate keeps the blue it takes from that background. The collapsed rail
+ * is too narrow for the lettering, so it shows the gate alone. `header` is
+ * the phone header's shorter version.
+ */
+export function GlassBrandMark({
+  href,
+  variant = "sidebar",
+}: {
+  href: string;
+  variant?: "sidebar" | "header";
+}) {
+  const width = variant === "header" ? 66 : 150;
   return (
     <Link
       href={href}
       aria-label="Taiyo Tuition home"
-      className="flex items-center gap-2.5 rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      className="flex items-center rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
     >
-      {/* The mark asset is navy; brightness-0 + invert turns it white on ink. */}
-      <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] bg-ink [&_img]:brightness-0 [&_img]:invert">
-        <ToriiMark width={22} />
-      </span>
-      <span className="portal-brand-text flex flex-col leading-[1.1]">
-        <span className="text-[15px] font-extrabold text-ink">Taiyo</span>
-        <span className="text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-          Tuition
-        </span>
-      </span>
+      <Image
+        src={taiyoLogo}
+        alt=""
+        width={width}
+        height={Math.round((width * taiyoLogo.height) / taiyoLogo.width)}
+        priority
+        className="portal-brand-text"
+      />
+      <Image
+        src={taiyoTorii}
+        alt=""
+        width={44}
+        height={Math.round((44 * taiyoTorii.height) / taiyoTorii.width)}
+        // Starts hidden, so a lazy image would not load until the rail collapses.
+        loading="eager"
+        className="portal-brand-mark hidden"
+      />
     </Link>
   );
 }
@@ -115,7 +138,7 @@ export function GlassMobileHeader({
   return (
     <header className="glass sticky top-0 z-40 rounded-b-[20px] border-t-0 lg:hidden">
       <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-5">
-        <GlassBrandMark href={brandHref} />
+        <GlassBrandMark href={brandHref} variant="header" />
         <div className="flex items-center gap-1.5">
           {search}
           {extra}

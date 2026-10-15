@@ -537,6 +537,13 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Sidebar logo is the 2025 Taiyo logo (15 October 2026, owner request), for every role on the glass shell (admin, tutor, student).
+  `GlassBrandMark` (`src/components/portal/glass-chrome.tsx`) shows `src/components/brand/taiyo-logo.png` (torii, TAIYO, TUITION) with no tile or background; the collapsed rail shows `taiyo-torii.png` (the gate alone); the phone header uses a smaller copy of the full logo.
+  The assets were baked from `2025_Taiyo_Logo_MAIN_BLUE.psd`: the gate is a red layer in Luminosity mode over the blue background plus a Curves layer, so its blue was reproduced (Photoshop luminosity blend, then the curve) before removing the background; the lettering keeps its navy stroke and a rebuilt drop shadow.
+  The logo fonts are BubbleGum (TAIYO) and Gotham Bold (TUITION); the portal UI uses Figtree (glass portals) and Nunito Sans (login, parent portal).
+  Checked on :3004 for student and tutor: expanded, collapsed and phone. Admin uses the same component but was not opened (expired dev session).
+  The parent portal (old shell), login and landing pages still use the navy SVG torii (`ToriiMark`).
+
 - [x] Student (shipped 15 October 2026): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
   Removed: the overall summary line ("8 topics tracked · 1 mastered ..."), each subject's "4 topics · focus: ..." line, the tiles' sub-text ("homework and quizzes"), and the Submitted and Pending tiles; Mastery and Average score remain.
   A term picker beside the Progress title (`?term=`, left out for the term running today) offers terms that have started since the student's first enrolment, newest first.
