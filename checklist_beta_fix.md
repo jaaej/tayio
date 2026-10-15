@@ -195,10 +195,10 @@ Last updated: 13 October 2026
 - [ ] In Admin Users, confirm `Add internal note`, saved notes, and the open
   note editor have clear spacing below the user's name and related details on
   desktop and mobile.
-- [ ] Confirm login and all four role portals render with Nunito Sans across
+- [ ] Confirm login and all four role portals render with Satoshi across
   headings, navigation, controls, tables, and body copy on desktop and mobile.
-  The global font is loaded through `next/font` in `src/app/layout.tsx` and the
-  shared font tokens in `src/app/globals.css`.
+  The font is self-hosted through `next/font/local` in `src/app/layout.tsx` and
+  the shared font tokens in `src/app/globals.css` (Satoshi since 15 October 2026).
 - [ ] Confirm the student timetable and parent class schedule use the shared
   frosted-glass calendar treatment on desktop and mobile. Month controls, the
   calendar frame, day panes, today state, lesson chips, and reschedule menus
@@ -553,7 +553,7 @@ Last updated: 13 October 2026
 - [x] Sidebar logo (15 October 2026, owner request), for every role on the glass shell (admin, tutor, student): the torii gate mark (`/brand/taiyo-mark.svg`, the 太陽 gate) in its own colours with no tile behind it, and "Taiyo / Tuition" set beside it (`GlassBrandMark`, `src/components/portal/glass-chrome.tsx`).
   The collapsed rail shows the gate alone; the phone header shows the same gate and name.
   A first attempt that day used the full 2025 lettered logo baked from its PSD; the owner rejected it (the lettering inside the gate was unreadable at sidebar size), and the baked PNGs were removed.
-  The portal UI fonts are Figtree (glass portals) and Nunito Sans (sign-in pages, parent portal); the 2025 logo's lettering is BubbleGum and Gotham Bold.
+  The portal font is Satoshi (see the Satoshi entry); the 2025 logo's lettering is BubbleGum and Gotham Bold.
   Checked on :3004 as a student: expanded, collapsed and phone.
 
 - [x] Student (shipped 15 October 2026): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
