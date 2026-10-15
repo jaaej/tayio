@@ -537,6 +537,10 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Notification inbox in date order for every role (15 October 2026, owner request): Today, This week and Earlier, newest first, with every kind together; Messages and Action needed are no longer pinned above newer rows.
+  Each row still names its kind and the filter pills still narrow to one kind (`notificationSections` in `src/lib/notification-groups.ts`, tested). The CLAUDE.md inbox rule was updated to match.
+  Checked on :3004 for admin, tutor, student and parent at desktop and phone width: newest first, no errors.
+
 - [x] Tutor "Hours & time away" > One class (15 October 2026, owner request): each class row's date tile now shows the month under the day (SUN / 18 / OCT), since the list runs across months (`formatMonthShort` in `src/lib/format.ts`, tested; `src/app/tutor/timetable`). Checked on :3004 as a tutor at desktop and phone width.
 
 - [x] Satoshi is the font of every portal and the sign-in pages (15 October 2026, owner request), replacing Figtree (glass portals) and Nunito Sans (sign-in, parent).

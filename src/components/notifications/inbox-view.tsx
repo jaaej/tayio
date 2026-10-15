@@ -75,10 +75,10 @@ const ITEM_LABEL = Object.fromEntries(
 /**
  * Shared notification inbox for all four portals.
  *
- * One list: direct messages and action items each under their own divider at
- * the top, then everything else under Today, This week and Earlier; each
- * section is newest first and every row names its kind. The filter pills
- * narrow the list (unread, urgent, one kind) without changing that order.
+ * One list in date order under Today, This week and Earlier, newest first,
+ * every kind together; each row names its kind ("Message", "Action needed").
+ * The filter pills narrow the list (unread, urgent, one kind) without
+ * changing that order.
  *
  * Filtering is client-side: every row is already in the payload, so a pill tap
  * is instant and costs no extra query.

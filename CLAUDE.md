@@ -35,7 +35,7 @@ These apply to every agent working in this repo, ahead of everything below.
 
 - All four roles must use the shared notification inbox at `src/components/notifications/inbox-page.tsx`.
 - Do not create or restore role-specific notification inbox layouts.
-- Direct messages and action-needed notifications must have their own labelled dividers and must appear before announcements and general updates.
+- The inbox lists notifications in date order (Today, This week, Earlier; newest first), every kind together. Each row names its kind (Message, Action needed, Learning, Announcement, Update), and the filter pills narrow the list to one kind. (Owner decision, 15 October 2026; this replaced pinning direct messages and action-needed items above everything else.)
 - New notification types must be classified in `src/lib/notification-groups.ts` and covered by its unit tests.
 - A notification UI change is incomplete until its behaviour and styling are checked across admin, tutor, student, and parent routes.
 

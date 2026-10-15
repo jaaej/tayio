@@ -218,36 +218,33 @@ describe("notificationSections", () => {
     when,
   });
 
-  it("puts messages and action items above everything else, then splits the rest by time", () => {
-    // Newest-first input where the passive rows happen to be the newest.
+  it("orders every kind by date: Today, This week, Earlier", () => {
+    // Newest-first input, as the inbox query returns it.
     const sections = notificationSections([
       row("u1", "updates", "today"),
+      row("x2", "action", "today"),
       row("a1", "announcements", "week"),
+      row("m1", "messages", "week"),
       row("x1", "action", "earlier"),
       row("l1", "learning", "earlier"),
-      row("m1", "messages", "week"),
-      row("x2", "action", "today"),
     ]);
     expect(sections.map((s) => [s.key, s.label, s.items.map((i) => i.id)])).toEqual([
-      ["messages", "Messages", ["m1"]],
-      ["action", "Action needed", ["x1", "x2"]],
-      ["today", "Today", ["u1"]],
-      ["week", "This week", ["a1"]],
-      ["earlier", "Earlier", ["l1"]],
+      ["today", "Today", ["u1", "x2"]],
+      ["week", "This week", ["a1", "m1"]],
+      ["earlier", "Earlier", ["x1", "l1"]],
     ]);
   });
 
-  it("keeps the incoming order inside a section and drops empty sections", () => {
+  it("does not lift messages or action items above newer rows", () => {
     const sections = notificationSections([
-      row("x2", "action"),
-      row("u1", "updates", "earlier"),
-      row("x1", "action"),
+      row("u1", "updates", "today"),
+      row("m1", "messages", "earlier"),
     ]);
-    expect(sections.map((s) => s.key)).toEqual(["action", "earlier"]);
-    expect(sections[0].items.map((i) => i.id)).toEqual(["x2", "x1"]);
+    expect(sections.map((s) => s.items.map((i) => i.id))).toEqual([["u1"], ["m1"]]);
   });
 
-  it("returns no sections for an empty inbox", () => {
+  it("drops empty sections and returns none for an empty inbox", () => {
+    expect(notificationSections([row("x", "action", "week")]).map((s) => s.key)).toEqual(["week"]);
     expect(notificationSections([])).toEqual([]);
   });
 });

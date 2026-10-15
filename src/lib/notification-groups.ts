@@ -116,7 +116,6 @@ export function notificationWhen(createdAt: Date, now: Date = new Date()): Notif
   return day >= monday ? "week" : "earlier";
 }
 
-export type NotificationSectionKey = "messages" | "action" | NotificationWhen;
 
 const WHEN_LABEL: Record<NotificationWhen, string> = {
   today: "Today",
@@ -125,21 +124,15 @@ const WHEN_LABEL: Record<NotificationWhen, string> = {
 };
 
 /**
- * The inbox's sections: direct messages, then action items, each under its
- * own divider, so they always sit above announcements and general updates;
- * everything else follows under Today, This week and Earlier. Each section
- * keeps the incoming (newest-first) order; empty sections are dropped.
+ * The inbox's sections, in date order: Today, This week and Earlier, every
+ * kind together, newest first within each (the incoming order). Each row
+ * names its kind and the filter pills narrow to one kind. Empty sections are
+ * dropped.
  */
-export function notificationSections<
-  T extends { group: NotificationGroupKey; when: NotificationWhen },
->(items: T[]): Array<{ key: NotificationSectionKey; label: string; items: T[] }> {
-  const sections: Array<{ key: NotificationSectionKey; label: string; items: T[] }> = [
-    { key: "messages", label: "Messages", items: items.filter((i) => i.group === "messages") },
-    { key: "action", label: "Action needed", items: items.filter((i) => i.group === "action") },
-  ];
-  const rest = items.filter((i) => i.group !== "messages" && i.group !== "action");
-  for (const when of ["today", "week", "earlier"] as const) {
-    sections.push({ key: when, label: WHEN_LABEL[when], items: rest.filter((i) => i.when === when) });
-  }
-  return sections.filter((section) => section.items.length > 0);
+export function notificationSections<T extends { when: NotificationWhen }>(
+  items: T[],
+): Array<{ key: NotificationWhen; label: string; items: T[] }> {
+  return (["today", "week", "earlier"] as const)
+    .map((when) => ({ key: when, label: WHEN_LABEL[when], items: items.filter((i) => i.when === when) }))
+    .filter((section) => section.items.length > 0);
 }
