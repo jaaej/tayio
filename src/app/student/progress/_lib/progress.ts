@@ -1,8 +1,7 @@
 /**
- * Pure helpers for the student Progress split view: the overall summary in
- * the list pane, each subject's focus topic, the homework counts and the
- * merged "Recent marks" list. Kept free of the database so they are unit
- * tested.
+ * Pure helpers for the student Progress split view: overall mastery, the
+ * term picker, issued reports and the merged "Recent marks" list. Kept free
+ * of the database so they are unit tested.
  */
 
 export type Mastery = "not_started" | "needs_work" | "improving" | "strong";
@@ -19,40 +18,106 @@ export const MASTERY_ORDER: Mastery[] = ["strong", "improving", "needs_work", "n
 
 type Topic = { topic: string; mastery: Mastery };
 
-/** A topic the student should work on: needs effort, or not started yet. */
-export function isFocusTopic(t: { mastery: Mastery }): boolean {
-  return t.mastery === "needs_work" || t.mastery === "not_started";
+/**
+ * Overall mastery across subjects that have tracked topics (a subject with
+ * no topics yet is not a 0%). Null when nothing is tracked anywhere.
+ */
+export function overallMastery(
+  subjects: Array<{ masteryPercent: number; topics: Topic[] }>,
+): number | null {
+  const tracked = subjects.filter((s) => s.topics.length > 0);
+  if (tracked.length === 0) return null;
+  return Math.round(tracked.reduce((sum, s) => sum + s.masteryPercent, 0) / tracked.length);
+}
+
+export type ProgressTerm = {
+  id: string;
+  label: string;
+  /** Melbourne dates, YYYY-MM-DD. */
+  startDate: string;
+  endDate: string;
+  /**
+   * The days whose work counts towards the term: from its start (null for
+   * the student's first term, which also takes anything earlier) until the
+   * day before the next term starts (null when no later term exists), so
+   * work due in the holidays still lands in a term.
+   */
+  coversFrom: string | null;
+  coversUntil: string | null;
+};
+
+function dayBefore(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
 }
 
 /**
- * Overall mastery across subjects that have tracked topics (a subject with
- * no topics yet is not a 0%), plus topic counts. `percent` is null when
- * nothing is tracked anywhere.
+ * The terms the picker offers: started by today and not over before the
+ * student's first enrolment, newest first. Dates are Melbourne YYYY-MM-DD.
  */
-export function overallSummary(
-  subjects: Array<{ masteryPercent: number; topics: Topic[] }>,
-): { percent: number | null; topics: number; strong: number; improving: number; focus: number } {
-  const tracked = subjects.filter((s) => s.topics.length > 0);
-  const topics = tracked.flatMap((s) => s.topics);
-  return {
-    percent:
-      tracked.length === 0
-        ? null
-        : Math.round(tracked.reduce((sum, s) => sum + s.masteryPercent, 0) / tracked.length),
-    topics: topics.length,
-    strong: topics.filter((t) => t.mastery === "strong").length,
-    improving: topics.filter((t) => t.mastery === "improving").length,
-    focus: topics.filter(isFocusTopic).length,
-  };
+export function progressTerms(
+  terms: Array<{ id: string; year: number; termNumber: number; startDate: string; endDate: string }>,
+  firstEnrolledOn: string | null,
+  today: string,
+): ProgressTerm[] {
+  const all = [...terms].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const offered = all.filter(
+    (t) => t.startDate <= today && (!firstEnrolledOn || t.endDate >= firstEnrolledOn),
+  );
+  return offered
+    .map((t, i) => {
+      const next = all.find((n) => n.startDate > t.startDate);
+      return {
+        id: t.id,
+        label: `Term ${t.termNumber} · ${t.year}`,
+        startDate: t.startDate,
+        endDate: t.endDate,
+        coversFrom: i === 0 ? null : t.startDate,
+        coversUntil: next ? dayBefore(next.startDate) : null,
+      };
+    })
+    .reverse();
 }
 
-/** The first topic that needs effort (needs work before not started). */
-export function focusTopic(topics: Topic[]): string | null {
+/**
+ * The term to show: the one asked for if it is on offer, else the term
+ * running today, else the latest one. Null when there are no terms.
+ */
+export function pickTerm(
+  terms: ProgressTerm[],
+  requested: string | null | undefined,
+  today: string,
+): ProgressTerm | null {
   return (
-    topics.find((t) => t.mastery === "needs_work")?.topic ??
-    topics.find((t) => t.mastery === "not_started")?.topic ??
+    terms.find((t) => t.id === requested) ??
+    terms.find((t) => t.startDate <= today && today <= t.endDate) ??
+    terms[0] ??
     null
   );
+}
+
+/** Whether a Melbourne date (YYYY-MM-DD) counts towards the term. */
+export function inTerm(
+  day: string,
+  term: { coversFrom: string | null; coversUntil: string | null },
+): boolean {
+  return (!term.coversFrom || term.coversFrom <= day) && (!term.coversUntil || day <= term.coversUntil);
+}
+
+/**
+ * The terms whose report was issued to this student, from the hrefs of the
+ * "Term report ready" notifications they received (`/reports/<student>/<term>`),
+ * once each, in the order given.
+ */
+export function issuedReportTermIds(hrefs: Array<string | null>, studentId: string): string[] {
+  const prefix = `/reports/${studentId}/`;
+  const ids: string[] = [];
+  for (const href of hrefs) {
+    if (!href?.startsWith(prefix)) continue;
+    const id = href.slice(prefix.length).split(/[/?#]/)[0];
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
 }
 
 type HomeworkStatus =
@@ -63,23 +128,6 @@ type HomeworkStatus =
   | "marked"
   | "returned"
   | "resubmission_requested";
-
-/** Handed in (waiting or marked) vs still to do (incl. a requested redo). */
-export function homeworkCounts(rows: Array<{ status: HomeworkStatus }>): {
-  submitted: number;
-  pending: number;
-} {
-  let submitted = 0;
-  let pending = 0;
-  for (const { status } of rows) {
-    if (status === "submitted" || status === "late" || status === "marked" || status === "returned") {
-      submitted += 1;
-    } else {
-      pending += 1;
-    }
-  }
-  return { submitted, pending };
-}
 
 /** Marked homework: a score and a marked/returned status. */
 export function isMarkedHomework(h: { status: HomeworkStatus; score: string | null }): boolean {

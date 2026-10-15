@@ -593,12 +593,18 @@ export async function getStudentTestRank(
  * Overall rank within a subject - averages each student's marked test scores
  * (only is_test = true homework rows) and ranks by average descending.
  * Cohort = students with at least one marked test in this subject across any
- * class. Returns null if the student has no marked tests in the subject yet.
+ * class. With `term`, only tests due on the Melbourne days it covers count
+ * (either bound may be open). Returns null if the student has no marked
+ * tests in the subject yet.
  */
 export async function getStudentOverallSubjectRank(
   studentId: string,
   subjectId: string,
+  term?: { coversFrom: string | null; coversUntil: string | null },
 ): Promise<{ rank: number; total: number } | null> {
+  const dueDay = sql`(${homework.dueDate} at time zone 'Australia/Melbourne')::date`;
+  const inTerm = sql`${term?.coversFrom ? sql`and ${dueDay} >= ${term.coversFrom}::date` : sql``}
+        ${term?.coversUntil ? sql`and ${dueDay} <= ${term.coversUntil}::date` : sql``}`;
   const rows = await db.execute<{ rnk: number; total: number }>(sql`
     with test_scores as (
       select
@@ -610,6 +616,7 @@ export async function getStudentOverallSubjectRank(
       where ${classes.subjectId} = ${subjectId}
         and ${homework.isTest} = true
         and ${homeworkAssignments.score} is not null
+        ${inTerm}
       group by ${homeworkAssignments.studentId}
     ),
     ranked as (

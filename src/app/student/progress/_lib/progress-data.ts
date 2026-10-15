@@ -1,9 +1,17 @@
 import "server-only";
 import { cache } from "react";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, like, min } from "drizzle-orm";
 import { db } from "@/db/client";
-import { quizAttempts, quizzes } from "@/db/schema";
-import { averageScore, scoreAverageBasis } from "@/lib/score-average";
+import {
+  enrollments,
+  notifications,
+  quizAttempts,
+  quizzes,
+  subjectWeeks,
+  terms,
+} from "@/db/schema";
+import { melbourneDayKey } from "@/lib/format";
+import { averageScore } from "@/lib/score-average";
 import {
   MASTERY_PERCENT,
   getStudentOverallSubjectRank,
@@ -11,13 +19,16 @@ import {
   getStudentProgressSubjectDetail,
 } from "../../_lib/queries";
 import {
-  focusTopic,
-  homeworkCounts,
+  inTerm,
   isMarkedHomework,
+  issuedReportTermIds,
   latestQuizResults,
-  overallSummary,
+  overallMastery,
+  pickTerm,
+  progressTerms,
   recentMarks,
   type Mastery,
+  type ProgressTerm,
   type RecentMark,
 } from "./progress";
 
@@ -26,31 +37,101 @@ export type ProgressPaneSubject = {
   subjectName: string;
   masteryPercent: number;
   topicCount: number;
-  focus: string | null;
 };
 
+export type ProgressReport = { termId: string; label: string; href: string };
+
 export type ProgressPaneData = {
-  overall: ReturnType<typeof overallSummary>;
+  overall: number | null;
   subjects: ProgressPaneSubject[];
+  terms: ProgressTerm[];
+  /** The term shown when the URL names none (the term running today). */
+  defaultTermId: string | null;
+  /** Issued term reports, newest term first; null when the student may not
+   *  open their own reports (parental access: reports go to the parent). */
+  reports: ProgressReport[] | null;
 };
 
 /**
- * The list pane: overall mastery and one row per enrolled subject. Cached
- * per request, since the layout and the index page both need it.
+ * The terms this student can look back on, with all term rows for labelling
+ * reports. Cached per request: the layout and the page both need it.
  */
-export const getProgressPane = cache(async (studentId: string): Promise<ProgressPaneData> => {
-  const subjects = await getStudentProgressBySubject(studentId);
-  return {
-    overall: overallSummary(subjects),
-    subjects: subjects.map((s) => ({
-      subjectId: s.subjectId,
-      subjectName: s.subjectName,
-      masteryPercent: s.masteryPercent,
-      topicCount: s.topics.length,
-      focus: focusTopic(s.topics),
-    })),
-  };
+const getStudentTerms = cache(async (studentId: string) => {
+  const [termRows, [first]] = await Promise.all([
+    db
+      .select({
+        id: terms.id,
+        year: terms.year,
+        termNumber: terms.termNumber,
+        startDate: terms.startDate,
+        endDate: terms.endDate,
+      })
+      .from(terms),
+    db
+      .select({ at: min(enrollments.enrolledAt) })
+      .from(enrollments)
+      .where(eq(enrollments.studentId, studentId)),
+  ]);
+  const today = melbourneDayKey(new Date());
+  const firstEnrolledOn = first?.at ? melbourneDayKey(new Date(first.at)) : null;
+  return { termRows, today, offered: progressTerms(termRows, firstEnrolledOn, today) };
 });
+
+/** Reports issued to this student ("Term report ready" notifications). */
+async function getIssuedReports(
+  studentId: string,
+  termRows: Array<{ id: string; year: number; termNumber: number; startDate: string }>,
+): Promise<ProgressReport[]> {
+  const rows = await db
+    .select({ href: notifications.href })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, studentId),
+        like(notifications.href, `/reports/${studentId}/%`),
+      ),
+    )
+    .orderBy(desc(notifications.createdAt));
+  const byId = new Map(termRows.map((t) => [t.id, t]));
+  return issuedReportTermIds(
+    rows.map((r) => r.href),
+    studentId,
+  )
+    .map((id) => byId.get(id))
+    .filter((t): t is NonNullable<typeof t> => Boolean(t))
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+    .map((t) => ({
+      termId: t.id,
+      label: `Term ${t.termNumber} · ${t.year}`,
+      href: `/reports/${studentId}/${t.id}`,
+    }));
+}
+
+/**
+ * The list pane: overall mastery, one row per enrolled subject, the term
+ * picker's options and the student's reports. Cached per request, since the
+ * layout and the index page both need it.
+ */
+export const getProgressPane = cache(
+  async (studentId: string, canOpenReports: boolean): Promise<ProgressPaneData> => {
+    const [subjects, { termRows, today, offered }] = await Promise.all([
+      getStudentProgressBySubject(studentId),
+      getStudentTerms(studentId),
+    ]);
+    return {
+      overall: overallMastery(subjects),
+      subjects: subjects.map((s) => ({
+        subjectId: s.subjectId,
+        subjectName: s.subjectName,
+        masteryPercent: s.masteryPercent,
+        topicCount: s.topics.length,
+      })),
+      terms: offered,
+      defaultTermId: pickTerm(offered, null, today)?.id ?? null,
+      reports: canOpenReports ? await getIssuedReports(studentId, termRows) : null,
+    };
+  },
+);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,29 +141,35 @@ export type ProgressDetail = {
   yearLevel: string | null;
   masteryPercent: number;
   rank: { rank: number; total: number } | null;
-  average: { percent: number | null; basis: string };
-  submitted: number;
-  pending: number;
+  averagePercent: number | null;
   topics: Array<{ topic: string; mastery: Mastery; percent: number }>;
   marks: RecentMark[];
 };
 
 /**
- * One subject's progress, or null when the student is not enrolled in it
- * (getStudentProgressSubjectDetail checks the enrolment first, so a guessed
- * subject id 404s instead of leaking anything).
+ * One subject's progress in a term, or null when the student is not
+ * enrolled in it (getStudentProgressSubjectDetail checks the enrolment
+ * first, so a guessed subject id 404s instead of leaking anything).
+ * Marks, the average and the test rank cover the chosen term (homework by
+ * due date, quizzes by their curriculum week); topic mastery has no term
+ * history, so it is always the current level.
  */
 export async function getProgressDetail(
   studentId: string,
   subjectId: string,
+  termId: string | null | undefined,
 ): Promise<ProgressDetail | null> {
   // A malformed id would make Postgres throw on the uuid cast; it is a 404.
   if (!UUID.test(subjectId)) return null;
-  const detail = await getStudentProgressSubjectDetail(studentId, subjectId);
+  const [detail, { today, offered }] = await Promise.all([
+    getStudentProgressSubjectDetail(studentId, subjectId),
+    getStudentTerms(studentId),
+  ]);
   if (!detail) return null;
+  const term = pickTerm(offered, termId, today);
 
   const [rank, attemptRows] = await Promise.all([
-    getStudentOverallSubjectRank(studentId, subjectId),
+    getStudentOverallSubjectRank(studentId, subjectId, term ?? undefined),
     db
       .select({
         quizId: quizAttempts.quizId,
@@ -93,15 +180,24 @@ export async function getProgressDetail(
       })
       .from(quizAttempts)
       .innerJoin(quizzes, eq(quizzes.id, quizAttempts.quizId))
-      .where(and(eq(quizAttempts.studentId, studentId), eq(quizzes.subjectId, subjectId))),
+      .innerJoin(subjectWeeks, eq(subjectWeeks.id, quizzes.subjectWeekId))
+      .where(
+        and(
+          eq(quizAttempts.studentId, studentId),
+          eq(quizzes.subjectId, subjectId),
+          term ? eq(subjectWeeks.termId, term.id) : undefined,
+        ),
+      ),
   ]);
 
+  const homework = term
+    ? detail.homework.filter((h) => inTerm(melbourneDayKey(h.dueDate), term))
+    : detail.homework;
   const quizResults = latestQuizResults(attemptRows);
   const avg = averageScore(
-    detail.homework.filter(isMarkedHomework).map((h) => h.score),
+    homework.filter(isMarkedHomework).map((h) => h.score),
     quizResults,
   );
-  const counts = homeworkCounts(detail.homework);
 
   return {
     subjectId: detail.subjectId,
@@ -109,10 +205,8 @@ export async function getProgressDetail(
     yearLevel: detail.yearLevel,
     masteryPercent: detail.masteryPercent,
     rank,
-    average: { percent: avg.percent, basis: scoreAverageBasis(avg) },
-    submitted: counts.submitted,
-    pending: counts.pending,
+    averagePercent: avg.percent,
     topics: detail.topics.map((t) => ({ ...t, percent: MASTERY_PERCENT[t.mastery] })),
-    marks: recentMarks(detail.homework, quizResults),
+    marks: recentMarks(homework, quizResults),
   };
 }

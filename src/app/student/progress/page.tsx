@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { isUnrestrictedStudent } from "@/lib/roles";
 import { ProgressDetailPane, ProgressRestingPane } from "./_components/progress-detail";
 import { getProgressDetail, getProgressPane } from "./_lib/progress-data";
 
@@ -10,13 +12,20 @@ export const dynamic = "force-dynamic";
  * screens open the first subject beside it, which the list marks as
  * selected, so the page never rests on an empty pane.
  */
-export default async function StudentProgressPage() {
+export default async function StudentProgressPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ term?: string }>;
+}) {
   const user = await requireRole("student");
-  const { subjects } = await getProgressPane(user.id);
+  const [{ term }, { subjects }] = await Promise.all([
+    searchParams,
+    getProgressPane(user.id, isUnrestrictedStudent(user.app_metadata?.role as UserRole | undefined)),
+  ]);
   const first = subjects[0];
   if (!first) return <ProgressRestingPane />;
 
-  const detail = await getProgressDetail(user.id, first.subjectId);
+  const detail = await getProgressDetail(user.id, first.subjectId, term);
   if (!detail) notFound();
-  return <ProgressDetailPane detail={detail} desktopOnly />;
+  return <ProgressDetailPane detail={detail} backHref={term ? `/student/progress?term=${encodeURIComponent(term)}` : undefined} desktopOnly />;
 }

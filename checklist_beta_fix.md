@@ -537,6 +537,17 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Student (branch `student-handoff`): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
+  Removed: the overall summary line ("8 topics tracked · 1 mastered ..."), each subject's "4 topics · focus: ..." line, the tiles' sub-text ("homework and quizzes"), and the Submitted and Pending tiles; Mastery and Average score remain.
+  A term picker beside the Progress title (`?term=`, left out for the term running today) offers terms that have started since the student's first enrolment, newest first.
+  The chosen term drives the average score, the test rank and Recent marks: homework by due date, quizzes by their curriculum week.
+  Each term covers the days up to the next term's start, and the student's first term also takes anything earlier, so holiday work still counts (`progressTerms`, `inTerm` in `progress/_lib/progress.ts`, tested; `getStudentOverallSubjectRank` takes an optional term).
+  Topic mastery has no term history in the schema, so it always shows the current level.
+  Reports lists the term reports an admin issued to the student (read from their "Term report ready" notifications), each downloading the PDF.
+  Parental-access students see "Your term reports go to your parent.", matching the report route, which only lets unrestricted students open their own.
+  Verified on :3004 for both student types at desktop and phone width; dev has two terms and no issued reports, so switching between two offered terms and a listed report were not seen in the browser.
+  Follow-ups: reports are not stored, so a deleted notification hides its report from this list; the parent portal has no reports list yet.
+
 - [x] Tutor Students tab removed (15 October 2026, owner request): students are reached from each class's Students tab, so the separate list duplicated the class page.
   The Students menu item and the `/tutor/students` split-view list are gone; `/tutor/students` and `/tutor/notes` now redirect to `/tutor/classes`.
   Student profiles stay at `/tutor/students/[id]`: they are linked from the class roster, Marking, lessons, Today, discussions and messages, and now open full width with Classes highlighted in the menu.

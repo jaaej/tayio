@@ -17,33 +17,25 @@ const LEVEL: Record<Mastery, { c: string; bg: string; fg: string }> = {
 const LEGEND: Mastery[] = ["strong", "improving", "needs_work"];
 
 /**
- * Right pane of the progress split view: subject title with the test rank,
- * four fact tiles, topic bars with effort labels and the latest marks.
+ * Right pane of the progress split view: subject title with the term's test
+ * rank, mastery and the term's average score, topic bars with effort labels
+ * and the term's latest marks.
  */
 export function ProgressDetailPane({
   detail,
+  backHref = "/student/progress",
   desktopOnly = false,
 }: {
   detail: ProgressDetail;
+  /** The list on phones, keeping the chosen term. */
+  backHref?: string;
   /** The index page's default subject: phones show the list instead. */
   desktopOnly?: boolean;
 }) {
   const tracked = detail.topics.length > 0;
   const facts = [
-    {
-      k: "Mastery",
-      v: tracked ? `${detail.masteryPercent}%` : "-",
-      sub: tracked
-        ? `${detail.topics.length} ${detail.topics.length === 1 ? "topic" : "topics"} tracked`
-        : "no topics yet",
-    },
-    {
-      k: "Average score",
-      v: detail.average.percent === null ? "-" : `${detail.average.percent}%`,
-      sub: detail.average.percent === null ? "nothing marked yet" : "homework and quizzes",
-    },
-    { k: "Submitted", v: String(detail.submitted), sub: "handed in" },
-    { k: "Pending", v: String(detail.pending), sub: "to do" },
+    { k: "Mastery", v: tracked ? `${detail.masteryPercent}%` : "-" },
+    { k: "Average score", v: detail.averagePercent === null ? "-" : `${detail.averagePercent}%` },
   ];
 
   return (
@@ -57,7 +49,7 @@ export function ProgressDetailPane({
       <div className="flex flex-wrap items-center justify-between gap-3 pb-2 pl-3.5 pr-2.5 pt-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href="/student/progress"
+            href={backHref}
             aria-label="All subjects"
             title="All subjects"
             className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-white/95 bg-white/65 text-[#17152B] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 xl:hidden"
@@ -83,12 +75,11 @@ export function ProgressDetailPane({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1.5">
         {facts.map((f) => (
           <div key={f.k} className="panel flex flex-col gap-0.5 px-3.5 py-3">
             <span className="text-[12px] font-bold text-[#5E5A73]">{f.k}</span>
-            <span className="text-[18px] font-extrabold tabular-nums text-[#17152B]">{f.v}</span>
-            <span className="text-[12px] text-[#5E5A73]">{f.sub}</span>
+            <span className="text-[22px] font-extrabold tabular-nums text-[#17152B]">{f.v}</span>
           </div>
         ))}
       </div>

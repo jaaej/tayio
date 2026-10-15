@@ -1,68 +1,107 @@
 import { describe, expect, it } from "vitest";
 import {
-  focusTopic,
-  homeworkCounts,
+  inTerm,
+  issuedReportTermIds,
   latestQuizResults,
-  overallSummary,
+  overallMastery,
+  pickTerm,
+  progressTerms,
   recentMarks,
 } from "./progress";
 
-describe("overallSummary", () => {
-  it("averages only subjects with tracked topics and counts topic levels", () => {
-    const summary = overallSummary([
-      {
-        masteryPercent: 80,
-        topics: [
-          { topic: "A", mastery: "strong" },
-          { topic: "B", mastery: "improving" },
-        ],
-      },
-      {
-        masteryPercent: 30,
-        topics: [
-          { topic: "C", mastery: "needs_work" },
-          { topic: "D", mastery: "not_started" },
-        ],
-      },
-      { masteryPercent: 0, topics: [] },
-    ]);
-    expect(summary).toEqual({ percent: 55, topics: 4, strong: 1, improving: 1, focus: 2 });
+describe("overallMastery", () => {
+  it("averages only subjects with tracked topics", () => {
+    expect(
+      overallMastery([
+        { masteryPercent: 80, topics: [{ topic: "A", mastery: "strong" }] },
+        { masteryPercent: 30, topics: [{ topic: "C", mastery: "needs_work" }] },
+        { masteryPercent: 0, topics: [] },
+      ]),
+    ).toBe(55);
   });
 
   it("is null when nothing is tracked", () => {
-    expect(overallSummary([{ masteryPercent: 0, topics: [] }]).percent).toBeNull();
-    expect(overallSummary([]).percent).toBeNull();
+    expect(overallMastery([{ masteryPercent: 0, topics: [] }])).toBeNull();
+    expect(overallMastery([])).toBeNull();
   });
 });
 
-describe("focusTopic", () => {
-  it("prefers a topic that needs work over one not started", () => {
-    expect(
-      focusTopic([
-        { topic: "Angles", mastery: "not_started" },
-        { topic: "Elimination", mastery: "needs_work" },
-      ]),
-    ).toBe("Elimination");
+describe("progressTerms", () => {
+  const rows = [
+    { id: "t1", year: 2026, termNumber: 1, startDate: "2026-01-27", endDate: "2026-04-02" },
+    { id: "t3", year: 2026, termNumber: 3, startDate: "2026-07-13", endDate: "2026-09-18" },
+    { id: "t2", year: 2026, termNumber: 2, startDate: "2026-04-20", endDate: "2026-06-26" },
+    { id: "t4", year: 2026, termNumber: 4, startDate: "2026-10-05", endDate: "2026-12-18" },
+  ];
+
+  it("offers started terms since the first enrolment, newest first", () => {
+    expect(progressTerms(rows, "2026-05-01", "2026-09-01").map((t) => [t.id, t.label])).toEqual([
+      ["t3", "Term 3 · 2026"],
+      ["t2", "Term 2 · 2026"],
+    ]);
   });
 
-  it("is null when every topic is going well", () => {
-    expect(focusTopic([{ topic: "A", mastery: "strong" }])).toBeNull();
+  it("offers every started term when the enrolment date is unknown", () => {
+    expect(progressTerms(rows, null, "2026-10-14").map((t) => t.id)).toEqual(["t4", "t3", "t2", "t1"]);
+  });
+
+  it("covers the holidays up to the next term, and everything before the first term", () => {
+    const [t3, t2] = progressTerms(rows, "2026-05-01", "2026-09-01");
+    // Term 4 has not started, but it still bounds Term 3.
+    expect([t3.coversFrom, t3.coversUntil]).toEqual(["2026-07-13", "2026-10-04"]);
+    expect([t2.coversFrom, t2.coversUntil]).toEqual([null, "2026-07-12"]);
+  });
+
+  it("leaves the latest term open when no later term exists", () => {
+    expect(progressTerms(rows, null, "2026-10-14")[0].coversUntil).toBeNull();
   });
 });
 
-describe("homeworkCounts", () => {
-  it("splits handed-in work from work still to do", () => {
+describe("pickTerm", () => {
+  const term = (id: string, startDate: string, endDate: string) => ({
+    id,
+    label: id,
+    startDate,
+    endDate,
+    coversFrom: startDate,
+    coversUntil: null,
+  });
+  const terms = [term("t3", "2026-07-13", "2026-09-18"), term("t2", "2026-04-20", "2026-06-26")];
+
+  it("uses the requested term when it is on offer", () => {
+    expect(pickTerm(terms, "t2", "2026-08-01")?.id).toBe("t2");
+  });
+  it("falls back to the term running today, then the latest", () => {
+    expect(pickTerm(terms, "nope", "2026-05-01")?.id).toBe("t2");
+    expect(pickTerm(terms, null, "2026-10-01")?.id).toBe("t3");
+  });
+  it("is null with no terms", () => {
+    expect(pickTerm([], null, "2026-10-01")).toBeNull();
+  });
+});
+
+describe("inTerm", () => {
+  it("includes both ends of what the term covers", () => {
+    const term = { coversFrom: "2026-04-20", coversUntil: "2026-07-12" };
+    expect(inTerm("2026-04-20", term)).toBe(true);
+    expect(inTerm("2026-07-12", term)).toBe(true);
+    expect(inTerm("2026-07-13", term)).toBe(false);
+    expect(inTerm("2026-04-19", term)).toBe(false);
+  });
+  it("is open-ended where the term has no bound", () => {
+    expect(inTerm("2025-01-01", { coversFrom: null, coversUntil: "2026-07-12" })).toBe(true);
+    expect(inTerm("2030-01-01", { coversFrom: "2026-04-20", coversUntil: null })).toBe(true);
+  });
+});
+
+describe("issuedReportTermIds", () => {
+  it("reads this student's report links once each", () => {
     expect(
-      homeworkCounts([
-        { status: "submitted" },
-        { status: "late" },
-        { status: "marked" },
-        { status: "returned" },
-        { status: "not_started" },
-        { status: "viewed" },
-        { status: "resubmission_requested" },
-      ]),
-    ).toEqual({ submitted: 4, pending: 3 });
+      issuedReportTermIds(
+        ["/reports/s1/t3", "/student/homework/x", null, "/reports/s1/t2?x=1", "/reports/s2/t9", "/reports/s1/t3"],
+        "s1",
+      ),
+    ).toEqual(["t3", "t2"]);
   });
 });
 
