@@ -507,11 +507,7 @@ html.taiyo-navigation-loading * {
   );
 }
 
-/* Login wave field - fades in from the left so it melts into .brand-field */
-.login-waves {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.5) 25%, #000 55%);
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.5) 25%, #000 55%);
-}
+/* Sign-in brand panel waves: each layer drifts left and loops seamlessly. */
 @keyframes login-wave-flow {
   to {
     transform: translateX(-1440px);
@@ -524,6 +520,7 @@ html.taiyo-navigation-loading * {
 .login-wave-slow { animation-duration: 38s; }
 .login-wave-mid { animation-duration: 26s; }
 .login-wave-fast { animation-duration: 18s; }
+.login-wave-front { animation-duration: 13s; }
 @media (prefers-reduced-motion: reduce) {
   .login-wave { animation: none; }
 }

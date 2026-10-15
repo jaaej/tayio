@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { AUTH_BUTTON, AuthError, AuthField, AuthPasswordField } from "../_components/auth-fields";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -17,39 +17,30 @@ export function LoginForm() {
   );
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="flex flex-col gap-[18px]">
       <input type="hidden" name="next" value={next} />
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          placeholder="you@taiyo.com"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
+      <AuthField id="email" name="email" type="email" label="Email" autoComplete="email" required />
+      <div className="flex flex-col gap-3">
+        <AuthPasswordField
           id="password"
           name="password"
-          type="password"
+          label="Password"
           autoComplete="current-password"
           required
         />
+        <Link
+          href="/forgot-password"
+          className="self-end rounded-[6px] text-[14px] font-extrabold text-[#2c4a86] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2c4a86]/40"
+        >
+          Forgot password?
+        </Link>
       </div>
 
-      {state?.error && (
-        <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-          {state.error}
-        </div>
-      )}
+      {state?.error && <AuthError>{state.error}</AuthError>}
 
-      <Button type="submit" disabled={isPending} className="w-full" size="lg">
+      <button type="submit" disabled={isPending} className={`${AUTH_BUTTON} mt-3`}>
         {isPending ? "Signing in…" : "Sign in"}
-      </Button>
+      </button>
     </form>
   );
 }

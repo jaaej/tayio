@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { coarseRole } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { AUTH_BUTTON, AuthError, AuthPasswordField } from "../_components/auth-fields";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -83,7 +82,7 @@ export function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="rounded-xl border border-hairline/60 bg-brand-50 p-5 text-sm text-ink-soft">
+      <div role="status" className="rounded-[14px] border border-[#dce4f3] bg-[#f4f7fd] p-5 text-[15px] leading-relaxed text-[#2c4a86]">
         Password updated. Taking you to your dashboard…
       </div>
     );
@@ -91,7 +90,7 @@ export function ResetPasswordForm() {
 
   if (sessionState === "checking") {
     return (
-      <div role="status" className="py-6 text-center text-sm text-ink-soft">
+      <div role="status" className="py-6 text-center text-[15px] text-[#5b6987]">
         Checking your secure reset link…
       </div>
     );
@@ -100,14 +99,11 @@ export function ResetPasswordForm() {
   if (sessionState === "missing") {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <AuthError>
           This password-reset link is invalid, expired, or was opened in a
           different browser session.
-        </div>
-        <Link
-          href="/forgot-password"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-bold text-white transition-colors hover:bg-brand-700"
-        >
+        </AuthError>
+        <Link href="/forgot-password" className={AUTH_BUTTON}>
           Request a new link
         </Link>
       </div>
@@ -115,41 +111,31 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="password">New password</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirm">Confirm new password</Label>
-        <Input
-          id="confirm"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
+      <AuthPasswordField
+        id="password"
+        label="New password"
+        autoComplete="new-password"
+        required
+        minLength={8}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <AuthPasswordField
+        id="confirm"
+        label="Confirm new password"
+        autoComplete="new-password"
+        required
+        minLength={8}
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+      />
 
-      {error && (
-        <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-          {error}
-        </div>
-      )}
+      {error && <AuthError>{error}</AuthError>}
 
-      <Button type="submit" disabled={loading} className="w-full" size="lg">
+      <button type="submit" disabled={loading} className={`${AUTH_BUTTON} mt-3`}>
         {loading ? "Updating…" : "Set new password"}
-      </Button>
+      </button>
     </form>
   );
 }

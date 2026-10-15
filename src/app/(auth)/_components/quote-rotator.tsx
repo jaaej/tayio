@@ -49,7 +49,7 @@ export function QuoteRotator() {
     // reducedMotion="user" drops the slide transforms but keeps the fades.
     <MotionConfig reducedMotion="user">
       <figure
-        className="flex h-56 w-full max-w-md flex-col items-center justify-center"
+        className="flex h-60 w-full flex-col items-center justify-start text-center"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
@@ -68,9 +68,9 @@ export function QuoteRotator() {
                 duration={0.6}
                 staggerDelay={0.06}
                 distance={18}
-                className="text-3xl font-light leading-snug tracking-tight text-ink text-balance"
+                className="text-[44px] font-normal leading-[1.22] tracking-[-0.015em] text-[#0b2152] text-balance xl:text-[48px]"
               >
-                {`“${quote.text}”`}
+                {quote.text}
               </TextSlideUp>
             </blockquote>
             <motion.figcaption
@@ -80,7 +80,7 @@ export function QuoteRotator() {
                 duration: 0.5,
                 delay: 0.3 + quote.text.split(" ").length * 0.06,
               }}
-              className="mt-5 text-[11px] uppercase tracking-[0.2em] text-ink"
+              className="mt-7 text-[13px] font-extrabold uppercase tracking-[0.2em] text-[#4a6aa5]"
             >
               {quote.author}
             </motion.figcaption>

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { AUTH_BUTTON, AuthError, AuthField } from "../_components/auth-fields";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -33,7 +32,7 @@ export function ForgotPasswordForm() {
 
   if (done) {
     return (
-      <div className="rounded-xl border border-hairline/60 bg-brand-50 p-5 text-sm text-ink-soft">
+      <div role="status" className="rounded-[14px] border border-[#dce4f3] bg-[#f4f7fd] p-5 text-[15px] leading-relaxed text-[#2c4a86]">
         If an account exists for that email, a password-reset link has been
         sent. Check your inbox (and spam folder).
       </div>
@@ -41,29 +40,22 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@taiyo.com"
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
+      <AuthField
+        id="email"
+        type="email"
+        label="Email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-      {error && (
-        <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-          {error}
-        </div>
-      )}
+      {error && <AuthError>{error}</AuthError>}
 
-      <Button type="submit" disabled={loading} className="w-full" size="lg">
+      <button type="submit" disabled={loading} className={`${AUTH_BUTTON} mt-3`}>
         {loading ? "Sending…" : "Send reset link"}
-      </Button>
+      </button>
     </form>
   );
 }

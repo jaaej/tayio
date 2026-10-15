@@ -537,6 +537,15 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [ ] **To do (owner):** create the contact page on taiyotuition.com, then set its URL in `CONTACT_PAGE_URL` (`src/lib/site-contact.ts`).
+  Until it is set, the sign-in screen says "Need an account? Ask your Taiyo admin." instead of showing the mock's "Contact admin" button (owner decision, 15 October 2026).
+- [x] Sign-in pages redesigned from the owner's mock (15 October 2026): one rounded card with the form on white at the left and a brand panel at the right (the torii, the rotating quote, four layers of drifting waves in the mock's blues).
+  Shared by sign in, forgot password, reset password and sign up (`src/app/(auth)/_components/auth-shell.tsx`, fields and button in `auth-fields.tsx`), keeping the sign-in pages' Nunito Sans.
+  Fields show their name as the placeholder with a screen-reader label; the password field has a show/hide toggle; "Forgot password?" sits under it.
+  The waves drift sideways at four speeds and stop under reduced motion (`_components/login-waves.tsx`, `.login-wave-*` in `globals.css`).
+  Below lg only the form side shows.
+  Checked on :3004 at 1624, 1280 and 390 wide: all four pages, the moving waves, the password toggle, a wrong password's error and a real sign-in.
+
 - [x] Sidebar logo (15 October 2026, owner request), for every role on the glass shell (admin, tutor, student): the torii gate mark (`/brand/taiyo-mark.svg`, the 太陽 gate) in its own colours with no tile behind it, and "Taiyo / Tuition" set beside it (`GlassBrandMark`, `src/components/portal/glass-chrome.tsx`).
   The collapsed rail shows the gate alone; the phone header shows the same gate and name.
   A first attempt that day used the full 2025 lettered logo baked from its PSD; the owner rejected it (the lettering inside the gate was unreadable at sidebar size), and the baked PNGs were removed.
