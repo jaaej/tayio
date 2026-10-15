@@ -1,7 +1,5 @@
 /**
- * The public website's contact page, linked from the sign-in screen's
- * "Contact admin" button. Null until that page exists; while null the
- * sign-in screen says "Ask your Taiyo admin" instead of showing a button
- * that goes nowhere. Tracked in checklist_beta_fix.md.
+ * The public website's contact page (a route of the taiyotuition.com app),
+ * linked under "Need an account?" on the sign-in screen.
  */
-export const CONTACT_PAGE_URL: string | null = null;
+export const CONTACT_PAGE_URL = "https://taiyotuition.com/contact";

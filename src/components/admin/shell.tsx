@@ -174,7 +174,6 @@ export async function AdminShell({
     <>
       <CoverAlertPoller />
       <GlassPortalShell
-        className="theme-admin"
         brand={<GlassBrandMark href="/admin" />}
         search={
           <PortalSearch

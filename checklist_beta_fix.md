@@ -537,15 +537,14 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
-- [x] Admin portal font is Satoshi (15 October 2026, owner request); tutor and student stay on Figtree, the sign-in pages and parent portal on Nunito Sans.
-  Satoshi (Indian Type Foundry, Fontshare, free for commercial use under https://fontshare.com/terms) is self-hosted as the variable font `src/fonts/Satoshi-Variable.woff2` (weights 300 to 900) and loaded in `src/app/layout.tsx` with `next/font/local`, not preloaded.
-  `GlassPortalShell` takes an optional `className`; the admin shell passes `theme-admin`, and `.theme-admin` / `body:has(.theme-admin)` in `globals.css` switch the font, so admin side panels and dialogs use it too.
-  Checked on :3004: admin Dashboard, Users and Notifications render in Satoshi; tutor and student still compute Figtree. This also closes the admin check of the shared notification inbox restyle.
+- [x] Satoshi is the font of every portal and the sign-in pages (15 October 2026, owner request), replacing Figtree (glass portals) and Nunito Sans (sign-in, parent).
+  Satoshi (Indian Type Foundry, Fontshare, free for commercial use under https://fontshare.com/terms) is self-hosted as the variable font `src/fonts/Satoshi-Variable.woff2` (weights 300 to 900) and loaded in `src/app/layout.tsx` with `next/font/local`; it is the only web font the app loads.
+  `--font-sans` and `--font-display` point at it, and `.theme-glass` uses `--font-sans`.
+  Checked on :3004: sign in, forgot password, admin, tutor, student and parent all compute Satoshi with no errors. The admin check of the shared notification inbox restyle was done the same day.
 
-- [ ] **To do (owner):** create the contact page on taiyotuition.com, then set its URL in `CONTACT_PAGE_URL` (`src/lib/site-contact.ts`).
-  Until it is set, the sign-in screen says "Need an account? Ask your Taiyo admin." instead of showing the mock's "Contact admin" button (owner decision, 15 October 2026).
+- [x] Sign-in page follow-ups (15 October 2026, owner request): the heading reads "Welcome back"; a small "Portal" label sits beside "Taiyo Tuition" on every sign-in page; under "Need an account? Ask your Taiyo admin." a link opens the website's contact page, https://taiyotuition.com/contact (a route of the taiyotuition.com app, found in its bundle), in a new tab (`CONTACT_PAGE_URL`, `src/lib/site-contact.ts`).
 - [x] Sign-in pages redesigned from the owner's mock (15 October 2026): one rounded card with the form on white at the left and a brand panel at the right (the torii, the rotating quote, four layers of drifting waves in the mock's blues).
-  Shared by sign in, forgot password, reset password and sign up (`src/app/(auth)/_components/auth-shell.tsx`, fields and button in `auth-fields.tsx`), keeping the sign-in pages' Nunito Sans.
+  Shared by sign in, forgot password, reset password and sign up (`src/app/(auth)/_components/auth-shell.tsx`, fields and button in `auth-fields.tsx`), in the app font (Satoshi since 15 October 2026).
   Fields show their name as the placeholder with a screen-reader label; the password field has a show/hide toggle; "Forgot password?" sits under it.
   The waves drift sideways at four speeds and stop under reduced motion (`_components/login-waves.tsx`, `.login-wave-*` in `globals.css`).
   Below lg only the form side shows.

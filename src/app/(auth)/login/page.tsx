@@ -6,21 +6,20 @@ import { LoginForm } from "./form";
 export default function LoginPage() {
   return (
     <AuthShell
-      title="Sign in"
+      title="Welcome back"
       footer={
-        CONTACT_PAGE_URL ? (
-          <>
-            <span>Need an account?</span>
-            <a
-              href={CONTACT_PAGE_URL}
-              className="inline-flex h-11 items-center rounded-[12px] bg-[#eef2fa] px-4 text-[14px] font-extrabold text-[#0b2152] transition-colors hover:bg-[#e2e9f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2c4a86]/40"
-            >
-              Contact admin
-            </a>
-          </>
-        ) : (
+        <>
           <span>Need an account? Ask your Taiyo admin.</span>
-        )
+          <a
+            href={CONTACT_PAGE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="self-start rounded-[6px] font-extrabold text-[#2c4a86] underline underline-offset-4 hover:text-[#0b2152] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2c4a86]/40"
+          >
+            Contact us on taiyotuition.com
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        </>
       }
     >
       <Suspense fallback={<div className="h-[260px]" />}>

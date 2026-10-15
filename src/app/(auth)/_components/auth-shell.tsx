@@ -36,6 +36,9 @@ export function AuthShell({
             <span className="text-[14px] font-extrabold uppercase tracking-[0.14em] text-[#0b2152]">
               Taiyo Tuition
             </span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#4a6aa5]">
+              Portal
+            </span>
           </Link>
 
           <div className="flex flex-1 flex-col justify-center py-12">
@@ -49,7 +52,7 @@ export function AuthShell({
           </div>
 
           {footer && (
-            <div className="flex max-w-[440px] flex-wrap items-center justify-between gap-3 text-[14px] text-[#5b6987]">
+            <div className="flex max-w-[440px] flex-col gap-1.5 text-[14px] text-[#5b6987]">
               {footer}
             </div>
           )}

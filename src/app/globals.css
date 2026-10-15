@@ -100,7 +100,7 @@
  * like `bg-brand-500` resolve to the v2 cornflower-blue palette
  * inside this wrapper, without affecting parent/admin. Same
  * tokens for both portals so the cross-portal look matches.
- * Font is inherited from the body (Nunito Sans) - same as parent/admin.
+ * Font is inherited from the body (Satoshi) - same as every portal.
  * =========================================================== */
 .theme-student,
 .theme-tutor {
@@ -194,8 +194,8 @@
   --color-bad:  var(--bad);  --color-bad-bg:  var(--bad-bg);
   --color-info: var(--info); --color-info-bg: var(--info-bg);
 
-  --font-sans: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
 
@@ -355,15 +355,7 @@ body:has(.theme-glass) .theme-tutor {
   /* Glass shell: 1.25rem page padding top and bottom. */
   --portal-fill-h: calc(100dvh - 2.5rem);
 
-  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Admin portal font. Same double scope as the glass tokens above, so side
- * panels and dialogs portalled out of the admin shell use it too. */
-.theme-admin,
-body:has(.theme-admin),
-body:has(.theme-admin) .theme-tutor {
-  font-family: var(--font-satoshi), var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .theme-glass {

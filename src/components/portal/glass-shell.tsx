@@ -22,7 +22,6 @@ export function GlassPortalShell({
   nav,
   account,
   mobileHeader,
-  className,
   children,
 }: {
   brand: ReactNode;
@@ -34,8 +33,6 @@ export function GlassPortalShell({
   nav: ReactNode;
   account: ReactNode;
   mobileHeader: ReactNode;
-  /** Extra class on the wrapper, e.g. `theme-admin` for the admin font. */
-  className?: string;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -65,7 +62,7 @@ export function GlassPortalShell({
 
   return (
     <div
-      className={cn("theme-tutor theme-glass min-h-screen text-ink", className)}
+      className="theme-tutor theme-glass min-h-screen text-ink"
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
       {mobileHeader}
