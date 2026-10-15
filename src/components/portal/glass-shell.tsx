@@ -74,7 +74,7 @@ export function GlassPortalShell({
             collapsed ? "w-[76px]" : "w-[236px]",
             !preferenceLoaded && "[&_*]:duration-0 duration-0",
             collapsed &&
-              "[&_.portal-nav-heading]:hidden [&_.portal-nav-label]:hidden [&_.portal-nav-item]:justify-center [&_.portal-nav-item]:gap-0 [&_.portal-nav-item]:px-0 [&_.portal-nav-badge]:absolute [&_.portal-nav-badge]:right-0.5 [&_.portal-nav-badge]:top-0.5 [&_.portal-nav-badge]:h-4 [&_.portal-nav-badge]:min-w-4 [&_.portal-nav-badge]:px-1 [&_.portal-nav-badge]:text-[9px] [&_.portal-sidebar-search]:justify-center [&_.portal-sidebar-search]:px-0 [&_.portal-brand-text]:hidden [&_.portal-brand-mark]:block [&_.portal-account-text]:hidden [&_.portal-account]:flex-col [&_.portal-account]:px-0 [&_.portal-feature-text]:hidden [&_.portal-feature]:justify-center [&_.portal-feature]:px-0",
+              "[&_.portal-nav-heading]:hidden [&_.portal-nav-label]:hidden [&_.portal-nav-item]:justify-center [&_.portal-nav-item]:gap-0 [&_.portal-nav-item]:px-0 [&_.portal-nav-badge]:absolute [&_.portal-nav-badge]:right-0.5 [&_.portal-nav-badge]:top-0.5 [&_.portal-nav-badge]:h-4 [&_.portal-nav-badge]:min-w-4 [&_.portal-nav-badge]:px-1 [&_.portal-nav-badge]:text-[9px] [&_.portal-sidebar-search]:justify-center [&_.portal-sidebar-search]:px-0 [&_.portal-brand-text]:hidden [&_.portal-account-text]:hidden [&_.portal-account]:flex-col [&_.portal-account]:px-0 [&_.portal-feature-text]:hidden [&_.portal-feature]:justify-center [&_.portal-feature]:px-0",
           )}
         >
           <div

@@ -537,12 +537,11 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
-- [x] Sidebar logo is the 2025 Taiyo logo (15 October 2026, owner request), for every role on the glass shell (admin, tutor, student).
-  `GlassBrandMark` (`src/components/portal/glass-chrome.tsx`) shows `src/components/brand/taiyo-logo.png` (torii, TAIYO, TUITION) with no tile or background; the collapsed rail shows `taiyo-torii.png` (the gate alone); the phone header uses a smaller copy of the full logo.
-  The assets were baked from `2025_Taiyo_Logo_MAIN_BLUE.psd`: the gate is a red layer in Luminosity mode over the blue background plus a Curves layer, so its blue was reproduced (Photoshop luminosity blend, then the curve) before removing the background; the lettering keeps its navy stroke and a rebuilt drop shadow.
-  The logo fonts are BubbleGum (TAIYO) and Gotham Bold (TUITION); the portal UI uses Figtree (glass portals) and Nunito Sans (login, parent portal).
-  Checked on :3004 for student and tutor: expanded, collapsed and phone. Admin uses the same component but was not opened (expired dev session).
-  The parent portal (old shell), login and landing pages still use the navy SVG torii (`ToriiMark`).
+- [x] Sidebar logo (15 October 2026, owner request), for every role on the glass shell (admin, tutor, student): the torii gate mark (`/brand/taiyo-mark.svg`, the 太陽 gate) in its own colours with no tile behind it, and "Taiyo / Tuition" set beside it (`GlassBrandMark`, `src/components/portal/glass-chrome.tsx`).
+  The collapsed rail shows the gate alone; the phone header shows the same gate and name.
+  A first attempt that day used the full 2025 lettered logo baked from its PSD; the owner rejected it (the lettering inside the gate was unreadable at sidebar size), and the baked PNGs were removed.
+  The portal UI fonts are Figtree (glass portals) and Nunito Sans (sign-in pages, parent portal); the 2025 logo's lettering is BubbleGum and Gotham Bold.
+  Checked on :3004 as a student: expanded, collapsed and phone.
 
 - [x] Student (shipped 15 October 2026): Progress page trimmed, with a term picker and Reports (15 October 2026, owner request).
   Removed: the overall summary line ("8 topics tracked · 1 mastered ..."), each subject's "4 topics · focus: ..." line, the tiles' sub-text ("homework and quizzes"), and the Submitted and Pending tiles; Mastery and Average score remain.
