@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { defaultClassTimes } from "../_lib/class-time";
+import { rankTutorsForSlot, type TutorClassSlot, type TutorWeeklyWindow } from "../_lib/tutor-fit";
 import {
   CapacityStepper,
   ClassTypeSegment,
@@ -12,6 +13,7 @@ import {
   type ClassTypeValue,
 } from "./class-fields";
 import { subjectOptionLabel } from "../_lib/subject-option-label";
+import { TutorPicker } from "./tutor-picker";
 
 export type CreateClassValues = {
   name: string;
@@ -35,6 +37,8 @@ export type CreateClassValues = {
 export function CreateClassForm({
   formId,
   tutors,
+  tutorWindows,
+  classSlots,
   subjects,
   lessonMinutes,
   disabled,
@@ -43,6 +47,10 @@ export function CreateClassForm({
 }: {
   formId: string;
   tutors: { id: string; firstName: string; lastName: string }[];
+  /** Tutors' weekly availability, to rank them for the chosen day and time. */
+  tutorWindows: TutorWeeklyWindow[];
+  /** Existing classes, to spot a tutor already teaching at that time. */
+  classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
   /** Usual lesson length, used to default the end time after the start. */
   lessonMinutes: number;
@@ -56,6 +64,20 @@ export function CreateClassForm({
 
   const [classType, setClassType] = useState<ClassTypeValue>("group");
   const [times] = useState(() => defaultClassTimes(lessonMinutes));
+  const [subjectId, setSubjectId] = useState("");
+  const [when, setWhen] = useState<{ weekday: number | null; startTime: string; endTime: string }>({
+    weekday: null,
+    startTime: times.startTime,
+    endTime: times.endTime,
+  });
+  const rankedTutors = useMemo(
+    () =>
+      rankTutorsForSlot(tutors, tutorWindows, classSlots, {
+        ...when,
+        subjectId: subjectId || null,
+      }),
+    [tutors, tutorWindows, classSlots, when, subjectId],
+  );
 
   return (
     <form
@@ -95,32 +117,24 @@ export function CreateClassForm({
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field id={fid("subjectId")} label="Subject">
-              <SelectField id={fid("subjectId")} name="subjectId" required defaultValue="">
-                <option value="" disabled>
-                  Choose subject
+          <Field id={fid("subjectId")} label="Subject">
+            <SelectField
+              id={fid("subjectId")}
+              name="subjectId"
+              required
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+            >
+              <option value="" disabled>
+                Choose subject
+              </option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {subjectOptionLabel(s)}
                 </option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {subjectOptionLabel(s)}
-                  </option>
-                ))}
-              </SelectField>
-            </Field>
-            <Field id={fid("tutorId")} label="Tutor">
-              <SelectField id={fid("tutorId")} name="tutorId" required defaultValue="">
-                <option value="" disabled>
-                  Choose tutor
-                </option>
-                {tutors.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.firstName} {t.lastName}
-                  </option>
-                ))}
-              </SelectField>
-            </Field>
-          </div>
+              ))}
+            </SelectField>
+          </Field>
 
           <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
             <ClassTypeSegment value={classType} onChange={setClassType} />
@@ -136,7 +150,12 @@ export function CreateClassForm({
             defaultStart={times.startTime}
             defaultEnd={times.endTime}
             lessonMinutes={lessonMinutes}
+            onChange={setWhen}
           />
+        </Section>
+
+        <Section id={fid("s-tutor")} title="Tutor">
+          <TutorPicker name="tutorId" tutors={rankedTutors} />
         </Section>
 
         <Section id={fid("s-where")} title="Where">

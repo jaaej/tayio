@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { ChevronDown, Clock } from "lucide-react";
 import { formatTimeRange } from "@/lib/format";
 import { classTimeRangeError } from "@/lib/recurring-lesson-rules";
@@ -191,6 +191,7 @@ export function WhenFields({
   defaultStart,
   defaultEnd,
   lessonMinutes,
+  onChange,
 }: {
   idPrefix: string;
   defaultRecurring: boolean;
@@ -198,11 +199,17 @@ export function WhenFields({
   defaultStart: string;
   defaultEnd: string;
   lessonMinutes: number;
+  /** Told the day and times as they change (the New class tutor picker). */
+  onChange?: (when: { weekday: number | null; startTime: string; endTime: string }) => void;
 }) {
   const [recurring, setRecurring] = useState(defaultRecurring);
   const [weekday, setWeekday] = useState<number | null>(defaultWeekday);
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
+
+  useEffect(() => {
+    onChange?.({ weekday, startTime: start, endTime: end });
+  }, [onChange, weekday, start, end]);
   const dayLabelId = `${idPrefix}-day`;
   const startId = `${idPrefix}-start`;
   const endId = `${idPrefix}-end`;

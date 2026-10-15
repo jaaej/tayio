@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -10,6 +10,7 @@ import {
   quizzes,
   subjects,
   subjectWeeks,
+  tutorAvailability,
 } from "@/db/schema";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import {
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { CreateSubjectPanel } from "./_components/create-subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
+import type { TutorClassSlot, TutorWeeklyWindow } from "./_lib/tutor-fit";
 import { SubjectBlock } from "../_components/subject-block";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +100,7 @@ export default async function ClassesPage({
   const isMonth = view === "month";
   const todayIso = melbourneDate(new Date());
 
-  const [allRows, tutors, subjectList, currentTerm, quizzesToReview] = await Promise.all([
+  const [allRows, tutors, subjectList, currentTerm, quizzesToReview, availabilityRows] = await Promise.all([
     db
       .select({
         id: classes.id,
@@ -143,7 +145,39 @@ export default async function ClassesPage({
       .from(quizzes)
       .where(eq(quizzes.status, "pending_review"))
       .then(([row]) => row?.n ?? 0),
+    // Weekly availability for the New class tutor picker (date-specific rows
+    // are one-off changes and do not decide a weekly class).
+    db
+      .selectDistinct({
+        tutorId: tutorAvailability.tutorId,
+        weekday: tutorAvailability.weekday,
+        startTime: tutorAvailability.startTime,
+        endTime: tutorAvailability.endTime,
+        subjectId: tutorAvailability.subjectId,
+      })
+      .from(tutorAvailability)
+      .where(
+        and(
+          isNotNull(tutorAvailability.weekday),
+          isNull(tutorAvailability.date),
+          eq(tutorAvailability.isAvailable, true),
+        ),
+      ),
   ]);
+  const tutorWindows: TutorWeeklyWindow[] = availabilityRows.map((r) => ({
+    tutorId: r.tutorId,
+    weekday: r.weekday!,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    subjectId: r.subjectId,
+  }));
+  const classSlots: TutorClassSlot[] = allRows.map((r) => ({
+    tutorId: r.tutorId,
+    name: classDisplayName(r.subject, r.name),
+    weekday: r.weekday,
+    startTime: r.startTime,
+    endTime: r.endTime,
+  }));
 
   // Weeks planned this term, per subject: one grouped count, only in term.
   const weekCounts = new Map<string, number>();
@@ -291,6 +325,8 @@ export default async function ClassesPage({
             </Link>
             <CreateClassPanel
               tutors={tutors}
+              tutorWindows={tutorWindows}
+              classSlots={classSlots}
               subjects={subjectList}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"
@@ -393,6 +429,8 @@ export default async function ClassesPage({
             No classes yet.
             <CreateClassPanel
               tutors={tutors}
+              tutorWindows={tutorWindows}
+              classSlots={classSlots}
               subjects={subjectList}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"

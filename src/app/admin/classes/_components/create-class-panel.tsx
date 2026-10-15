@@ -4,16 +4,23 @@ import { useId, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button, SidePanel } from "@/components/admin/ui";
 import { createClass } from "@/app/admin/_lib/actions-classes";
+import type { TutorClassSlot, TutorWeeklyWindow } from "../_lib/tutor-fit";
 import { CreateClassForm, type CreateClassValues } from "./create-class-form";
 
 export function CreateClassPanel({
   tutors,
+  tutorWindows,
+  classSlots,
   subjects,
   lessonMinutes,
   triggerSize = "md",
   defaultOpen = false,
 }: {
   tutors: { id: string; firstName: string; lastName: string }[];
+  /** Tutors' weekly availability, for the tutor picker. */
+  tutorWindows: TutorWeeklyWindow[];
+  /** Existing classes, so the picker can flag a tutor teaching then. */
+  classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
   /** Usual lesson length in minutes; the end time defaults this far after the start. */
   lessonMinutes: number;
@@ -123,6 +130,8 @@ export function CreateClassPanel({
           <CreateClassForm
             formId={formId}
             tutors={tutors}
+            tutorWindows={tutorWindows}
+            classSlots={classSlots}
             subjects={subjects}
             lessonMinutes={lessonMinutes}
             disabled={pending}

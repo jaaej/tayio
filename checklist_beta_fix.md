@@ -537,6 +537,13 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
+- [x] Admin New class: the tutor is chosen after the day and times, ranked by availability (15 October 2026, owner request).
+  The Tutor section now sits under When; every tutor is listed, those available for the whole class first ("Free then"), then "Not free then" with a note: "Teaching <class> then" (available but already teaching a class that overlaps) or "Outside their available hours" / "No available hours set".
+  Uses each tutor's weekly availability (subject-scoped rows count only for that subject; date-specific rows are ignored for a weekly class) and existing classes on the same weekday (`rankTutorsForSlot` in `src/app/admin/classes/_lib/tutor-fit.ts`, tested; `_components/tutor-picker.tsx`).
+  Before a day and a valid time range are set the list is alphabetical with a prompt; a tutor who is not free can still be chosen.
+  `WhenFields` gained an optional `onChange`. The class detail (edit) form still uses its tutor dropdown.
+  Checked on :3004 as admin: Wednesday and Monday 4 to 5 pm rank as the dev availability says, and the chosen tutor is submitted with the form (no class was created).
+
 - [x] Notification inbox in date order for every role (15 October 2026, owner request): Today, This week and Earlier, newest first, with every kind together; Messages and Action needed are no longer pinned above newer rows.
   Each row still names its kind and the filter pills still narrow to one kind (`notificationSections` in `src/lib/notification-groups.ts`, tested). The CLAUDE.md inbox rule was updated to match.
   Checked on :3004 for admin, tutor, student and parent at desktop and phone width: newest first, no errors.
