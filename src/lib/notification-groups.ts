@@ -11,15 +11,20 @@ export type NotificationLike = {
   readAt: Date | null;
 };
 
+/**
+ * `label` names the filter pill and the section divider; `itemLabel` is the
+ * kind shown on a single row ("Message", "Announcement").
+ */
 export const NOTIFICATION_GROUPS: Array<{
   key: NotificationGroupKey;
   label: string;
+  itemLabel: string;
 }> = [
-  { key: "messages", label: "Messages" },
-  { key: "action", label: "Action needed" },
-  { key: "learning", label: "Learning updates" },
-  { key: "announcements", label: "Announcements" },
-  { key: "updates", label: "Other updates" },
+  { key: "messages", label: "Messages", itemLabel: "Message" },
+  { key: "action", label: "Action needed", itemLabel: "Action needed" },
+  { key: "learning", label: "Learning", itemLabel: "Learning" },
+  { key: "announcements", label: "Announcements", itemLabel: "Announcement" },
+  { key: "updates", label: "Updates", itemLabel: "Update" },
 ];
 
 export function notificationGroupFor(
@@ -84,18 +89,57 @@ export function notificationGroupFor(
   return "updates";
 }
 
-/**
- * Splits inbox rows into one labelled section per group, in
- * NOTIFICATION_GROUPS order, so direct messages and action items always sit
- * above announcements and general updates. Empty sections are dropped and
- * each section keeps the incoming (newest-first) order.
- */
-export function notificationSections<T extends { group: NotificationGroupKey }>(
-  items: T[],
-): Array<{ key: NotificationGroupKey; label: string; items: T[] }> {
-  return NOTIFICATION_GROUPS.map((group) => ({
-    ...group,
-    items: items.filter((item) => item.group === group.key),
-  })).filter((section) => section.items.length > 0);
+export type NotificationWhen = "today" | "week" | "earlier";
+
+const melbourneDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Australia/Melbourne",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function dayNumber(d: Date): number {
+  const [y, m, day] = melbourneDay.format(d).split("-").map(Number);
+  return Date.UTC(y, m - 1, day) / 86_400_000;
 }
 
+/**
+ * When a notification arrived, by the Melbourne calendar: today, earlier in
+ * this week (Monday onwards), or before that.
+ */
+export function notificationWhen(createdAt: Date, now: Date = new Date()): NotificationWhen {
+  const today = dayNumber(now);
+  const day = dayNumber(createdAt);
+  if (day >= today) return "today";
+  // 1970-01-01 was a Thursday, so (n + 3) % 7 counts days since Monday.
+  const monday = today - ((today + 3) % 7);
+  return day >= monday ? "week" : "earlier";
+}
+
+export type NotificationSectionKey = "messages" | "action" | NotificationWhen;
+
+const WHEN_LABEL: Record<NotificationWhen, string> = {
+  today: "Today",
+  week: "This week",
+  earlier: "Earlier",
+};
+
+/**
+ * The inbox's sections: direct messages, then action items, each under its
+ * own divider, so they always sit above announcements and general updates;
+ * everything else follows under Today, This week and Earlier. Each section
+ * keeps the incoming (newest-first) order; empty sections are dropped.
+ */
+export function notificationSections<
+  T extends { group: NotificationGroupKey; when: NotificationWhen },
+>(items: T[]): Array<{ key: NotificationSectionKey; label: string; items: T[] }> {
+  const sections: Array<{ key: NotificationSectionKey; label: string; items: T[] }> = [
+    { key: "messages", label: "Messages", items: items.filter((i) => i.group === "messages") },
+    { key: "action", label: "Action needed", items: items.filter((i) => i.group === "action") },
+  ];
+  const rest = items.filter((i) => i.group !== "messages" && i.group !== "action");
+  for (const when of ["today", "week", "earlier"] as const) {
+    sections.push({ key: when, label: WHEN_LABEL[when], items: rest.filter((i) => i.when === when) });
+  }
+  return sections.filter((section) => section.items.length > 0);
+}

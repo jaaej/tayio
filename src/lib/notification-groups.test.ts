@@ -3,7 +3,9 @@ import {
   NOTIFICATION_GROUPS,
   notificationGroupFor,
   notificationSections,
+  notificationWhen,
   type NotificationGroupKey,
+  type NotificationWhen,
 } from "./notification-groups";
 
 describe("notificationGroupFor", () => {
@@ -186,42 +188,62 @@ describe("NOTIFICATION_GROUPS", () => {
   });
 });
 
-describe("notificationSections", () => {
-  const row = (id: string, group: NotificationGroupKey) => ({ id, group });
+describe("notificationWhen", () => {
+  // Wed 14 Oct 2026, 3 pm in Melbourne (AEDT, UTC+11).
+  const now = new Date("2026-10-14T04:00:00.000Z");
 
-  it("puts messages and action items above announcements and updates", () => {
+  it("is today for anything since Melbourne midnight", () => {
+    // 12:30 am Wed in Melbourne is still Tuesday in UTC.
+    expect(notificationWhen(new Date("2026-10-13T13:30:00.000Z"), now)).toBe("today");
+  });
+  it("is this week from Monday onwards", () => {
+    expect(notificationWhen(new Date("2026-10-13T01:00:00.000Z"), now)).toBe("week");
+    // Mon 12 Oct, 12:30 am Melbourne.
+    expect(notificationWhen(new Date("2026-10-11T13:30:00.000Z"), now)).toBe("week");
+  });
+  it("is earlier before Monday", () => {
+    // Sun 11 Oct, 11 pm Melbourne.
+    expect(notificationWhen(new Date("2026-10-11T12:00:00.000Z"), now)).toBe("earlier");
+  });
+  it("on a Monday, only today is this week", () => {
+    const monday = new Date("2026-10-12T04:00:00.000Z");
+    expect(notificationWhen(new Date("2026-10-11T04:00:00.000Z"), monday)).toBe("earlier");
+  });
+});
+
+describe("notificationSections", () => {
+  const row = (id: string, group: NotificationGroupKey, when: NotificationWhen = "today") => ({
+    id,
+    group,
+    when,
+  });
+
+  it("puts messages and action items above everything else, then splits the rest by time", () => {
     // Newest-first input where the passive rows happen to be the newest.
     const sections = notificationSections([
-      row("u1", "updates"),
-      row("a1", "announcements"),
-      row("x1", "action"),
-      row("l1", "learning"),
-      row("m1", "messages"),
-      row("x2", "action"),
+      row("u1", "updates", "today"),
+      row("a1", "announcements", "week"),
+      row("x1", "action", "earlier"),
+      row("l1", "learning", "earlier"),
+      row("m1", "messages", "week"),
+      row("x2", "action", "today"),
     ]);
-    expect(sections.map((s) => s.key)).toEqual([
-      "messages",
-      "action",
-      "learning",
-      "announcements",
-      "updates",
-    ]);
-    expect(sections.map((s) => s.label)).toEqual([
-      "Messages",
-      "Action needed",
-      "Learning updates",
-      "Announcements",
-      "Other updates",
+    expect(sections.map((s) => [s.key, s.label, s.items.map((i) => i.id)])).toEqual([
+      ["messages", "Messages", ["m1"]],
+      ["action", "Action needed", ["x1", "x2"]],
+      ["today", "Today", ["u1"]],
+      ["week", "This week", ["a1"]],
+      ["earlier", "Earlier", ["l1"]],
     ]);
   });
 
   it("keeps the incoming order inside a section and drops empty sections", () => {
     const sections = notificationSections([
       row("x2", "action"),
-      row("u1", "updates"),
+      row("u1", "updates", "earlier"),
       row("x1", "action"),
     ]);
-    expect(sections.map((s) => s.key)).toEqual(["action", "updates"]);
+    expect(sections.map((s) => s.key)).toEqual(["action", "earlier"]);
     expect(sections[0].items.map((i) => i.id)).toEqual(["x2", "x1"]);
   });
 

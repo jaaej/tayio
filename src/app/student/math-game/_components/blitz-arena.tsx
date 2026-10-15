@@ -7,7 +7,6 @@ import { Levels } from "./levels";
 import type { Difficulty } from "./question-generator";
 import { getPreferredSound, playSound, setPreferredSound, type SoundName } from "./sound";
 import { BLITZ_BACKGROUND } from "./blitz-pattern";
-import styles from "./blitz.module.css";
 import type { BlitzOverallRank, LeaderboardBoards, MyBests } from "../_queries";
 
 /** The lobby (hero, levels and leaderboard) and the round share one client
@@ -89,13 +88,6 @@ export function BlitzArena({
               : "Finish a round to get your rank"}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => play("sprint")}
-          className={`${styles.cta} flex h-[60px] items-center rounded-[18px] bg-[#FFD600] px-[30px] text-[18px] font-extrabold text-[#1B1240] shadow-[0_10px_0_#C9A800] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70`}
-        >
-          Play Sprint
-        </button>
       </section>
 
       <div className="flex flex-wrap items-start gap-5">

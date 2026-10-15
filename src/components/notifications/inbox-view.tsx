@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { relativeTime } from "@/lib/format";
 import {
   AlertCircle,
   Bell,
@@ -23,6 +22,7 @@ import {
   NOTIFICATION_GROUPS,
   notificationSections,
   type NotificationGroupKey,
+  type NotificationWhen,
 } from "@/lib/notification-groups";
 import { cn } from "@/lib/utils";
 import {
@@ -31,8 +31,9 @@ import {
 } from "@/lib/navigation-loading";
 
 /**
- * One row as the server hands it over. The time label is resolved on the
- * server in Melbourne time, so the client never re-derives it against a
+ * One row as the server hands it over. The time label ("3:12 pm", "Sun",
+ * "20 Sep") and the Today / This week / Earlier bucket are resolved on the
+ * server in Melbourne time, so the client never re-derives them against a
  * different clock or timezone and desyncs on hydration.
  */
 export type InboxItem = {
@@ -43,46 +44,46 @@ export type InboxItem = {
   isUnread: boolean;
   isUrgent: boolean;
   group: NotificationGroupKey;
+  when: NotificationWhen;
   createdAtIso: string;
   timeLabel: string;
 };
 
 type FilterKey = "all" | "unread" | "urgent" | NotificationGroupKey;
 
-/** Section dot, row icon tile and icon per group. Theme tokens only. */
+/** Filter dot, row kind label, icon tile and icon per group. Theme tokens only. */
 const GROUP_STYLE: Record<
   NotificationGroupKey,
-  { dot: string; tile: string; Icon: LucideIcon }
+  { dot: string; text: string; tile: string; Icon: LucideIcon }
 > = {
-  messages: { dot: "bg-info", tile: "bg-info-bg text-info", Icon: MessageCircle },
-  action: { dot: "bg-sun-500", tile: "bg-warn-bg text-warn", Icon: AlertCircle },
-  learning: { dot: "bg-good", tile: "bg-good-bg text-good", Icon: BookOpen },
+  messages: { dot: "bg-info", text: "text-info", tile: "bg-info-bg text-info", Icon: MessageCircle },
+  action: { dot: "bg-warn", text: "text-warn", tile: "bg-warn-bg text-warn", Icon: AlertCircle },
+  learning: { dot: "bg-good", text: "text-good", tile: "bg-good-bg text-good", Icon: BookOpen },
   announcements: {
     dot: "bg-brand-400",
+    text: "text-brand-600",
     tile: "bg-brand-100 text-brand-600",
     Icon: Megaphone,
   },
-  updates: { dot: "bg-muted-2", tile: "bg-surface-3 text-ink-soft", Icon: Bell },
+  updates: { dot: "bg-muted-2", text: "text-ink-soft", tile: "bg-surface-3 text-ink-soft", Icon: Bell },
 };
+
+const ITEM_LABEL = Object.fromEntries(
+  NOTIFICATION_GROUPS.map((group) => [group.key, group.itemLabel]),
+) as Record<NotificationGroupKey, string>;
 
 /**
  * Shared notification inbox for all four portals.
  *
- * One labelled section per kind, in NOTIFICATION_GROUPS order: direct messages
- * and action items always sit above learning updates, announcements and other
- * updates; each section is newest first. The filter pills narrow the list
- * (unread, urgent, one kind) without changing that order.
+ * One list: direct messages and action items each under their own divider at
+ * the top, then everything else under Today, This week and Earlier; each
+ * section is newest first and every row names its kind. The filter pills
+ * narrow the list (unread, urgent, one kind) without changing that order.
  *
  * Filtering is client-side: every row is already in the payload, so a pill tap
  * is instant and costs no extra query.
  */
-export function NotificationsInboxView({
-  items,
-  showUnreadCallout = true,
-}: {
-  items: InboxItem[];
-  showUnreadCallout?: boolean;
-}) {
+export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
@@ -186,34 +187,28 @@ export function NotificationsInboxView({
   }
 
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div className="flex w-full max-w-[920px] flex-col gap-4">
       <PageHeader
-        title="Notifications"
+        title={
+          <span className="inline-flex flex-wrap items-baseline gap-x-2.5">
+            Notifications
+            {unread > 0 && (
+              <span className="text-[14px] font-bold tabular-nums text-ink-soft">
+                {unread > 99 ? "99+" : unread} unread
+              </span>
+            )}
+          </span>
+        }
         actions={
           unread > 0 ? (
-            <>
-              {showUnreadCallout && filter !== "unread" && (
-                <button
-                  type="button"
-                  onClick={() => setFilter("unread")}
-                  className="inline-flex h-[42px] items-center gap-2 rounded-[12px] bg-bad px-4 text-[14px] font-bold text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-1"
-                >
-                  <Bell className="h-4 w-4" aria-hidden />
-                  New notifications
-                  <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-extrabold tabular-nums text-bad">
-                    {unread > 99 ? "99+" : unread}
-                  </span>
-                </button>
-              )}
-              <form action={markAllNotificationsRead}>
-                <button
-                  type="submit"
-                  className={buttonVariants({ variant: "glass", size: "lg" })}
-                >
-                  Mark all read
-                </button>
-              </form>
-            </>
+            <form action={markAllNotificationsRead}>
+              <button
+                type="submit"
+                className={buttonVariants({ variant: "glass", size: "lg" })}
+              >
+                Mark all read
+              </button>
+            </form>
           ) : undefined
         }
       />
@@ -226,6 +221,12 @@ export function NotificationsInboxView({
         >
           {pills.map((pill) => {
             const isActive = pill.key === filter;
+            const dot =
+              pill.key === "all" || pill.key === "unread"
+                ? null
+                : pill.key === "urgent"
+                  ? "bg-bad"
+                  : GROUP_STYLE[pill.key].dot;
             return (
               <button
                 key={pill.key}
@@ -233,22 +234,24 @@ export function NotificationsInboxView({
                 onClick={() => setFilter(pill.key)}
                 aria-pressed={isActive}
                 className={cn(
-                  "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold transition-colors duration-150",
+                  "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-[13px] font-bold transition-colors duration-150",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1",
                   isActive
                     ? "border-ink bg-ink text-white"
                     : "border-white/95 bg-white/70 text-ink hover:bg-white",
                 )}
               >
+                {dot && (
+                  <span
+                    aria-hidden
+                    className={cn("h-2 w-2 rounded-full", isActive ? "bg-white" : dot)}
+                  />
+                )}
                 {pill.label}
                 <span
                   className={cn(
-                    "text-[11px] tabular-nums",
-                    isActive
-                      ? "text-white/75"
-                      : pill.key === "action" && counts.action > 0
-                        ? "font-extrabold text-bad"
-                        : "text-muted",
+                    "text-[12px] tabular-nums",
+                    isActive ? "text-white/75" : "text-ink-soft",
                   )}
                 >
                   {counts[pill.key]}
@@ -282,52 +285,54 @@ export function NotificationsInboxView({
           }
         />
       ) : (
-        sections.map((section) => {
-          const style = GROUP_STYLE[section.key];
-          return (
-            <GlassPanel
-              key={section.key}
-              titleId={`notifications-${section.key}`}
-              title={
-                <span className="inline-flex items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className={cn("h-[9px] w-[9px] rounded-full", style.dot)}
-                  />
+        <section aria-label="Notifications list" className="glass rounded-[24px] p-1.5">
+          <div className="panel overflow-hidden">
+            {sections.map((section, index) => (
+              <Fragment key={section.key}>
+                <h2
+                  id={`notifications-${section.key}`}
+                  className={cn(
+                    "border-b border-line bg-surface-2 px-[18px] py-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-ink-soft",
+                    index > 0 && "border-t",
+                  )}
+                >
                   {section.label}
-                </span>
-              }
-              meta={section.items.length}
-            >
-              <ul className="divide-y divide-line">
-                {section.items.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => openNotification(item)}
-                      disabled={pendingIds.has(item.id)}
-                      aria-label={`${item.isUnread ? "Open unread" : "Open"} notification: ${item.title}`}
-                      aria-expanded={
-                        item.href ? undefined : expandedIds.has(item.id)
-                      }
-                      className={cn(
-                        "block w-full text-left transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-70 motion-reduce:transition-none",
-                        item.isUnread && "bg-brand-50/60",
-                      )}
-                    >
-                      <Row
-                        item={item}
-                        expanded={expandedIds.has(item.id)}
-                        tile={item.isUrgent ? "bg-bad-bg text-bad" : style.tile}
-                        Icon={item.isUrgent ? AlertCircle : style.Icon}
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </GlassPanel>
-          );
-        })
+                </h2>
+                <ul
+                  aria-labelledby={`notifications-${section.key}`}
+                  className="divide-y divide-line"
+                >
+                  {section.items.map((item) => {
+                    const style = GROUP_STYLE[item.group];
+                    return (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          onClick={() => openNotification(item)}
+                          disabled={pendingIds.has(item.id)}
+                          aria-label={`${item.isUnread ? "Open unread" : "Open"} notification: ${item.title}`}
+                          aria-expanded={
+                            item.href ? undefined : expandedIds.has(item.id)
+                          }
+                          className="block w-full text-left transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-70 motion-reduce:transition-none"
+                        >
+                          <Row
+                            item={item}
+                            expanded={expandedIds.has(item.id)}
+                            tile={item.isUrgent ? "bg-bad-bg text-bad" : style.tile}
+                            Icon={item.isUrgent ? AlertCircle : style.Icon}
+                            kind={ITEM_LABEL[item.group]}
+                            kindClass={style.text}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Fragment>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -338,24 +343,28 @@ function Row({
   expanded,
   tile,
   Icon,
+  kind,
+  kindClass,
 }: {
   item: InboxItem;
   expanded: boolean;
   tile: string;
   Icon: LucideIcon;
+  kind: string;
+  kindClass: string;
 }) {
   return (
-    <span className="flex items-start gap-3 px-4 py-3.5">
+    <span className="flex items-center gap-3.5 px-[18px] py-3.5">
       <span
         aria-hidden
         className={cn(
-          "grid h-9 w-9 shrink-0 place-items-center rounded-[11px]",
+          "grid h-9 w-9 shrink-0 place-items-center self-start rounded-[10px]",
           tile,
         )}
       >
         <Icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
@@ -375,27 +384,24 @@ function Row({
         {item.body && (
           <span
             className={cn(
-              "text-[13px] leading-relaxed text-muted",
-              !expanded && "line-clamp-2",
+              "text-[13px] leading-relaxed text-ink-soft",
+              !expanded && "line-clamp-2 sm:line-clamp-1",
             )}
           >
             {item.body}
           </span>
         )}
+        <span className={cn("text-[12px] font-bold sm:hidden", kindClass)}>{kind}</span>
       </span>
-      <span className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
-        <time
-          dateTime={item.createdAtIso}
-          className="whitespace-nowrap text-[12px] tabular-nums text-muted"
-        >
-          <LiveRelativeTime
-            createdAtIso={item.createdAtIso}
-            initialLabel={item.timeLabel}
-          />
-        </time>
-        {item.isUnread && (
-          <span aria-hidden className="h-[9px] w-[9px] rounded-full bg-brand-500" />
+      <span
+        className={cn(
+          "hidden w-[110px] shrink-0 text-right text-[12px] font-bold sm:block",
+          kindClass,
         )}
+      >
+        {kind}
+      </span>
+      <span className="flex w-[64px] shrink-0 items-center justify-end gap-1">
         {!item.href && (
           <ChevronDown
             className={cn(
@@ -404,6 +410,17 @@ function Row({
             )}
             aria-hidden
           />
+        )}
+        <time
+          dateTime={item.createdAtIso}
+          className="whitespace-nowrap text-[12px] tabular-nums text-ink-soft"
+        >
+          {item.timeLabel}
+        </time>
+      </span>
+      <span className="grid w-2 shrink-0 place-items-center">
+        {item.isUnread && (
+          <span aria-hidden className="h-2 w-2 rounded-full bg-info" />
         )}
       </span>
     </span>
@@ -431,37 +448,4 @@ function EmptyState({
       </div>
     </GlassPanel>
   );
-}
-
-/** "5m ago" style time that keeps ticking while the inbox is open. */
-function LiveRelativeTime({
-  createdAtIso,
-  initialLabel,
-}: {
-  createdAtIso: string;
-  initialLabel: string;
-}) {
-  const [label, setLabel] = useState(initialLabel);
-
-  useEffect(() => {
-    const update = () => setLabel(relativeTime(new Date(createdAtIso)));
-    update();
-
-    // Align the first tick to the next wall-clock minute, then update once per
-    // minute, so 5m becomes 6m at the right moment rather than up to a minute
-    // late depending on when the page mounted.
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const delay = 60_000 - (Date.now() % 60_000) + 25;
-    const timeout = setTimeout(() => {
-      update();
-      interval = setInterval(update, 60_000);
-    }, delay);
-
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-    };
-  }, [createdAtIso]);
-
-  return label;
 }
