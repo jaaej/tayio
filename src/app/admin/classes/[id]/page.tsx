@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, enrollments, profiles, subjects } from "@/db/schema";
 import { STUDENT_TIERS } from "@/lib/roles";
@@ -8,6 +8,8 @@ import { GlassPanel, PageHeader, buttonVariants } from "@/components/admin/ui";
 import { formatTimeRange } from "@/lib/format";
 import { classNameDetail } from "@/lib/class-display";
 import { subjectTone } from "@/lib/subject-tone";
+import { DeleteClassButton } from "../_components/delete-class-button";
+import { roomsInUse } from "../_lib/rooms";
 import { EditClassForm } from "./_components/edit-class-form";
 import { EnrollmentsManager } from "./_components/enrollments-manager";
 
@@ -35,9 +37,23 @@ export default async function ClassEditPage({
     .orderBy(profiles.firstName);
 
   const subjectList = await db
-    .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
+    .select({
+      id: subjects.id,
+      name: subjects.name,
+      yearLevel: subjects.yearLevel,
+      color: subjects.color,
+    })
     .from(subjects)
     .orderBy(subjects.name);
+
+  const rooms = roomsInUse(
+    (
+      await db
+        .selectDistinct({ location: classes.location })
+        .from(classes)
+        .where(isNotNull(classes.location))
+    ).map((r) => r.location),
+  );
 
   const enrolled = await db
     .select({
@@ -73,8 +89,8 @@ export default async function ClassEditPage({
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
   const availableStudents = await availableStudentsQuery;
 
-  const subjectName =
-    subjectList.find((s) => s.id === row.subjectId)?.name ?? null;
+  const subject = subjectList.find((s) => s.id === row.subjectId) ?? null;
+  const subjectName = subject?.name ?? null;
   const classDetail = classNameDetail(subjectName, row.name);
   const classTitle = classDetail || subjectName || row.name;
   const showSubjectChip = Boolean(subjectName && classDetail);
@@ -83,7 +99,7 @@ export default async function ClassEditPage({
     row.isRecurring && row.weekday !== null && row.startTime && row.endTime
       ? `${WEEKDAY_SHORT[row.weekday]} · ${formatTimeRange(row.startTime, row.endTime)}`
       : "No recurring slot";
-  const tone = subjectName ? subjectTone(subjectName) : null;
+  const tone = subject ? subjectTone(subject.name, subject.color) : null;
   const chip =
     "inline-flex h-6 items-center whitespace-nowrap rounded-full bg-white/75 px-2.5 text-[12px] font-bold text-ink";
 
@@ -150,7 +166,11 @@ export default async function ClassEditPage({
             }}
             tutors={tutors}
             subjects={subjectList}
+            rooms={rooms}
           />
+          <div className="border-t border-line p-4">
+            <DeleteClassButton id={row.id} name={row.name} />
+          </div>
         </GlassPanel>
       </div>
     </div>

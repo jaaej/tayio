@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { getStudentSubjectPage } from "../_lib/subject-page";
 import type { ChecklistTask } from "../_lib/week-checklist";
 import type { StudentCurriculumWeek } from "./_queries";
-import { subjectBg } from "./_components/subject-colour";
+import { subjectTone } from "@/lib/subject-tone";
 import { SubjectHeader } from "./_components/subject-header";
 import { LessonMaterials } from "./_components/lesson-materials";
 import { Overview, TutorNote, WeekHomework, WeeklyQuiz } from "./_components/week-panels";
@@ -43,6 +43,7 @@ export default async function StudentSubjectPage({
           tabs={page.tabs}
           subjectId={subjectId}
           subjectName={page.subjectName}
+          subjectColor={page.subjectColor}
           title={page.subjectName}
         />
         <Notice>Your tutor is preparing this term&apos;s lessons. They appear here once they&apos;re ready.</Notice>
@@ -57,6 +58,7 @@ export default async function StudentSubjectPage({
         tabs={page.tabs}
         subjectId={subjectId}
         subjectName={data.subjectName}
+        subjectColor={data.subjectColor}
         title={week?.title ?? data.subjectName}
         kicker={[week ? `Week ${week.weekNumber}` : null, data.tutorName]
           .filter(Boolean)
@@ -82,7 +84,7 @@ export default async function StudentSubjectPage({
             selectedWeekId={week?.subjectWeekId ?? null}
             currentWeekIdHint={page.currentWeekId}
             showTermSelect
-            accent={subjectBg(data.subjectName)}
+            accent={subjectTone(data.subjectName, data.subjectColor).flat}
           />
         }
       >
@@ -91,6 +93,7 @@ export default async function StudentSubjectPage({
             week={week}
             tasks={tasks}
             subjectName={data.subjectName}
+            subjectColor={data.subjectColor}
             videoSrc={page.videoSrc}
             tutorFirstName={tutorFirstName}
             now={now}
@@ -111,6 +114,7 @@ function WeekBody({
   week,
   tasks,
   subjectName,
+  subjectColor,
   videoSrc,
   tutorFirstName,
   now,
@@ -118,6 +122,7 @@ function WeekBody({
   week: StudentCurriculumWeek;
   tasks: ChecklistTask[];
   subjectName: string;
+  subjectColor: string | null;
   videoSrc: string | null;
   tutorFirstName: string | null;
   now: Date;
@@ -128,21 +133,27 @@ function WeekBody({
   const showQuiz = Boolean(quiz) || week.quizInProgress;
   return (
     <div className="flex flex-col gap-5">
-      <Overview week={week} subjectName={subjectName} />
+      <Overview week={week} subjectName={subjectName} subjectColor={subjectColor} />
       {video && booklet && (
         <LessonMaterials
           video={video}
           booklet={booklet}
           videoSrc={videoSrc}
           subjectWeekId={week.subjectWeekId}
-          accent={subjectBg(subjectName)}
+          accent={subjectTone(subjectName, subjectColor).flat}
         />
       )}
       <div className={showQuiz ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" : undefined}>
         <WeekHomework tasks={tasks.filter((t) => t.kind === "homework")} />
         <WeeklyQuiz task={quiz} inProgress={week.quizInProgress} tutorFirstName={tutorFirstName} />
       </div>
-      <TutorNote week={week} subjectName={subjectName} tutorFirstName={tutorFirstName} now={now} />
+      <TutorNote
+        week={week}
+        subjectName={subjectName}
+        subjectColor={subjectColor}
+        tutorFirstName={tutorFirstName}
+        now={now}
+      />
     </div>
   );
 }

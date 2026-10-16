@@ -59,7 +59,10 @@ export default async function ParentFeedbackPage({
             <Card key={r.id}>
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <SubjectPill name={r.subjectName ?? "Lesson"} />
+                  <SubjectPill
+                    name={r.subjectName ?? "Lesson"}
+                    color={r.subjectName ? r.subjectColor : null}
+                  />
                   {r.topicCovered && (
                     <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
                       {r.topicCovered}

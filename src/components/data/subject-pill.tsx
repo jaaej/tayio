@@ -1,20 +1,20 @@
-import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 
 /**
- * Small colored tag for a subject, derived from the subject name.
+ * Small coloured tag for a subject, in the subject's colour.
  * Used inline next to homework titles, lesson chips, etc.
  */
 export function SubjectPill({
   name,
+  color,
   size = "sm",
 }: {
   name: string;
+  /** The subject's stored colour (`subjects.color`). */
+  color: string | null;
   size?: "sm" | "md";
 }) {
-  const tokens = getAccentTokens(colorFamilyForSubject(name));
+  const tone = subjectTone(name, color);
   const sizeClass =
     size === "md"
       ? "px-3 py-1 text-sm"
@@ -23,8 +23,8 @@ export function SubjectPill({
     <span
       className={`inline-flex items-center rounded-full font-semibold whitespace-nowrap ${sizeClass}`}
       style={{
-        backgroundColor: tokens.pillBg,
-        color: tokens.pillText,
+        backgroundColor: tone.bg,
+        color: tone.fg,
       }}
     >
       {name}

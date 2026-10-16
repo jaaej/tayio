@@ -19,6 +19,7 @@ export type ResourceLibraryItem = {
 export type ResourceLibrarySubject = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   resources: ResourceLibraryItem[];
 };
 
@@ -39,7 +40,7 @@ export async function loadResourceLibrary(subjectIds: string[]): Promise<{
 
   const [subjectRows, topicRows, resourceRows] = await Promise.all([
     db
-      .select({ id: subjects.id, name: subjects.name })
+      .select({ id: subjects.id, name: subjects.name, color: subjects.color })
       .from(subjects)
       .where(inArray(subjects.id, subjectIds)),
     db
@@ -57,13 +58,14 @@ export async function loadResourceLibrary(subjectIds: string[]): Promise<{
   // Preserve the caller's order regardless of what the DB returns for the IN list.
   const subjectList = subjectIds
     .map((id) => subjectRows.find((s) => s.id === id))
-    .filter((s): s is { id: string; name: string } => Boolean(s));
+    .filter((s): s is (typeof subjectRows)[number] => Boolean(s));
   const topicById = new Map(topicRows.map((t) => [t.id, t]));
 
   return {
     subjects: subjectList.map((s) => ({
       subjectId: s.id,
       subjectName: s.name,
+      subjectColor: s.color,
       // listResourcesForSubjects is newest first; filtering keeps that order.
       resources: resourceRows
         .filter((r) => r.subjectId === s.id)

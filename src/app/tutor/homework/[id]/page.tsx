@@ -101,7 +101,11 @@ export default async function HomeworkMarkingPage({
   const [[cls], attachmentHref, solutionHref] = await Promise.all([
     homework.classId
       ? db
-          .select({ className: classes.name, subjectName: subjects.name })
+          .select({
+            className: classes.name,
+            subjectName: subjects.name,
+            subjectColor: subjects.color,
+          })
           .from(classes)
           .innerJoin(subjects, eq(subjects.id, classes.subjectId))
           .where(eq(classes.id, homework.classId))
@@ -143,7 +147,7 @@ export default async function HomeworkMarkingPage({
           backHref={backHref}
           title={homework.title}
           sub={[classLabel, dueLabel].filter(Boolean).join(" · ")}
-          subject={cls?.subjectName ?? null}
+          subject={cls ? { name: cls.subjectName, color: cls.subjectColor } : null}
           actions={settings}
         />
         <div className="panel flex flex-col overflow-hidden">
@@ -226,7 +230,7 @@ export default async function HomeworkMarkingPage({
         title={name}
         status={selected.status}
         sub={sub}
-        subject={cls?.subjectName ?? null}
+        subject={cls ? { name: cls.subjectName, color: cls.subjectColor } : null}
         actions={
           <>
             {settings}
@@ -317,7 +321,7 @@ function PaneHeader({
   title: string;
   status?: string;
   sub: string;
-  subject: string | null;
+  subject: { name: string; color: string | null } | null;
   actions: React.ReactNode;
 }) {
   return (
@@ -346,7 +350,7 @@ function PaneHeader({
             )}
           </span>
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
-            {subject && <SubjectDot subject={subject} />}
+            {subject && <SubjectDot subject={subject.name} color={subject.color} />}
             <span>{sub}</span>
           </p>
         </div>

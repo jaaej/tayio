@@ -25,13 +25,14 @@ import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
 import { formatTime, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
-import { subjectTone, type SubjectFamily } from "@/lib/subject-tone";
+import { subjectTone } from "@/lib/subject-tone";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
-import { CreateSubjectPanel } from "./_components/create-subject-panel";
+import { SubjectPanel } from "./_components/subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
+import { roomsInUse } from "./_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "./_lib/tutor-fit";
 import { SubjectBlock } from "../_components/subject-block";
 
@@ -52,18 +53,6 @@ const MONTH_NAMES = [
   "December",
 ];
 const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
-
-/**
- * Legend order and labels for the subject colours on the schedule; `sample`
- * is a subject name that resolves to the family's colour.
- */
-const FAMILY_LEGEND: { family: SubjectFamily; label: string; sample: string }[] = [
-  { family: "maths", label: "Maths", sample: "Maths" },
-  { family: "english", label: "English", sample: "English" },
-  { family: "science", label: "Sciences", sample: "Science" },
-  { family: "senior", label: "VCE & senior maths", sample: "Methods" },
-  { family: "other", label: "Other", sample: "" },
-];
 
 /** Calendar arithmetic on ISO dates (UTC-safe, no server timezone). */
 function isoFromParts(y: number, monthIndex: number, day: number) {
@@ -114,6 +103,7 @@ export default async function ClassesPage({
         isRecurring: classes.isRecurring,
         tutorId: classes.tutorId,
         subject: subjects.name,
+        subjectColor: subjects.color,
         tutorFirst: profiles.firstName,
         tutorLast: profiles.lastName,
         enrolled: sql<number>`(
@@ -136,7 +126,12 @@ export default async function ClassesPage({
       .where(eq(profiles.role, "tutor"))
       .orderBy(profiles.firstName),
     db
-      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
+      .select({
+        id: subjects.id,
+        name: subjects.name,
+        yearLevel: subjects.yearLevel,
+        color: subjects.color,
+      })
       .from(subjects)
       .orderBy(subjects.name),
     resolveCurrentTerm(),
@@ -216,7 +211,9 @@ export default async function ClassesPage({
           endTime: lessons.endTime,
           className: classes.name,
           subjectName: subjects.name,
+          subjectColor: subjects.color,
           capacity: classes.capacity,
+          room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
           tutorFirst: profiles.firstName,
           tutorLast: profiles.lastName,
           enrolled: sql<number>`(
@@ -246,7 +243,8 @@ export default async function ClassesPage({
     label: l.subjectName,
     title: classDisplayName(l.subjectName, l.className),
     subject: l.subjectName,
-    meta: `${l.tutorFirst} ${l.tutorLast}`.trim(),
+    subjectColor: l.subjectColor,
+    meta: [`${l.tutorFirst} ${l.tutorLast}`.trim(), l.room].filter(Boolean).join(" · "),
     badge: `${l.enrolled}/${l.capacity}`,
     href: `/admin/classes/${l.classId}`,
   }));
@@ -289,11 +287,15 @@ export default async function ClassesPage({
     : weekRange(weekStart);
 
   const lessonMinutes = usualLessonMinutes(allRows);
+  const rooms = roomsInUse(allRows.map((r) => r.location));
   const shownSubjects = isMonth
-    ? rows.filter((r) => r.isRecurring && r.weekday !== null).map((r) => r.subject)
-    : weekLessons.map((l) => l.subjectName);
-  const shownFamilies = new Set(shownSubjects.map((name) => subjectTone(name).family));
-  const legend = FAMILY_LEGEND.filter((f) => shownFamilies.has(f.family));
+    ? rows
+        .filter((r) => r.isRecurring && r.weekday !== null)
+        .map((r) => ({ name: r.subject, color: r.subjectColor }))
+    : weekLessons.map((l) => ({ name: l.subjectName, color: l.subjectColor }));
+  const legend = [
+    ...new Map(shownSubjects.map((s) => [s.name, s])).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="flex flex-col gap-5">
@@ -328,6 +330,7 @@ export default async function ClassesPage({
               tutorWindows={tutorWindows}
               classSlots={classSlots}
               subjects={subjectList}
+              rooms={rooms}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"
               defaultOpen={openCreate === "1"}
@@ -340,7 +343,7 @@ export default async function ClassesPage({
         title="Subjects"
         titleId="subjects-heading"
         meta={subjectList.length}
-        action={<CreateSubjectPanel />}
+        action={<SubjectPanel />}
         bodyClassName="p-2"
       >
         {subjectList.length === 0 ? (
@@ -358,6 +361,7 @@ export default async function ClassesPage({
                 <SubjectBlock
                   id={s.id}
                   name={s.name}
+                  color={s.color}
                   yearLevel={s.yearLevel}
                   detail={
                     currentTerm
@@ -432,6 +436,7 @@ export default async function ClassesPage({
               tutorWindows={tutorWindows}
               classSlots={classSlots}
               subjects={subjectList}
+              rooms={rooms}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"
             />
@@ -454,9 +459,9 @@ export default async function ClassesPage({
                 className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line px-[18px] py-3 text-[12px] font-semibold text-muted"
               >
                 {legend.map((l) => (
-                  <li key={l.family} className="inline-flex items-center gap-1.5">
-                    <SubjectDot subject={l.sample} className="h-2.5 w-2.5" />
-                    {l.label}
+                  <li key={l.name} className="inline-flex items-center gap-1.5">
+                    <SubjectDot subject={l.name} color={l.color} className="h-2.5 w-2.5" />
+                    {l.name}
                   </li>
                 ))}
               </ul>
@@ -479,7 +484,7 @@ export default async function ClassesPage({
                         href={`/admin/classes/${c.id}`}
                         className="flex min-h-11 items-center gap-3 rounded-[12px] border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
                       >
-                        <SubjectDot subject={c.subject} className="h-2.5 w-2.5" />
+                        <SubjectDot subject={c.subject} color={c.subjectColor} className="h-2.5 w-2.5" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px] font-bold text-ink">
                             {c.name}
@@ -513,6 +518,7 @@ type ClassRow = {
   isRecurring: boolean;
   tutorId: string;
   subject: string;
+  subjectColor: string | null;
   tutorFirst: string;
   tutorLast: string;
   enrolled: number;
@@ -622,7 +628,7 @@ function MonthView({
                 </div>
                 <div className="space-y-1 overflow-hidden">
                   {dayClasses.slice(0, 3).map((c) => {
-                    const tone = subjectTone(c.subject);
+                    const tone = subjectTone(c.subject, c.subjectColor);
                     return (
                       <Link
                         key={c.id}

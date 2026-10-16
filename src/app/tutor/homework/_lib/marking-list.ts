@@ -20,6 +20,7 @@ export type SubmissionItem = {
   homeworkTitle: string;
   studentName: string;
   subjectName: string | null;
+  subjectColor: string | null;
   classLabel: string | null;
   status: string;
   /** ISO timestamps, so the list can cross the server/client boundary. */
@@ -31,6 +32,7 @@ export type HomeworkItem = {
   id: string;
   title: string;
   subjectName: string | null;
+  subjectColor: string | null;
   classLabel: string | null;
   dueDate: string;
   toMark: number;

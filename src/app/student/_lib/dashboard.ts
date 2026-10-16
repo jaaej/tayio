@@ -34,6 +34,7 @@ import {
 export type DashboardSubject = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorName: string;
   thisWeek: string | null;
   nextLesson: string;
@@ -69,7 +70,7 @@ const DONE_HOMEWORK = new Set(["submitted", "marked", "returned", "late"]);
 
 async function currentWeeks(
   studentId: string,
-  subjects: Array<{ subjectId: string; subjectName: string }>,
+  subjects: Array<{ subjectId: string; subjectName: string; subjectColor: string | null }>,
   todayIso: string,
 ): Promise<Array<DashWeekItem & WeekProgress & { bookletOpened: boolean; hasBooklet: boolean; homeworkDone: number; homeworkTotal: number }>> {
   const curricula = await Promise.all(
@@ -94,6 +95,7 @@ async function currentWeeks(
     items.push({
       subjectId: subject.subjectId,
       subjectName: subject.subjectName,
+      subjectColor: subject.subjectColor,
       subjectWeekId: week.subjectWeekId,
       weekNumber: week.weekNumber,
       weekTitle: week.title,
@@ -166,6 +168,7 @@ export async function getStudentDashboard(
     endTime: l.endTime,
     status: l.status,
     subjectName: l.subjectName,
+    subjectColor: l.subjectColor,
   }));
   const homework: DashHomework[] = homeworkRows.map((h) => ({
     homeworkId: h.homeworkId,
@@ -175,6 +178,7 @@ export async function getStudentDashboard(
     score: h.score,
     markedAt: h.markedAt,
     subjectName: h.subjectName,
+    subjectColor: h.subjectColor,
   }));
 
   const next = nextLessonBySubject(lessons, now);
@@ -198,6 +202,7 @@ export async function getStudentDashboard(
     subjects: subjects.map((s) => ({
       subjectId: s.subjectId,
       subjectName: s.subjectName,
+      subjectColor: s.subjectColor,
       tutorName: `${s.tutorFirstName} ${s.tutorLastName}`.trim(),
       thisWeek: weekBySubject.get(s.subjectId)?.weekTitle ?? null,
       nextLesson: nextLessonLabel(next.get(s.subjectName), todayIso),

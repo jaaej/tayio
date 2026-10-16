@@ -305,9 +305,22 @@ Conventions referenced throughout:
 3. **Rationale:** Parent-child account linking is a first-class concept per the PRDs. The family-link manager can mark one linked parent as the student's primary contact; setting one clears any previous primary link.
 
 ### Class management
-1. **What it is** - Create/edit class slots (subject, tutor, capacity, type, location, recurrence).
-2. **How it works** - `/admin/classes`, `/admin/classes/[id]`. Table: `classes` (`classTypeEnum` group/one_on_one). Enrolments managed inline via `enrollments-manager.tsx`. Guard: `requireAdmin()`.
-3. **Rationale:** `classType` is an explicit enum column, *not* inferred from capacity, because the reschedule routing depends on it (1-on-1 always needs approval; group depends on timing) (per role-tiers spec §8 / reschedule spec).
+1. **What it is** - Create, edit, and delete class slots (subject, tutor, capacity, type, room, online link, recurrence).
+2. **How it works** - `/admin/classes`, `/admin/classes/[id]`. Table: `classes` (`classTypeEnum` group/one_on_one); the room is stored in `classes.location` and labelled "Room", with rooms already in use suggested as you type. Enrolments managed inline via `enrollments-manager.tsx`. Guard: `requireAdmin()`.
+   Saving a class carries the change to its upcoming lessons (`planClassScheduleChange` in `src/lib/class-schedule-change.ts`, tested; applied in `updateClass` under the same advisory lock as the lesson sweep).
+   Each lesson moves to the new day in its own Monday-first week at the new time; one that would land in the past is removed unless something points at it (attendance, notes, a booking, a cover request, a cancellation, a credit, homework, logged hours).
+   A week holding two weekly lessons keeps one, so lessons doubled by an edit before 16 October 2026 clean up on the next save.
+   Tutor, room, and link follow the class unless a lesson has its own (a cover tutor).
+   When the day, time, room, or tutor changes, the tutor (and a replaced tutor) and, when anyone is enrolled, the students and their linked parents get an in-app notification.
+   Delete is on the class page (`delete-class-button.tsx`, `deleteClass`): a class that has never run gets a plain confirmation; one that has run lists what is lost and needs its name typed (checked on the server too). Class-move requests for the class are removed with it; everything else cascades. Families with upcoming lessons and the tutor are told "Class removed".
+3. **Rationale:** `classType` is an explicit enum column, *not* inferred from capacity, because the reschedule routing depends on it (1-on-1 always needs approval; group depends on timing) (per role-tiers spec §8 / reschedule spec). Edits move existing lessons rather than regenerating them, so bookings, covers, and cancellations stay attached to their lesson.
+
+### Subject management
+1. **What it is** - Add, rename, recolour, and delete subjects.
+2. **How it works** - Classes → Subjects: "Add subject" and each subject's pencil open one shared panel (`src/app/admin/classes/_components/subject-panel.tsx`; actions in `src/app/admin/_lib/actions-subjects.ts`) with name, year level, and colour.
+   The colour is one of ten palette keys stored in `subjects.color` (migration 0063); `subjectTone(name, color)` in `src/lib/subject-tone.ts` is the only colour source for every role, and a subject with no stored key takes one from its name.
+   Delete is refused while any class uses the subject (the panel links to those classes); otherwise the confirmation lists the curriculum weeks, topics, quizzes and attempts, resources, discussion threads, and unused credits that go with it, and a subject with content needs its name typed.
+3. **Rationale:** A fixed palette rather than a free colour picker keeps every pairing readable (each key's text and fills are contrast-tested). Stored files (booklets, videos, resource files) are not removed from storage when a subject is deleted, matching the other deletes; the same path can be shared by several rows.
 
 ### Enrolment management
 1. **What it is** - Onboard/move/withdraw students into classes, with per-enrolment admin notes and delivery mode.

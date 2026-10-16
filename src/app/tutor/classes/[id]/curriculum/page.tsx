@@ -95,7 +95,7 @@ export default async function TutorClassCurriculumPage({
     <CurriculumLayout
       attached
       framed
-      subjectName={data.subjectName}
+      subject={{ name: data.subjectName, color: data.subjectColor }}
       rail={
         <CurriculumRail
           basePath={`/tutor/classes/${classId}/curriculum`}

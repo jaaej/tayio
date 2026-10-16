@@ -1,16 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { subjectFamily, subjectTone } from "./subject-tone";
+import {
+  SUBJECT_COLORS,
+  defaultSubjectColor,
+  isSubjectColor,
+  subjectTone,
+} from "./subject-tone";
 
-describe("subjectFamily", () => {
-  it("groups subjects into the redesign's colour families", () => {
-    expect(subjectFamily("Year 10 Maths")).toBe("maths");
-    expect(subjectFamily("VCE Maths Methods")).toBe("senior");
-    expect(subjectFamily("Year 11 Methods")).toBe("senior");
-    expect(subjectFamily("VCE Specialist Maths")).toBe("senior");
-    expect(subjectFamily("Year 9 English")).toBe("english");
-    expect(subjectFamily("VCE Chemistry")).toBe("science");
-    expect(subjectFamily("VCE Physics")).toBe("science");
-    expect(subjectFamily("Japanese")).toBe("other");
+describe("defaultSubjectColor", () => {
+  it("picks a colour from the subject name when none is stored", () => {
+    expect(defaultSubjectColor("Year 10 Maths")).toBe("teal");
+    expect(defaultSubjectColor("VCE Maths Methods")).toBe("pink");
+    expect(defaultSubjectColor("Year 11 Methods")).toBe("pink");
+    expect(defaultSubjectColor("VCE Specialist Maths")).toBe("pink");
+    expect(defaultSubjectColor("Year 9 English")).toBe("violet");
+    expect(defaultSubjectColor("VCE Chemistry")).toBe("blue");
+    expect(defaultSubjectColor("VCE Physics")).toBe("blue");
+    expect(defaultSubjectColor("Japanese")).toBe("grey");
+  });
+});
+
+describe("subjectTone", () => {
+  it("uses the stored colour over the name", () => {
+    expect(subjectTone("Year 10 Maths", "orange").color).toBe("orange");
+  });
+
+  it("falls back to the name when the stored colour is missing or unknown", () => {
+    expect(subjectTone("Year 10 Maths", null).color).toBe("teal");
+    expect(subjectTone("Year 10 Maths", undefined).color).toBe("teal");
+    expect(subjectTone("Year 10 Maths", "magenta").color).toBe("teal");
+  });
+
+  it("knows only the palette keys", () => {
+    expect(isSubjectColor("teal")).toBe(true);
+    expect(isSubjectColor("magenta")).toBe(false);
+    expect(isSubjectColor(null)).toBe(false);
   });
 });
 
@@ -27,12 +50,18 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-describe("subjectTone contrast", () => {
-  const names = ["Year 9 Maths", "Year 9 English", "VCE Physics", "VCE Maths Methods", "Japanese"];
-
-  it.each(names)("%s: white on the solid fill and fg on the pale fill meet 4.5:1", (name) => {
-    const tone = subjectTone(name);
-    expect(contrast("#FFFFFF", tone.solid)).toBeGreaterThanOrEqual(4.5);
+describe("palette contrast", () => {
+  it.each(SUBJECT_COLORS)("%s: text pairs meet 4.5:1, the flat hero 3:1", (color) => {
+    const tone = subjectTone("", color);
     expect(contrast(tone.fg, tone.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#FFFFFF", tone.solid)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#FFFFFF", tone.deep)).toBeGreaterThanOrEqual(4.5);
+    // The flat fill carries large hero text only.
+    expect(contrast("#FFFFFF", tone.flat)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("gives every colour its own dot", () => {
+    const dots = SUBJECT_COLORS.map((c) => subjectTone("", c).dot);
+    expect(new Set(dots).size).toBe(SUBJECT_COLORS.length);
   });
 });

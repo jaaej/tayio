@@ -172,6 +172,19 @@ describe("notificationGroupFor", () => {
       notificationGroupFor({ title: "Cancellation undone", href: null }),
     ).toBe("updates");
   });
+
+  it("treats an admin's class changes as schedule updates for every role", () => {
+    const cases = [
+      { title: "Class time changed", href: "/tutor/classes/c1" },
+      { title: "Class room changed", href: "/student/timetable" },
+      { title: "Class time, room and tutor changed", href: "/parent/classes/c1?child=s1" },
+      { title: "Class tutor changed", href: "/student/timetable" },
+      { title: "Class reassigned", href: "/tutor/timetable" },
+      { title: "Class removed", href: "/parent" },
+      { title: "New class assigned", href: "/tutor/classes/c1" },
+    ];
+    for (const c of cases) expect(notificationGroupFor(c)).toBe("updates");
+  });
 });
 
 describe("NOTIFICATION_GROUPS", () => {

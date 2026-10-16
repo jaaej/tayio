@@ -71,7 +71,7 @@ export default async function TutorClassLayout({
             </Link>
             <div className="flex min-w-0 flex-col gap-0.5">
               <h1 className="flex min-w-0 items-center gap-2 text-[22px] font-extrabold leading-tight text-ink">
-                <SubjectDot subject={hub.subjectName} className="h-[11px] w-[11px] rounded-[4px]" />
+                <SubjectDot subject={hub.subjectName} color={hub.subjectColor} className="h-[11px] w-[11px] rounded-[4px]" />
                 <span className="min-w-0 break-words">
                   {classDisplayName(hub.subjectName, hub.name)}
                 </span>

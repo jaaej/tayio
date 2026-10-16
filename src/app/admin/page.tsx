@@ -104,6 +104,7 @@ export default async function AdminDashboard({
     label: l.subjectName,
     title: classDisplayName(l.subjectName, l.className),
     subject: l.subjectName,
+    subjectColor: l.subjectColor,
     href: `/admin/attendance/${l.id}`,
   }));
 

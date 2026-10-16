@@ -7,6 +7,7 @@ import { subjectSearchAliases, subjects } from "@/db/schema";
 export type SubjectSearchAliasRow = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   alias: string | null;
 };
 
@@ -17,6 +18,7 @@ export async function getSubjectSearchAliases(): Promise<
     .select({
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       alias: subjectSearchAliases.alias,
     })
     .from(subjects)

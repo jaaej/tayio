@@ -163,6 +163,7 @@ export default async function ParentHomeworkPage({
                     <Td>
                       <SubjectPill
                         name={r.subjectName ?? r.className ?? "Other"}
+                        color={r.subjectName ? r.subjectColor : null}
                       />
                     </Td>
                     <Td className="text-muted whitespace-nowrap">

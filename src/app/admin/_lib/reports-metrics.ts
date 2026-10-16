@@ -2,6 +2,7 @@ export type ClassMetricRow = {
   classId: string;
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorName: string;
   attended: number;
   markedLessons: number;
@@ -17,6 +18,7 @@ export type ClassReportRow = {
   classId: string;
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorName: string;
   attendancePct: number | null;
   homeworkPct: number | null;
@@ -48,6 +50,7 @@ export function toClassReportRow(r: ClassMetricRow): ClassReportRow {
     classId: r.classId,
     className: r.className,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     tutorName: r.tutorName,
     attendancePct: ratePct(r.attended, r.markedLessons),
     homeworkPct: ratePct(r.homeworkCompleted, r.homeworkAssigned),

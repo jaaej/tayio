@@ -71,6 +71,7 @@ export type StudentCurriculumWeek = {
 
 export type StudentCurriculumData = {
   subjectName: string;
+  subjectColor: string | null;
   className: string;
   classId: string;
   /** The enrolled class's tutor, for "From {tutor}" and the message link. */
@@ -99,6 +100,7 @@ export async function getStudentCurriculum(
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       enrolledAt: enrollments.enrolledAt,
       tutorId: classes.tutorId,
       tutorFirstName: profiles.firstName,
@@ -379,6 +381,7 @@ export async function getStudentCurriculum(
 
   return {
     subjectName: enrollment.subjectName,
+    subjectColor: enrollment.subjectColor,
     className: enrollment.className,
     classId: enrollment.classId,
     tutorId: enrollment.tutorId,

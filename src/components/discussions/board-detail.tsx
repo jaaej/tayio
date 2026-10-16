@@ -29,16 +29,22 @@ export async function DiscussionBoardDetail({
   rolePrefix: DiscussionRole;
 }) {
   let label = adminBoardLabel();
+  let color: string | null = null;
   let eyebrow = "Open to all subjects";
 
   if (board.kind === "subject") {
     const subj = await db
-      .select({ name: subjects.name, yearLevel: subjects.yearLevel })
+      .select({
+        name: subjects.name,
+        yearLevel: subjects.yearLevel,
+        color: subjects.color,
+      })
       .from(subjects)
       .where(eq(subjects.id, board.subjectId))
       .limit(1);
     if (subj.length === 0) notFound();
     label = subjectBoardLabel(subj[0]);
+    color = subj[0].color;
     eyebrow = "Subject board";
   }
 
@@ -50,7 +56,7 @@ export async function DiscussionBoardDetail({
         back={{ href: backHref, label: "Back to boards" }}
         eyebrow={
           <>
-            {board.kind === "subject" && <SubjectDot subject={label} />}
+            {board.kind === "subject" && <SubjectDot subject={label} color={color} />}
             {eyebrow}
           </>
         }

@@ -27,6 +27,8 @@ export type TimeGridEvent = {
   title?: string;
   /** Used for the subject colour; defaults to label. */
   subject?: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   /** Secondary line in detailed mode, e.g. the tutor. */
   meta?: string;
   /** Small chip in detailed mode, e.g. "3/8" enrolled. */
@@ -216,7 +218,7 @@ export function WeekTimeGrid({
               }}
             >
               {placeDay(byDay.get(d.iso) ?? []).map((e) => {
-                const tone = subjectTone(e.subject ?? e.label);
+                const tone = subjectTone(e.subject ?? e.label, e.subjectColor);
                 const top = ((e.start - startHour * 60) / 60) * HOUR_PX;
                 const height = Math.max(((e.end - e.start) / 60) * HOUR_PX - 4, 30);
                 const width = 100 / e.lanes;

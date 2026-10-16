@@ -98,7 +98,7 @@ export function DiscussionsBoardsView({
                       href={`${hrefPrefix}/${boardSegment(b.id)}`}
                       className="flex items-center gap-2.5 rounded-[11px] p-3 text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
                     >
-                      <SubjectDot subject={b.label} className="h-2.5 w-2.5" />
+                      <SubjectDot subject={b.label} color={b.color} className="h-2.5 w-2.5" />
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-[14px] font-bold">{b.label}</span>
                         <span className="text-[12px] text-muted">

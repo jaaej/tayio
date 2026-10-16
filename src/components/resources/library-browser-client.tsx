@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
-import type { AccentTokens } from "@/lib/subject-colors";
+import type { SubjectTone } from "@/lib/subject-tone";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
 
 export type LibraryResourceItem = {
@@ -23,7 +23,7 @@ export type LibraryResourceItem = {
 export type LibrarySubjectGroup = {
   subjectId: string;
   subjectName: string;
-  tokens: AccentTokens;
+  tone: SubjectTone;
   resources: LibraryResourceItem[];
 };
 
@@ -127,25 +127,25 @@ export function LibraryBrowserClient({
             <div
               className="px-4 py-3 flex items-center gap-3 border-b border-hairline/60"
               style={{
-                background: `linear-gradient(135deg, ${g.tokens.bgFrom} 0%, ${g.tokens.bgTo} 100%)`,
+                background: `linear-gradient(135deg, ${g.tone.bg} 0%, color-mix(in srgb, ${g.tone.bg} 55%, white) 100%)`,
               }}
             >
               <div
                 className="h-9 w-9 rounded-[10px] grid place-items-center text-[14px] font-extrabold shrink-0"
-                style={{ background: g.tokens.title, color: "#fff" }}
+                style={{ background: g.tone.deep, color: "#fff" }}
               >
                 {g.subjectName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <div
                   className="text-[14px] font-extrabold leading-tight truncate"
-                  style={{ color: g.tokens.title }}
+                  style={{ color: g.tone.fg }}
                 >
                   {g.subjectName}
                 </div>
                 <div
                   className="text-[10px] uppercase tracking-[0.12em] font-bold"
-                  style={{ color: g.tokens.meta }}
+                  style={{ color: g.tone.fg }}
                 >
                   {g.resources.length} resource{g.resources.length === 1 ? "" : "s"}
                 </div>

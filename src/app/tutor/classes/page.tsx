@@ -145,7 +145,7 @@ export default async function TutorClassesPage() {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-1.5">
             {sorted.map((c) => {
-              const tone = subjectTone(c.subjectName);
+              const tone = subjectTone(c.subjectName, c.subjectColor);
               const name = classDisplayName(c.subjectName, c.name);
               const week = weekByClass.get(c.id);
               const capacity = c.capacity ?? 0;

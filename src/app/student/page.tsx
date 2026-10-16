@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
-import { subjectFamily, subjectTone } from "@/lib/subject-tone";
+import { subjectTone } from "@/lib/subject-tone";
 import { getStudentDashboard } from "./_lib/dashboard";
 import { relativeDay, type StudentTodo } from "./_lib/dashboard-rules";
 
@@ -14,15 +14,6 @@ export const dynamic = "force-dynamic";
 
 const HERO = "#5B2BD8";
 const BLITZ = "#3B2BD1";
-/** Flat subject colours from the handoff; other families use the glass solid. */
-const SUBJECT_BG: Partial<Record<ReturnType<typeof subjectFamily>, string>> = {
-  maths: "#159A7C",
-  english: "#6A4BE6",
-};
-
-function subjectBg(name: string) {
-  return SUBJECT_BG[subjectFamily(name)] ?? subjectTone(name).solid;
-}
 
 /** Scattered maths symbols behind the Blitz card (the handoff's blitzSvg). */
 function blitzBackground(base: string) {
@@ -127,7 +118,7 @@ export default async function StudentDashboard() {
           className="grid min-w-0 flex-[999_1_520px] gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr))]"
         >
           {dashboard.subjects.map((s) => {
-            const bg = subjectBg(s.subjectName);
+            const bg = subjectTone(s.subjectName, s.subjectColor).flat;
             const pct = s.weekTotal > 0 ? Math.round((s.weekDone / s.weekTotal) * 100) : 0;
             return (
               <Link
@@ -223,7 +214,11 @@ export default async function StudentDashboard() {
                   >
                     <span
                       className="h-3 w-3 flex-none rounded-[4px]"
-                      style={{ background: t.subjectName ? subjectBg(t.subjectName) : "#8A4A06" }}
+                      style={{
+                        background: t.subjectName
+                          ? subjectTone(t.subjectName, t.subjectColor).flat
+                          : "#8A4A06",
+                      }}
                     />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="text-[15px] font-extrabold">{t.title}</span>
@@ -271,7 +266,7 @@ export default async function StudentDashboard() {
                 </span>
                 <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                   {d.lessons.map((l) => {
-                    const tone = subjectTone(l.subjectName);
+                    const tone = subjectTone(l.subjectName, l.subjectColor);
                     const onToday = d.isToday;
                     return (
                       <span

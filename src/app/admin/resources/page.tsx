@@ -196,7 +196,7 @@ export default async function AdminResourcesPage({
                     </td>
                     <td className="px-2.5 py-3 text-ink">
                       <span className="inline-flex items-center gap-2">
-                        <SubjectDot subject={r.subjectName} />
+                        <SubjectDot subject={r.subjectName} color={r.subjectColor} />
                         {r.subjectName}
                       </span>
                     </td>

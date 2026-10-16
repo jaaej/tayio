@@ -237,6 +237,7 @@ export default async function TutorToday({
       label: l.subjectName,
       title: classDisplayName(l.subjectName, l.className),
       subject: l.subjectName,
+      subjectColor: l.subjectColor,
       href: `/tutor/lessons/${l.id}`,
     }));
 
@@ -428,7 +429,7 @@ function TodayLesson({
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-start gap-1.5 text-[15px] font-extrabold leading-snug text-ink">
-            <SubjectDot subject={l.subjectName} className="mt-[6px]" />
+            <SubjectDot subject={l.subjectName} color={l.subjectColor} className="mt-[6px]" />
             <span className="min-w-0">{classDisplayName(l.subjectName, l.className)}</span>
           </span>
           <span className="text-[13px] text-muted">{meta}</span>

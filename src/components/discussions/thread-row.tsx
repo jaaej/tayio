@@ -13,11 +13,14 @@ export function ThreadRow({
   thread,
   href,
   boardLabel,
+  boardColor = null,
 }: {
   thread: ThreadSummary;
   href: string;
   /** Set only where threads from several boards are mixed together. */
   boardLabel?: string;
+  /** The board subject's stored colour; null on General help. */
+  boardColor?: string | null;
 }) {
   const deleted = thread.deletedAt !== null;
   const title = deleted ? "[removed by admin]" : thread.title;
@@ -31,7 +34,7 @@ export function ThreadRow({
     >
       {boardLabel && (
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
-          <SubjectDot subject={boardLabel} className="h-2 w-2" />
+          <SubjectDot subject={boardLabel} color={boardColor} className="h-2 w-2" />
           <span className="min-w-0 truncate">{boardLabel}</span>
           <span className="ml-auto shrink-0 tabular-nums">{when}</span>
         </span>

@@ -7,7 +7,11 @@ import { ThreadRow } from "./thread-row";
 
 const SEARCH_THRESHOLD = 5;
 
-type ListThread = ThreadSummary & { href: string; boardLabel?: string };
+type ListThread = ThreadSummary & {
+  href: string;
+  boardLabel?: string;
+  boardColor?: string | null;
+};
 
 /**
  * A glass bezel holding a searchable list of thread rows. Used for the
@@ -80,6 +84,7 @@ export function ThreadListPanel({
                   thread={thread}
                   href={thread.href}
                   boardLabel={thread.boardLabel}
+                  boardColor={thread.boardColor}
                 />
               </li>
             ))}

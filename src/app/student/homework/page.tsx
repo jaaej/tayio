@@ -42,6 +42,7 @@ export default async function HomeworkPage({
   const [items, sp] = await Promise.all([getHomeworkListItems(user.id), searchParams]);
   const params = parseBoardParams(sp);
   const subjects = boardSubjects(items);
+  const subjectColors = new Map(items.map((i) => [i.subjectName, i.subjectColor]));
   const now = new Date();
 
   const hidden: Record<string, string> = {};
@@ -67,7 +68,7 @@ export default async function HomeworkPage({
                   <span
                     aria-hidden
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: subjectTone(name).dot }}
+                    style={{ backgroundColor: subjectTone(name, subjectColors.get(name)).dot }}
                   />
                   {name}
                 </SegmentLink>
@@ -320,7 +321,11 @@ function SubjectLine({ item, className }: { item: StudentHomeworkListItem; class
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: item.subjectName ? subjectTone(item.subjectName).dot : "var(--muted-2)" }}
+        style={{
+          backgroundColor: item.subjectName
+            ? subjectTone(item.subjectName, item.subjectColor).dot
+            : "var(--muted-2)",
+        }}
       />
       <span className="truncate">{item.subjectName ?? item.className ?? "Independent task"}</span>
     </span>
@@ -397,7 +402,11 @@ function CompactRow({
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: item.subjectName ? subjectTone(item.subjectName).dot : "var(--muted-2)" }}
+        style={{
+          backgroundColor: item.subjectName
+            ? subjectTone(item.subjectName, item.subjectColor).dot
+            : "var(--muted-2)",
+        }}
       />
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate text-[15px] font-bold text-ink">{item.title}</span>

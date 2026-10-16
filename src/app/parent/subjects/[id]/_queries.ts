@@ -55,6 +55,7 @@ export type ParentCurriculumWeek = {
 export type ParentCurriculumData = {
   childFirstName: string;
   subjectName: string;
+  subjectColor: string | null;
   className: string;
   classId: string;
   currentTerm: {
@@ -91,6 +92,7 @@ export async function getParentCurriculum(
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       enrolledAt: enrollments.enrolledAt,
     })
     .from(enrollments)
@@ -312,6 +314,7 @@ export async function getParentCurriculum(
   return {
     childFirstName: child?.firstName ?? "",
     subjectName: enr.subjectName,
+    subjectColor: enr.subjectColor,
     className: enr.className,
     classId: enr.classId,
     currentTerm: {

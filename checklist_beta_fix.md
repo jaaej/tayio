@@ -13,6 +13,13 @@ Last updated: 13 October 2026
 
 ## Manual QA required
 
+- [ ] Class and subject editing (16 October 2026): sign in as admin at 1440px and 390px.
+  On a class page, change the day and time of a recurring class with enrolled students and confirm the weekly schedule shows it once, on the new day, in the new room, and that the tutor, students, and parents each get one notification.
+  Delete a class that has never run (plain confirmation) and one that has (lists what is lost, Delete stays disabled until the name is typed).
+  In Classes → Subjects, add a subject, rename it, pick a colour, and confirm the colour on the admin schedule, tutor classes, student dashboard and subject page, and parent homework and subject page.
+  Try deleting a subject that still has classes (it links to them) and one without (it is removed).
+  Production has not had migration 0063 yet: run it before deploying this commit.
+
 - [ ] Student dashboard and glass shell (13 October 2026): sign in as a student at 1440px and 390px.
   Confirm the sidebar matches admin and tutor (search, Taiyo Blitz card with your rank, collapse to the icon rail), and that Taiyo Blitz is in the phone menu.
   On `/student`, check the header greeting and date, and that "Term N, Week N" shows once a current term exists (dev has none configured).
@@ -536,6 +543,20 @@ Last updated: 13 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin class and subject editing (16 October 2026, owner request).
+  Edit class: saving now moves the class's upcoming lessons to the new day, time, tutor, room, and link (`planClassScheduleChange`, `src/lib/class-schedule-change.ts`, tested; `updateClass` in `src/app/admin/_lib/actions-classes.ts`).
+  Before this, a new day or time only changed the class row: the 16 weeks of generated lessons kept the old slot and the sweep added the new one, so the class showed twice (reproduced in the browser on dev before the fix).
+  The next save of a class doubled that way removes the leftover lessons that nothing points at.
+  Changes to day, time, room, or tutor notify the tutor and, when anyone is enrolled, the students and linked parents ("Class time changed", "Class room changed", ...; classified as Updates and tested in `notification-groups.test.ts`).
+  Delete class: a "Delete class" button on the class page; a class that has run needs its name typed (checked on the server too), and class-move requests no longer block the delete.
+  Room: the class Location field is labelled Room, sits after the time in New class, and suggests rooms in use; tutors see it on Classes, Today, the lesson page, and the timetable hover.
+  Subjects: the Subjects panel's pencil opens Edit subject (rename, year level, colour, delete), sharing one panel with Add subject (`subject-panel.tsx`, `actions-subjects.ts`).
+  Delete subject is refused while classes use it and otherwise lists what goes with it.
+  Colour: `subjects.color` (migration 0063, applied to dev only) holds one of ten contrast-tested palette keys, and `subjectTone(name, color)` is now the only subject colour source in every role.
+  The older red/amber palette (`src/lib/subject-colors.ts`) is gone, so the parent portal and the unused student month calendar use the same colours as admin, tutor, and student; two unused components that depended on it were deleted.
+  The shared confirmation dialog now portals above side panels and takes an item list and a type-to-confirm text.
+  Verified on :3000 against dev with typecheck, lint, 516 tests, a production build, and browser runs of each flow; Year 9 Maths was set to orange and checked in all four portals, then restored.
 
 - [x] Admin New class: the tutor is chosen after the day and times, ranked by availability (15 October 2026, owner request).
   The Tutor section now sits under When; every tutor is listed, those available for the whole class first ("Free then"), then "Not free then" with a note: "Teaching <class> then" (available but already teaching a class that overlaps) or "Outside their available hours" / "No available hours set".
@@ -1757,6 +1778,12 @@ Last updated: 13 October 2026
 - [ ] Confirm production loading improvements using Vercel/Supabase timing data.
 
 ## Deployment required for the next larger workflow batch
+
+- [ ] Apply `supabase/migrations/0063_subject_colors.sql` to Production before
+  deploying the admin class and subject editing commit (16 October 2026).
+  The new code reads `subjects.color` on every page that shows a subject
+  colour, so it fails until the column exists; the column is additive, so the
+  code already in Production is unaffected. Then run `npm run db:check-rls`.
 
 - [x] Deploy the tutor redesign batch and apply migrations 0060, 0061 and
   0062 to Production (12 October 2026). Pushed `1fb0976`; once Vercel

@@ -49,7 +49,7 @@ export async function RecordedLessons({ studentId }: { studentId: string }) {
                     <span
                       aria-hidden
                       className="h-2 w-2 shrink-0 rounded-[3px]"
-                      style={{ backgroundColor: subjectTone(l.subjectName).dot }}
+                      style={{ backgroundColor: subjectTone(l.subjectName, l.subjectColor).dot }}
                     />
                     <span className="truncate">{classDisplayName(l.subjectName, l.className)}</span>
                   </span>

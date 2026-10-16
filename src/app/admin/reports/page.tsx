@@ -187,7 +187,7 @@ export default async function ReportsPage({
                         href={`/admin/classes/${r.classId}`}
                         className="flex items-center gap-2 font-bold text-ink hover:text-brand-600"
                       >
-                        <SubjectDot subject={r.subjectName} />
+                        <SubjectDot subject={r.subjectName} color={r.subjectColor} />
                         {r.className}
                       </Link>
                     </td>

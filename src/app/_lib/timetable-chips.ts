@@ -171,6 +171,7 @@ export async function buildTimetableChips(
       status: l.status,
       subjectId: l.subjectId,
       subjectName: l.subjectName,
+      subjectColor: l.subjectColor,
       className: l.className,
       location: l.location,
       tutorName: l.tutorName,

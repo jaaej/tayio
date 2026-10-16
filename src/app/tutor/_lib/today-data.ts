@@ -34,6 +34,7 @@ export type DayLesson = {
   endTime: string;
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   /** Room for an in-person lesson, "Online" for an online one, else null. */
   place: string | null;
   recordingUrl: string | null;
@@ -50,6 +51,7 @@ function lessonSelect() {
       endTime: lessons.endTime,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       lessonLocation: lessons.location,
       lessonOnline: lessons.onlineLink,
       classLocation: classes.location,
@@ -79,6 +81,7 @@ function toDayLesson(r: LessonRow): DayLesson {
     endTime: r.endTime,
     className: r.className,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     place: location ?? (online ? "Online" : null),
     recordingUrl: r.recordingUrl,
     studentCount: r.studentCount,

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { subjectTone } from "@/lib/subject-tone";
 import type { SubjectTab } from "../../_lib/subject-page";
-import { subjectBg } from "./subject-colour";
 
 /**
  * Hero in the subject colour (StudentSubjectColourPage): the subject tabs,
@@ -12,6 +11,7 @@ export function SubjectHeader({
   tabs,
   subjectId,
   subjectName,
+  subjectColor,
   title,
   kicker,
   progress,
@@ -21,14 +21,16 @@ export function SubjectHeader({
   tabs: SubjectTab[];
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   title: string;
   kicker?: string;
   progress?: { done: number; total: number };
   tutorId?: string;
   tutorFirstName?: string | null;
 }) {
-  const bg = subjectBg(subjectName);
-  const deep = subjectTone(subjectName).fg;
+  const tone = subjectTone(subjectName, subjectColor);
+  const bg = tone.flat;
+  const deep = tone.fg;
   const pct =
     progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   return (

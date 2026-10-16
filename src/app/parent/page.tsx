@@ -245,6 +245,7 @@ export default async function ParentDashboard({
                       <Td>
                         <SubjectPill
                           name={h.subjectName ?? h.className ?? "Other"}
+                          color={h.subjectName ? h.subjectColor : null}
                         />
                       </Td>
                       <Td className="text-muted whitespace-nowrap">

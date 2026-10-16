@@ -33,6 +33,7 @@ export type ClassHub = {
   id: string;
   name: string;
   subjectName: string;
+  subjectColor: string | null;
   weekday: number | null;
   startTime: string | null;
   endTime: string | null;
@@ -49,6 +50,7 @@ export const getClassHub = cache(
         id: classes.id,
         name: classes.name,
         subjectName: subjects.name,
+        subjectColor: subjects.color,
         weekday: classes.weekday,
         startTime: classes.startTime,
         endTime: classes.endTime,

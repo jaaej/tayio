@@ -45,7 +45,9 @@ export function DiscussionThreadDetail({
         }}
         eyebrow={
           <>
-            {thread.subjectName && <SubjectDot subject={thread.subjectName} />}
+            {thread.subjectName && (
+              <SubjectDot subject={thread.subjectName} color={thread.subjectColor} />
+            )}
             {boardLabel} · {thread.subjectName ? "Subject board" : "Open to all subjects"}
           </>
         }

@@ -153,6 +153,7 @@ export default async function ParentSubjectPage({
             <WeekContentParent
               week={selected}
               subjectName={data.subjectName}
+              subjectColor={data.subjectColor}
               backHref={`/parent?child=${resolved.selected.id}`}
             />
           </CurriculumLayout>

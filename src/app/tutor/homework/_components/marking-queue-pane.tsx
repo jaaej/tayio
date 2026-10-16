@@ -193,7 +193,7 @@ export function MarkingQueuePane({
                   <span className="flex min-w-0 flex-1 flex-col gap-px">
                     <span className="truncate text-[14px] font-bold">{h.title}</span>
                     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
-                      {h.subjectName && <SubjectDot subject={h.subjectName} />}
+                      {h.subjectName && <SubjectDot subject={h.subjectName} color={h.subjectColor} />}
                       <span className="truncate">
                         {[h.classLabel, `due ${dateFmt.format(new Date(h.dueDate))}`]
                           .filter(Boolean)
@@ -241,7 +241,7 @@ function SubmissionRow({
       <span className="flex min-w-0 flex-1 flex-col gap-px">
         <span className="truncate text-[14px] font-bold">{item.studentName}</span>
         <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
-          {item.subjectName && <SubjectDot subject={item.subjectName} />}
+          {item.subjectName && <SubjectDot subject={item.subjectName} color={item.subjectColor} />}
           <span className="truncate">{item.homeworkTitle}</span>
         </span>
       </span>

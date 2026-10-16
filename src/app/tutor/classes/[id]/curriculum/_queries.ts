@@ -73,6 +73,7 @@ export type TutorCurriculumData = {
   className: string;
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   currentTerm: { id: string; year: number; termNumber: number };
   termsAvailable: Array<{ id: string; year: number; termNumber: number }>;
   weeks: TutorCurriculumWeek[];
@@ -93,6 +94,7 @@ export async function getTutorCurriculum(
       className: classes.name,
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(classes)
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
@@ -281,6 +283,7 @@ export async function getTutorCurriculum(
     className: cls.className,
     subjectId: cls.subjectId,
     subjectName: cls.subjectName,
+    subjectColor: cls.subjectColor,
     currentTerm: {
       id: term.id,
       year: term.year,

@@ -12,6 +12,7 @@ export function CreateClassPanel({
   tutorWindows,
   classSlots,
   subjects,
+  rooms,
   lessonMinutes,
   triggerSize = "md",
   defaultOpen = false,
@@ -22,6 +23,8 @@ export function CreateClassPanel({
   /** Existing classes, so the picker can flag a tutor teaching then. */
   classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
+  /** Rooms other classes use, suggested in the Room field. */
+  rooms: string[];
   /** Usual lesson length in minutes; the end time defaults this far after the start. */
   lessonMinutes: number;
   /** `lg` for the empty-state trigger, where the button is the whole surface. */
@@ -133,6 +136,7 @@ export function CreateClassPanel({
             tutorWindows={tutorWindows}
             classSlots={classSlots}
             subjects={subjects}
+            rooms={rooms}
             lessonMinutes={lessonMinutes}
             disabled={pending}
             error={error}

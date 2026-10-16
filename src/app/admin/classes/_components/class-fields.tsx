@@ -55,6 +55,41 @@ export function Field({
   );
 }
 
+/**
+ * The class's room (stored as `classes.location`), suggesting rooms other
+ * classes already use so the same room is always spelled the same way.
+ */
+export function RoomField({
+  id,
+  defaultValue,
+  rooms,
+}: {
+  id: string;
+  defaultValue?: string;
+  rooms: string[];
+}) {
+  const listId = `${id}-rooms`;
+  return (
+    <Field id={id} label="Room" optional>
+      <input
+        id={id}
+        name="location"
+        list={listId}
+        defaultValue={defaultValue}
+        placeholder="e.g. Room 3"
+        autoComplete="off"
+        maxLength={200}
+        className={FIELD}
+      />
+      <datalist id={listId}>
+        {rooms.map((room) => (
+          <option key={room} value={room} />
+        ))}
+      </datalist>
+    </Field>
+  );
+}
+
 /** Native select in the field style, with its own chevron. */
 export function SelectField({
   className,

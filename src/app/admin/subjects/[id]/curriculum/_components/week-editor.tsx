@@ -43,6 +43,7 @@ export function WeekEditor({
   termId,
   topics,
   subjectName,
+  subjectColor,
   weekCounts,
   quiz,
   quizTutors,
@@ -57,6 +58,8 @@ export function WeekEditor({
   termId: string;
   topics: { id: string; name: string; position: number }[];
   subjectName: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   weekCounts: Record<string, number>;
   quiz?: {
     id: string;
@@ -244,7 +247,7 @@ export function WeekEditor({
         back={{ href: "/admin/classes", label: "Back to classes" }}
         eyebrow={
           <>
-            <SubjectDot subject={subjectName} />
+            <SubjectDot subject={subjectName} color={subjectColor} />
             {subjectName} · Curriculum
           </>
         }

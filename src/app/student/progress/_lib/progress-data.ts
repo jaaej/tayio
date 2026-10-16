@@ -35,6 +35,7 @@ import {
 export type ProgressPaneSubject = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   masteryPercent: number;
   topicCount: number;
 };
@@ -123,6 +124,7 @@ export const getProgressPane = cache(
       subjects: subjects.map((s) => ({
         subjectId: s.subjectId,
         subjectName: s.subjectName,
+        subjectColor: s.subjectColor,
         masteryPercent: s.masteryPercent,
         topicCount: s.topics.length,
       })),
@@ -138,6 +140,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type ProgressDetail = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   masteryPercent: number;
   rank: { rank: number; total: number } | null;
@@ -202,6 +205,7 @@ export async function getProgressDetail(
   return {
     subjectId: detail.subjectId,
     subjectName: detail.subjectName,
+    subjectColor: detail.subjectColor,
     yearLevel: detail.yearLevel,
     masteryPercent: detail.masteryPercent,
     rank,

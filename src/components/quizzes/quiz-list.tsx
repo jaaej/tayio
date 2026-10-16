@@ -164,7 +164,10 @@ export function QuizTable({
                       className="border-t border-line bg-surface-2 px-4 pb-2 pt-2.5 text-left text-[12px] font-extrabold text-ink"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <SubjectDot subject={subjectName} />
+                        <SubjectDot
+                          subject={subjectName}
+                          color={subjectRows[0]?.subjectColor ?? null}
+                        />
                         {subjectName}
                       </span>
                     </th>

@@ -11,6 +11,7 @@ import {
   ClassTypeSegment,
   FIELD,
   Field,
+  RoomField,
   SelectField,
   WhenFields,
 } from "../../_components/class-fields";
@@ -37,11 +38,14 @@ export function EditClassForm({
   initial,
   tutors,
   subjects,
+  rooms,
 }: {
   id: string;
   initial: Initial;
   tutors: { id: string; firstName: string; lastName: string }[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
+  /** Rooms other classes use, suggested in the Room field. */
+  rooms: string[];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -143,15 +147,7 @@ export function EditClassForm({
 
         <div aria-hidden className="my-0.5 h-px bg-line" />
 
-        <Field id={f("location")} label="Location" optional>
-          <input
-            id={f("location")}
-            name="location"
-            defaultValue={initial.location}
-            autoComplete="off"
-            className={FIELD}
-          />
-        </Field>
+        <RoomField id={f("location")} defaultValue={initial.location} rooms={rooms} />
         <Field id={f("onlineLink")} label="Online link" optional>
           <input
             id={f("onlineLink")}

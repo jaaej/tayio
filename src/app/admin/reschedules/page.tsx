@@ -342,7 +342,7 @@ export default async function AdminReschedulesPage({
                       </td>
                       <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
                         <span className="inline-flex items-center gap-2">
-                          <SubjectDot subject={c.subjectName} />
+                          <SubjectDot subject={c.subjectName} color={c.subjectColor} />
                           {c.subjectName}
                         </span>
                       </td>
@@ -425,6 +425,7 @@ function AdminCoverCard({
   return (
     <CoverCard
       subjectName={row.subjectName}
+      subjectColor={row.subjectColor}
       className={row.className}
       date={row.date}
       startTime={row.startTime}

@@ -91,7 +91,7 @@ export default async function HomeworkDetailPage({
               <span
                 aria-hidden
                 className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
-                style={{ backgroundColor: subjectTone(hw.subjectName ?? "").dot }}
+                style={{ backgroundColor: subjectTone(hw.subjectName ?? "", hw.subjectColor).dot }}
               />
               {classLabel}
               {hw.isTest && " · Test"}

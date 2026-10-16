@@ -14,6 +14,7 @@ export type DashLesson = {
   endTime: string;
   status: string;
   subjectName: string;
+  subjectColor: string | null;
 };
 
 export type DashHomework = {
@@ -25,11 +26,13 @@ export type DashHomework = {
   score: string | null;
   markedAt: Date | null;
   subjectName: string | null;
+  subjectColor: string | null;
 };
 
 export type DashWeekItem = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   subjectWeekId: string;
   weekNumber: number;
   weekTitle: string;
@@ -58,6 +61,7 @@ export type StudentTodo = {
   action: string;
   /** Subject the row belongs to, for its colour. */
   subjectName: string | null;
+  subjectColor: string | null;
   /** How many things the row stands for (more than 1 for a summary row). */
   count: number;
   /** Due day of a homework row. */
@@ -238,6 +242,7 @@ export function buildStudentTodo(input: {
         href,
         action: homeworkAction(hw.status),
         subjectName: hw.subjectName,
+        subjectColor: hw.subjectColor,
         dueDay: hw.dueDay,
         sort: hw.dueDay,
       });
@@ -256,6 +261,7 @@ export function buildStudentTodo(input: {
         href,
         action: "See feedback",
         subjectName: hw.subjectName,
+        subjectColor: hw.subjectColor,
         // Newest marks first.
         sort: String(9e15 - hw.markedAt.getTime()).padStart(16, "0"),
       });
@@ -275,6 +281,7 @@ export function buildStudentTodo(input: {
         href: `/student/quizzes/${week.quiz.id}`,
         action: "Start quiz",
         subjectName: week.subjectName,
+        subjectColor: week.subjectColor,
         sort: week.subjectName,
       });
     }
@@ -287,6 +294,7 @@ export function buildStudentTodo(input: {
         href: `/student/subjects/${week.subjectId}?week=${week.subjectWeekId}`,
         action: "Watch",
         subjectName: week.subjectName,
+        subjectColor: week.subjectColor,
         sort: week.subjectName,
       });
     }
@@ -301,6 +309,7 @@ export function buildStudentTodo(input: {
       href: "/student/payments",
       action: "View invoices",
       subjectName: null,
+      subjectColor: null,
       sort: "",
     });
   }
@@ -324,6 +333,7 @@ export function buildStudentTodo(input: {
     href: "/student/homework",
     action: "Review",
     subjectName: null,
+    subjectColor: null,
     count: overdue.length,
   };
   return [summary, ...sorted.filter((row) => row.kind !== "overdue")];
@@ -338,6 +348,7 @@ export type WeekDay = {
   lessons: Array<{
     id: string;
     subjectName: string;
+    subjectColor: string | null;
     label: string;
     live: boolean;
     /** Already finished, so shown faded. */
@@ -365,6 +376,7 @@ export function buildWeekDays(input: {
         return {
           id: lesson.id,
           subjectName: lesson.subjectName,
+          subjectColor: lesson.subjectColor,
           label: `${shortSubject(lesson.subjectName)} · ${
             live ? "on now" : compactTime(lesson.startTime)
           }`,

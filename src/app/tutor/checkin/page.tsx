@@ -191,7 +191,7 @@ export default async function TutorCheckinPage({
                             entry.isRemoved ? "text-muted line-through" : "text-ink",
                           )}
                         >
-                          <SubjectDot subject={entry.subjectName} className="h-2 w-2" />
+                          <SubjectDot subject={entry.subjectName} color={entry.subjectColor} className="h-2 w-2" />
                           {label}
                         </span>
                         {entry.note && (

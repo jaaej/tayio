@@ -24,6 +24,7 @@ const lesson = (over: Partial<DashLesson>): DashLesson => ({
   endTime: "17:30:00",
   status: "upcoming",
   subjectName: "Year 9 English",
+  subjectColor: null,
   ...over,
 });
 
@@ -35,6 +36,7 @@ const hw = (over: Partial<DashHomework>): DashHomework => ({
   score: null,
   markedAt: null,
   subjectName: "Year 9 English",
+  subjectColor: null,
   ...over,
 });
 
@@ -95,6 +97,7 @@ describe("buildStudentTodo", () => {
   const week: DashWeekItem = {
     subjectId: "s-maths",
     subjectName: "Year 9 Maths",
+    subjectColor: null,
     subjectWeekId: "w2",
     weekNumber: 2,
     weekTitle: "Simultaneous equations",
@@ -220,7 +223,14 @@ describe("buildWeekDays", () => {
     expect(days[0]).toMatchObject({ weekday: "Mon", dayNumber: 12, isPast: true, isToday: false });
     expect(days[1]).toMatchObject({ isToday: true });
     expect(days[1].lessons).toEqual([
-      { id: "eng", subjectName: "Year 9 English", label: "English · on now", live: true, past: false },
+      {
+        id: "eng",
+        subjectName: "Year 9 English",
+        subjectColor: null,
+        label: "English · on now",
+        live: true,
+        past: false,
+      },
     ]);
     expect(days[2].lessons).toEqual([]);
     expect(days[3].lessons[0]).toMatchObject({ label: "Maths · 4 pm", past: false });

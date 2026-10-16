@@ -12,6 +12,7 @@ import { ActionButtonLabel } from "@/components/ui/loading-button";
 export type PanelCredit = {
   id: string;
   subjectName: string;
+  subjectColor: string | null;
   expiresAt: string;
   grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
 };

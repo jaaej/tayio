@@ -66,7 +66,7 @@ export default async function AdminSubjectCurriculumPage({
           back={{ href: "/admin/classes", label: "Back to classes" }}
           eyebrow={
             <>
-              <SubjectDot subject={subject.name} />
+              <SubjectDot subject={subject.name} color={subject.color} />
               Curriculum
             </>
           }
@@ -201,7 +201,7 @@ export default async function AdminSubjectCurriculumPage({
       <CurriculumLayout
         attached
         framed
-        subjectName={subject.name}
+        subject={{ name: subject.name, color: subject.color }}
         rail={
           <CurriculumRail
             basePath={`/admin/subjects/${subjectId}/curriculum`}
@@ -230,6 +230,7 @@ export default async function AdminSubjectCurriculumPage({
             termId={currentTerm.id}
             topics={topics}
             subjectName={subject.name}
+            subjectColor={subject.color}
             weekCounts={weekCounts}
             quiz={null}
             quizTutors={tutorRows.map((tutor) => ({
@@ -248,6 +249,7 @@ export default async function AdminSubjectCurriculumPage({
             termId={currentTerm.id}
             topics={topics}
             subjectName={subject.name}
+            subjectColor={subject.color}
             weekCounts={weekCounts}
             quiz={weekQuiz}
             bookletSignedUrl={bookletSignedUrl}

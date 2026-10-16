@@ -36,6 +36,8 @@ export type HomeworkListItem = {
   title: string;
   className: string | null;
   subjectName: string | null;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   status: string;
   /** ISO timestamps, so the list can cross the server/client boundary. */
   dueDate: string;

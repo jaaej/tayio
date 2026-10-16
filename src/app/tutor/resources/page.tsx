@@ -39,7 +39,7 @@ export default async function TutorResourcesPage({
   const [subjectRows, topicRows, allResources] = subjectIds.length
     ? await Promise.all([
         db
-          .select({ id: subjects.id, name: subjects.name })
+          .select({ id: subjects.id, name: subjects.name, color: subjects.color })
           .from(subjects)
           .where(inArray(subjects.id, subjectIds)),
         db
@@ -177,7 +177,7 @@ export default async function TutorResourcesPage({
               titleId={`subject-${subject.id}`}
               title={
                 <span className="inline-flex items-center gap-2.5">
-                  <SubjectDot subject={subject.name} />
+                  <SubjectDot subject={subject.name} color={subject.color} />
                   {subject.name}
                 </span>
               }

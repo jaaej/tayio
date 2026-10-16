@@ -124,7 +124,7 @@ export default async function LessonDetailPage({
         }
         eyebrow={
           <>
-            <SubjectDot subject={lesson.subjectName} />
+            <SubjectDot subject={lesson.subjectName} color={lesson.subjectColor} />
             <span className="tabular-nums">{when}</span>
           </>
         }

@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { childSubjectIds } from "@/lib/resources";
 import { loadResourceLibrary } from "@/lib/resource-library";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 import { openResourceForParent } from "@/app/_actions/resources";
 import {
   LibraryBrowserClient,
@@ -33,7 +33,7 @@ export async function ParentLibraryBrowser({ parentId }: { parentId: string }) {
   const library = await loadResourceLibrary(subjectIds);
   const groups: LibrarySubjectGroup[] = library.subjects.map((s) => ({
     ...s,
-    tokens: getAccentTokens(colorFamilyForSubject(s.subjectName)),
+    tone: subjectTone(s.subjectName, s.subjectColor),
   }));
 
   return (

@@ -46,6 +46,7 @@ export type LeaveLessonOption = {
   month: string;
   name: string;
   subjectName: string;
+  subjectColor: string | null;
   time: string;
   dateLabel: string;
 };
@@ -465,7 +466,7 @@ function OneClassForm({
                   </span>
                   <span aria-hidden className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
-                      <SubjectDot subject={lesson.subjectName} className="h-2 w-2" />
+                      <SubjectDot subject={lesson.subjectName} color={lesson.subjectColor} className="h-2 w-2" />
                       <span className="truncate">{lesson.name}</span>
                     </span>
                     <span className="text-[12px] tabular-nums text-muted">{lesson.time}</span>

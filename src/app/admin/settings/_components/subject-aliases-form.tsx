@@ -48,7 +48,7 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
     >
       <div className="min-w-[160px] flex-1">
         <p className="flex items-center gap-3 text-[14px] font-bold text-ink">
-          <SubjectDot subject={subject.subjectName} />
+          <SubjectDot subject={subject.subjectName} color={subject.subjectColor} />
           <span className="min-w-0 truncate">{subject.subjectName}</span>
         </p>
         {error && (

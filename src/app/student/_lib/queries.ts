@@ -24,6 +24,7 @@ export type RecentFeedback = {
   date: string;
   comment: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorFirstName: string;
   tutorLastName: string;
 };
@@ -38,6 +39,7 @@ export async function getRecentFeedback(
       date: lessons.date,
       comment: lessonNotes.parentVisibleComment,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
     })
@@ -112,6 +114,7 @@ export type SubjectSummary = {
   className: string;
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   tutorFirstName: string;
   tutorLastName: string;
@@ -136,6 +139,7 @@ export async function getStudentSubjects(studentId: string): Promise<SubjectSumm
       className: classes.name,
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       yearLevel: subjects.yearLevel,
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
@@ -232,6 +236,7 @@ export type SubjectDetail = {
   className: string;
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   tutorFirstName: string;
   tutorLastName: string;
@@ -276,6 +281,7 @@ export async function getSubjectDetail(
       className: classes.name,
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       yearLevel: subjects.yearLevel,
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
@@ -368,6 +374,7 @@ export async function getSubjectDetail(
 export type SubjectProgress = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   masteryPercent: number;
   topics: Array<{
@@ -383,6 +390,7 @@ export async function getStudentProgressBySubject(
     .select({
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       yearLevel: subjects.yearLevel,
     })
     .from(enrollments)
@@ -444,6 +452,7 @@ export async function getStudentProgressBySubject(
 export type SubjectProgressDetail = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   masteryPercent: number;
   topics: Array<{
@@ -494,6 +503,7 @@ export async function getStudentProgressSubjectDetail(
     .select({
       id: subjects.id,
       name: subjects.name,
+      color: subjects.color,
       yearLevel: subjects.yearLevel,
     })
     .from(subjects)
@@ -549,6 +559,7 @@ export async function getStudentProgressSubjectDetail(
   return {
     subjectId: subjectRow.id,
     subjectName: subjectRow.name,
+    subjectColor: subjectRow.color,
     yearLevel: subjectRow.yearLevel,
     masteryPercent,
     topics,
@@ -656,6 +667,7 @@ export type LessonRow = {
   onlineLink: string | null;
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorFirstName: string;
   tutorLastName: string;
 };
@@ -686,6 +698,7 @@ export async function getStudentLessons(
       onlineLink: lessons.onlineLink,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
     })
@@ -716,6 +729,7 @@ export type HomeworkRow = {
   markedAt: Date | null;
   className: string | null;
   subjectName: string | null;
+  subjectColor: string | null;
 };
 
 export async function getStudentHomework(studentId: string): Promise<HomeworkRow[]> {
@@ -736,6 +750,7 @@ export async function getStudentHomework(studentId: string): Promise<HomeworkRow
       markedAt: homeworkAssignments.markedAt,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
@@ -764,6 +779,7 @@ export async function getHomeworkDetail(studentId: string, homeworkId: string) {
       feedback: homeworkAssignments.feedback,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
@@ -814,6 +830,7 @@ export async function getNextDueHomework(studentId: string): Promise<HomeworkRow
       markedAt: homeworkAssignments.markedAt,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
@@ -842,6 +859,7 @@ export type LessonRecap = {
   status: (typeof lessons.$inferSelect)["status"];
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorFirstName: string;
   tutorLastName: string;
   topicCovered: string | null;
@@ -871,6 +889,7 @@ export async function getLessonRecap(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
       topicCovered: lessonNotes.topicCovered,
@@ -911,6 +930,7 @@ export type LessonWithNoteListItem = {
   status: (typeof lessons.$inferSelect)["status"];
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   hasNote: boolean;
   recordingUrl: string | null;
 };
@@ -935,6 +955,7 @@ export async function getStudentLessonsWithNotes(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       recordingUrl: lessons.recordingUrl,
       noteId: lessonNotes.id,
     })
@@ -974,6 +995,7 @@ export type TimetableLesson = {
   status: (typeof lessons.status.enumValues)[number];
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   className: string;
   location: string | null;
   /** The lesson's tutor, "First Last"; null on a synthetic pending chip. */
@@ -1008,6 +1030,7 @@ export async function getStudentTimetableLessons(
     status: lessons.status,
     subjectId: classes.subjectId,
     subjectName: subjects.name,
+    subjectColor: subjects.color,
     className: classes.name,
     location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
     tutorName: sql<string | null>`nullif(trim(concat_ws(' ', ${profiles.firstName}, ${profiles.lastName})), '')`,
@@ -1157,6 +1180,7 @@ export async function getStudentTimetableLessons(
         status: "upcoming",
         subjectId: orig?.subjectId ?? "",
         subjectName: orig?.subjectName ?? "Lesson",
+        subjectColor: orig?.subjectColor ?? null,
         className: orig?.className ?? "",
         location: orig?.location ?? null,
         tutorName: null,
@@ -1262,6 +1286,7 @@ export async function getStudentTutors(
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))

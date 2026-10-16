@@ -30,7 +30,7 @@ const STORAGE_KEY = "curriculum-weeks-open";
  * Non-attached (rail lives inside a card - parent): a plain always-visible
  * rail column next to the content.
  *
- * `subjectName` (optional) puts the subject identity - colour dot plus name -
+ * `subject` (optional) puts the subject identity - colour dot plus name -
  * on the rail frame and the collapsed tab, so a page without its own header
  * still says which subject you are looking at.
  */
@@ -39,14 +39,15 @@ export function CurriculumLayout({
   children,
   attached = false,
   framed = false,
-  subjectName,
+  subject,
   defaultOpen = false,
 }: {
   rail: React.ReactNode;
   children: React.ReactNode;
   attached?: boolean;
   framed?: boolean;
-  subjectName?: string;
+  /** `color` is the subject's stored colour (`subjects.color`). */
+  subject?: { name: string; color: string | null };
   /** Attached rail state before the viewer has opened or closed it. */
   defaultOpen?: boolean;
 }) {
@@ -73,7 +74,8 @@ export function CurriculumLayout({
       return next;
     });
 
-  const dot = subjectName ? subjectTone(subjectName).dot : null;
+  const subjectName = subject?.name;
+  const dot = subject ? subjectTone(subject.name, subject.color).dot : null;
 
   const subjectHeader = subjectName && (
     <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-2">

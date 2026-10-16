@@ -6,7 +6,6 @@ import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
 import { pastDayLabel, type ChecklistTask } from "../../_lib/week-checklist";
 import type { StudentCurriculumWeek } from "../_queries";
-import { subjectDeep } from "./subject-colour";
 
 const POP =
   "transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-[3px] hover:shadow-[0_16px_30px_rgba(23,21,43,0.16)] motion-reduce:transition-none motion-reduce:hover:translate-y-0";
@@ -18,10 +17,13 @@ const POP =
 export function Overview({
   week,
   subjectName,
+  subjectColor,
 }: {
   week: StudentCurriculumWeek;
   subjectName: string;
+  subjectColor: string | null;
 }) {
+  const deep = subjectTone(subjectName, subjectColor).deep;
   const objectives = (week.objectives ?? "")
     .split("\n")
     .map((line) => line.trim())
@@ -31,7 +33,7 @@ export function Overview({
     <section
       aria-labelledby="ov-h"
       className="flex flex-col gap-4 rounded-[24px] px-[22px] py-5 text-white"
-      style={{ background: subjectDeep(subjectName) }}
+      style={{ background: deep }}
     >
       <h2 id="ov-h" className="m-0 text-[19px] font-extrabold">
         Overview
@@ -50,7 +52,7 @@ export function Overview({
                 <span
                   aria-hidden
                   className="mt-px grid h-[20px] w-[20px] shrink-0 place-items-center rounded-[6px] bg-white"
-                  style={{ color: subjectDeep(subjectName) }}
+                  style={{ color: deep }}
                 >
                   <Check className="h-[13px] w-[13px]" strokeWidth={3.2} />
                 </span>
@@ -170,16 +172,18 @@ export function WeeklyQuiz({
 export function TutorNote({
   week,
   subjectName,
+  subjectColor,
   tutorFirstName,
   now,
 }: {
   week: StudentCurriculumWeek;
   subjectName: string;
+  subjectColor: string | null;
   tutorFirstName: string | null;
   now: Date;
 }) {
   if (!week.tutorNote && week.tutorAttachments.length === 0) return null;
-  const tone = subjectTone(subjectName);
+  const tone = subjectTone(subjectName, subjectColor);
   const chip = `flex h-[38px] max-w-full items-center gap-2 rounded-[12px] px-3.5 text-[13px] font-extrabold ${POP}`;
   return (
     <section

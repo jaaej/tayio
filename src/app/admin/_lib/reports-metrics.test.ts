@@ -12,6 +12,7 @@ function row(over: Partial<ClassMetricRow> = {}): ClassMetricRow {
     classId: "c",
     className: "Class",
     subjectName: "Maths",
+    subjectColor: null,
     tutorName: "Tutor",
     attended: 0,
     markedLessons: 0,

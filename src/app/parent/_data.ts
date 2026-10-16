@@ -239,6 +239,7 @@ export type HomeworkRow = {
   homeworkId: string;
   title: string;
   subjectName: string | null;
+  subjectColor: string | null;
   className: string | null;
   dueDate: Date;
   status: typeof homeworkAssignments.status.enumValues[number];
@@ -253,6 +254,7 @@ export async function getHomework(studentId: string): Promise<HomeworkRow[]> {
       homeworkId: homework.id,
       title: homework.title,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       className: classes.name,
       dueDate: homework.dueDate,
       status: homeworkAssignments.status,
@@ -276,6 +278,7 @@ export type FeedbackRow = {
   lessonDate: string;
   classId: string;
   subjectName: string | null;
+  subjectColor: string | null;
   tutorName: string;
   topicCovered: string | null;
   parentVisibleComment: string;
@@ -290,6 +293,7 @@ export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
       lessonDate: lessons.date,
       classId: lessons.classId,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
       topicCovered: lessonNotes.topicCovered,
@@ -314,6 +318,7 @@ export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
     lessonDate: r.lessonDate,
     classId: r.classId,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
     topicCovered: r.topicCovered,
     parentVisibleComment: r.parentVisibleComment!,
@@ -743,6 +748,7 @@ export type MasteryLevel = "not_started" | "needs_work" | "improving" | "strong"
 export type ChildSubjectProgress = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   yearLevel: string | null;
   masteryPercent: number;
   topics: Array<{ topic: string; mastery: MasteryLevel }>;
@@ -755,6 +761,7 @@ export async function getChildProgressBySubject(
     .select({
       subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       yearLevel: subjects.yearLevel,
     })
     .from(enrollments)

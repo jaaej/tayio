@@ -192,16 +192,19 @@ export function Avatar({
 /** Small rounded square in the subject's colour. */
 export function SubjectDot({
   subject,
+  color,
   className,
 }: {
   subject: string;
+  /** The subject's stored colour (`subjects.color`). */
+  color: string | null;
   className?: string;
 }) {
   return (
     <span
       aria-hidden
       className={cn("inline-block h-[9px] w-[9px] shrink-0 rounded-[3px]", className)}
-      style={{ backgroundColor: subjectTone(subject).dot }}
+      style={{ backgroundColor: subjectTone(subject, color).dot }}
     />
   );
 }

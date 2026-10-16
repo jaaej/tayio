@@ -21,6 +21,8 @@ import {
 export type BoardSummary = {
   id: BoardId;
   label: string;
+  /** The subject's stored colour (`subjects.color`); null on General help. */
+  color: string | null;
   threadCount: number;
   lastActivityAt: Date | null;
 };
@@ -48,6 +50,7 @@ export type ThreadDetail = {
   id: string;
   subjectId: string | null;
   subjectName: string | null;
+  subjectColor: string | null;
   title: string;
   body: string;
   authorId: string;
@@ -115,6 +118,7 @@ export async function listAccessibleBoards(
           id: subjects.id,
           name: subjects.name,
           yearLevel: subjects.yearLevel,
+          color: subjects.color,
         })
         .from(subjects)
         .where(inArray(subjects.id, subjectIds))
@@ -152,6 +156,7 @@ export async function listAccessibleBoards(
     return {
       id: { kind: "subject", subjectId: s.id },
       label: subjectBoardLabel({ name: s.name, yearLevel: s.yearLevel }),
+      color: s.color,
       threadCount: agg.c,
       lastActivityAt: agg.t,
     };
@@ -163,6 +168,7 @@ export async function listAccessibleBoards(
     {
       id: { kind: "admin" },
       label: adminBoardLabel(),
+      color: null,
       threadCount: adminAgg.c,
       lastActivityAt: adminAgg.t,
     },
@@ -232,6 +238,8 @@ export async function countUnansweredThreads(
 export type RecentThreadSummary = ThreadSummary & {
   board: BoardId;
   boardLabel: string;
+  /** The subject's stored colour (`subjects.color`); null on General help. */
+  boardColor: string | null;
 };
 
 /**
@@ -268,6 +276,7 @@ export async function listRecentThreads(
       subjectId: discussionThreads.subjectId,
       subjectName: subjects.name,
       subjectYearLevel: subjects.yearLevel,
+      subjectColor: subjects.color,
       authorName: sql<string>`coalesce(${profiles.firstName} || ' ' || ${profiles.lastName}, ${profiles.firstName}, 'Unknown')`,
       authorRole: profiles.role,
       replyCount: sql<number>`(select count(*)::int from ${discussionReplies} dr where dr.thread_id = ${discussionThreads.id} and dr.deleted_at is null)`,
@@ -298,6 +307,7 @@ export async function listRecentThreads(
             yearLevel: r.subjectYearLevel,
           })
         : adminBoardLabel(),
+    boardColor: r.subjectId ? r.subjectColor : null,
   }));
 }
 
@@ -309,6 +319,7 @@ export async function getThreadWithReplies(
       id: discussionThreads.id,
       subjectId: discussionThreads.subjectId,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       title: discussionThreads.title,
       body: discussionThreads.body,
       authorId: discussionThreads.authorId,
@@ -392,6 +403,7 @@ export async function getThreadWithReplies(
     id: t.id,
     subjectId: t.subjectId,
     subjectName: t.subjectName,
+    subjectColor: t.subjectColor,
     title: t.title,
     body: t.body,
     authorId: t.authorId,

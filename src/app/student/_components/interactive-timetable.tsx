@@ -37,6 +37,8 @@ export type TimetableChip = {
   status: string;
   subjectId: string;
   subjectName: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   className: string;
   location: string | null;
   /** The lesson's tutor; null on a synthetic pending chip. */
@@ -389,14 +391,20 @@ export function InteractiveTimetable({
       </button>
     </div>
   );
+  // One entry per subject: each subject has its own colour.
   const legendSubjects = Array.from(
-    new Map(lessons.map((l) => [subjectTone(l.subjectName).family, l.subjectName])).values(),
+    new Map(
+      lessons.map((l) => [l.subjectName, { name: l.subjectName, color: l.subjectColor }]),
+    ).values(),
   );
   const legend = (
     <div className="flex flex-wrap gap-3.5 px-2.5 pb-1.5 pt-2.5 text-[12px] font-semibold text-[#2E2944]">
-      {legendSubjects.map((name) => (
+      {legendSubjects.map(({ name, color }) => (
         <span key={name} className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[4px]" style={{ backgroundColor: subjectTone(name).bg }} />
+          <span
+            className="h-3 w-3 rounded-[4px]"
+            style={{ backgroundColor: subjectTone(name, color).bg }}
+          />
           {name}
         </span>
       ))}
@@ -579,7 +587,7 @@ export function InteractiveTimetable({
                   const active = picking?.action.type === "credit" && picking.action.creditId === c.id;
                   return (
                     <li key={c.id} className="flex items-center gap-2.5 p-2.5">
-                      <SubjectDot subject={c.subjectName} />
+                      <SubjectDot subject={c.subjectName} color={c.subjectColor} />
                       <div className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-[14px] font-bold text-[#17152B]">{c.subjectName}</span>
                         <span className="text-[12px] text-[#5E5A73]">Expires {formatDateLong(c.expiresAt)}</span>
@@ -652,7 +660,7 @@ function lessonChip(l: TimetableChip, selected: boolean, picking: boolean): Mont
               : null;
   // Design handoff tones: subject colour for lessons, green for a make-up,
   // grey struck-through for a cancelled or moved lesson.
-  const subject = subjectTone(l.subjectName);
+  const subject = subjectTone(l.subjectName, l.subjectColor);
   const colours = off
     ? { bg: "#F1F2F7", fg: "#5E5A73" }
     : l.studentState === "makeup_in"
@@ -741,7 +749,7 @@ function SelectedLesson({
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex items-center gap-1.5 text-[15px] font-extrabold text-[#17152B]">
-            <SubjectDot subject={lesson.subjectName} />
+            <SubjectDot subject={lesson.subjectName} color={lesson.subjectColor} />
             <span className="truncate">{lesson.subjectName}</span>
           </div>
           <p className="text-[13px] text-[#5E5A73]">{detail}</p>

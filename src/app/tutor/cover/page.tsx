@@ -34,6 +34,7 @@ function tutorName(first: string | null, last: string | null) {
 function cardProps(row: CoverBoardRow) {
   return {
     subjectName: row.subjectName,
+    subjectColor: row.subjectColor,
     className: row.className,
     date: row.date,
     startTime: row.startTime,

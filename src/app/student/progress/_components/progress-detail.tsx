@@ -63,7 +63,7 @@ export function ProgressDetailPane({
             <span
               aria-hidden
               className="h-[11px] w-[11px] shrink-0 rounded-[4px]"
-              style={{ background: subjectTone(detail.subjectName).dot }}
+              style={{ background: subjectTone(detail.subjectName, detail.subjectColor).dot }}
             />
             <span className="min-w-0 [overflow-wrap:anywhere]">{detail.subjectName}</span>
           </h2>

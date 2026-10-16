@@ -65,6 +65,7 @@ export function CoverBoardColumn({
 
 export function CoverCard({
   subjectName,
+  subjectColor,
   className,
   date,
   startTime,
@@ -76,6 +77,8 @@ export function CoverCard({
   actions,
 }: {
   subjectName: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   className: string;
   date: string;
   startTime: string;
@@ -92,7 +95,7 @@ export function CoverCard({
   return (
     <li className="panel flex flex-col gap-2.5 p-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <SubjectDot subject={subjectName} className="h-2 w-2" />
+        <SubjectDot subject={subjectName} color={subjectColor} className="h-2 w-2" />
         <span className="min-w-0 flex-1 text-[14px] font-extrabold text-ink">
           {tutorCoverClassLabel(subjectName, className)}
         </span>

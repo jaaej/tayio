@@ -25,6 +25,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Local browser-check scratch scripts (git-excluded), not app source.
+      ".pw/**",
     ],
   },
 ];

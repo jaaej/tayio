@@ -8,6 +8,7 @@ import {
   ClassTypeSegment,
   FIELD,
   Field,
+  RoomField,
   SelectField,
   WhenFields,
   type ClassTypeValue,
@@ -40,6 +41,7 @@ export function CreateClassForm({
   tutorWindows,
   classSlots,
   subjects,
+  rooms,
   lessonMinutes,
   disabled,
   error,
@@ -52,6 +54,8 @@ export function CreateClassForm({
   /** Existing classes, to spot a tutor already teaching at that time. */
   classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
+  /** Rooms other classes use, suggested in the Room field. */
+  rooms: string[];
   /** Usual lesson length, used to default the end time after the start. */
   lessonMinutes: number;
   disabled: boolean;
@@ -154,20 +158,8 @@ export function CreateClassForm({
           />
         </Section>
 
-        <Section id={fid("s-tutor")} title="Tutor">
-          <TutorPicker name="tutorId" tutors={rankedTutors} />
-        </Section>
-
         <Section id={fid("s-where")} title="Where">
-          <Field id={fid("location")} label="Location" optional>
-            <input
-              id={fid("location")}
-              name="location"
-              placeholder="e.g. Room 3 · Hawthorn"
-              autoComplete="off"
-              className={FIELD}
-            />
-          </Field>
+          <RoomField id={fid("location")} rooms={rooms} />
           <Field id={fid("onlineLink")} label="Online link" optional>
             <input
               id={fid("onlineLink")}
@@ -178,6 +170,10 @@ export function CreateClassForm({
               className={FIELD}
             />
           </Field>
+        </Section>
+
+        <Section id={fid("s-tutor")} title="Tutor">
+          <TutorPicker name="tutorId" tutors={rankedTutors} />
         </Section>
       </fieldset>
 

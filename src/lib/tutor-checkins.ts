@@ -22,6 +22,11 @@ import {
   weekStartForIsoDate,
 } from "@/lib/tutor-checkin-rules";
 
+/** A snapshot row plus its class's current subject colour (`subjects.color`). */
+export type TutorCheckinEntry = typeof tutorCheckinEntries.$inferSelect & {
+  subjectColor: string | null;
+};
+
 export type TutorCheckinView = {
   id: string;
   tutorId: string;
@@ -30,7 +35,7 @@ export type TutorCheckinView = {
   approvedAt: Date | null;
   disputeMessage: string | null;
   updatedAt: Date;
-  entries: Array<typeof tutorCheckinEntries.$inferSelect>;
+  entries: TutorCheckinEntry[];
   totalMinutes: number;
   totalPay: number;
   hasMissingRate: boolean;
@@ -50,7 +55,7 @@ export type TutorCheckinMonthSummary = {
 
 function checkinView(
   checkin: typeof tutorWeeklyCheckins.$inferSelect,
-  entries: Array<typeof tutorCheckinEntries.$inferSelect>,
+  entries: TutorCheckinEntry[],
 ): TutorCheckinView {
   const active = entries.filter((entry) => !entry.isRemoved);
   return {
@@ -301,13 +306,26 @@ export async function getTutorCheckinWeeks(
           asc(tutorCheckinEntries.startTime),
         )
     : existingEntries;
-  const entriesByCheckin = new Map<
-    string,
-    Array<typeof tutorCheckinEntries.$inferSelect>
-  >();
+  // Entries snapshot the subject name; the colour follows the subject.
+  const entryClassIds = Array.from(
+    new Set(entries.flatMap((entry) => (entry.classId ? [entry.classId] : []))),
+  );
+  const colorRows =
+    entryClassIds.length > 0
+      ? await db
+          .select({ classId: classes.id, color: subjects.color })
+          .from(classes)
+          .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+          .where(inArray(classes.id, entryClassIds))
+      : [];
+  const colorByClass = new Map(colorRows.map((row) => [row.classId, row.color]));
+  const entriesByCheckin = new Map<string, TutorCheckinEntry[]>();
   for (const entry of entries) {
     const current = entriesByCheckin.get(entry.checkinId) ?? [];
-    current.push(entry);
+    current.push({
+      ...entry,
+      subjectColor: entry.classId ? (colorByClass.get(entry.classId) ?? null) : null,
+    });
     entriesByCheckin.set(entry.checkinId, current);
   }
 

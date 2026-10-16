@@ -75,6 +75,7 @@ export default async function ParentProgressPage({
     s.topics.map((t) => ({
       ...t,
       subjectName: s.subjectName,
+      subjectColor: s.subjectColor,
     })),
   );
   const trackedSubjects = subjects.filter((s) => s.topics.length > 0);
@@ -201,7 +202,7 @@ export default async function ParentProgressPage({
                     <Tr key={`${t.subjectName}-${t.topic}-${i}`}>
                       <Td className="font-bold text-ink">{t.topic}</Td>
                       <Td>
-                        <SubjectPill name={t.subjectName} />
+                        <SubjectPill name={t.subjectName} color={t.subjectColor} />
                       </Td>
                       <Td>
                         <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">

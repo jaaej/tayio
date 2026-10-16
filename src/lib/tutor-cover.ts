@@ -86,6 +86,7 @@ function coverRows() {
       lessonStatus: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       location: lessons.location,
       originalTutorFirst: originalTutor.firstName,
       originalTutorLast: originalTutor.lastName,
@@ -158,6 +159,7 @@ export async function getTutorAbsenceLessonOptions(
       endTime: lessons.endTime,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))

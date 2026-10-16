@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
 import { buttonVariants, Empty, Pill, type PillTone } from "@/components/admin/ui";
 import { db } from "@/db/client";
@@ -103,6 +103,8 @@ export default async function TutorTimetablePage({
     status: lessons.status,
     className: classes.name,
     subjectName: subjects.name,
+    subjectColor: subjects.color,
+    room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
   };
   const [ownLessons, handedOff, rules, absenceLessons, timeAway] = await Promise.all([
     db
@@ -162,7 +164,7 @@ export default async function TutorTimetablePage({
 
   const chips: MonthChip[] = [
     ...ownLessons.map((lesson): MonthChip => {
-      const tone = subjectTone(lesson.subjectName);
+      const tone = subjectTone(lesson.subjectName, lesson.subjectColor);
       const name = classDisplayName(lesson.subjectName, lesson.className);
       const off = lesson.status === "cancelled" || lesson.status === "rescheduled";
       const coverOpen = openCoverIds.has(lesson.id);
@@ -186,7 +188,12 @@ export default async function TutorTimetablePage({
           ? { backgroundColor: "var(--warn-bg)", color: "var(--warn)" }
           : { backgroundColor: tone.bg, color: tone.fg },
         barStyle: { backgroundColor: coverOpen ? "var(--warn)" : tone.dot },
-        title: `${name} · ${formatTimeRange(lesson.startTime, lesson.endTime)}${note ? ` · ${note}` : ""}`,
+        title: [name, formatTimeRange(lesson.startTime, lesson.endTime), lesson.room, note]
+          .filter(Boolean)
+          .join(" · "),
+        ariaLabel: [name, formatTimeRange(lesson.startTime, lesson.endTime), lesson.room, note]
+          .filter(Boolean)
+          .join(", "),
       };
     }),
     ...handedOff.map((lesson): MonthChip => {
@@ -215,9 +222,14 @@ export default async function TutorTimetablePage({
     }
   }
 
+  // One entry per subject shown this month, in its own colour.
   const legendSubjects = Array.from(
-    new Set(ownLessons.filter((lesson) => lesson.date >= fromIso && lesson.date < toIso).map((lesson) => lesson.subjectName)),
-  ).sort();
+    new Map(
+      ownLessons
+        .filter((lesson) => lesson.date >= fromIso && lesson.date < toIso)
+        .map((lesson) => [lesson.subjectName, lesson.subjectColor] as const),
+    ),
+  ).sort(([a], [b]) => a.localeCompare(b));
   const legendHanded = handedOff.some((lesson) => lesson.date >= fromIso && lesson.date < toIso);
   const legendCover = ownLessons.some(
     (lesson) => openCoverIds.has(lesson.id) && lesson.date >= fromIso && lesson.date < toIso,
@@ -240,6 +252,7 @@ export default async function TutorTimetablePage({
     month: formatMonthShort(lesson.date).toUpperCase(),
     name: classDisplayName(lesson.subjectName, lesson.className),
     subjectName: lesson.subjectName,
+    subjectColor: lesson.subjectColor,
     time: formatTimeRange(lesson.startTime, lesson.endTime),
     dateLabel: formatDateLong(lesson.date),
   }));
@@ -325,8 +338,8 @@ export default async function TutorTimetablePage({
             <MonthGrid year={year} month={month} chips={chips} dayBadges={dayBadges} />
             {(legendSubjects.length > 0 || legendHanded || legendCover) && (
               <ul className="flex flex-wrap gap-x-3.5 gap-y-1.5 px-2.5 pb-1.5 pt-1 text-[12px] font-semibold text-ink-soft">
-                {legendSubjects.map((subject) => (
-                  <LegendItem key={subject} color={subjectTone(subject).dot} label={subject} />
+                {legendSubjects.map(([subject, color]) => (
+                  <LegendItem key={subject} color={subjectTone(subject, color).dot} label={subject} />
                 ))}
                 {legendCover && <LegendItem color="var(--warn)" label="Cover requested" />}
                 {legendHanded && <LegendItem color="var(--muted)" label="Handed to cover" />}

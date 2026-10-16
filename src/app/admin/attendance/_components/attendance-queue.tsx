@@ -108,7 +108,7 @@ export function AttendanceQueue({
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-px">
                       <span className="flex min-w-0 items-center gap-1.5 text-[14px] font-bold">
-                        <SubjectDot subject={item.subjectName} className="h-2 w-2" />
+                        <SubjectDot subject={item.subjectName} color={item.subjectColor} className="h-2 w-2" />
                         <span className="truncate">
                           {classDisplayName(item.subjectName, item.className)}
                         </span>

@@ -54,7 +54,7 @@ export default async function LessonRecapPage({
             <span
               aria-hidden
               className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
-              style={{ backgroundColor: subjectTone(lesson.subjectName).dot }}
+              style={{ backgroundColor: subjectTone(lesson.subjectName, lesson.subjectColor).dot }}
             />
             <span>
               {[

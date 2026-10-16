@@ -18,6 +18,7 @@ import {
 export type SubjectTab = {
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   /** Open homework waiting in this subject. */
   dueCount: number;
 };
@@ -36,7 +37,7 @@ export type SubjectRailWeek = {
 
 export type StudentSubjectPage =
   | { kind: "not-enrolled" }
-  | { kind: "no-curriculum"; tabs: SubjectTab[]; subjectName: string }
+  | { kind: "no-curriculum"; tabs: SubjectTab[]; subjectName: string; subjectColor: string | null }
   | {
       kind: "ready";
       tabs: SubjectTab[];
@@ -63,6 +64,7 @@ export async function getSubjectTabs(studentId: string): Promise<SubjectTab[]> {
       tabs.set(row.subjectId, {
         subjectId: row.subjectId,
         subjectName: row.subjectName,
+        subjectColor: row.subjectColor,
         dueCount: row.dueHomeworkCount,
       });
   }
@@ -89,7 +91,14 @@ export async function getStudentSubjectPage(
 
   // Tabs list only active enrolments, so a withdrawn student gets a 404.
   if (!tab) return { kind: "not-enrolled" };
-  if (!data) return { kind: "no-curriculum", tabs, subjectName: tab.subjectName };
+  if (!data) {
+    return {
+      kind: "no-curriculum",
+      tabs,
+      subjectName: tab.subjectName,
+      subjectColor: tab.subjectColor,
+    };
+  }
 
   const tutorFirstName = data.tutorName?.split(/\s+/)[0] ?? null;
   const maxWeek = data.weeks.reduce((acc, w) => Math.max(acc, w.weekNumber), 0);

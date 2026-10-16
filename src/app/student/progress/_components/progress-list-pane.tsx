@@ -150,7 +150,7 @@ function SubjectItem({
   selected: boolean;
   selectedOnDesktop: boolean;
 }) {
-  const dot = subjectTone(subject.subjectName).dot;
+  const dot = subjectTone(subject.subjectName, subject.subjectColor).dot;
   const tracked = subject.topicCount > 0;
 
   return (

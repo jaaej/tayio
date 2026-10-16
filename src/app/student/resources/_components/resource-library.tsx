@@ -122,7 +122,7 @@ export function ResourceLibrary({
             <span
               aria-hidden
               className="h-[9px] w-[9px] rounded-[3px]"
-              style={{ backgroundColor: subjectTone(s.subjectName).dot }}
+              style={{ backgroundColor: subjectTone(s.subjectName, s.subjectColor).dot }}
             />
             <h2 id={`library-${s.subjectId}`} className="text-[16px] font-extrabold text-ink">
               {s.subjectName}

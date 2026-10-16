@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatTime, startOfMondayWeek } from "@/lib/format";
-import { colorFamilyForSubject, getAccentTokens } from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -34,6 +34,8 @@ export type MonthLesson = {
     | "makeup"
     | "missed";
   subjectName: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor?: string | null;
   className: string;
   location?: string | null;
   /** Per-student reschedule overlay (optional; defaults to a normal lesson). */
@@ -61,6 +63,8 @@ export type MonthHomework = {
     | "resubmission_requested"
     | "late";
   className: string | null;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor?: string | null;
 };
 
 function isoLocal(d: Date) {
@@ -192,7 +196,7 @@ function lessonToMonthChip(lesson: MonthLesson): MonthChip {
   const tone =
     moved || makeup || pending
       ? { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" }
-      : lessonTone(lesson.status, lesson.date, lesson.subjectName);
+      : lessonTone(lesson.status, lesson.date, lesson.subjectName, lesson.subjectColor);
   const subjectAndMove = lesson.moveLabel
     ? `${lesson.subjectName} · ${lesson.moveLabel}`
     : lesson.subjectName;
@@ -242,7 +246,7 @@ function homeworkToMonthChip(
     };
   }
 
-  const tokens = getAccentTokens(colorFamilyForSubject(subject));
+  const tone = subjectTone(subject, homework.subjectColor);
   const overdue =
     !done &&
     (homework.status === "late" || homework.dueDate < isoLocal(new Date()));
@@ -257,15 +261,15 @@ function homeworkToMonthChip(
     ),
     href: `/student/homework/${homework.id}`,
     style: {
-      backgroundColor: done ? tokens.bgTo : tokens.pillBg,
-      color: tokens.pillText,
+      backgroundColor: done ? `color-mix(in srgb, ${tone.bg} 55%, white)` : tone.bg,
+      color: tone.fg,
     },
     barStyle: {
       backgroundColor: overdue
         ? "var(--bad)"
         : done
           ? "var(--good)"
-          : tokens.arrow,
+          : tone.dot,
     },
     title: `${homework.title} - ${subject}`,
     ariaLabel: `${homework.title} - ${subject}, due ${homework.dueDate}${overdue ? ", overdue" : done ? ", submitted" : ""}`,
@@ -514,7 +518,7 @@ function LessonChip({
   const tone =
     moved || makeup || pending
       ? { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" }
-      : lessonTone(lesson.status, lesson.date, lesson.subjectName);
+      : lessonTone(lesson.status, lesson.date, lesson.subjectName, lesson.subjectColor);
 
   const inner = (
     <>
@@ -623,7 +627,7 @@ function SubjectHomeworkChip({
   dimmed: boolean;
 }) {
   const subject = h.className ?? "Homework";
-  const t = getAccentTokens(colorFamilyForSubject(subject));
+  const t = subjectTone(subject, h.subjectColor);
   const done = h.status === "submitted" || h.status === "marked";
   const overdue =
     !done && (h.status === "late" || h.dueDate < isoLocal(new Date()));
@@ -639,8 +643,8 @@ function SubjectHomeworkChip({
         (dimmed || done) && "opacity-50",
       )}
       style={{
-        backgroundColor: done ? t.bgTo : t.pillBg,
-        color: t.pillText,
+        backgroundColor: done ? `color-mix(in srgb, ${t.bg} 55%, white)` : t.bg,
+        color: t.fg,
       }}
     >
       <span
@@ -650,7 +654,7 @@ function SubjectHomeworkChip({
           overdue && "bg-bad",
           done && "bg-good",
         )}
-        style={overdue || done ? undefined : { backgroundColor: t.arrow }}
+        style={overdue || done ? undefined : { backgroundColor: t.dot }}
       />
       <div className="text-[11px] truncate font-bold">{h.title}</div>
     </Link>
@@ -661,6 +665,7 @@ function lessonTone(
   status: MonthLesson["status"],
   dateIso: string,
   subjectName: string,
+  subjectColor: string | null | undefined,
 ) {
   if (status === "cancelled" || status === "missed") {
     return { bg: "var(--bad-bg)", text: "var(--bad)", bar: "var(--bad)" };
@@ -668,11 +673,11 @@ function lessonTone(
   if (status === "rescheduled" || status === "makeup") {
     return { bg: "var(--warn-bg)", text: "var(--warn)", bar: "var(--warn)" };
   }
-  const t = getAccentTokens(colorFamilyForSubject(subjectName));
+  const t = subjectTone(subjectName, subjectColor);
   if (dateIso < isoLocal(new Date())) {
-    return { bg: t.bgTo, text: t.meta, bar: t.arrow };
+    return { bg: `color-mix(in srgb, ${t.bg} 55%, white)`, text: t.fg, bar: t.dot };
   }
-  return { bg: t.pillBg, text: t.pillText, bar: t.arrow };
+  return { bg: t.bg, text: t.fg, bar: t.dot };
 }
 
 function navigateMonth(year: number, month: number, delta: number) {

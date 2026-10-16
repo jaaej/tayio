@@ -30,6 +30,7 @@ export async function getHomeworkListItems(studentId: string): Promise<StudentHo
       score: homeworkAssignments.score,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorId: classes.tutorId,
       tutorFirstName: profiles.firstName,
     })

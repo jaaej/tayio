@@ -17,6 +17,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       className: classes.name,
       status: homeworkAssignments.status,
       submittedAt: homeworkAssignments.submittedAt,
@@ -40,6 +41,7 @@ function toItem(r: Row): SubmissionItem {
     homeworkTitle: r.homeworkTitle,
     studentName: `${r.firstName} ${r.lastName}`.trim(),
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     classLabel: r.className
       ? classDisplayName(r.subjectName, r.className)
       : null,
@@ -75,6 +77,7 @@ export async function getMarkingPaneData(tutorId: string) {
         title: homework.title,
         dueDate: homework.dueDate,
         subjectName: subjects.name,
+        subjectColor: subjects.color,
         className: classes.name,
         total: sql<number>`count(${homeworkAssignments.studentId})::int`,
         toMark: sql<number>`count(*) filter (where ${homeworkAssignments.status} in ('submitted', 'late'))::int`,
@@ -85,7 +88,7 @@ export async function getMarkingPaneData(tutorId: string) {
       .leftJoin(subjects, eq(subjects.id, classes.subjectId))
       .leftJoin(homeworkAssignments, eq(homeworkAssignments.homeworkId, homework.id))
       .where(eq(homework.tutorId, tutorId))
-      .groupBy(homework.id, subjects.name, classes.name)
+      .groupBy(homework.id, subjects.name, subjects.color, classes.name)
       .orderBy(desc(homework.dueDate)),
   ]);
 
@@ -93,6 +96,7 @@ export async function getMarkingPaneData(tutorId: string) {
     id: h.id,
     title: h.title,
     subjectName: h.subjectName,
+    subjectColor: h.subjectColor,
     classLabel: h.className
       ? classDisplayName(h.subjectName, h.className)
       : null,

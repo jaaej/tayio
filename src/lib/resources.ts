@@ -93,6 +93,7 @@ export type AdminResourceRow = {
   kind: "file" | "link";
   subjectId: string;
   subjectName: string;
+  subjectColor: string | null;
   source: "promoted" | "direct";
   uploaderName: string;
   isPublished: boolean;
@@ -126,6 +127,7 @@ export async function listAllResourcesForAdmin(
       kind: resources.kind,
       subjectId: resources.subjectId,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       sourceAttachmentId: resources.sourceAttachmentId,
       uploaderFirst: profiles.firstName,
       uploaderLast: profiles.lastName,
@@ -147,6 +149,7 @@ export async function listAllResourcesForAdmin(
     kind: r.kind as "file" | "link",
     subjectId: r.subjectId,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     source: r.sourceAttachmentId ? ("promoted" as const) : ("direct" as const),
     uploaderName: `${r.uploaderFirst} ${r.uploaderLast}`,
     isPublished: r.isPublished,

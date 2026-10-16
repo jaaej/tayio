@@ -31,6 +31,7 @@ export type QueueItem = {
   endTime: string;
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorName: string;
   state: LessonQueueState;
   unmarkedCount: number;
@@ -71,6 +72,7 @@ function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: num
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
       // Students on the roll who have no attendance row yet. It mirrors who the
@@ -135,6 +137,7 @@ export async function getAttendanceQueue(
     endTime: row.endTime,
     className: row.className,
     subjectName: row.subjectName,
+    subjectColor: row.subjectColor,
     tutorName: `${row.tutorFirst} ${row.tutorLast}`.trim(),
     unmarkedCount: Number(row.unmarkedCount),
     state: lessonQueueState(

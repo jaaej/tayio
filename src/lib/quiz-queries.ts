@@ -39,6 +39,7 @@ export type QuizListRow = {
   title: string;
   status: string;
   subjectName: string;
+  subjectColor: string | null;
   termYear: number;
   termNumber: number;
   weekNumber: number;
@@ -97,6 +98,7 @@ function baseListSelect() {
       title: quizzes.title,
       status: quizzes.status,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       termYear: terms.year,
       termNumber: terms.termNumber,
       weekNumber: subjectWeeks.weekNumber,
@@ -128,7 +130,7 @@ function baseListSelect() {
 
 function toListRow(r: {
   id: string; title: string; status: string; subjectName: string;
-  termYear: number; termNumber: number; weekNumber: number;
+  subjectColor: string | null; termYear: number; termNumber: number; weekNumber: number;
   assignedTutorId: string | null; note: string | null; assignedTutorFirst: string | null;
   assignedTutorLast: string | null; createdByFirst: string;
   createdByLast: string | null; questionCount: number; updatedAt: Date;
@@ -138,6 +140,7 @@ function toListRow(r: {
     title: r.title,
     status: r.status,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     termYear: r.termYear,
     termNumber: r.termNumber,
     weekNumber: r.weekNumber,

@@ -325,6 +325,7 @@ export async function cancelLesson(p: {
 export type RedeemableCredit = {
   id: string;
   subjectName: string;
+  subjectColor: string | null;
   expiresAt: string;
   grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
 };
@@ -339,6 +340,7 @@ export async function listRedeemableCredits(
     .select({
       id: classCredits.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       status: classCredits.status,
       expiresAt: classCredits.expiresAt,
       grantReason: classCredits.grantReason,
@@ -358,6 +360,7 @@ export async function listRedeemableCredits(
       out.push({
         id: r.id,
         subjectName: r.subjectName,
+        subjectColor: r.subjectColor,
         expiresAt: r.expiresAt,
         grantReason: r.grantReason,
       });

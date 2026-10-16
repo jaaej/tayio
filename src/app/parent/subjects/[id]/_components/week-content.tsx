@@ -9,10 +9,7 @@ import {
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { formatDueDate, relativeTime, formatScore } from "@/lib/format";
 import { httpHref } from "@/lib/safe-url";
-import {
-  colorFamilyForSubject,
-  getAccentTokens,
-} from "@/lib/subject-colors";
+import { subjectTone } from "@/lib/subject-tone";
 import { ProgressRing } from "@/components/student/progress-ring";
 import { HeroBackLink } from "@/components/subjects/hero-back-link";
 import { WeekObjectives } from "@/components/subjects/week-objectives";
@@ -22,17 +19,20 @@ import type { ParentCurriculumWeek } from "../_queries";
 export async function WeekContentParent({
   week,
   subjectName,
+  subjectColor,
   backHref,
 }: {
   week: ParentCurriculumWeek;
   subjectName: string;
+  /** The subject's stored colour (`subjects.color`). */
+  subjectColor: string | null;
   /** Owned by the page - it carries the viewed child through the link. */
   backHref: string;
 }) {
   const videoSignedUrl = await signCurriculumUrl(week.videoUrl);
   const bookletSignedUrl = await signCurriculumUrl(week.bookletUrl);
   // Subject colour drives the hero head block and the Overview beneath it.
-  const tokens = getAccentTokens(colorFamilyForSubject(subjectName));
+  const tone = subjectTone(subjectName, subjectColor);
 
   const homeworkDone = week.homework.filter(
     (h) =>
@@ -58,7 +58,7 @@ export async function WeekContentParent({
       <section
         className="relative overflow-hidden rounded-[22px] px-5 py-4 text-white shadow-[0_14px_32px_-18px_rgba(31,40,90,0.5)]"
         style={{
-          background: `radial-gradient(140% 160% at 0% 0%, ${withAlpha(tokens.bgFrom, 0.65)} 0%, transparent 45%), radial-gradient(120% 140% at 100% 0%, ${withAlpha(tokens.bgFrom, 0.4)} 0%, transparent 55%), linear-gradient(135deg, ${tokens.arrow} 0%, ${tokens.title} 100%)`,
+          background: `radial-gradient(140% 160% at 0% 0%, color-mix(in srgb, ${tone.bg} 65%, transparent) 0%, transparent 45%), radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, ${tone.bg} 40%, transparent) 0%, transparent 55%), linear-gradient(135deg, ${tone.solid} 0%, ${tone.deep} 100%)`,
         }}
       >
         <svg
@@ -126,8 +126,8 @@ export async function WeekContentParent({
           <section
             className="p-4 lg:p-5 space-y-3"
             style={{
-              backgroundColor: tokens.title,
-              backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${tokens.arrow} 65%, ${tokens.title}) 0%, ${tokens.title} 100%)`,
+              backgroundColor: tone.deep,
+              backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${tone.solid} 65%, ${tone.deep}) 0%, ${tone.deep} 100%)`,
             }}
           >
             <SectionHead title="Overview" onDark />
@@ -470,8 +470,3 @@ function StatusChip({
   );
 }
 
-function withAlpha(rgb: string, a: number): string {
-  const match = rgb.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
-  if (!match) return rgb;
-  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${a})`;
-}

@@ -49,6 +49,7 @@ export async function getTutorClasses(tutorId: string) {
       endTime: classes.endTime,
       subjectId: classes.subjectId,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       subjectYear: subjects.yearLevel,
       enrolledCount: sql<number>`count(distinct ${enrollments.studentId})::int`,
     })
@@ -69,6 +70,7 @@ export async function getTutorClasses(tutorId: string) {
       classes.startTime,
       classes.endTime,
       subjects.name,
+      subjects.color,
       subjects.yearLevel,
     )
     .orderBy(asc(classes.name));
@@ -437,6 +439,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       classId: classes.id,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(lessons)
     .innerJoin(classes, eq(lessons.classId, classes.id))
@@ -617,6 +620,7 @@ export async function getTutorWeekLessons(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
     })
     .from(lessons)
     .innerJoin(classes, eq(lessons.classId, classes.id))

@@ -336,6 +336,7 @@ export type WeekLesson = {
   status: (typeof lessons.$inferSelect)["status"];
   className: string;
   subjectName: string;
+  subjectColor: string | null;
   tutorFirst: string;
   tutorLast: string;
 };
@@ -353,6 +354,7 @@ export async function getWeekLessons(
       status: lessons.status,
       className: classes.name,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
     })
@@ -929,6 +931,7 @@ export type CreditRow = {
   studentFirst: string;
   studentLast: string;
   subjectName: string;
+  subjectColor: string | null;
   /** Effective status derived at read time via `deriveCreditStatus`, not the
    *  raw stored column. */
   status: CreditStatus;
@@ -982,6 +985,7 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
       studentFirst: student.firstName,
       studentLast: student.lastName,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       status: classCredits.status,
       grantReason: classCredits.grantReason,
       expiresAt: classCredits.expiresAt,
@@ -1010,6 +1014,7 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
     studentFirst: r.studentFirst,
     studentLast: r.studentLast,
     subjectName: r.subjectName,
+    subjectColor: r.subjectColor,
     status: deriveCreditStatus(r.status, r.expiresAt, todayIso),
     grantReason: r.grantReason,
     grantedFromLabel: r.fromDate ? formatDateLong(r.fromDate) : null,

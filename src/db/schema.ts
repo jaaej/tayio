@@ -205,6 +205,8 @@ export const subjects = pgTable("subjects", {
   name: text("name").notNull().unique(),
   yearLevel: text("year_level"),
   description: text("description"),
+  /** Palette key from src/lib/subject-tone.ts; null = guessed from the name. */
+  color: text("color"),
 });
 
 export const subjectSearchAliases = pgTable(
