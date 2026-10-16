@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 13 October 2026
+Last updated: 17 October 2026
 
 ## Status key
 
@@ -12,6 +12,11 @@ Last updated: 13 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Admin curriculum in the student layout (17 October 2026): sign in as admin at 1440px and 390px and open a subject's Curriculum from Classes.
+  Confirm the hero is in the subject colour with "Back to classes" (returns to Classes), "<Subject> · Week N", the week title and a white Edit week button, and that the weeks rail starts open with the selected week filled in the subject colour.
+  Edit a week from the hero and save; add a week from the rail; open Manage topics under the rail and rename a topic; upload and replace a booklet and a video; write a quiz and request one from the Weekly quiz card; add homework.
+  Delete a test week that has an uploaded booklet and confirm it leaves the rail.
 
 - [ ] Class and subject editing (16 October 2026): sign in as admin at 1440px and 390px.
   From Classes, open a subject's pencil. Change a class's day and room and check the blue note names the tutor and the right number of students and parents, then Save and confirm the weekly schedule shows the class once, on the new day, with the room, and that the tutor, students and parents each get one notification.
@@ -543,6 +548,18 @@ Last updated: 13 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Admin curriculum page rebuilt to look like the student's My subjects page (17 October 2026, owner request with a screenshot of `/student/subjects/[id]`).
+  `/admin/subjects/[id]/curriculum` now opens with the student hero in the subject colour: a white "Back to classes" pill where the student's subject tabs sit (admin has every subject, so tabs would not scale), "<Subject> · Week N", the week title, and a white Edit week button where the student's Message button sits.
+  Below it: the weeks rail, open by default, with the selected week filled in the subject colour (term label now "Term 2 · 2026", as for students); the deep subject-colour Overview ("No overview yet." when empty); Lesson & materials cards matching the student's (Upload file in the subject colour, View and Replace in grey); then Homework beside a 280px Weekly quiz card.
+  Shared, not copied: the hero (`src/components/subjects/subject-hero.tsx`), the Overview (`week-overview.tsx`) and the material card (`material-card.tsx`) were moved out of the student page, which now uses them and renders identically (before and after screenshots match pixel for pixel).
+  Manage topics moved from the page header to under the weeks rail beside Add week, since topics are the rail's group headings (`_components/week-actions.tsx`); the week form is `_components/week-form.tsx`.
+  Removed: the Overview's "Edit overview" button (Edit week opens the same panel) and the "What students see this week" subtitle.
+  `NewQuizPanel` takes `surface="panel"`, so "Request from tutor" uses the outline button on a white panel, where the glass button had no visible edge.
+  Bug fixed: deleting a curriculum week left its video and booklet in storage. Reproduced on dev (the booklet was still in the `curriculum` bucket after the delete); `deleteSubjectWeek` now removes both, checked the same way.
+  Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs at 1440px and 390px (no horizontal overflow) of create week, edit week, booklet upload, Manage topics, delete week, a pending-review quiz, the no-quiz card and Back to classes, on violet, rose and teal subjects. Video upload was not run. Test weeks and files were removed afterwards.
+  Still different across roles: the tutor class curriculum (ink Overview, its own layout) and the parent subject page (its own hero and chips) do not use these shared components yet.
+  Weeks deleted before this fix may have left files in the `curriculum` bucket in dev and Production; they have not been swept.
 
 - [x] Admin class and subject editing, built to the owner's handoff `taiyo-admin-classes-edit.zip` (16 October 2026, owner request).
   Each subject's pencil on Classes opens `/admin/subjects/[id]/edit` (`subject-edit-form.tsx`): subject name, level, and colour; one card per class with day, start, end, tutor, and room (chips for rooms in use plus "Online", crossed out when another class uses that room at an overlapping time); Add class; Delete this subject. One Save changes saves everything in one transaction (`saveSubjectPage`, `src/app/admin/_lib/actions-subjects.ts`).

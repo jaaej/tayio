@@ -8,7 +8,8 @@ import type { StudentCurriculumWeek } from "./_queries";
 import { subjectTone } from "@/lib/subject-tone";
 import { SubjectHeader } from "./_components/subject-header";
 import { LessonMaterials } from "./_components/lesson-materials";
-import { Overview, TutorNote, WeekHomework, WeeklyQuiz } from "./_components/week-panels";
+import { TutorNote, WeekHomework, WeeklyQuiz } from "./_components/week-panels";
+import { WeekOverview } from "@/components/subjects/week-overview";
 
 export const dynamic = "force-dynamic";
 
@@ -133,7 +134,12 @@ function WeekBody({
   const showQuiz = Boolean(quiz) || week.quizInProgress;
   return (
     <div className="flex flex-col gap-5">
-      <Overview week={week} subjectName={subjectName} subjectColor={subjectColor} />
+      <WeekOverview
+        subjectName={subjectName}
+        subjectColor={subjectColor}
+        description={week.description}
+        objectives={week.objectives}
+      />
       {video && booklet && (
         <LessonMaterials
           video={video}

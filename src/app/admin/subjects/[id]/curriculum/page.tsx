@@ -2,12 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import {
-  Empty,
-  PageHeader,
-  SubjectDot,
-  buttonVariants,
-} from "@/components/admin/ui";
+import { Empty, buttonVariants } from "@/components/admin/ui";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import { db } from "@/db/client";
 import {
@@ -29,7 +24,11 @@ import {
   CurriculumRail,
   type RailWeek,
 } from "@/components/subjects/curriculum-rail";
+import { SubjectHero, SubjectHeroBack } from "@/components/subjects/subject-hero";
+import { subjectTone } from "@/lib/subject-tone";
+import { EditWeekButton, ManageTopicsButton } from "./_components/week-actions";
 import { WeekEditor } from "./_components/week-editor";
+import { WeekForm } from "./_components/week-form";
 
 type SearchParams = Promise<{ term?: string; week?: string; new?: string }>;
 
@@ -51,6 +50,18 @@ export default async function AdminSubjectCurriculumPage({
     .limit(1);
   if (!subject) notFound();
 
+  const tone = subjectTone(subject.name, subject.color);
+  // Admin has every subject to choose from, so the hero leads back to the
+  // Classes page's subject list instead of the student's subject tabs.
+  const back = (
+    <SubjectHeroBack
+      href="/admin/classes"
+      label="Back to classes"
+      subjectName={subject.name}
+      subjectColor={subject.color}
+    />
+  );
+
   const allTerms = await db
     .select()
     .from(terms)
@@ -62,14 +73,10 @@ export default async function AdminSubjectCurriculumPage({
   if (!currentTerm) {
     return (
       <div className="flex flex-col gap-5">
-        <PageHeader
-          back={{ href: "/admin/classes", label: "Back to classes" }}
-          eyebrow={
-            <>
-              <SubjectDot subject={subject.name} color={subject.color} />
-              Curriculum
-            </>
-          }
+        <SubjectHero
+          subjectName={subject.name}
+          subjectColor={subject.color}
+          nav={back}
           title={subject.name}
         />
         <GlassPanel>
@@ -195,62 +202,72 @@ export default async function AdminSubjectCurriculumPage({
     topicId: w.topicId,
     topicName: w.topicId ? (topicNameById.get(w.topicId) ?? null) : null,
   }));
+  const shownWeek = isNew ? undefined : selectedWeek;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-5">
+      <SubjectHero
+        subjectName={subject.name}
+        subjectColor={subject.color}
+        nav={back}
+        kicker={
+          shownWeek ? `${subject.name} · Week ${shownWeek.weekNumber}` : subject.name
+        }
+        title={shownWeek ? shownWeek.title : "New week"}
+        actions={
+          shownWeek && (
+            <EditWeekButton
+              week={shownWeek}
+              subjectId={subjectId}
+              termId={currentTerm.id}
+              topics={topics}
+              color={tone.fg}
+            />
+          )
+        }
+      />
+
       <CurriculumLayout
         attached
         framed
-        subject={{ name: subject.name, color: subject.color }}
+        defaultOpen
         rail={
           <CurriculumRail
             basePath={`/admin/subjects/${subjectId}/curriculum`}
             currentTermId={currentTerm.id}
             terms={allTerms.map((t) => ({
               id: t.id,
-              label: `${t.year} · Term ${t.termNumber}`,
+              label: `Term ${t.termNumber} · ${t.year}`,
             }))}
             weeks={railWeeks}
-            selectedWeekId={selectedWeek?.id ?? null}
+            // While adding a week no rail week is open; "" matches none
+            // (null would fall back to highlighting the first week).
+            selectedWeekId={isNew ? "" : (shownWeek?.id ?? null)}
+            accent={tone.flat}
             footer={
-              <Link
-                href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
-                className="flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-line-strong bg-surface text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                Add week
-              </Link>
+              <div className="flex flex-col gap-1.5">
+                <Link
+                  href={`/admin/subjects/${subjectId}/curriculum?term=${currentTerm.id}&new=1`}
+                  className="flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-line-strong bg-surface text-[13px] font-bold text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Add week
+                </Link>
+                <ManageTopicsButton
+                  subjectId={subjectId}
+                  topics={topics}
+                  weekCounts={weekCounts}
+                />
+              </div>
             }
           />
         }
       >
-        {isNew || !selectedWeek ? (
+        {shownWeek ? (
           <WeekEditor
-            subjectId={subjectId}
-            termId={currentTerm.id}
-            topics={topics}
+            week={shownWeek}
             subjectName={subject.name}
             subjectColor={subject.color}
-            weekCounts={weekCounts}
-            quiz={null}
-            quizTutors={tutorRows.map((tutor) => ({
-              id: tutor.id,
-              name: `${tutor.firstName} ${tutor.lastName ?? ""}`.trim(),
-            }))}
-            homeworkClasses={classRows.map((row) => ({
-              id: row.id,
-              label: `${row.name} - ${row.tutorFirstName} ${row.tutorLastName}`.trim(),
-            }))}
-          />
-        ) : (
-          <WeekEditor
-            existing={selectedWeek}
-            subjectId={subjectId}
-            termId={currentTerm.id}
-            topics={topics}
-            subjectName={subject.name}
-            subjectColor={subject.color}
-            weekCounts={weekCounts}
             quiz={weekQuiz}
             bookletSignedUrl={bookletSignedUrl}
             videoSignedUrl={videoSignedUrl}
@@ -264,12 +281,25 @@ export default async function AdminSubjectCurriculumPage({
             }))}
             homework={weekHomework}
             quizTarget={{
-              id: selectedWeek.id,
-              label: `${subject.name} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${selectedWeek.weekNumber}`,
+              id: shownWeek.id,
+              label: `${subject.name} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${shownWeek.weekNumber}`,
               subjectName: subject.name,
-              weekLabel: `${currentTerm.year} Term ${currentTerm.termNumber}, Week ${selectedWeek.weekNumber}`,
+              weekLabel: `${currentTerm.year} Term ${currentTerm.termNumber}, Week ${shownWeek.weekNumber}`,
             }}
           />
+        ) : (
+          <GlassPanel title="Create a curriculum week" titleId="new-week-heading">
+            <div className="flex flex-col gap-5 p-5">
+              <p className="text-[13px] text-muted">
+                Materials can be uploaded after saving.
+              </p>
+              <WeekForm
+                subjectId={subjectId}
+                termId={currentTerm.id}
+                topics={topics}
+              />
+            </div>
+          </GlassPanel>
         )}
       </CurriculumLayout>
     </div>

@@ -30,11 +30,15 @@ export function NewQuizPanel({
    *  surface (the empty state) and a second button would compete with it. */
   triggers = "both",
   triggerSize = "md",
+  surface = "glass",
 }: {
   tutors: { id: string; name: string }[];
   weeks: QuizTargetWeek[];
   triggers?: "both" | "new";
   triggerSize?: "md" | "lg";
+  /** What the triggers sit on: the request button is translucent on a
+   *  glass frame, but needs the outline variant to show on a white panel. */
+  surface?: "glass" | "panel";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -136,7 +140,7 @@ export function NewQuizPanel({
       {triggers === "both" && (
         <Button
           type="button"
-          variant="glass"
+          variant={surface === "panel" ? "outline" : "glass"}
           size={triggerSize}
           onClick={() => openWith("request")}
         >

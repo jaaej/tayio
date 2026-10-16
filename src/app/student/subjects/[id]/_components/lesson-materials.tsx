@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Play } from "lucide-react";
+import {
+  MATERIAL_BUTTON,
+  MATERIAL_BUTTON_QUIET,
+  MaterialCard,
+} from "@/components/subjects/material-card";
 import { cn } from "@/lib/utils";
 import type { ChecklistTask } from "../../_lib/week-checklist";
 import { BookletLink } from "./booklet-link";
 import { VideoPlayer } from "./video-player";
-
-const BUTTON =
-  "flex h-10 w-full items-center justify-center rounded-[12px] text-[14px] font-extrabold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
 
 /**
  * "Lesson & materials": the recorded lesson and the week booklet side by
@@ -37,11 +38,7 @@ export function LessonMaterials({
         Lesson &amp; materials
       </h2>
       <div className="grid gap-1.5 sm:grid-cols-2">
-        <MaterialCard
-          task={video}
-          icon={<Play className="h-[18px] w-[18px]" aria-hidden />}
-          iconTone={{ bg: "#E4ECFF", fg: "#3B6BFF" }}
-        >
+        <MaterialCard kind="video" title={video.title} {...status(video)}>
           {video.state === "waiting" ? (
             <NotReady />
           ) : (
@@ -57,11 +54,7 @@ export function LessonMaterials({
             </button>
           )}
         </MaterialCard>
-        <MaterialCard
-          task={booklet}
-          icon={<FileText className="h-[18px] w-[18px]" aria-hidden />}
-          iconTone={{ bg: "#FDF1E0", fg: "#B45309" }}
-        >
+        <MaterialCard kind="booklet" title={booklet.title} {...status(booklet)}>
           {booklet.state === "waiting" ? (
             <NotReady />
           ) : (
@@ -95,7 +88,7 @@ export function LessonMaterials({
 }
 
 function buttonClass(task: ChecklistTask): string {
-  return cn(BUTTON, task.state === "done" ? "bg-[#F1F2F7] text-ink hover:bg-[#E7E9F1]" : "text-white hover:opacity-90");
+  return cn(MATERIAL_BUTTON, task.state === "done" ? MATERIAL_BUTTON_QUIET : "text-white hover:opacity-90");
 }
 
 function buttonStyle(task: ChecklistTask, accent: string): React.CSSProperties | undefined {
@@ -104,46 +97,14 @@ function buttonStyle(task: ChecklistTask, accent: string): React.CSSProperties |
 
 function NotReady() {
   return (
-    <span aria-disabled className={cn(BUTTON, "bg-[#F1F2F7] text-[#8C8AA0]")}>
+    <span aria-disabled className={cn(MATERIAL_BUTTON, "cursor-default bg-[#F1F2F7] text-[#8C8AA0]")}>
       Not ready
     </span>
   );
 }
 
-function MaterialCard({
-  task,
-  icon,
-  iconTone,
-  children,
-}: {
-  task: ChecklistTask;
-  icon: React.ReactNode;
-  iconTone: { bg: string; fg: string };
-  children: React.ReactNode;
-}) {
-  const meta =
-    task.state === "waiting"
-      ? { text: "Not uploaded yet", color: "#9A4A07" }
-      : task.state === "done"
-        ? { text: task.meta, color: "#15803D" }
-        : { text: task.meta, color: "#5E5A73" };
-  return (
-    <div className="panel flex flex-col gap-3.5 p-4">
-      <div className="flex items-center gap-3.5">
-        <span
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]"
-          style={{ background: iconTone.bg, color: iconTone.fg }}
-        >
-          {icon}
-        </span>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[16px] font-extrabold leading-tight">{task.title}</span>
-          <span className="text-[13px] font-bold" style={{ color: meta.color }}>
-            {meta.text}
-          </span>
-        </span>
-      </div>
-      {children}
-    </div>
-  );
+function status(task: ChecklistTask) {
+  return task.state === "waiting"
+    ? { status: "Not uploaded yet", statusTone: "waiting" as const }
+    : { status: task.meta, statusTone: task.state === "done" ? ("done" as const) : ("neutral" as const) };
 }

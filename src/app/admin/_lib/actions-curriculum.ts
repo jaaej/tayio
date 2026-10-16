@@ -6,7 +6,10 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { subjectWeeks } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { uploadCurriculumFile } from "@/lib/curriculum-storage";
+import {
+  removeCurriculumObject,
+  uploadCurriculumFile,
+} from "@/lib/curriculum-storage";
 
 const weekInputSchema = z.object({
   subjectId: z.string().uuid(),
@@ -58,13 +61,28 @@ export async function updateSubjectWeek(id: string, formData: FormData) {
 
 export async function deleteSubjectWeek(id: string, subjectId: string) {
   await requireRole("admin");
+  let files: string[];
   try {
-    await db.delete(subjectWeeks).where(eq(subjectWeeks.id, id));
+    const [week] = await db
+      .delete(subjectWeeks)
+      .where(eq(subjectWeeks.id, id))
+      .returning({
+        videoUrl: subjectWeeks.videoUrl,
+        bookletUrl: subjectWeeks.bookletUrl,
+      });
+    files = [week?.videoUrl, week?.bookletUrl].filter(
+      (path): path is string => Boolean(path),
+    );
     revalidatePath(`/admin/subjects/${subjectId}/curriculum`);
-    return { ok: true as const };
   } catch (err) {
     return { ok: false as const, error: (err as Error).message };
   }
+  // The week's video and booklet are stored under its id, so no other row
+  // points at them once it is gone. Best effort: the week is already deleted.
+  await Promise.all(
+    files.map((path) => removeCurriculumObject(path).catch(() => {})),
+  );
+  return { ok: true as const };
 }
 
 export async function uploadAdminVideo(
