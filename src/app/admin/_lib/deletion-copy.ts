@@ -1,34 +1,76 @@
 import type { ClassDeletionImpact } from "./class-lessons";
 import type { SubjectDeletionImpact } from "./actions-subjects";
 
-function count(n: number, one: string, many = `${one}s`): string | null {
-  if (n <= 0) return null;
+/** A sentence whose `{ strong }` parts are shown in bold. */
+export type RichText = (string | { strong: string })[];
+
+function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** The confirmation dialog's list of what deleting a class removes. */
-export function classDeletionItems(impact: ClassDeletionImpact): string[] {
-  return [
-    count(impact.pastLessons, "past lesson"),
-    count(impact.attendanceRecords, "attendance record"),
-    count(impact.lessonNotes, "lesson note"),
-    count(impact.announcements, "class announcement"),
-    count(impact.upcomingLessons, "upcoming lesson"),
-    count(impact.enrolled, "student's place in the class", "students' places in the class"),
-    count(impact.moveRequests, "class move request"),
-  ].filter((item): item is string => item !== null);
+/** The normal "Delete this class?" dialog's list. */
+export function classDeletionItems(impact: ClassDeletionImpact): RichText[] {
+  const items: RichText[] = [
+    [
+      impact.pastLessons === 0
+        ? "No lessons have run yet, so no attendance or marks are lost."
+        : "Its past lessons have no attendance, notes or marks, so none are lost.",
+    ],
+  ];
+  if (impact.enrolled > 0) {
+    items.push([
+      `${plural(impact.enrolled, "student")} ${impact.enrolled === 1 ? "comes" : "come"} off this class. Their other classes stay.`,
+    ]);
+  }
+  if (impact.upcomingLessons > 0) {
+    items.push(["Upcoming lessons disappear from every calendar."]);
+  }
+  if (impact.moveRequests > 0) {
+    items.push([
+      `${plural(impact.moveRequests, "class move request")} for this class ${impact.moveRequests === 1 ? "is" : "are"} cancelled.`,
+    ]);
+  }
+  return items;
 }
 
-/** The confirmation dialog's list of what deleting a subject removes. */
-export function subjectDeletionItems(impact: SubjectDeletionImpact): string[] {
-  const quizzes = count(impact.quizzes, "quiz", "quizzes");
-  const attempts = count(impact.quizAttempts, "student attempt");
+/** "This class has history": why it cannot be deleted yet. */
+export function classBlockedBody(recordedLessons: number): RichText {
   return [
-    count(impact.weeks, "curriculum week"),
-    count(impact.topics, "topic"),
-    quizzes && attempts ? `${quizzes} and ${attempts}` : quizzes,
-    count(impact.resources, "resource"),
-    count(impact.discussionThreads, "discussion thread"),
-    count(impact.openCredits, "unused make-up credit"),
-  ].filter((item): item is string => item !== null);
+    "It has ",
+    { strong: plural(recordedLessons, "lesson") },
+    " with attendance, notes or marks. To keep that record safe, delete those lessons first. Once none are left, you can delete the class.",
+  ];
+}
+
+/** The "Delete <subject>?" dialog's list of what is permanently lost. */
+export function subjectDeletionItems(impact: SubjectDeletionImpact): RichText[] {
+  const items: RichText[] = [];
+  if (impact.classes > 0) {
+    items.push(
+      impact.lessons > 0
+        ? [
+            { strong: plural(impact.classes, "class", "classes") },
+            " and ",
+            { strong: plural(impact.lessons, "lesson") },
+            " with their attendance",
+          ]
+        : [{ strong: plural(impact.classes, "class", "classes") }],
+    );
+  }
+  if (impact.weeks > 0) {
+    items.push([
+      { strong: `${plural(impact.weeks, "week")} of curriculum` },
+      ": videos, booklets and quizzes",
+    ]);
+  }
+  if (impact.homework > 0) {
+    items.push([{ strong: plural(impact.homework, "homework task") }, " and every mark on them"]);
+  }
+  if (impact.students > 0) {
+    items.push(["Progress for ", { strong: plural(impact.students, "student") }, " in this subject"]);
+  }
+  if (impact.openCredits > 0) {
+    items.push([{ strong: plural(impact.openCredits, "unused make-up credit") }]);
+  }
+  return items;
 }

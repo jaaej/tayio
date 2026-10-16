@@ -3,7 +3,6 @@ import "server-only";
 import { and, eq, gte, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import type { db } from "@/db/client";
 import {
-  announcements,
   attendance,
   classCredits,
   classMoveRequests,
@@ -110,47 +109,41 @@ export async function classFamilies(tx: DbTx, classId: string) {
   return { studentIds, parentChild };
 }
 
+/** A lesson something was recorded on: attendance, a note, or homework (marks). */
+function lessonHasRecord(lessonId: SQL | typeof lessons.id) {
+  return sql<boolean>`(
+    exists (select 1 from ${attendance} where ${attendance.lessonId} = ${lessonId})
+    or exists (select 1 from ${lessonNotes} where ${lessonNotes.lessonId} = ${lessonId})
+    or exists (select 1 from ${homework} where ${homework.lessonId} = ${lessonId})
+  )`;
+}
+
 export type ClassDeletionImpact = {
   upcomingLessons: number;
-  enrolled: number;
   pastLessons: number;
-  attendanceRecords: number;
-  lessonNotes: number;
-  announcements: number;
+  /** Lessons with attendance, notes or marks; while any exist the class
+   *  cannot be deleted, so that record is never lost by accident. */
+  recordedLessons: number;
+  enrolled: number;
   moveRequests: number;
-  /** Anything that has already happened in this class. */
-  hasHistory: boolean;
 };
 
-/** What deleting the class removes, counted the same way the delete does. */
+/** What deleting the class would remove, and whether it is allowed. */
 export async function classDeletionImpact(
   tx: DbTx,
   classId: string,
   now: Date,
 ): Promise<ClassDeletionImpact> {
   const today = melbourneDate(now);
-  const [[counts], [att], [notes], [ann], [moves], [enr]] = await Promise.all([
+  const [[counts], [moves], [enr]] = await Promise.all([
     tx
       .select({
         upcoming: sql<number>`count(*) filter (where ${lessons.date} >= ${today} and ${lessons.status} not in ('completed', 'missed'))::int`,
-        past: sql<number>`count(*) filter (where (${lessons.date} < ${today} and ${lessons.status} <> 'cancelled') or ${lessons.status} in ('completed', 'missed'))::int`,
+        past: sql<number>`count(*) filter (where ${lessons.date} < ${today} or ${lessons.status} in ('completed', 'missed'))::int`,
+        recorded: sql<number>`count(*) filter (where ${lessonHasRecord(lessons.id)})::int`,
       })
       .from(lessons)
       .where(and(eq(lessons.classId, classId), ne(lessons.status, "cancelled"))),
-    tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(attendance)
-      .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
-      .where(eq(lessons.classId, classId)),
-    tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(lessonNotes)
-      .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-      .where(eq(lessons.classId, classId)),
-    tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(announcements)
-      .where(eq(announcements.audienceClassId, classId)),
     tx
       .select({ n: sql<number>`count(*)::int` })
       .from(classMoveRequests)
@@ -162,21 +155,44 @@ export async function classDeletionImpact(
       .from(enrollments)
       .where(and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt))),
   ]);
-  const impact = {
+  return {
     upcomingLessons: counts?.upcoming ?? 0,
-    enrolled: enr?.n ?? 0,
     pastLessons: counts?.past ?? 0,
-    attendanceRecords: att?.n ?? 0,
-    lessonNotes: notes?.n ?? 0,
-    announcements: ann?.n ?? 0,
+    recordedLessons: counts?.recorded ?? 0,
+    enrolled: enr?.n ?? 0,
     moveRequests: moves?.n ?? 0,
   };
+}
+
+export type LessonDeletionImpact = {
+  /** Only a lesson that has started can be deleted; a future weekly lesson
+   *  would just be made again by the daily sweep. */
+  started: boolean;
+  attendanceRecords: number;
+  lessonNotes: number;
+  homework: number;
+};
+
+export async function lessonDeletionImpact(
+  tx: DbTx,
+  lessonId: string,
+  now: Date,
+): Promise<LessonDeletionImpact | null> {
+  const [row] = await tx
+    .select({
+      date: lessons.date,
+      startTime: lessons.startTime,
+      attendance: sql<number>`(select count(*)::int from ${attendance} where ${attendance.lessonId} = ${lessons.id})`,
+      notes: sql<number>`(select count(*)::int from ${lessonNotes} where ${lessonNotes.lessonId} = ${lessons.id})`,
+      homework: sql<number>`(select count(*)::int from ${homework} where ${homework.lessonId} = ${lessons.id})`,
+    })
+    .from(lessons)
+    .where(eq(lessons.id, lessonId));
+  if (!row) return null;
   return {
-    ...impact,
-    hasHistory:
-      impact.pastLessons > 0 ||
-      impact.attendanceRecords > 0 ||
-      impact.lessonNotes > 0 ||
-      impact.announcements > 0,
+    started: lessonStartInstant(row.date, row.startTime) <= now,
+    attendanceRecords: row.attendance,
+    lessonNotes: row.notes,
+    homework: row.homework,
   };
 }

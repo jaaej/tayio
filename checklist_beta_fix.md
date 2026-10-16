@@ -14,10 +14,10 @@ Last updated: 13 October 2026
 ## Manual QA required
 
 - [ ] Class and subject editing (16 October 2026): sign in as admin at 1440px and 390px.
-  On a class page, change the day and time of a recurring class with enrolled students and confirm the weekly schedule shows it once, on the new day, in the new room, and that the tutor, students, and parents each get one notification.
-  Delete a class that has never run (plain confirmation) and one that has (lists what is lost, Delete stays disabled until the name is typed).
-  In Classes → Subjects, add a subject, rename it, pick a colour, and confirm the colour on the admin schedule, tutor classes, student dashboard and subject page, and parent homework and subject page.
-  Try deleting a subject that still has classes (it links to them) and one without (it is removed).
+  From Classes, open a subject's pencil. Change a class's day and room and check the blue note names the tutor and the right number of students and parents, then Save and confirm the weekly schedule shows the class once, on the new day, with the room, and that the tutor, students and parents each get one notification.
+  Add a class on the edit page and save; delete a class that has not run (plain dialog); try to delete one that has (history dialog, Review N lessons, delete a lesson from Attendance, then delete the class).
+  Change a subject's colour and confirm it on the admin schedule, tutor classes, student dashboard and subject page, and parent homework and subject page.
+  Delete a test subject that has classes (type the name).
   Production has not had migration 0063 yet: run it before deploying this commit.
 
 - [ ] Student dashboard and glass shell (13 October 2026): sign in as a student at 1440px and 390px.
@@ -544,19 +544,19 @@ Last updated: 13 October 2026
 
 ## Recently implemented
 
-- [x] Admin class and subject editing (16 October 2026, owner request).
-  Edit class: saving now moves the class's upcoming lessons to the new day, time, tutor, room, and link (`planClassScheduleChange`, `src/lib/class-schedule-change.ts`, tested; `updateClass` in `src/app/admin/_lib/actions-classes.ts`).
-  Before this, a new day or time only changed the class row: the 16 weeks of generated lessons kept the old slot and the sweep added the new one, so the class showed twice (reproduced in the browser on dev before the fix).
-  The next save of a class doubled that way removes the leftover lessons that nothing points at.
-  Changes to day, time, room, or tutor notify the tutor and, when anyone is enrolled, the students and linked parents ("Class time changed", "Class room changed", ...; classified as Updates and tested in `notification-groups.test.ts`).
-  Delete class: a "Delete class" button on the class page; a class that has run needs its name typed (checked on the server too), and class-move requests no longer block the delete.
-  Room: the class Location field is labelled Room, sits after the time in New class, and suggests rooms in use; tutors see it on Classes, Today, the lesson page, and the timetable hover.
-  Subjects: the Subjects panel's pencil opens Edit subject (rename, year level, colour, delete), sharing one panel with Add subject (`subject-panel.tsx`, `actions-subjects.ts`).
-  Delete subject is refused while classes use it and otherwise lists what goes with it.
-  Colour: `subjects.color` (migration 0063, applied to dev only) holds one of ten contrast-tested palette keys, and `subjectTone(name, color)` is now the only subject colour source in every role.
-  The older red/amber palette (`src/lib/subject-colors.ts`) is gone, so the parent portal and the unused student month calendar use the same colours as admin, tutor, and student; two unused components that depended on it were deleted.
-  The shared confirmation dialog now portals above side panels and takes an item list and a type-to-confirm text.
-  Verified on :3000 against dev with typecheck, lint, 516 tests, a production build, and browser runs of each flow; Year 9 Maths was set to orange and checked in all four portals, then restored.
+- [x] Admin class and subject editing, built to the owner's handoff `taiyo-admin-classes-edit.zip` (16 October 2026, owner request).
+  Each subject's pencil on Classes opens `/admin/subjects/[id]/edit` (`subject-edit-form.tsx`): subject name, level, and colour; one card per class with day, start, end, tutor, and room (chips for rooms in use plus "Online", crossed out when another class uses that room at an overlapping time); Add class; Delete this subject. One Save changes saves everything in one transaction (`saveSubjectPage`, `src/app/admin/_lib/actions-subjects.ts`).
+  A card whose day, time, room or tutor changed shows "Room changed from Room 2. Saving tells Tom Tutor, 6 students and 5 parents." (`changeNotice`, tested).
+  Edit class bug fixed: a new day or time used to change only the class row, so its 16 weeks of generated lessons kept the old slot and the sweep added the new one (reproduced in the browser on dev). Every edit now goes through `applyClassEdit` (`class-writes.ts`) and `planClassScheduleChange` (`src/lib/class-schedule-change.ts`, tested), which moves the upcoming lessons and clears lessons doubled by older edits.
+  A "<Subject> · <Day> AM|PM" class name follows a day or time change.
+  Day, time, or room changes notify the tutor, students and parents ("Year 9 Maths moves to Room 3 from Thu 22 Oct.", classified as Updates and tested); a new tutor notifies both tutors.
+  Delete class always confirms. A class with any lesson holding attendance, notes or marks is blocked ("This class has history"); "Review N lessons" opens Attendance filtered to that class (`?class=`), where a lesson that has started can be deleted from its page (Delete lesson). The rule is enforced in `deleteClass` too, and class-move requests no longer block a delete.
+  Delete subject works even after its classes have run, behind the strong confirmation (real counts of classes and lessons, curriculum weeks, homework and marks, students' progress; invoices kept, checked in the schema: they reference only people; name typed to confirm, checked on the server).
+  Colour: `subjects.color` (migration 0063, applied to dev only) holds one of the handoff's ten palette keys (teal, violet, blue, rose, amber, red, green, cyan, navy, slate; tints contrast-tested), and `subjectTone(name, color)` is the only subject colour source in every role. The older red/amber palette (`src/lib/subject-colors.ts`) is gone, so the parent portal now matches admin, tutor, and student.
+  Room: the class Location field is labelled Room and sits after the time in New class; tutors see it on Classes, Today, the lesson page, and the timetable hover; admin schedule blocks show "Tom Tutor · Room 2".
+  The shared confirmation dialog is restyled to the handoff's glass dialog (icon tile, class line, bold counts, red warning, type-to-confirm) for every admin confirm.
+  Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs of each flow at 1440px (edit page also at 390px): save with a move and an added class, delete an unrun class, the blocked class to Attendance to Delete lesson to delete chain, and create then delete a subject. Throwaway test data was removed afterwards.
+  Not done: the class page (`/admin/classes/[id]`) keeps its own full edit form (name, type, capacity, online link, enrolments) beside the subject edit page; both save through `applyClassEdit`.
 
 - [x] Admin New class: the tutor is chosen after the day and times, ranked by availability (15 October 2026, owner request).
   The Tutor section now sits under When; every tutor is listed, those available for the whole class first ("Free then"), then "Not free then" with a note: "Teaching <class> then" (available but already teaching a class that overlaps) or "Outside their available hours" / "No available hours set".

@@ -169,7 +169,7 @@ export default async function ClassEditPage({
             rooms={rooms}
           />
           <div className="border-t border-line p-4">
-            <DeleteClassButton id={row.id} name={row.name} />
+            <DeleteClassButton id={row.id} variant="block" />
           </div>
         </GlassPanel>
       </div>

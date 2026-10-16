@@ -5,7 +5,7 @@ import { getAttendanceQueue, parseQueueFilters } from "./_lib/queue";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ view?: string; date?: string; from?: string }>;
+type SearchParams = Promise<{ view?: string; date?: string; from?: string; class?: string }>;
 
 export default async function AdminAttendancePage({
   searchParams,

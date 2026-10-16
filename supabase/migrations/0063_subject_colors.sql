@@ -18,8 +18,8 @@ alter table public.subjects
   check (
     color is null
     or color in (
-      'teal', 'violet', 'blue', 'pink', 'grey',
-      'red', 'orange', 'amber', 'green', 'cyan'
+      'teal', 'violet', 'blue', 'rose', 'amber',
+      'red', 'green', 'cyan', 'navy', 'slate'
     )
   );
 

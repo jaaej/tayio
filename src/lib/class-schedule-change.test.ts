@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   classChangeTitle,
+  classMoveSentence,
+  slotClassName,
   planClassScheduleChange,
   slotChangeSummary,
   weeklySlotLabel,
@@ -254,5 +256,63 @@ describe("weeklySlotLabel", () => {
 
   it("says when there is no weekly time", () => {
     expect(weeklySlotLabel({ ...MONDAY_4PM, isRecurring: false })).toBe("No weekly time");
+  });
+});
+
+describe("classMoveSentence", () => {
+  const room = { when: false, room: true, tutor: false };
+  it("matches the handoff's example", () => {
+    expect(
+      classMoveSentence("Year 9 Maths", { ...MONDAY_4PM, location: "Room 3" }, room, "2026-10-22"),
+    ).toBe("Year 9 Maths moves to Room 3 from Thu 22 Oct.");
+  });
+
+  it("names the new day and time, and the room when both change", () => {
+    const after = { ...MONDAY_4PM, weekday: 4, location: "Room 3" };
+    expect(
+      classMoveSentence("Year 9 Maths", after, { when: true, room: false, tutor: false }, "2026-10-22"),
+    ).toBe("Year 9 Maths moves to Thursday 4:00 – 5:00 pm from Thu 22 Oct.");
+    expect(
+      classMoveSentence("Year 9 Maths", after, { when: true, room: true, tutor: false }, "2026-10-22"),
+    ).toBe("Year 9 Maths moves to Thursday 4:00 – 5:00 pm in Room 3 from Thu 22 Oct.");
+  });
+
+  it("says when the room is cleared or there is no later lesson", () => {
+    expect(classMoveSentence("Year 9 Maths", { ...MONDAY_4PM, location: " " }, room, null)).toBe(
+      "Year 9 Maths has no set room.",
+    );
+  });
+
+  it("says when the class stops having a weekly time", () => {
+    expect(
+      classMoveSentence(
+        "Year 9 Maths",
+        { ...MONDAY_4PM, isRecurring: false },
+        { when: true, room: false, tutor: false },
+        null,
+      ),
+    ).toBe("Year 9 Maths no longer has a weekly time.");
+  });
+});
+
+describe("slotClassName", () => {
+  it("names a class by its day and half of the day", () => {
+    expect(slotClassName(MONDAY_4PM)).toBe("Monday PM");
+    expect(slotClassName({ ...MONDAY_4PM, weekday: 6, startTime: "10:00" })).toBe("Saturday AM");
+  });
+
+  it("follows the slot only for names in that pattern", () => {
+    expect(slotClassName({ ...MONDAY_4PM, weekday: 4 }, "Monday PM")).toBe("Thursday PM");
+    expect(slotClassName({ ...MONDAY_4PM, weekday: 4 }, "QA Recurring Class")).toBeNull();
+  });
+
+  it("keeps the subject in front, as real class names have it", () => {
+    expect(
+      slotClassName({ ...MONDAY_4PM, weekday: 3 }, "Year 9 Maths · Thursday PM"),
+    ).toBe("Year 9 Maths · Wednesday PM");
+  });
+
+  it("has nothing to say without a weekly slot", () => {
+    expect(slotClassName({ ...MONDAY_4PM, isRecurring: false })).toBeNull();
   });
 });

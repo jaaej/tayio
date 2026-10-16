@@ -99,16 +99,25 @@ export function nextLessonId(
   return queueIds[index + 1] ?? null;
 }
 
+/** A `class` query value, when it is a class id. */
+export function classParam(value: string | undefined): string | null {
+  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null;
+}
+
 /** The queue's filter state as a query string (with leading "?" or empty). */
 export function queueQueryString(filters: {
   view: QueueView;
   date: string | null;
   from: string | null;
+  classId: string | null;
 }): string {
   const params = new URLSearchParams();
   if (filters.view !== "to_mark") params.set("view", filters.view);
   if (filters.date) params.set("date", filters.date);
   if (filters.from) params.set("from", filters.from);
+  if (filters.classId) params.set("class", filters.classId);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }

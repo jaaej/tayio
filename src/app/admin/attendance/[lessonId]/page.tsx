@@ -13,10 +13,13 @@ import {
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatTime } from "@/lib/format";
-import { classNameDetail } from "@/lib/class-display";
+import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
+import { classDisplayName, classNameDetail } from "@/lib/class-display";
+import { subjectTone } from "@/lib/subject-tone";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 import { getLessonReschedules } from "@/lib/reschedule";
 import { AttendanceQueue } from "../_components/attendance-queue";
+import { DeleteLessonButton } from "../_components/delete-lesson-button";
 import { LessonNotesButton } from "../_components/lesson-notes-button";
 import { MarkingPane, type MarkingStudent } from "../_components/marking-pane";
 import { getAttendanceQueue, parseQueueFilters } from "../_lib/queue";
@@ -24,7 +27,7 @@ import { nextLessonId, queueQueryString } from "../_lib/queue-logic";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ view?: string; date?: string; from?: string }>;
+type SearchParams = Promise<{ view?: string; date?: string; from?: string; class?: string }>;
 
 export default async function AdminLessonAttendancePage({
   params,
@@ -48,6 +51,7 @@ export default async function AdminLessonAttendancePage({
       className: classes.name,
       classId: classes.id,
       subjectName: subjects.name,
+      subjectColor: subjects.color,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
     })
@@ -187,6 +191,22 @@ export default async function AdminLessonAttendancePage({
         students={students}
         backHref={`/admin/attendance${query}`}
         nextHref={nextId ? `/admin/attendance/${nextId}${query}` : null}
+        headerAction={
+          lessonStartInstant(lesson.date, lesson.startTime) <= new Date() ? (
+            <DeleteLessonButton
+              lessonId={lesson.id}
+              backHref={`/admin/attendance${query}`}
+              subject={{
+                label: [
+                  classDisplayName(lesson.subjectName, lesson.className),
+                  formatDateLong(lesson.date),
+                  formatTimeRange(lesson.startTime, lesson.endTime),
+                ].join(" · "),
+                dot: subjectTone(lesson.subjectName, lesson.subjectColor).dot,
+              }}
+            />
+          ) : null
+        }
         notesButton={
           <LessonNotesButton
             count={noteRows.length}

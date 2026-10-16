@@ -1,71 +1,76 @@
 import { describe, expect, it } from "vitest";
-import { classDeletionItems, subjectDeletionItems } from "./deletion-copy";
+import { classBlockedBody, classDeletionItems, subjectDeletionItems } from "./deletion-copy";
 
-const EMPTY_CLASS = {
+const CLASS = {
   upcomingLessons: 0,
-  enrolled: 0,
   pastLessons: 0,
-  attendanceRecords: 0,
-  lessonNotes: 0,
-  announcements: 0,
+  recordedLessons: 0,
+  enrolled: 0,
   moveRequests: 0,
-  hasHistory: false,
 };
 
-describe("classDeletionItems", () => {
-  it("lists only what exists, with counts", () => {
-    expect(
-      classDeletionItems({ ...EMPTY_CLASS, upcomingLessons: 16, enrolled: 1 }),
-    ).toEqual(["16 upcoming lessons", "1 student's place in the class"]);
-  });
+const text = (rich: (string | { strong: string })[]) =>
+  rich.map((part) => (typeof part === "string" ? part : `**${part.strong}**`)).join("");
 
-  it("lists history first", () => {
+describe("classDeletionItems", () => {
+  it("matches the handoff for a class that has not run", () => {
     expect(
-      classDeletionItems({
-        ...EMPTY_CLASS,
-        upcomingLessons: 3,
-        pastLessons: 5,
-        attendanceRecords: 12,
-        lessonNotes: 1,
-        announcements: 2,
-        moveRequests: 1,
-        hasHistory: true,
-      }),
+      classDeletionItems({ ...CLASS, upcomingLessons: 16, enrolled: 6 }).map(text),
     ).toEqual([
-      "5 past lessons",
-      "12 attendance records",
-      "1 lesson note",
-      "2 class announcements",
-      "3 upcoming lessons",
-      "1 class move request",
+      "No lessons have run yet, so no attendance or marks are lost.",
+      "6 students come off this class. Their other classes stay.",
+      "Upcoming lessons disappear from every calendar.",
     ]);
   });
 
-  it("is empty for a bare class", () => {
-    expect(classDeletionItems(EMPTY_CLASS)).toEqual([]);
+  it("does not claim nothing has run when unmarked lessons have", () => {
+    expect(classDeletionItems({ ...CLASS, pastLessons: 2, enrolled: 1, moveRequests: 1 }).map(text)).toEqual([
+      "Its past lessons have no attendance, notes or marks, so none are lost.",
+      "1 student comes off this class. Their other classes stay.",
+      "1 class move request for this class is cancelled.",
+    ]);
+  });
+});
+
+describe("classBlockedBody", () => {
+  it("names the lessons that hold the record", () => {
+    expect(text(classBlockedBody(14))).toBe(
+      "It has **14 lessons** with attendance, notes or marks. To keep that record safe, delete those lessons first. Once none are left, you can delete the class.",
+    );
   });
 });
 
 describe("subjectDeletionItems", () => {
-  it("lists the curriculum that goes with the subject", () => {
+  it("matches the handoff's list", () => {
     expect(
       subjectDeletionItems({
-        classes: [],
-        weeks: 10,
-        topics: 1,
-        quizzes: 2,
-        quizAttempts: 14,
-        resources: 0,
-        discussionThreads: 3,
-        openCredits: 1,
-        hasContent: true,
-      }),
+        classes: 2,
+        lessons: 34,
+        weeks: 6,
+        homework: 21,
+        students: 12,
+        openCredits: 0,
+        hasHistory: true,
+      }).map(text),
     ).toEqual([
-      "10 curriculum weeks",
-      "1 topic",
-      "2 quizzes and 14 student attempts",
-      "3 discussion threads",
-      "1 unused make-up credit",
+      "**2 classes** and **34 lessons** with their attendance",
+      "**6 weeks of curriculum**: videos, booklets and quizzes",
+      "**21 homework tasks** and every mark on them",
+      "Progress for **12 students** in this subject",
     ]);
+  });
+
+  it("lists unused make-up credits, which also go", () => {
+    expect(
+      subjectDeletionItems({
+        classes: 0,
+        lessons: 0,
+        weeks: 0,
+        homework: 0,
+        students: 0,
+        openCredits: 1,
+        hasHistory: false,
+      }).map(text),
+    ).toEqual(["**1 unused make-up credit**"]);
   });
 });

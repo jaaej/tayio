@@ -6,6 +6,7 @@ import {
   nextLessonId,
   parseQueueView,
   queueQueryString,
+  classParam,
 } from "./queue-logic";
 
 // 2026-10-11 14:00 in Melbourne (AEDT, UTC+11).
@@ -83,9 +84,28 @@ describe("URL params", () => {
   });
 
   it("keeps only non-default filters in the query string", () => {
-    expect(queueQueryString({ view: "to_mark", date: null, from: null })).toBe("");
-    expect(queueQueryString({ view: "marked", date: "2026-10-11", from: null })).toBe(
-      "?view=marked&date=2026-10-11",
+    expect(queueQueryString({ view: "to_mark", date: null, from: null, classId: null })).toBe("");
+    expect(
+      queueQueryString({ view: "marked", date: "2026-10-11", from: null, classId: null }),
+    ).toBe("?view=marked&date=2026-10-11");
+  });
+
+  it("keeps the class filter", () => {
+    expect(
+      queueQueryString({
+        view: "marked",
+        date: null,
+        from: null,
+        classId: "14c3c5ed-9038-46e0-865b-7bfb79b73f94",
+      }),
+    ).toBe("?view=marked&class=14c3c5ed-9038-46e0-865b-7bfb79b73f94");
+  });
+
+  it("reads only a real class id", () => {
+    expect(classParam("14c3c5ed-9038-46e0-865b-7bfb79b73f94")).toBe(
+      "14c3c5ed-9038-46e0-865b-7bfb79b73f94",
     );
+    expect(classParam("not-a-class")).toBeNull();
+    expect(classParam(undefined)).toBeNull();
   });
 });

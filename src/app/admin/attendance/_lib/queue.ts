@@ -5,9 +5,11 @@ import { db } from "@/db/client";
 import { classes, lessons, profiles, subjects } from "@/db/schema";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { classDisplayName } from "@/lib/class-display";
 import {
   QUEUE_VIEWS,
   buildQueue,
+  classParam,
   dateParam,
   lessonQueueState,
   parseQueueView,
@@ -22,6 +24,8 @@ export type QueueFilters = {
   date: string | null;
   /** Start of the default range; only set when it came from the URL. */
   from: string | null;
+  /** One class's lessons, every date (the class delete dialog links here). */
+  classId: string | null;
 };
 
 export type QueueItem = {
@@ -39,6 +43,8 @@ export type QueueItem = {
 
 export type AttendanceQueue = {
   filters: QueueFilters;
+  /** The filtered class's name, shown with a way back to every class. */
+  classLabel: string | null;
   items: QueueItem[];
   counts: Record<QueueView, number>;
   today: string;
@@ -48,11 +54,13 @@ export function parseQueueFilters(params: {
   view?: string;
   date?: string;
   from?: string;
+  class?: string;
 }): QueueFilters {
   return {
     view: parseQueueView(params.view),
     date: dateParam(params.date),
     from: dateParam(params.from),
+    classId: classParam(params.class),
   };
 }
 
@@ -60,6 +68,7 @@ export function parseQueueFilters(params: {
 const DEFAULT_LOOKBACK_DAYS = 30;
 const PAST_LIMIT = 300;
 const FUTURE_LIMIT = 100;
+const CLASS_LIMIT = 500;
 
 function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: number) {
   const dir = order === "asc" ? asc : desc;
@@ -111,7 +120,23 @@ export async function getAttendanceQueue(
   const today = melbourneDate(now);
 
   let rows: Awaited<ReturnType<typeof selectLessons>>;
-  if (filters.date) {
+  let classLabel: string | null = null;
+  if (filters.classId) {
+    rows = await selectLessons(
+      and(
+        eq(lessons.classId, filters.classId),
+        filters.date ? eq(lessons.date, filters.date) : undefined,
+      ),
+      "desc",
+      CLASS_LIMIT,
+    );
+    const [cls] = await db
+      .select({ name: classes.name, subjectName: subjects.name })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+      .where(eq(classes.id, filters.classId));
+    classLabel = cls ? classDisplayName(cls.subjectName, cls.name) : null;
+  } else if (filters.date) {
     rows = await selectLessons(eq(lessons.date, filters.date), "asc", 200);
   } else {
     const from = filters.from ?? addIsoDays(today, -DEFAULT_LOOKBACK_DAYS);
@@ -157,5 +182,5 @@ export async function getAttendanceQueue(
   >;
   for (const item of all) counts[viewForState(item.state)] += 1;
 
-  return { filters, items: buildQueue(all, filters.view), counts, today };
+  return { filters, classLabel, items: buildQueue(all, filters.view), counts, today };
 }

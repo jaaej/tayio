@@ -31,6 +31,7 @@ export function MarkingPane({
   backHref,
   nextHref,
   notesButton,
+  headerAction,
 }: {
   lessonId: string;
   title: string;
@@ -41,6 +42,8 @@ export function MarkingPane({
   /** The next lesson in the queue, or null when this is the last one. */
   nextHref: string | null;
   notesButton: ReactNode;
+  /** Extra action beside All present (Delete lesson on a lesson that ran). */
+  headerAction?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -87,16 +90,19 @@ export function MarkingPane({
             <p className="text-[13px] font-semibold text-ink-soft">{sub}</p>
           </div>
         </div>
-        {canMarkAllPresent(students) && (
-          <Button
-            type="button"
-            variant="glass"
-            className="h-[38px] rounded-[11px] px-3"
-            onClick={() => setStatuses((prev) => markAllPresent(students, prev))}
-          >
-            All present
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {headerAction}
+          {canMarkAllPresent(students) && (
+            <Button
+              type="button"
+              variant="glass"
+              className="h-[38px] rounded-[11px] px-3"
+              onClick={() => setStatuses((prev) => markAllPresent(students, prev))}
+            >
+              All present
+            </Button>
+          )}
+        </div>
       </div>
 
       <form

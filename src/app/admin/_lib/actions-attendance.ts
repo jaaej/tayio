@@ -11,7 +11,9 @@ import {
   lessons,
 } from "@/db/schema";
 import { optionalText } from "@/lib/validation";
+import { withActor } from "@/lib/with-actor";
 import { requireAdmin } from "./guard";
+import { lessonDeletionImpact } from "./class-lessons";
 
 const statusSchema = z.enum(attendanceStatusEnum.enumValues);
 
@@ -88,4 +90,49 @@ export async function adminSaveAttendance(formData: FormData) {
   revalidatePath(`/admin/attendance/${lessonId}`);
   revalidatePath("/admin/attendance");
   revalidatePath("/admin");
+}
+
+/**
+ * What deleting a lesson would remove, for its confirmation. Only a lesson
+ * that has started can be deleted (a future weekly one would be made again).
+ */
+export async function getLessonDeletionImpact(lessonId: string) {
+  await requireAdmin();
+  z.string().uuid().parse(lessonId);
+  const impact = await db.transaction((tx) => lessonDeletionImpact(tx, lessonId, new Date()));
+  if (!impact) return { ok: false as const, error: "This lesson no longer exists." };
+  return { ok: true as const, impact };
+}
+
+/**
+ * Delete a lesson that has started, with its attendance, notes and any
+ * reschedule or cover requests on it. Homework set in it and tutor hours
+ * logged against it stay. This is how a class with history is cleared before
+ * the class itself can be deleted.
+ */
+export async function deleteLesson(lessonId: string) {
+  const admin = await requireAdmin();
+  z.string().uuid().parse(lessonId);
+  const now = new Date();
+  const result = await withActor({ id: admin.id, role: "admin" }, async (tx) => {
+    const impact = await lessonDeletionImpact(tx, lessonId, now);
+    if (!impact) return { ok: false as const, error: "This lesson no longer exists." };
+    if (!impact.started) {
+      return {
+        ok: false as const,
+        error: "Only a lesson that has started can be deleted. Change the class to move future lessons.",
+      };
+    }
+    const [deleted] = await tx
+      .delete(lessons)
+      .where(eq(lessons.id, lessonId))
+      .returning({ classId: lessons.classId });
+    return { ok: true as const, classId: deleted?.classId ?? null };
+  });
+  if (result.ok) {
+    revalidatePath("/admin/attendance", "layout");
+    if (result.classId) revalidatePath(`/admin/classes/${result.classId}`);
+    revalidatePath("/admin/classes");
+  }
+  return result;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { X } from "lucide-react";
 import { Empty, ListPane, SegmentedLinks, SubjectDot } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateLong, formatTime, formatWeekday } from "@/lib/format";
@@ -49,7 +50,7 @@ export function AttendanceQueue({
   headingLevel?: "h1" | "h2";
   className?: string;
 }) {
-  const { filters, items, counts, today } = queue;
+  const { filters, items, counts, today, classLabel } = queue;
   const Heading = headingLevel;
   const query = queueQueryString(filters);
 
@@ -65,6 +66,19 @@ export function AttendanceQueue({
         >
           Attendance
         </Heading>
+        {classLabel && (
+          <p className="flex min-h-11 items-center justify-between gap-2 rounded-[12px] bg-[#F6F7FA] py-1 pl-3 pr-1 text-[13px] font-bold text-ink">
+            <span className="min-w-0 truncate">{classLabel}</span>
+            <Link
+              href={`${basePath}${queueQueryString({ ...filters, classId: null })}`}
+              aria-label="Show every class"
+              title="Show every class"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted transition-colors hover:bg-white hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </Link>
+          </p>
+        )}
         <SegmentedLinks
           label="Show lessons"
           stretch

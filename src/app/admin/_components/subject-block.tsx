@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { SubjectDot } from "@/components/admin/ui";
 import { yearLevelLabel } from "@/lib/format";
-import { SubjectPanel } from "../classes/_components/subject-panel";
 
 /**
  * One subject as a small white block in the Classes page's Subjects panel:
- * the block opens its curriculum, the pencil opens Edit subject.
+ * the block opens its curriculum, the pencil its edit page (the subject and
+ * all its classes).
  */
 export function SubjectBlock({
   id,
@@ -43,7 +44,16 @@ export function SubjectBlock({
           Curriculum
         </span>
       </Link>
-      <SubjectPanel subject={{ id, name, yearLevel, color }} />
+      <Link
+        href={`/admin/subjects/${id}/edit`}
+        aria-label={`Edit ${name}`}
+        title="Edit subject and classes"
+        className="group/pen grid h-11 w-10 shrink-0 place-items-center rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      >
+        <span className="grid h-[30px] w-[30px] place-items-center rounded-[9px] text-[#2E2944] transition-colors group-hover/pen:bg-[#EEEFF6] group-hover/pen:text-ink">
+          <Pencil className="h-[15px] w-[15px]" strokeWidth={1.9} aria-hidden />
+        </span>
+      </Link>
     </div>
   );
 }

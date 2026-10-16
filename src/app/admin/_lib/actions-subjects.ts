@@ -2,31 +2,42 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classCredits,
   classes,
+  classMoveRequests,
   discussionThreads,
+  enrollments,
+  homework,
+  homeworkAssignments,
+  lessons,
+  notifications,
   progressTopics,
   quizAttempts,
   quizzes,
-  resources,
+  studentWeekProgress,
   subjects,
-  subjectTopics,
   subjectWeeks,
 } from "@/db/schema";
 import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
+import { ensureRecurringLessons } from "@/lib/recurring-lessons";
+import { classDisplayName } from "@/lib/class-display";
+import { slotClassName, weeklySlotLabel } from "@/lib/class-schedule-change";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { SUBJECT_COLORS, defaultSubjectColor } from "@/lib/subject-tone";
+import { classFamilies } from "./class-lessons";
+import { applyClassEdit, insertClass, patchTimeError } from "./class-writes";
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const subjectFields = z.object({
   name: z.string().trim().min(1, "Enter a subject name.").max(200),
   yearLevel: z.string().trim().max(40).optional(),
   color: z.enum(SUBJECT_COLORS).optional(),
 });
-
-type SubjectResult = { ok: true; id: string } | { ok: false; error: string };
 
 /** Postgres unique_violation on subjects.name (Drizzle may wrap it), as a sentence. */
 function duplicateNameError(error: unknown, name: string): string | null {
@@ -35,16 +46,15 @@ function duplicateNameError(error: unknown, name: string): string | null {
   return unique ? `A subject named "${name}" already exists.` : null;
 }
 
-function revalidateSubjects(id?: string) {
+function revalidateSubjects() {
   revalidatePath("/admin/classes");
-  if (id) revalidatePath(`/admin/subjects/${id}/curriculum`);
-  // Subject names and colours show in every portal.
+  // Subject names, colours and classes show in every portal.
   revalidatePath("/", "layout");
 }
 
 export async function createSubject(
   input: z.input<typeof subjectFields>,
-): Promise<SubjectResult> {
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const user = await requireAdmin();
   const parsed = subjectFields.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -69,97 +79,201 @@ export async function createSubject(
   }
 }
 
-const updateSubjectSchema = subjectFields.extend({
-  id: z.string().uuid(),
-  color: z.enum(SUBJECT_COLORS),
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+/** One class card on the edit page. `id` is missing for an added class. */
+const classCardSchema = z.object({
+  key: z.string().min(1).max(64),
+  id: z.string().uuid().optional(),
+  weekday: z.number().int().min(0).max(6).nullable(),
+  startTime: z.string().regex(timeRegex).or(z.literal("")),
+  endTime: z.string().regex(timeRegex).or(z.literal("")),
+  tutorId: z.string().uuid(),
+  location: z.string().max(200),
 });
 
-export async function updateSubject(
-  input: z.input<typeof updateSubjectSchema>,
-): Promise<SubjectResult> {
+const subjectPageSchema = subjectFields.extend({
+  id: z.string().uuid(),
+  color: z.enum(SUBJECT_COLORS),
+  classes: z.array(classCardSchema).max(50),
+});
+
+export type SubjectPageResult =
+  | { ok: true }
+  | { ok: false; error?: string; nameError?: string; classErrors?: Record<string, string> };
+
+/**
+ * The edit page's one Save: the subject and every class card together, in
+ * one transaction, so a refused card leaves nothing half saved. Class edits
+ * go through applyClassEdit (lessons follow, families are told).
+ */
+export async function saveSubjectPage(
+  input: z.input<typeof subjectPageSchema>,
+): Promise<SubjectPageResult> {
   const user = await requireAdmin();
-  const parsed = updateSubjectSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const parsed = subjectPageSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Some fields are not valid. Check and try again." };
   const data = parsed.data;
+
+  const classErrors: Record<string, string> = {};
+  const cards = data.classes.map((card) => {
+    const weekly = card.weekday !== null;
+    const patch = {
+      tutorId: card.tutorId,
+      isRecurring: weekly,
+      weekday: card.weekday,
+      startTime: card.startTime || null,
+      endTime: card.endTime || null,
+      location: card.location,
+    };
+    const error =
+      weekly && (!card.startTime || !card.endTime)
+        ? "Choose a start and end time."
+        : patchTimeError(patch);
+    if (error) classErrors[card.key] = error;
+    return { card, patch };
+  });
+  if (Object.keys(classErrors).length > 0) return { ok: false, classErrors };
+
+  const now = new Date();
+  let touched: string[];
   try {
-    const rows = await withActor({ id: user.id, role: "admin" }, (tx) =>
-      tx
+    touched = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+      const updated = await tx
         .update(subjects)
         .set({ name: data.name, yearLevel: data.yearLevel || null, color: data.color })
         .where(eq(subjects.id, data.id))
-        .returning({ id: subjects.id }),
-    );
-    if (rows.length === 0) return { ok: false, error: "This subject no longer exists." };
-    revalidateSubjects(data.id);
-    return { ok: true, id: data.id };
+        .returning({ id: subjects.id });
+      if (updated.length === 0) throw new SubjectGone();
+
+      const ids: string[] = [];
+      for (const { card, patch } of cards) {
+        if (card.id) {
+          const [owned] = await tx
+            .select({ id: classes.id })
+            .from(classes)
+            .where(and(eq(classes.id, card.id), eq(classes.subjectId, data.id)));
+          if (!owned) continue; // deleted or moved elsewhere since the page loaded
+          await applyClassEdit(tx, card.id, patch, now);
+          ids.push(card.id);
+        } else {
+          // Named like the other classes: "Year 9 Maths · Friday PM".
+          const dayName = slotClassName({ ...patch, onlineLink: null, location: null });
+          ids.push(
+            await insertClass(tx, {
+              ...patch,
+              name: `${data.name} · ${dayName ?? "Class"}`,
+              subjectId: data.id,
+            }),
+          );
+        }
+      }
+      return ids;
+    });
   } catch (error) {
+    if (error instanceof SubjectGone) return { ok: false, error: "This subject no longer exists." };
     const duplicate = duplicateNameError(error, data.name);
-    if (duplicate) return { ok: false, error: duplicate };
+    if (duplicate) return { ok: false, nameError: duplicate };
     throw error;
   }
+
+  try {
+    await ensureRecurringLessons({ classIds: touched });
+  } catch (error) {
+    // The daily sweep retries; the saved classes are valid.
+    console.error("[subjects] recurring lesson generation failed:", error);
+  }
+  revalidateSubjects();
+  return { ok: true };
 }
+
+class SubjectGone extends Error {}
 
 export type SubjectDeletionImpact = {
-  /** Classes still using the subject; it cannot be deleted until none are. */
-  classes: { id: string; name: string }[];
+  classes: number;
+  /** Lessons that have already run, with their attendance. */
+  lessons: number;
   weeks: number;
-  topics: number;
-  quizzes: number;
-  quizAttempts: number;
-  resources: number;
-  discussionThreads: number;
+  homework: number;
+  /** Students whose progress in this subject is lost. */
+  students: number;
   /** Make-up credits not yet used or expired. */
   openCredits: number;
-  /** Anything beyond the bare subject; the name must be typed to delete. */
-  hasContent: boolean;
+  /** Any of its classes has run. */
+  hasHistory: boolean;
 };
 
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+/** The subject's classes and curriculum weeks, as id lists. */
+async function subjectScope(tx: DbTx, id: string) {
+  const [classRows, weekRows] = await Promise.all([
+    tx.select({ id: classes.id }).from(classes).where(eq(classes.subjectId, id)),
+    tx.select({ id: subjectWeeks.id }).from(subjectWeeks).where(eq(subjectWeeks.subjectId, id)),
+  ]);
+  return { classIds: classRows.map((r) => r.id), weekIds: weekRows.map((r) => r.id) };
+}
+
+/** Homework set for the subject's classes or its curriculum weeks. */
+function subjectHomework(classIds: string[], weekIds: string[]) {
+  const parts = [
+    classIds.length ? inArray(homework.classId, classIds) : undefined,
+    weekIds.length ? inArray(homework.weekId, weekIds) : undefined,
+  ].filter((p) => p !== undefined);
+  return parts.length ? or(...parts) : undefined;
+}
 
 async function subjectDeletionImpact(tx: DbTx, id: string): Promise<SubjectDeletionImpact> {
+  const { classIds, weekIds } = await subjectScope(tx, id);
   const count = sql<number>`count(*)::int`;
-  const [classRows, [weeks], [topics], [quizRows], [attempts], [res], [threads], [credits], [progress]] =
-    await Promise.all([
-      tx
-        .select({ id: classes.id, name: classes.name })
-        .from(classes)
-        .where(eq(classes.subjectId, id))
-        .orderBy(asc(classes.name)),
-      tx.select({ n: count }).from(subjectWeeks).where(eq(subjectWeeks.subjectId, id)),
-      tx.select({ n: count }).from(subjectTopics).where(eq(subjectTopics.subjectId, id)),
-      tx.select({ n: count }).from(quizzes).where(eq(quizzes.subjectId, id)),
-      tx
-        .select({ n: count })
-        .from(quizAttempts)
-        .innerJoin(quizzes, eq(quizzes.id, quizAttempts.quizId))
-        .where(eq(quizzes.subjectId, id)),
-      tx.select({ n: count }).from(resources).where(eq(resources.subjectId, id)),
-      tx.select({ n: count }).from(discussionThreads).where(eq(discussionThreads.subjectId, id)),
-      tx
-        .select({ n: count })
-        .from(classCredits)
-        .where(and(eq(classCredits.subjectId, id), eq(classCredits.status, "active"))),
-      tx.select({ n: count }).from(progressTopics).where(eq(progressTopics.subjectId, id)),
-    ]);
-  const impact = {
-    classes: classRows,
-    weeks: weeks?.n ?? 0,
-    topics: topics?.n ?? 0,
-    quizzes: quizRows?.n ?? 0,
-    quizAttempts: attempts?.n ?? 0,
-    resources: res?.n ?? 0,
-    discussionThreads: threads?.n ?? 0,
-    openCredits: credits?.n ?? 0,
-  };
+  const today = melbourneDate(new Date());
+  const homeworkWhere = subjectHomework(classIds, weekIds);
+
+  const [[ran], [hw], [credits], studentRows] = await Promise.all([
+    classIds.length
+      ? tx
+          .select({ n: count })
+          .from(lessons)
+          .where(
+            and(
+              inArray(lessons.classId, classIds),
+              sql`${lessons.status} <> 'cancelled'`,
+              sql`(${lessons.date} < ${today} or ${lessons.status} in ('completed', 'missed'))`,
+            ),
+          )
+      : [{ n: 0 }],
+    homeworkWhere ? tx.select({ n: count }).from(homework).where(homeworkWhere) : [{ n: 0 }],
+    tx
+      .select({ n: count })
+      .from(classCredits)
+      .where(and(eq(classCredits.subjectId, id), eq(classCredits.status, "active"))),
+    // Everyone with something recorded in the subject.
+    tx.execute<{ id: string }>(sql`
+      select student_id as id from ${enrollments}
+        where ${classIds.length ? inArray(enrollments.classId, classIds) : sql`false`}
+      union
+      select student_id from ${studentWeekProgress}
+        where ${weekIds.length ? inArray(studentWeekProgress.subjectWeekId, weekIds) : sql`false`}
+      union
+      select ${quizAttempts.studentId} from ${quizAttempts}
+        join ${quizzes} on ${quizzes.id} = ${quizAttempts.quizId}
+        where ${quizzes.subjectId} = ${id}
+      union
+      select ${homeworkAssignments.studentId} from ${homeworkAssignments}
+        join ${homework} on ${homework.id} = ${homeworkAssignments.homeworkId}
+        where ${homeworkWhere ?? sql`false`}
+    `),
+  ]);
   return {
-    ...impact,
-    hasContent:
-      impact.weeks + impact.topics + impact.quizzes + impact.resources +
-        impact.discussionThreads + impact.openCredits + (progress?.n ?? 0) > 0,
+    classes: classIds.length,
+    lessons: ran?.n ?? 0,
+    weeks: weekIds.length,
+    homework: hw?.n ?? 0,
+    students: studentRows.length,
+    openCredits: credits?.n ?? 0,
+    hasHistory: (ran?.n ?? 0) > 0,
   };
 }
 
-/** What deleting the subject would remove, for the confirmation dialog. */
+/** What deleting the subject would remove, for its confirmation. */
 export async function getSubjectDeletionImpact(
   id: string,
 ): Promise<{ ok: true; impact: SubjectDeletionImpact }> {
@@ -171,18 +285,21 @@ export async function getSubjectDeletionImpact(
 
 const deleteSubjectSchema = z.object({
   id: z.string().uuid(),
-  confirmName: z.string().max(200).optional(),
+  confirmName: z.string().max(200),
 });
 
 /**
- * Delete a subject and its curriculum. Refused while any class uses it; with
- * content, the admin must type the subject name (checked here too).
+ * Delete a subject with everything in it: its classes and their lessons and
+ * attendance, its curriculum, homework and marks, and its discussions.
+ * Invoices are kept (they reference only people). The subject name must be
+ * typed, checked here as well as in the dialog.
  */
 export async function deleteSubject(
   input: z.infer<typeof deleteSubjectSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireAdmin();
   const { id, confirmName } = deleteSubjectSchema.parse(input);
+  const now = new Date();
 
   const result = await withActor({ id: user.id, role: "admin" }, async (tx) => {
     const [subject] = await tx
@@ -191,26 +308,70 @@ export async function deleteSubject(
       .where(eq(subjects.id, id))
       .for("update");
     if (!subject) return { ok: false as const, error: "This subject no longer exists." };
-
-    const impact = await subjectDeletionImpact(tx, id);
-    if (impact.classes.length > 0) {
-      return {
-        ok: false as const,
-        error: "Delete or move this subject's classes first.",
-      };
-    }
-    if (impact.hasContent && confirmName?.trim() !== subject.name.trim()) {
-      return {
-        ok: false as const,
-        error: "Type the subject name exactly to delete it.",
-      };
+    if (confirmName.trim() !== subject.name.trim()) {
+      return { ok: false as const, error: "Type the subject name exactly to delete it." };
     }
 
+    const { classIds, weekIds } = await subjectScope(tx, id);
+
+    // Families and tutors of classes with lessons still to come, told below.
+    const affected = classIds.length
+      ? await tx
+          .select({
+            id: classes.id,
+            name: classes.name,
+            tutorId: classes.tutorId,
+            isRecurring: classes.isRecurring,
+            weekday: classes.weekday,
+            startTime: classes.startTime,
+            endTime: classes.endTime,
+            location: classes.location,
+            onlineLink: classes.onlineLink,
+          })
+          .from(classes)
+          .where(
+            and(
+              inArray(classes.id, classIds),
+              sql`exists (select 1 from ${lessons} where ${lessons.classId} = ${classes.id} and ${lessons.date} >= ${melbourneDate(now)} and ${lessons.status} = 'upcoming')`,
+            ),
+          )
+      : [];
+    const told = await Promise.all(
+      affected.map(async (c) => ({ cls: c, families: await classFamilies(tx, c.id) })),
+    );
+
+    const homeworkWhere = subjectHomework(classIds, weekIds);
+    if (homeworkWhere) await tx.delete(homework).where(homeworkWhere);
+    if (classIds.length) {
+      await tx
+        .delete(classMoveRequests)
+        .where(
+          or(
+            inArray(classMoveRequests.fromClassId, classIds),
+            inArray(classMoveRequests.toClassId, classIds),
+          ),
+        );
+      await tx.delete(classes).where(inArray(classes.id, classIds));
+    }
     // These point at the subject without a cascade. Replies and attachments
-    // cascade from their thread.
+    // cascade from their thread; weeks, quizzes, resources and credits from
+    // the subject.
     await tx.delete(discussionThreads).where(eq(discussionThreads.subjectId, id));
     await tx.delete(progressTopics).where(eq(progressTopics.subjectId, id));
     await tx.delete(subjects).where(eq(subjects.id, id));
+
+    const rows: (typeof notifications.$inferInsert)[] = [];
+    for (const { cls, families } of told) {
+      const body = [classDisplayName(subject.name, cls.name), weeklySlotLabel(cls)].join(" · ");
+      rows.push({ userId: cls.tutorId, channel: "in_app", title: "Class removed", body, href: "/tutor/timetable" });
+      for (const studentId of families.studentIds) {
+        rows.push({ userId: studentId, channel: "in_app", title: "Class removed", body, href: "/student/timetable" });
+      }
+      for (const parentId of families.parentChild.keys()) {
+        rows.push({ userId: parentId, channel: "in_app", title: "Class removed", body, href: "/parent" });
+      }
+    }
+    if (rows.length > 0) await tx.insert(notifications).values(rows);
     return { ok: true as const };
   });
 

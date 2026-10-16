@@ -1,18 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
+import { Lock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ConfirmOptions = {
   title: string;
-  body?: string;
+  body?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   /** Style the confirm button as a destructive (red) action. */
   danger?: boolean;
+  /** Tile above the title: a bin for deletes, a lock for a blocked action. */
+  icon?: "delete" | "lock";
+  /** What the action is about, as a grey line with an optional colour dot. */
+  subject?: { label: string; dot?: string };
   /** What the action removes, listed under the body. */
-  items?: string[];
+  items?: ReactNode[];
+  /** Quiet extra fact under the list (e.g. "Invoices already issued are kept."). */
+  note?: string;
+  /** Red line before the buttons (e.g. "This can't be undone."). */
+  warning?: string;
   /** Text the user must type (e.g. a class name) before confirming. */
   confirmText?: string;
 };
@@ -27,10 +44,11 @@ type Pending = { opts: ConfirmOptions; resolve: (ok: boolean) => void };
  *   ...
  *   return <>{...}{confirmDialog}</>;   // render the dialog somewhere in the tree
  *
- * The dialog portals to `document.body`, above side panels (z-index 90) and
- * clear of any transformed ancestor, and carries the theme classes of the
- * place it was raised from, so it keeps the role's palette. Escape or
- * backdrop click cancels.
+ * Drawn as the admin glass dialog (frame, white panel, icon tile). It portals
+ * to `document.body`, above side panels (z-index 90) and clear of any
+ * transformed ancestor, and carries the theme classes of the place it was
+ * raised from, so it keeps the role's palette. Escape or backdrop click
+ * cancels.
  */
 export function useConfirm() {
   const [pending, setPending] = useState<Pending | null>(null);
@@ -62,6 +80,9 @@ export function useConfirm() {
   return { confirm, confirmDialog };
 }
 
+const BUTTON =
+  "inline-flex h-[42px] items-center justify-center rounded-[12px] text-[14px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2";
+
 function ConfirmDialog({
   opts,
   onCancel,
@@ -72,6 +93,8 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   const [typed, setTyped] = useState("");
+  const titleId = useId();
+  const bodyId = useId();
   const typeId = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [theme, setTheme] = useState<string | null>(null);
@@ -93,68 +116,108 @@ function ConfirmDialog({
   }, [onCancel, onConfirm, ready]);
 
   const dialog = (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={opts.title}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-ink/50 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-[rgba(23,21,43,.34)] backdrop-blur-[3px]"
         onClick={onCancel}
         aria-hidden
       />
-      <div className="relative w-full max-w-sm rounded-[14px] border border-line bg-surface p-5 shadow-[0_24px_60px_-20px_rgba(15,17,30,0.45)]">
-        <h2 className="text-[15px] font-extrabold text-ink">{opts.title}</h2>
-        {opts.body && (
-          <p className="mt-2 text-[13px] text-ink-soft whitespace-pre-wrap leading-snug">
-            {opts.body}
-          </p>
-        )}
-        {opts.items && opts.items.length > 0 && (
-          <ul className="mt-2.5 list-disc space-y-1 pl-5 text-[13px] font-semibold text-ink">
-            {opts.items.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        )}
-        {opts.confirmText && (
-          <div className="mt-4 flex flex-col gap-1.5">
-            <label htmlFor={typeId} className="text-[13px] text-ink-soft">
-              Type <strong className="font-bold text-ink">{opts.confirmText}</strong> to confirm
-            </label>
-            <input
-              id={typeId}
-              autoFocus
-              autoComplete="off"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              className="h-11 w-full rounded-[12px] border border-line-field bg-surface px-3.5 text-[15px] text-ink focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
-            />
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={opts.body ? bodyId : undefined}
+        className="relative w-full max-w-[500px] rounded-[28px] border border-white/80 bg-white/55 p-1.5 shadow-[0_30px_80px_rgba(23,21,43,.30)] backdrop-blur-[28px] backdrop-saturate-[1.6]"
+      >
+        <div className="flex max-h-[calc(100dvh-3rem)] flex-col gap-4 overflow-y-auto rounded-[22px] bg-white p-6 shadow-[0_1px_2px_rgba(23,21,43,.06)]">
+          {opts.icon && (
+            <span
+              aria-hidden
+              className={cn(
+                "grid h-11 w-11 shrink-0 place-items-center rounded-[14px]",
+                opts.icon === "lock"
+                  ? "bg-[#FDF1E0] text-[#B45309]"
+                  : "bg-[#FDE8E8] text-[#B42318]",
+              )}
+            >
+              {opts.icon === "lock" ? (
+                <Lock className="h-5 w-5" strokeWidth={1.9} />
+              ) : (
+                <Trash2 className="h-5 w-5" strokeWidth={1.9} />
+              )}
+            </span>
+          )}
+          <h2 id={titleId} className="text-[20px] font-extrabold leading-tight text-ink">
+            {opts.title}
+          </h2>
+          {opts.subject && (
+            <span className="flex items-center gap-2 rounded-[12px] bg-[#F6F7FA] px-3 py-2.5 text-[14px] font-bold text-ink">
+              {opts.subject.dot && (
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                  style={{ backgroundColor: opts.subject.dot }}
+                />
+              )}
+              {opts.subject.label}
+            </span>
+          )}
+          {opts.body && (
+            <p id={bodyId} className="whitespace-pre-wrap text-[14px] leading-[1.55] text-[#2E2944]">
+              {opts.body}
+            </p>
+          )}
+          {opts.items && opts.items.length > 0 && (
+            <ul className="flex list-disc flex-col gap-1.5 pl-[18px] text-[14px] leading-[1.45] text-[#2E2944]">
+              {opts.items.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          )}
+          {opts.note && (
+            <p className="text-[13px] leading-normal text-[#5E5A73]">{opts.note}</p>
+          )}
+          {opts.warning && (
+            <p className="text-[13px] font-bold text-[#B42318]">{opts.warning}</p>
+          )}
+          {opts.confirmText && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={typeId} className="text-[13px] font-bold text-ink">
+                Type <b>{opts.confirmText}</b> to confirm
+              </label>
+              <input
+                id={typeId}
+                autoFocus
+                autoComplete="off"
+                placeholder={opts.confirmText}
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                className="h-11 w-full rounded-[12px] border border-[#DCDEE9] bg-white px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+              />
+            </div>
+          )}
+          <div className="mt-1 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className={cn(BUTTON, "border border-[#DFE1EC] bg-white px-4 text-ink hover:bg-[#F5F6FA]")}
+            >
+              {opts.cancelLabel ?? "Cancel"}
+            </button>
+            <button
+              type="button"
+              autoFocus={!opts.confirmText}
+              disabled={!ready}
+              onClick={onConfirm}
+              className={cn(
+                BUTTON,
+                "px-[18px] text-white disabled:cursor-not-allowed disabled:opacity-45",
+                opts.danger ? "bg-[#B42318] hover:bg-[#9A1D14]" : "bg-ink hover:bg-[#2b2847]",
+              )}
+            >
+              {opts.confirmLabel ?? "Confirm"}
+            </button>
           </div>
-        )}
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-9 rounded-full border border-line bg-surface px-4 text-[13px] font-bold text-ink hover:bg-surface-2 transition-colors"
-          >
-            {opts.cancelLabel ?? "Cancel"}
-          </button>
-          <button
-            type="button"
-            autoFocus={!opts.confirmText}
-            disabled={!ready}
-            onClick={onConfirm}
-            className={cn(
-              "h-9 rounded-full px-4 text-[13px] font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-              opts.danger
-                ? "bg-bad hover:brightness-95"
-                : "bg-brand-600 hover:bg-brand-700",
-            )}
-          >
-            {opts.confirmLabel ?? "Confirm"}
-          </button>
         </div>
       </div>
     </div>

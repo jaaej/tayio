@@ -1,4 +1,4 @@
-import { formatTimeRange } from "@/lib/format";
+import { formatDateShort, formatTimeRange, formatWeekday } from "@/lib/format";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
@@ -79,6 +79,24 @@ export function slotChangeSummary(before: ClassSlot, after: ClassSlot) {
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+const DAY_NAME = /^(.*?)\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday) (am|pm)$/i;
+
+/**
+ * The "<Day> AM|PM" name a class gets from its slot ("Thursday PM"), or null
+ * without a weekly slot. A current name ending that way keeps what comes
+ * before ("Year 9 Maths · Thursday PM" becomes "Year 9 Maths · Wednesday
+ * PM"); any other custom name is kept as it is (null).
+ */
+export function slotClassName(slot: ClassSlot, current = ""): string | null {
+  const s = weeklySlot(slot);
+  if (!s) return null;
+  const hour = Number(s.startTime.slice(0, 2));
+  const dayName = `${WEEKDAYS[s.weekday]} ${hour < 12 ? "AM" : "PM"}`;
+  if (!current.trim()) return dayName;
+  const match = current.trim().match(DAY_NAME);
+  return match ? `${match[1]}${dayName}` : null;
+}
+
 /** "Tuesday · 5:00 – 6:00 pm", or "No weekly time". */
 export function weeklySlotLabel(slot: ClassSlot): string {
   const s = weeklySlot(slot);
@@ -99,6 +117,34 @@ export function classChangeTitle(change: ReturnType<typeof slotChangeSummary>): 
       ? parts[0]
       : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
   return `Class ${list} changed`;
+}
+
+/**
+ * The notification sentence for a moved class: "Year 9 Maths moves to Room 3
+ * from Thu 22 Oct." `fromIso` is the first lesson on the new slot.
+ */
+export function classMoveSentence(
+  className: string,
+  after: ClassSlot,
+  change: ReturnType<typeof slotChangeSummary>,
+  fromIso: string | null,
+): string {
+  const slot = weeklySlot(after);
+  const room = clean(after.location);
+  const from = fromIso ? ` from ${formatWeekday(fromIso, "short")} ${formatDateShort(fromIso)}` : "";
+  if (change.when && !slot) return `${className} no longer has a weekly time.`;
+  const when = slot
+    ? `${WEEKDAYS[slot.weekday]} ${formatTimeRange(slot.startTime, slot.endTime)}`
+    : null;
+  if (change.when && change.room) {
+    return room
+      ? `${className} moves to ${when} in ${room}${from}.`
+      : `${className} moves to ${when}, with no set room${from}.`;
+  }
+  if (change.when) return `${className} moves to ${when}${from}.`;
+  return room
+    ? `${className} moves to ${room}${from}.`
+    : `${className} has no set room${from}.`;
 }
 
 /**
