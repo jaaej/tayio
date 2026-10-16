@@ -382,7 +382,7 @@ Verified with JWT impersonation: a student withdrawn from a subject loses its th
 ### 0063 - Subject colours
 
 **File:** `supabase/migrations/0063_subject_colors.sql`
-**Status:** Applied to dev on 2026-10-16 (RLS check green). Not yet applied to Production.
+**Status:** Applied to dev and Production on 2026-10-16 (RLS check green), Production just before the `7c775ea` push.
 **Risk:** Low. Adds nullable `subjects.color` and `subjects_color_palette` (null or one of the ten palette keys in `src/lib/subject-tone.ts`). Existing rows stay null and keep the colour taken from their name. No policy changes; subject writes stay admin-only server actions.
 
 **Reversible:** yes, drop the constraint and the column.

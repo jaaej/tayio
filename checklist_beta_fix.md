@@ -18,7 +18,7 @@ Last updated: 13 October 2026
   Add a class on the edit page and save; delete a class that has not run (plain dialog); try to delete one that has (history dialog, Review N lessons, delete a lesson from Attendance, then delete the class).
   Change a subject's colour and confirm it on the admin schedule, tutor classes, student dashboard and subject page, and parent homework and subject page.
   Delete a test subject that has classes (type the name).
-  Production has not had migration 0063 yet: run it before deploying this commit.
+  Live in Production since 16 October 2026 (migration 0063 applied, then `7c775ea` pushed).
 
 - [ ] Student dashboard and glass shell (13 October 2026): sign in as a student at 1440px and 390px.
   Confirm the sidebar matches admin and tutor (search, Taiyo Blitz card with your rank, collapse to the icon rail), and that Taiyo Blitz is in the phone menu.
@@ -552,7 +552,7 @@ Last updated: 13 October 2026
   Day, time, or room changes notify the tutor, students and parents ("Year 9 Maths moves to Room 3 from Thu 22 Oct.", classified as Updates and tested); a new tutor notifies both tutors.
   Delete class always confirms. A class with any lesson holding attendance, notes or marks is blocked ("This class has history"); "Review N lessons" opens Attendance filtered to that class (`?class=`), where a lesson that has started can be deleted from its page (Delete lesson). The rule is enforced in `deleteClass` too, and class-move requests no longer block a delete.
   Delete subject works even after its classes have run, behind the strong confirmation (real counts of classes and lessons, curriculum weeks, homework and marks, students' progress; invoices kept, checked in the schema: they reference only people; name typed to confirm, checked on the server).
-  Colour: `subjects.color` (migration 0063, applied to dev only) holds one of the handoff's ten palette keys (teal, violet, blue, rose, amber, red, green, cyan, navy, slate; tints contrast-tested), and `subjectTone(name, color)` is the only subject colour source in every role. The older red/amber palette (`src/lib/subject-colors.ts`) is gone, so the parent portal now matches admin, tutor, and student.
+  Colour: `subjects.color` (migration 0063, applied to dev and Production) holds one of the handoff's ten palette keys (teal, violet, blue, rose, amber, red, green, cyan, navy, slate; tints contrast-tested), and `subjectTone(name, color)` is the only subject colour source in every role. The older red/amber palette (`src/lib/subject-colors.ts`) is gone, so the parent portal now matches admin, tutor, and student.
   Room: the class Location field is labelled Room and sits after the time in New class; tutors see it on Classes, Today, the lesson page, and the timetable hover; admin schedule blocks show "Tom Tutor · Room 2".
   The shared confirmation dialog is restyled to the handoff's glass dialog (icon tile, class line, bold counts, red warning, type-to-confirm) for every admin confirm.
   Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs of each flow at 1440px (edit page also at 390px): save with a move and an added class, delete an unrun class, the blocked class to Attendance to Delete lesson to delete chain, and create then delete a subject. Throwaway test data was removed afterwards.
@@ -1779,11 +1779,13 @@ Last updated: 13 October 2026
 
 ## Deployment required for the next larger workflow batch
 
-- [ ] Apply `supabase/migrations/0063_subject_colors.sql` to Production before
+- [x] Apply `supabase/migrations/0063_subject_colors.sql` to Production before
   deploying the admin class and subject editing commit (16 October 2026).
-  The new code reads `subjects.color` on every page that shows a subject
-  colour, so it fails until the column exists; the column is additive, so the
-  code already in Production is unaffected. Then run `npm run db:check-rls`.
+  Applied first (ledger 60 of 60, RLS check green on all 54 tables; subjects,
+  classes, users and curriculum weeks the same counts before and after: 5, 6,
+  26, 4), then `7c775ea` was pushed to `main` for the Vercel deploy. The
+  migration ran with the Production URLs exported for that one command, so
+  `.env.local` (and the running dev server) stayed on dev.
 
 - [x] Deploy the tutor redesign batch and apply migrations 0060, 0061 and
   0062 to Production (12 October 2026). Pushed `1fb0976`; once Vercel
