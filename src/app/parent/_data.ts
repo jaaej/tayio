@@ -238,7 +238,9 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
 export type HomeworkRow = {
   homeworkId: string;
   title: string;
+  subjectId: string | null;
   subjectName: string | null;
+  subjectYearLevel: string | null;
   subjectColor: string | null;
   className: string | null;
   dueDate: Date;
@@ -253,7 +255,9 @@ export async function getHomework(studentId: string): Promise<HomeworkRow[]> {
     .select({
       homeworkId: homework.id,
       title: homework.title,
+      subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
       subjectColor: subjects.color,
       className: classes.name,
       dueDate: homework.dueDate,

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
+import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import {
   loadRescheduleOptions,
@@ -37,6 +38,7 @@ export type TimetableChip = {
   status: string;
   subjectId: string;
   subjectName: string;
+  subjectYearLevel: string | null;
   /** The subject's stored colour (`subjects.color`). */
   subjectColor: string | null;
   className: string;
@@ -392,20 +394,23 @@ export function InteractiveTimetable({
     </div>
   );
   // One entry per subject: each subject has its own colour.
-  const legendSubjects = Array.from(
-    new Map(
-      lessons.map((l) => [l.subjectName, { name: l.subjectName, color: l.subjectColor }]),
-    ).values(),
+  const legendSubjects = distinctSubjects(
+    lessons.map((l) => ({
+      id: l.subjectId,
+      name: l.subjectName,
+      yearLevel: l.subjectYearLevel,
+      color: l.subjectColor,
+    })),
   );
   const legend = (
     <div className="flex flex-wrap gap-3.5 px-2.5 pb-1.5 pt-2.5 text-[12px] font-semibold text-[#2E2944]">
-      {legendSubjects.map(({ name, color }) => (
-        <span key={name} className="flex items-center gap-1.5">
+      {legendSubjects.map(({ id, name, label, color }) => (
+        <span key={id} className="flex items-center gap-1.5">
           <span
             className="h-3 w-3 rounded-[4px]"
             style={{ backgroundColor: subjectTone(name, color).bg }}
           />
-          {name}
+          {label}
         </span>
       ))}
       <span className="flex items-center gap-1.5">

@@ -41,13 +41,6 @@ const subjectFields = z.object({
   color: z.enum(SUBJECT_COLORS).optional(),
 });
 
-/** Postgres unique_violation on subjects.name (Drizzle may wrap it), as a sentence. */
-function duplicateNameError(error: unknown, name: string): string | null {
-  const e = error as { code?: unknown; cause?: { code?: unknown } } | null;
-  const unique = e?.code === "23505" || e?.cause?.code === "23505";
-  return unique ? `A subject named "${name}" already exists.` : null;
-}
-
 function revalidateSubjects() {
   revalidatePath("/admin/classes");
   // Subject names, colours and classes show in every portal.
@@ -61,24 +54,20 @@ export async function createSubject(
   const parsed = subjectFields.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const data = parsed.data;
-  try {
-    const [row] = await withActor({ id: user.id, role: "admin" }, (tx) =>
-      tx
-        .insert(subjects)
-        .values({
-          name: data.name,
-          yearLevel: data.yearLevel || null,
-          color: data.color ?? defaultSubjectColor(data.name),
-        })
-        .returning({ id: subjects.id }),
-    );
-    revalidateSubjects();
-    return { ok: true, id: row.id };
-  } catch (error) {
-    const duplicate = duplicateNameError(error, data.name);
-    if (duplicate) return { ok: false, error: duplicate };
-    throw error;
-  }
+  // Names may repeat (two "Mathematics" for different year levels); a subject
+  // is its id, and lists show the level beside the name.
+  const [row] = await withActor({ id: user.id, role: "admin" }, (tx) =>
+    tx
+      .insert(subjects)
+      .values({
+        name: data.name,
+        yearLevel: data.yearLevel || null,
+        color: data.color ?? defaultSubjectColor(data.name),
+      })
+      .returning({ id: subjects.id }),
+  );
+  revalidateSubjects();
+  return { ok: true, id: row.id };
 }
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
@@ -126,7 +115,7 @@ const subjectPageSchema = subjectFields.extend({
 
 export type SubjectPageResult =
   | { ok: true }
-  | { ok: false; error?: string; nameError?: string; classErrors?: Record<string, string> };
+  | { ok: false; error?: string; classErrors?: Record<string, string> };
 
 type StudentChanges = z.infer<typeof studentChangesSchema>;
 
@@ -299,8 +288,6 @@ export async function saveSubjectPage(
     if (error instanceof NotAStudent) {
       return { ok: false, error: "One of the students to add no longer has a student account." };
     }
-    const duplicate = duplicateNameError(error, data.name);
-    if (duplicate) return { ok: false, nameError: duplicate };
     throw error;
   }
 

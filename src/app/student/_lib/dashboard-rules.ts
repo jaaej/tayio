@@ -13,6 +13,7 @@ export type DashLesson = {
   startTime: string;
   endTime: string;
   status: string;
+  subjectId: string;
   subjectName: string;
   subjectColor: string | null;
 };
@@ -144,7 +145,7 @@ export function lessonState(lesson: DashLesson, now: Date): LessonState {
   return t >= start ? "live" : "upcoming";
 }
 
-/** Each subject's lesson that is on now, or else its next one. */
+/** Each subject's lesson that is on now, or else its next one, by subject id. */
 export function nextLessonBySubject(
   lessons: DashLesson[],
   now: Date,
@@ -154,16 +155,16 @@ export function nextLessonBySubject(
     (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime),
   );
   for (const lesson of ordered) {
-    if (DROPPED_LESSON.has(lesson.status) || next.has(lesson.subjectName)) continue;
+    if (DROPPED_LESSON.has(lesson.status) || next.has(lesson.subjectId)) continue;
     const state = lessonState(lesson, now);
     if (state === "past") continue;
-    next.set(lesson.subjectName, { ...lesson, live: state === "live" });
+    next.set(lesson.subjectId, { ...lesson, live: state === "live" });
   }
   return next;
 }
 
-/** The subject on now, or else the one whose lesson comes soonest. */
-export function featuredSubjectName(
+/** The subject (id) on now, or else the one whose lesson comes soonest. */
+export function featuredSubjectId(
   next: Map<string, DashLesson & { live: boolean }>,
 ): string | null {
   let best: (DashLesson & { live: boolean }) | null = null;
@@ -177,7 +178,7 @@ export function featuredSubjectName(
       best = lesson;
     }
   }
-  return best?.subjectName ?? null;
+  return best?.subjectId ?? null;
 }
 
 /** "On now until 5:30 pm", "Today 4 pm", "Next lesson Thu 4 pm". */

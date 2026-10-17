@@ -18,7 +18,8 @@ export function QuizFilters({
   subjects,
 }: {
   statuses: { value: string; label: string }[];
-  subjects: string[];
+  /** Subject ids with their labels (names can repeat). */
+  subjects: { value: string; label: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -126,10 +127,10 @@ export function QuizFilters({
       {subjects.length > 1 && (
         <LabelledSelect
           label="Subject"
-          value={subjects.includes(subject) ? subject : ""}
+          value={subjects.some((o) => o.value === subject) ? subject : ""}
           options={[
             { value: "", label: "All" },
-            ...subjects.map((name) => ({ value: name, label: name })),
+            ...subjects,
           ]}
           onChange={(value) => {
             commitQuery(query);

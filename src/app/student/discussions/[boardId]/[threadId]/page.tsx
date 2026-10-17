@@ -37,7 +37,7 @@ export default async function StudentThreadPage({
       href: `/student/subjects/${thread.subjectId}`,
       label: `Open ${thread.subjectName}`,
     });
-    for (const t of tutors.filter((t) => t.subjects.includes(thread.subjectName!))) {
+    for (const t of tutors.filter((t) => t.subjectIds.includes(thread.subjectId!))) {
       links.push({
         href: `/student/messages/with/${t.id}`,
         label: `Message ${t.firstName} privately`,

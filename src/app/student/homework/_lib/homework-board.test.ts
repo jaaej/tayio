@@ -14,7 +14,9 @@ function item(over: Partial<HomeworkListItem> & { id: string }): HomeworkListIte
   return {
     title: over.id,
     className: null,
+    subjectId: null,
     subjectName: null,
+    subjectYearLevel: null,
     subjectColor: null,
     status: "viewed",
     dueDate: "2026-10-16T13:00:00.000Z",
@@ -60,12 +62,26 @@ describe("boardHref", () => {
 describe("boardSubjects", () => {
   it("lists each subject once, alphabetically, skipping independent tasks", () => {
     const items = [
-      item({ id: "a", subjectName: "Maths" }),
-      item({ id: "b", subjectName: "English" }),
-      item({ id: "c", subjectName: "Maths" }),
+      item({ id: "a", subjectId: "m", subjectName: "Maths" }),
+      item({ id: "b", subjectId: "e", subjectName: "English" }),
+      item({ id: "c", subjectId: "m", subjectName: "Maths" }),
       item({ id: "d" }),
     ];
-    expect(boardSubjects(items)).toEqual(["English", "Maths"]);
+    expect(boardSubjects(items).map((s) => [s.id, s.label])).toEqual([
+      ["e", "English"],
+      ["m", "Maths"],
+    ]);
+  });
+
+  it("keeps two subjects with the same name apart, labelled by level", () => {
+    const items = [
+      item({ id: "a", subjectId: "m9", subjectName: "Mathematics", subjectYearLevel: "Year 9" }),
+      item({ id: "b", subjectId: "m10", subjectName: "Mathematics", subjectYearLevel: "Year 10" }),
+    ];
+    expect(boardSubjects(items).map((s) => [s.id, s.label])).toEqual([
+      ["m10", "Mathematics (Year 10)"],
+      ["m9", "Mathematics (Year 9)"],
+    ]);
   });
 });
 
@@ -101,10 +117,10 @@ describe("buildTodoBoard", () => {
 
   it("filters by subject and search", () => {
     const mixed = [
-      item({ id: "m", title: "Graphing", subjectName: "Maths" }),
-      item({ id: "e", title: "Speech", subjectName: "English" }),
+      item({ id: "m", title: "Graphing", subjectId: "s-m", subjectName: "Maths" }),
+      item({ id: "e", title: "Speech", subjectId: "s-e", subjectName: "English" }),
     ];
-    expect(buildTodoBoard(mixed, { ...params, subject: "Maths" }, NOW).dueThisWeek.map((i) => i.id)).toEqual(["m"]);
+    expect(buildTodoBoard(mixed, { ...params, subject: "s-m" }, NOW).dueThisWeek.map((i) => i.id)).toEqual(["m"]);
     expect(buildTodoBoard(mixed, { ...params, q: "spee" }, NOW).dueThisWeek.map((i) => i.id)).toEqual(["e"]);
   });
 });

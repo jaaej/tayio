@@ -20,7 +20,7 @@ import {
 import {
   buildStudentTodo,
   buildWeekDays,
-  featuredSubjectName,
+  featuredSubjectId,
   nextLessonBySubject,
   nextLessonLabel,
   shortSubject,
@@ -167,6 +167,7 @@ export async function getStudentDashboard(
     startTime: l.startTime,
     endTime: l.endTime,
     status: l.status,
+    subjectId: l.subjectId,
     subjectName: l.subjectName,
     subjectColor: l.subjectColor,
   }));
@@ -182,7 +183,7 @@ export async function getStudentDashboard(
   }));
 
   const next = nextLessonBySubject(lessons, now);
-  const featured = featuredSubjectName(next);
+  const featured = featuredSubjectId(next);
   const todo = buildStudentTodo({
     homework,
     weekItems,
@@ -205,8 +206,8 @@ export async function getStudentDashboard(
       subjectColor: s.subjectColor,
       tutorName: `${s.tutorFirstName} ${s.tutorLastName}`.trim(),
       thisWeek: weekBySubject.get(s.subjectId)?.weekTitle ?? null,
-      nextLesson: nextLessonLabel(next.get(s.subjectName), todayIso),
-      featured: s.subjectName === featured,
+      nextLesson: nextLessonLabel(next.get(s.subjectId), todayIso),
+      featured: s.subjectId === featured,
       weekDone: weekBySubject.get(s.subjectId)?.weekDone ?? 0,
       weekTotal: weekBySubject.get(s.subjectId)?.weekTotal ?? 0,
     })),

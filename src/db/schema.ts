@@ -202,7 +202,7 @@ export const familyLinks = pgTable(
 
 export const subjects = pgTable("subjects", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull().unique(),
+  name: text("name").notNull(),
   yearLevel: text("year_level"),
   description: text("description"),
   /** Palette key from src/lib/subject-tone.ts; null = guessed from the name. */

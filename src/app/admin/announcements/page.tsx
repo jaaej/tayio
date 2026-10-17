@@ -19,6 +19,7 @@ import {
 import { CreateAnnouncementForm } from "./_components/create-announcement-form";
 import { AnnouncementReviewActions } from "./_components/announcement-review-actions";
 import { DeleteAnnouncementButton } from "./_components/delete-announcement-button";
+import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +99,7 @@ export default async function AnnouncementsPage() {
     ),
   ).sort(naturalCompare);
   const options = {
-    subjects: subjectRows.map((row) => ({ id: row.id, label: row.name })),
+    subjects: distinctSubjects(subjectRows).map((row) => ({ id: row.id, label: row.label })),
     years,
     classes: classRows.map((row) => ({
       id: row.id,

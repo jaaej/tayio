@@ -25,6 +25,7 @@ import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
 import { formatTime, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
+import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
@@ -102,7 +103,9 @@ export default async function ClassesPage({
         endTime: classes.endTime,
         isRecurring: classes.isRecurring,
         tutorId: classes.tutorId,
+        subjectId: subjects.id,
         subject: subjects.name,
+        subjectYearLevel: subjects.yearLevel,
         subjectColor: subjects.color,
         tutorFirst: profiles.firstName,
         tutorLast: profiles.lastName,
@@ -210,7 +213,9 @@ export default async function ClassesPage({
           startTime: lessons.startTime,
           endTime: lessons.endTime,
           className: classes.name,
+          subjectId: subjects.id,
           subjectName: subjects.name,
+          subjectYearLevel: subjects.yearLevel,
           subjectColor: subjects.color,
           capacity: classes.capacity,
           room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
@@ -291,11 +296,19 @@ export default async function ClassesPage({
   const shownSubjects = isMonth
     ? rows
         .filter((r) => r.isRecurring && r.weekday !== null)
-        .map((r) => ({ name: r.subject, color: r.subjectColor }))
-    : weekLessons.map((l) => ({ name: l.subjectName, color: l.subjectColor }));
-  const legend = [
-    ...new Map(shownSubjects.map((s) => [s.name, s])).values(),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+        .map((r) => ({
+          id: r.subjectId,
+          name: r.subject,
+          yearLevel: r.subjectYearLevel,
+          color: r.subjectColor,
+        }))
+    : weekLessons.map((l) => ({
+        id: l.subjectId,
+        name: l.subjectName,
+        yearLevel: l.subjectYearLevel,
+        color: l.subjectColor,
+      }));
+  const legend = distinctSubjects(shownSubjects);
 
   return (
     <div className="flex flex-col gap-5">
@@ -459,9 +472,9 @@ export default async function ClassesPage({
                 className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line px-[18px] py-3 text-[12px] font-semibold text-muted"
               >
                 {legend.map((l) => (
-                  <li key={l.name} className="inline-flex items-center gap-1.5">
+                  <li key={l.id} className="inline-flex items-center gap-1.5">
                     <SubjectDot subject={l.name} color={l.color} className="h-2.5 w-2.5" />
-                    {l.name}
+                    {l.label}
                   </li>
                 ))}
               </ul>

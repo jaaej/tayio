@@ -16,7 +16,9 @@ function item(over: Partial<HomeworkListItem> & { id: string }): HomeworkListIte
   return {
     title: over.id,
     className: null,
+    subjectId: null,
     subjectName: null,
+    subjectYearLevel: null,
     subjectColor: null,
     status: "viewed",
     dueDate: "2026-10-16T13:00:00.000Z",

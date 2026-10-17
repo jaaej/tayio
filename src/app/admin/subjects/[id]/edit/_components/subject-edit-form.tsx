@@ -249,7 +249,6 @@ export function SubjectEditForm({
         });
         if (!result.ok) {
           setError(result.error ?? null);
-          setNameError(result.nameError ?? null);
           setClassErrors(result.classErrors ?? {});
           return;
         }

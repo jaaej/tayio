@@ -49,7 +49,7 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
       <div className="min-w-[160px] flex-1">
         <p className="flex items-center gap-3 text-[14px] font-bold text-ink">
           <SubjectDot subject={subject.subjectName} color={subject.subjectColor} />
-          <span className="min-w-0 truncate">{subject.subjectName}</span>
+          <span className="min-w-0 truncate">{subject.subjectLabel}</span>
         </p>
         {error && (
           <p role="alert" className="mt-1 text-[11px] font-semibold text-bad">
@@ -62,7 +62,7 @@ function AliasRow({ subject }: { subject: SubjectSearchAliasRow }) {
         onChange={(event) => setValue(event.target.value)}
         maxLength={24}
         placeholder="e.g. e1/2"
-        aria-label={`Search shortcut for ${subject.subjectName}`}
+        aria-label={`Search shortcut for ${subject.subjectLabel}`}
         className="h-9 w-[140px] rounded-[10px] px-2.5 text-[13px] font-semibold"
       />
       <Button

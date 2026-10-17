@@ -15,6 +15,7 @@ import {
   formatWeekday,
 } from "@/lib/format";
 import { weeklyWindowsByDay } from "@/lib/availability-windows";
+import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import { getTutorAbsenceLessonOptions } from "@/lib/tutor-cover";
 import { melbourneDate, tutorCoverClassLabel } from "@/lib/tutor-cover-rules";
@@ -102,7 +103,9 @@ export default async function TutorTimetablePage({
     endTime: lessons.endTime,
     status: lessons.status,
     className: classes.name,
+    subjectId: subjects.id,
     subjectName: subjects.name,
+    subjectYearLevel: subjects.yearLevel,
     subjectColor: subjects.color,
     room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
   };
@@ -223,13 +226,16 @@ export default async function TutorTimetablePage({
   }
 
   // One entry per subject shown this month, in its own colour.
-  const legendSubjects = Array.from(
-    new Map(
-      ownLessons
-        .filter((lesson) => lesson.date >= fromIso && lesson.date < toIso)
-        .map((lesson) => [lesson.subjectName, lesson.subjectColor] as const),
-    ),
-  ).sort(([a], [b]) => a.localeCompare(b));
+  const legendSubjects = distinctSubjects(
+    ownLessons
+      .filter((lesson) => lesson.date >= fromIso && lesson.date < toIso)
+      .map((lesson) => ({
+        id: lesson.subjectId,
+        name: lesson.subjectName,
+        yearLevel: lesson.subjectYearLevel,
+        color: lesson.subjectColor,
+      })),
+  );
   const legendHanded = handedOff.some((lesson) => lesson.date >= fromIso && lesson.date < toIso);
   const legendCover = ownLessons.some(
     (lesson) => openCoverIds.has(lesson.id) && lesson.date >= fromIso && lesson.date < toIso,
@@ -338,8 +344,8 @@ export default async function TutorTimetablePage({
             <MonthGrid year={year} month={month} chips={chips} dayBadges={dayBadges} />
             {(legendSubjects.length > 0 || legendHanded || legendCover) && (
               <ul className="flex flex-wrap gap-x-3.5 gap-y-1.5 px-2.5 pb-1.5 pt-1 text-[12px] font-semibold text-ink-soft">
-                {legendSubjects.map(([subject, color]) => (
-                  <LegendItem key={subject} color={subjectTone(subject, color).dot} label={subject} />
+                {legendSubjects.map((s) => (
+                  <LegendItem key={s.id} color={subjectTone(s.name, s.color).dot} label={s.label} />
                 ))}
                 {legendCover && <LegendItem color="var(--warn)" label="Cover requested" />}
                 {legendHanded && <LegendItem color="var(--muted)" label="Handed to cover" />}

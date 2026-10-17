@@ -13,7 +13,7 @@ import {
   WhenFields,
   type ClassTypeValue,
 } from "./class-fields";
-import { subjectOptionLabel } from "../_lib/subject-option-label";
+import { subjectOptionLabel } from "@/lib/subject-label";
 import { TutorPicker } from "./tutor-picker";
 
 export type CreateClassValues = {

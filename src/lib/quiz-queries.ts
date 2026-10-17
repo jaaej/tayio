@@ -30,6 +30,7 @@ import {
   isLiveQuizStatus,
   LIVE_QUIZ_STATUSES,
 } from "@/lib/quiz-status";
+import { subjectOptionLabel } from "@/lib/subject-label";
 
 /** Mutable copy: drizzle's `inArray` does not take a readonly tuple. */
 const liveStatuses = [...LIVE_QUIZ_STATUSES];
@@ -38,7 +39,10 @@ export type QuizListRow = {
   id: string;
   title: string;
   status: string;
+  subjectId: string;
   subjectName: string;
+  /** Name with the year level when the name lacks it (names repeat). */
+  subjectLabel: string;
   subjectColor: string | null;
   termYear: number;
   termNumber: number;
@@ -97,7 +101,9 @@ function baseListSelect() {
       id: quizzes.id,
       title: quizzes.title,
       status: quizzes.status,
+      subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
       subjectColor: subjects.color,
       termYear: terms.year,
       termNumber: terms.termNumber,
@@ -129,8 +135,8 @@ function baseListSelect() {
 }
 
 function toListRow(r: {
-  id: string; title: string; status: string; subjectName: string;
-  subjectColor: string | null; termYear: number; termNumber: number; weekNumber: number;
+  id: string; title: string; status: string; subjectId: string; subjectName: string;
+  subjectYearLevel: string | null; subjectColor: string | null; termYear: number; termNumber: number; weekNumber: number;
   assignedTutorId: string | null; note: string | null; assignedTutorFirst: string | null;
   assignedTutorLast: string | null; createdByFirst: string;
   createdByLast: string | null; questionCount: number; updatedAt: Date;
@@ -139,7 +145,9 @@ function toListRow(r: {
     id: r.id,
     title: r.title,
     status: r.status,
+    subjectId: r.subjectId,
     subjectName: r.subjectName,
+    subjectLabel: subjectOptionLabel({ name: r.subjectName, yearLevel: r.subjectYearLevel }),
     subjectColor: r.subjectColor,
     termYear: r.termYear,
     termNumber: r.termNumber,
@@ -169,8 +177,9 @@ export type QuizTargetWeek = {
   id: string;
   /** Combined "Subject - Year Term N, Week N", for a single flat dropdown. */
   label: string;
-  /** `subjects.name` is unique, so this doubles as the subject's key. */
-  subjectName: string;
+  subjectId: string;
+  /** Subject name with its year level when the name lacks it (names repeat). */
+  subjectLabel: string;
   /** Week on its own, for a dropdown already narrowed to one subject. */
   weekLabel: string;
 };
@@ -193,7 +202,9 @@ export async function listQuizTargets(): Promise<{
     .select({
       id: subjectWeeks.id,
       weekNumber: subjectWeeks.weekNumber,
+      subjectId: subjects.id,
       subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
       year: terms.year,
       termNumber: terms.termNumber,
     })
@@ -214,15 +225,22 @@ export async function listQuizTargets(): Promise<{
       id: t.id,
       name: `${t.firstName} ${t.lastName ?? ""}`.trim(),
     })),
-    weeks: weekRows.map((w) => ({
-      id: w.id,
-      label: formatQuizWeekLabel(w),
-      subjectName: w.subjectName,
-      // The year stays in: a subject can carry the same term/week numbers in
-      // more than one year, and two identical options in the Week dropdown
-      // would be a coin flip.
-      weekLabel: `${w.year} Term ${w.termNumber}, Week ${w.weekNumber}`,
-    })),
+    weeks: weekRows.map((w) => {
+      const subjectLabel = subjectOptionLabel({
+        name: w.subjectName,
+        yearLevel: w.subjectYearLevel,
+      });
+      return {
+        id: w.id,
+        label: formatQuizWeekLabel({ ...w, subjectName: subjectLabel }),
+        subjectId: w.subjectId,
+        subjectLabel,
+        // The year stays in: a subject can carry the same term/week numbers in
+        // more than one year, and two identical options in the Week dropdown
+        // would be a coin flip.
+        weekLabel: `${w.year} Term ${w.termNumber}, Week ${w.weekNumber}`,
+      };
+    }),
   };
 }
 

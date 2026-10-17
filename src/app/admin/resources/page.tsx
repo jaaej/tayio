@@ -1,4 +1,3 @@
-import { asc } from "drizzle-orm";
 import { FileText, Link2 as LinkIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { subjects } from "@/db/schema";
@@ -22,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { ResourceRowActions } from "./_components/resource-row-actions";
+import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,10 @@ export default async function AdminResourcesPage({
       : null;
 
   const [subjectList, allRows] = await Promise.all([
-    db.select({ id: subjects.id, name: subjects.name }).from(subjects).orderBy(asc(subjects.name)),
+    db
+      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
+      .from(subjects)
+      .then(distinctSubjects),
     listAllResourcesForAdmin(filter),
   ]);
   const withStatus = allRows.map((row) => ({ ...row, status: resourceStatus(row) }));
@@ -142,7 +145,7 @@ export default async function AdminResourcesPage({
               param="subjectId"
               options={[
                 { value: "", label: "All subjects" },
-                ...subjectList.map((s) => ({ value: s.id, label: s.name })),
+                ...subjectList.map((s) => ({ value: s.id, label: s.label })),
               ]}
             />
             <UrlLabelledSelect

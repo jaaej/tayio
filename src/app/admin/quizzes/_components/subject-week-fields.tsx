@@ -22,12 +22,13 @@ export function SubjectWeekFields({
   weeks: QuizTargetWeek[];
 }) {
   const fixedWeek = weeks.length === 1 ? weeks[0] : null;
-  // `subjects.name` is unique in the schema, so the name is a safe key.
+  // Keyed by id: two subjects can share a name (labels add the year level).
   const subjects = useMemo(
     () =>
-      Array.from(new Set(weeks.map((w) => w.subjectName))).sort((a, b) =>
-        a.localeCompare(b),
-      ),
+      Array.from(
+        new Map(weeks.map((w) => [w.subjectId, w.subjectLabel])).entries(),
+        ([id, label]) => ({ id, label }),
+      ).sort((a, b) => a.label.localeCompare(b.label)),
     [weeks],
   );
 
@@ -35,9 +36,9 @@ export function SubjectWeekFields({
   // option makes that context obvious and avoids asking admin to pick the week
   // they just opened; the standalone multi-week form still starts unselected.
   const onlyWeek = weeks.length === 1 ? weeks[0] : null;
-  const [subject, setSubject] = useState(onlyWeek?.subjectName ?? "");
+  const [subject, setSubject] = useState(onlyWeek?.subjectId ?? "");
   const [weekId, setWeekId] = useState(onlyWeek?.id ?? "");
-  const subjectWeeks = weeks.filter((w) => w.subjectName === subject);
+  const subjectWeeks = weeks.filter((w) => w.subjectId === subject);
 
   const subjectId = `${idPrefix}-subject`;
   const weekFieldId = `${idPrefix}-week`;
@@ -62,7 +63,7 @@ export function SubjectWeekFields({
         </Label>
         <Select
           id={subjectId}
-          name="subjectName"
+          name="subjectId"
           required
           value={subject}
           onChange={(e) => {
@@ -75,9 +76,9 @@ export function SubjectWeekFields({
           <option value="" disabled>
             Pick a subject
           </option>
-          {subjects.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
             </option>
           ))}
         </Select>

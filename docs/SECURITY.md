@@ -389,6 +389,16 @@ Verified with JWT impersonation: a student withdrawn from a subject loses its th
 
 ---
 
+### 0064 - Subjects may share a name
+
+**File:** `supabase/migrations/0064_subject_names_not_unique.sql`
+**Status:** Applied to dev and Production on 2026-10-17 (RLS check green on both), Production just before the push of the duplicate-names commit.
+**Risk:** Low. Drops the unique constraint on `subjects.name` (`subjects_name_unique`), so two subjects can both be called "Mathematics". No data changes. Every lookup, filter and grouping that used the name now uses the subject id; pickers and legends add the year level where two names collide (`distinctSubjects` in `src/lib/subject-label.ts`). No policy changes.
+
+**Reversible:** only while no two subjects share a name: add the constraint back. Once duplicates exist, rename them first.
+
+---
+
 ## Access matrix
 
 Read access. "✓" = full row visibility for own data; "limited" = subset of columns or rows; "no" = denied at RLS level.

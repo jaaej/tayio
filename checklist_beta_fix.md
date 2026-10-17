@@ -13,6 +13,9 @@ Last updated: 17 October 2026
 
 ## Manual QA required
 
+- [ ] Duplicate subject names (17 October 2026): in Production, add a second subject with an existing name and a different level.
+  Confirm both show on Classes with their levels, New quiz lists them as "Name (Year N)" with only that subject's weeks, and the Quizzes filter, timetables' colour legends and student and parent Homework tabs keep them apart.
+
 - [ ] Subject page as the home of its classes (17 October 2026): sign in as admin at 1440px and 390px.
   From Classes, click a class on the schedule and confirm it opens the subject page at that class (outlined).
   On a class card, change the name, type, capacity and online link; add a student, set their delivery and private note; withdraw another; check the rows say "Joins on save" / "Leaves on save", then Save and reopen to confirm each change. Repeat one change and press Cancel to confirm nothing is saved.
@@ -557,6 +560,13 @@ Last updated: 17 October 2026
   exactly one new review-cycle notification, without retry duplicates.
 
 ## Recently implemented
+
+- [x] Subjects may share a name (17 October 2026, owner request: two subjects both called "Mathematics").
+  Migration `0064_subject_names_not_unique.sql` drops the unique constraint; `createSubject` and `saveSubjectPage` no longer refuse a repeated name.
+  Everything that treated the name as the subject's identity now uses its id, found by an audit of `src/`: the New quiz subject and week pickers (`QuizTargetWeek` now carries `subjectId` and `subjectLabel`; before, two same-named subjects merged into one option and listed both subjects' weeks), the Quizzes filter (`?subject=` is an id), quiz list grouping, the colour legends on admin Classes, the tutor timetable and the student and parent timetable, the student dashboard's next lesson and featured subject, student and parent Homework subject tabs (`?subject=` is an id; parent homework outside a class is "Other"), and the student discussion's "Message tutor" link.
+  Labels: `distinctSubjects` (`src/lib/subject-label.ts`, moved from admin with `subjectOptionLabel`, tested) keeps a name bare unless two shown subjects share it, then adds the year level ("Mathematics (Year 9)"). Used in those places and in the admin pickers (class move, grant credit, resources, announcements, tutor availability, search aliases) and tutor resources.
+  Verified on dev: typecheck, lint, 551 tests, a production build, and a browser run that created two "Mathematics" subjects (Year 9 and Year 10) from Classes, added a week to each, saw them apart on Classes and in New quiz (each with only its own week), then deleted both with the typed-name delete.
+  Not changed: two subjects with the same name get the same default colour until one is picked, and a student or tutor with only one of them sees the bare name.
 
 - [x] Subject page is the home of its classes; the class page is retired (17 October 2026, owner request: "everything in the other page should be in here").
   `/admin/subjects/[id]/edit` class cards now carry what `/admin/classes/[id]` held: class name, Group / One-on-one, capacity, online link, subject (move, with a warning that the class leaves the page), and a Students section (`_components/class-students.tsx`) to add students, set delivery and a private admin note, and withdraw.
@@ -1821,6 +1831,9 @@ Last updated: 17 October 2026
 - [ ] Confirm production loading improvements using Vercel/Supabase timing data.
 
 ## Deployment required for the next larger workflow batch
+
+- [x] Apply `supabase/migrations/0064_subject_names_not_unique.sql` to Production before pushing the duplicate subject names commit (17 October 2026).
+  Applied first (ledger up to date, RLS check green on all 54 tables; subjects, classes, users, curriculum weeks and enrolments the same counts before and after: 4, 3, 27, 3, 0), then `main` was pushed for the Vercel deploy, with the admin curriculum, tutor class page and subject-page class merge commits from the same day. The migration ran with the Production URLs passed to that one command, so `.env.local` stayed on dev.
 
 - [x] Apply `supabase/migrations/0063_subject_colors.sql` to Production before
   deploying the admin class and subject editing commit (16 October 2026).

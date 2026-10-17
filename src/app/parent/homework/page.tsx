@@ -9,8 +9,12 @@ import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switche
 import { StatusPill } from "../_components/status-pill";
 import { Tabs, type TabItem } from "../_components/tabs";
 import { Table, Th, Td, Tr } from "../_components/table";
+import { distinctSubjects } from "@/lib/subject-label";
 
 type SearchParams = Promise<{ child?: string; subject?: string }>;
+
+/** The tab for homework outside a class. */
+const OTHER = "other";
 
 export default async function ParentHomeworkPage({
   searchParams,
@@ -34,19 +38,22 @@ export default async function ParentHomeworkPage({
 
   const allRows = await getHomework(selected.id);
 
-  const subjectCounts = new Map<string, number>();
-  for (const r of allRows) {
-    const name = r.subjectName ?? r.className ?? "Other";
-    subjectCounts.set(name, (subjectCounts.get(name) ?? 0) + 1);
-  }
-  const subjectNames = Array.from(subjectCounts.keys()).sort((a, b) =>
-    a.localeCompare(b),
-  );
+  // One tab per subject, by id: two subjects can share a name, and then their
+  // labels add the year level. Homework outside a class sits under "Other".
+  const subjectTabs = [
+    ...distinctSubjects(
+      allRows.flatMap((r) =>
+        r.subjectId && r.subjectName
+          ? [{ id: r.subjectId, name: r.subjectName, yearLevel: r.subjectYearLevel }]
+          : [],
+      ),
+    ),
+    ...(allRows.some((r) => !r.subjectId) ? [{ id: OTHER, label: "Other" }] : []),
+  ];
+  const activeTab = subjectTabs.find((t) => t.id === subjectFilter) ?? null;
 
-  const rows = subjectFilter
-    ? allRows.filter(
-        (r) => (r.subjectName ?? r.className ?? "Other") === subjectFilter,
-      )
+  const rows = activeTab
+    ? allRows.filter((r) => (r.subjectId ?? OTHER) === activeTab.id)
     : allRows;
 
   const total = rows.length;
@@ -64,11 +71,11 @@ export default async function ParentHomeworkPage({
 
   const base = `/parent/homework?child=${selected.id}`;
   const tabs: TabItem[] = [
-    { label: "All", href: base, active: !subjectFilter },
-    ...subjectNames.map((s) => ({
-      label: s,
-      href: `${base}&subject=${encodeURIComponent(s)}`,
-      active: subjectFilter === s,
+    { label: "All", href: base, active: !activeTab },
+    ...subjectTabs.map((t) => ({
+      label: t.label,
+      href: `${base}&subject=${encodeURIComponent(t.id)}`,
+      active: activeTab?.id === t.id,
     })),
   ];
 
@@ -121,7 +128,7 @@ export default async function ParentHomeworkPage({
         />
       </section>
 
-      {subjectNames.length > 0 && (
+      {subjectTabs.length > 0 && (
         <div className="rise overflow-x-auto" style={{ animationDelay: "50ms" }}>
           <Tabs items={tabs} />
         </div>
@@ -131,8 +138,8 @@ export default async function ParentHomeworkPage({
         {rows.length === 0 ? (
           <Card>
             <Empty>
-              {subjectFilter
-                ? `No ${subjectFilter} homework for ${selected.firstName}.`
+              {activeTab
+                ? `No ${activeTab.label} homework for ${selected.firstName}.`
                 : `No homework has been assigned to ${selected.firstName} yet.`}
             </Empty>
           </Card>

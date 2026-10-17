@@ -5,6 +5,7 @@
 
 import { melbourneDayKey } from "@/lib/format";
 import { daysUntil, groupOf, matchesHomework, type HomeworkListItem } from "./homework-list";
+import { distinctSubjects } from "@/lib/subject-label";
 
 export type BoardShow = "todo" | "done";
 
@@ -41,11 +42,20 @@ export function boardHref(path: string, params: Partial<BoardParams>): string {
   return s ? `${path}?${s}` : path;
 }
 
-/** The subjects the student has homework in, alphabetically, for the filter. */
-export function boardSubjects(items: HomeworkListItem[]): string[] {
-  const names = new Set<string>();
-  for (const i of items) if (i.subjectName) names.add(i.subjectName);
-  return [...names].sort((a, b) => a.localeCompare(b));
+/**
+ * The subjects the student has homework in, alphabetically, for the filter.
+ * By id: two subjects can share a name, and then their labels add the level.
+ */
+export function boardSubjects(
+  items: HomeworkListItem[],
+): { id: string; name: string; label: string; color: string | null }[] {
+  return distinctSubjects(
+    items.flatMap((i) =>
+      i.subjectId && i.subjectName
+        ? [{ id: i.subjectId, name: i.subjectName, yearLevel: i.subjectYearLevel, color: i.subjectColor }]
+        : [],
+    ),
+  ).map(({ id, name, label, color }) => ({ id, name, label, color }));
 }
 
 /** Days left in the Melbourne week after today (Sunday ends the week). */
@@ -75,7 +85,7 @@ export type DoneBoard<T> = {
 
 function filtered<T extends HomeworkListItem>(items: T[], params: BoardParams): T[] {
   return items.filter(
-    (i) => (!params.subject || i.subjectName === params.subject) && matchesHomework(i, params.q),
+    (i) => (!params.subject || i.subjectId === params.subject) && matchesHomework(i, params.q),
   );
 }
 

@@ -35,7 +35,9 @@ export type HomeworkListItem = {
   id: string;
   title: string;
   className: string | null;
+  subjectId: string | null;
   subjectName: string | null;
+  subjectYearLevel: string | null;
   /** The subject's stored colour (`subjects.color`). */
   subjectColor: string | null;
   status: string;

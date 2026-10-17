@@ -42,7 +42,6 @@ export default async function HomeworkPage({
   const [items, sp] = await Promise.all([getHomeworkListItems(user.id), searchParams]);
   const params = parseBoardParams(sp);
   const subjects = boardSubjects(items);
-  const subjectColors = new Map(items.map((i) => [i.subjectName, i.subjectColor]));
   const now = new Date();
 
   const hidden: Record<string, string> = {};
@@ -59,18 +58,18 @@ export default async function HomeworkPage({
               <SegmentLink href={boardHref(PATH, { ...params, subject: null, older: false })} active={!params.subject}>
                 All
               </SegmentLink>
-              {subjects.map((name) => (
+              {subjects.map((s) => (
                 <SegmentLink
-                  key={name}
-                  href={boardHref(PATH, { ...params, subject: name, older: false })}
-                  active={params.subject === name}
+                  key={s.id}
+                  href={boardHref(PATH, { ...params, subject: s.id, older: false })}
+                  active={params.subject === s.id}
                 >
                   <span
                     aria-hidden
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: subjectTone(name, subjectColors.get(name)).dot }}
+                    style={{ backgroundColor: subjectTone(s.name, s.color).dot }}
                   />
-                  {name}
+                  {s.label}
                 </SegmentLink>
               ))}
             </Segmented>

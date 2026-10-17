@@ -155,8 +155,8 @@ export function QuizTable({
             ) : (
               // One tbody per subject: the group header is the subject, so
               // the rows under it carry the week only.
-              groups.map(([subjectName, subjectRows]) => (
-                <tbody key={subjectName}>
+              groups.map(({ subjectId, label, rows: subjectRows }) => (
+                <tbody key={subjectId}>
                   <tr>
                     <th
                       scope="colgroup"
@@ -165,10 +165,10 @@ export function QuizTable({
                     >
                       <span className="inline-flex items-center gap-2">
                         <SubjectDot
-                          subject={subjectName}
+                          subject={subjectRows[0]?.subjectName ?? label}
                           color={subjectRows[0]?.subjectColor ?? null}
                         />
-                        {subjectName}
+                        {label}
                       </span>
                     </th>
                   </tr>

@@ -33,6 +33,7 @@ import {
   getTerms,
   grantCredit,
 } from "@/lib/credits";
+import { distinctSubjects } from "@/lib/subject-label";
 
 /** Thrown inside `undoCancellation`'s transaction when the credit was redeemed
  *  concurrently, to roll the whole undo back. */
@@ -336,7 +337,7 @@ export async function getStudentEnrolledSubjects(
   studentId: string,
 ): Promise<EnrolledSubject[]> {
   const rows = await db
-    .selectDistinct({ id: subjects.id, name: subjects.name })
+    .selectDistinct({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
     .from(enrollments)
     .innerJoin(classes, eq(classes.id, enrollments.classId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
@@ -346,7 +347,8 @@ export async function getStudentEnrolledSubjects(
         isNull(enrollments.withdrawnAt),
       ),
     );
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+  // `name` is the label: names can repeat, and then it adds the year level.
+  return distinctSubjects(rows).map((s) => ({ id: s.id, name: s.label }));
 }
 
 // --- Admin grants -----------------------------------------------------------

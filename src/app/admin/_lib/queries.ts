@@ -56,6 +56,7 @@ import {
   tutorLeaveRequests,
   type UserRole,
 } from "@/db/schema";
+import { distinctSubjects } from "@/lib/subject-label";
 
 function isoDate(d: Date) {
   // Local calendar date, not UTC - matches local dates in lesson/date columns.
@@ -1237,15 +1238,22 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         tutorId: classes.tutorId,
         subjectId: subjects.id,
         subjectName: subjects.name,
+        subjectYearLevel: subjects.yearLevel,
       })
       .from(classes)
       .innerJoin(subjects, eq(subjects.id, classes.subjectId))
       .where(inArray(classes.tutorId, tutorIds))
       .orderBy(asc(subjects.name));
+    // Names can repeat; where two do, the shown name adds the year level.
+    const labels = new Map(
+      distinctSubjects(
+        taught.map((t) => ({ id: t.subjectId, name: t.subjectName, yearLevel: t.subjectYearLevel })),
+      ).map((s) => [s.id, s.label]),
+    );
     for (const t of taught) {
       byTutor.get(t.tutorId)?.subjects.push({
         id: t.subjectId,
-        name: t.subjectName,
+        name: labels.get(t.subjectId) ?? t.subjectName,
       });
     }
   }

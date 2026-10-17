@@ -3,7 +3,7 @@ import {
   buildStudentTodo,
   buildWeekDays,
   compactTime,
-  featuredSubjectName,
+  featuredSubjectId,
   nextLessonBySubject,
   nextLessonLabel,
   relativeDay,
@@ -23,6 +23,7 @@ const lesson = (over: Partial<DashLesson>): DashLesson => ({
   startTime: "16:00:00",
   endTime: "17:30:00",
   status: "upcoming",
+  subjectId: "s-eng",
   subjectName: "Year 9 English",
   subjectColor: null,
   ...over,
@@ -63,32 +64,45 @@ describe("labels", () => {
 });
 
 describe("next lesson", () => {
+  const maths = { subjectId: "s-maths", subjectName: "Year 9 Maths" };
   const lessons = [
-    lesson({ id: "eng", subjectName: "Year 9 English" }),
-    lesson({ id: "maths", date: "2026-10-15", subjectName: "Year 9 Maths" }),
-    lesson({ id: "old", date: "2026-10-12", subjectName: "Year 9 Maths" }),
-    lesson({ id: "gone", date: "2026-10-14", status: "cancelled", subjectName: "Year 9 Maths" }),
+    lesson({ id: "eng" }),
+    lesson({ id: "maths", date: "2026-10-15", ...maths }),
+    lesson({ id: "old", date: "2026-10-12", ...maths }),
+    lesson({ id: "gone", date: "2026-10-14", status: "cancelled", ...maths }),
   ];
 
   it("finds the live or next lesson per subject, skipping past and cancelled", () => {
     const next = nextLessonBySubject(lessons, NOW);
-    expect(next.get("Year 9 English")).toMatchObject({ id: "eng", live: true });
-    expect(next.get("Year 9 Maths")).toMatchObject({ id: "maths", live: false });
+    expect(next.get("s-eng")).toMatchObject({ id: "eng", live: true });
+    expect(next.get("s-maths")).toMatchObject({ id: "maths", live: false });
+  });
+
+  it("keeps two subjects with the same name apart", () => {
+    const next = nextLessonBySubject(
+      [
+        lesson({ id: "a", subjectId: "m9", subjectName: "Mathematics" }),
+        lesson({ id: "b", date: "2026-10-15", subjectId: "m10", subjectName: "Mathematics" }),
+      ],
+      NOW,
+    );
+    expect(next.get("m9")).toMatchObject({ id: "a" });
+    expect(next.get("m10")).toMatchObject({ id: "b" });
   });
 
   it("features the subject on now over a later one", () => {
-    expect(featuredSubjectName(nextLessonBySubject(lessons, NOW))).toBe("Year 9 English");
+    expect(featuredSubjectId(nextLessonBySubject(lessons, NOW))).toBe("s-eng");
   });
 
   it("features the soonest when nothing is on", () => {
     const later = new Date("2026-10-13T08:00:00Z"); // 7 pm
-    expect(featuredSubjectName(nextLessonBySubject(lessons, later))).toBe("Year 9 Maths");
+    expect(featuredSubjectId(nextLessonBySubject(lessons, later))).toBe("s-maths");
   });
 
   it("labels the lesson", () => {
     const next = nextLessonBySubject(lessons, NOW);
-    expect(nextLessonLabel(next.get("Year 9 English"), TODAY)).toBe("On now until 5:30 pm");
-    expect(nextLessonLabel(next.get("Year 9 Maths"), TODAY)).toBe("Next lesson Thu 4 pm");
+    expect(nextLessonLabel(next.get("s-eng"), TODAY)).toBe("On now until 5:30 pm");
+    expect(nextLessonLabel(next.get("s-maths"), TODAY)).toBe("Next lesson Thu 4 pm");
     expect(nextLessonLabel(undefined, TODAY)).toBe("No lessons booked");
   });
 });

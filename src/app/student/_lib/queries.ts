@@ -666,6 +666,7 @@ export type LessonRow = {
   location: string | null;
   onlineLink: string | null;
   className: string;
+  subjectId: string;
   subjectName: string;
   subjectColor: string | null;
   tutorFirstName: string;
@@ -697,6 +698,7 @@ export async function getStudentLessons(
       location: lessons.location,
       onlineLink: lessons.onlineLink,
       className: classes.name,
+      subjectId: classes.subjectId,
       subjectName: subjects.name,
       subjectColor: subjects.color,
       tutorFirstName: profiles.firstName,
@@ -995,6 +997,7 @@ export type TimetableLesson = {
   status: (typeof lessons.status.enumValues)[number];
   subjectId: string;
   subjectName: string;
+  subjectYearLevel: string | null;
   subjectColor: string | null;
   className: string;
   location: string | null;
@@ -1030,6 +1033,7 @@ export async function getStudentTimetableLessons(
     status: lessons.status,
     subjectId: classes.subjectId,
     subjectName: subjects.name,
+    subjectYearLevel: subjects.yearLevel,
     subjectColor: subjects.color,
     className: classes.name,
     location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
@@ -1180,6 +1184,7 @@ export async function getStudentTimetableLessons(
         status: "upcoming",
         subjectId: orig?.subjectId ?? "",
         subjectName: orig?.subjectName ?? "Lesson",
+        subjectYearLevel: orig?.subjectYearLevel ?? null,
         subjectColor: orig?.subjectColor ?? null,
         className: orig?.className ?? "",
         location: orig?.location ?? null,
@@ -1274,6 +1279,8 @@ export type StudentTutorContact = {
   firstName: string;
   lastName: string;
   subjects: string[];
+  /** Ids of those subjects: names can repeat, so match on these. */
+  subjectIds: string[];
 };
 
 /** Tutors teaching the student's active classes, with the subjects they teach them. */
@@ -1285,6 +1292,7 @@ export async function getStudentTutors(
       tutorId: profiles.id,
       firstName: profiles.firstName,
       lastName: profiles.lastName,
+      subjectId: subjects.id,
       subjectName: subjects.name,
       subjectColor: subjects.color,
     })
@@ -1307,8 +1315,12 @@ export async function getStudentTutors(
       firstName: r.firstName,
       lastName: r.lastName,
       subjects: [],
+      subjectIds: [],
     };
-    if (!cur.subjects.includes(r.subjectName)) cur.subjects.push(r.subjectName);
+    if (!cur.subjectIds.includes(r.subjectId)) {
+      cur.subjectIds.push(r.subjectId);
+      cur.subjects.push(r.subjectName);
+    }
     byTutor.set(r.tutorId, cur);
   }
   return Array.from(byTutor.values()).sort((a, b) =>

@@ -20,6 +20,7 @@ import { roomsInUse } from "@/app/admin/classes/_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "@/app/admin/classes/_lib/tutor-fit";
 import { SubjectEditForm, type EditClass } from "./_components/subject-edit-form";
 import type { CardStudent } from "./_lib/class-card";
+import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
 
@@ -92,9 +93,9 @@ export default async function EditSubjectPage({
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
     // Where a class can be moved.
     db
-      .select({ id: subjects.id, name: subjects.name })
+      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
       .from(subjects)
-      .orderBy(asc(subjects.name)),
+      .then((rows) => distinctSubjects(rows).map((s) => ({ id: s.id, name: s.label }))),
     // Everyone who can be added to a class.
     db
       .select({

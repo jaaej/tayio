@@ -53,10 +53,12 @@ export default async function AdminQuizzesPage({
 
   // Options come off the full set, not the filtered slice, so the dropdown can
   // always move you to another subject instead of stranding you on an empty one.
-  const subjectNames = Array.from(
-    new Set(rows.map((r) => r.subjectName)),
-  ).sort((a, b) => a.localeCompare(b));
-  const subject = subjectNames.includes(sp.subject ?? "") ? sp.subject! : "";
+  // By id: two subjects can share a name (labels add the year level).
+  const subjectOptions = Array.from(
+    new Map(rows.map((r) => [r.subjectId, r.subjectLabel])).entries(),
+    ([value, label]) => ({ value, label }),
+  ).sort((a, b) => a.label.localeCompare(b.label));
+  const subject = subjectOptions.some((o) => o.value === sp.subject) ? sp.subject! : "";
 
   // Review queue reads the whole set, not the filtered slice: it is the work
   // waiting on this admin, and a search box should not hide it.
@@ -65,7 +67,7 @@ export default async function AdminQuizzesPage({
   const listed = rows.filter(
     (r) =>
       (!status || r.status === status) &&
-      (!subject || r.subjectName === subject) &&
+      (!subject || r.subjectId === subject) &&
       (!query || r.title.toLowerCase().includes(query)),
   );
 
@@ -113,7 +115,7 @@ export default async function AdminQuizzesPage({
       <QuizTable
         rows={listed}
         hasAny={rows.length > 0}
-        filters={<QuizFilters statuses={STATUS_PILLS} subjects={subjectNames} />}
+        filters={<QuizFilters statuses={STATUS_PILLS} subjects={subjectOptions} />}
         emptyState={
           <Empty className="flex flex-col items-center gap-4">
             No quizzes yet.

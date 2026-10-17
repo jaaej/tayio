@@ -25,6 +25,7 @@ import {
   type RailWeek,
 } from "@/components/subjects/curriculum-rail";
 import { SubjectHero, SubjectHeroBack } from "@/components/subjects/subject-hero";
+import { subjectOptionLabel } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import { EditWeekButton, ManageTopicsButton } from "./_components/week-actions";
 import { WeekEditor } from "./_components/week-editor";
@@ -297,8 +298,9 @@ export default async function AdminSubjectCurriculumPage({
             homework={weekHomework}
             quizTarget={{
               id: shownWeek.id,
-              label: `${subject.name} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${shownWeek.weekNumber}`,
-              subjectName: subject.name,
+              label: `${subjectOptionLabel(subject)} - ${currentTerm.year} Term ${currentTerm.termNumber}, Week ${shownWeek.weekNumber}`,
+              subjectId: subject.id,
+              subjectLabel: subjectOptionLabel(subject),
               weekLabel: `${currentTerm.year} Term ${currentTerm.termNumber}, Week ${shownWeek.weekNumber}`,
             }}
           />

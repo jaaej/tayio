@@ -20,6 +20,7 @@ import {
 } from "./_components/add-resource-panel";
 import { ResourceSearch } from "./_components/resource-search";
 import { ShareToggle } from "./_components/share-toggle";
+import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,12 @@ export default async function TutorResourcesPage({
   const [subjectRows, topicRows, allResources] = subjectIds.length
     ? await Promise.all([
         db
-          .select({ id: subjects.id, name: subjects.name, color: subjects.color })
+          .select({
+            id: subjects.id,
+            name: subjects.name,
+            yearLevel: subjects.yearLevel,
+            color: subjects.color,
+          })
           .from(subjects)
           .where(inArray(subjects.id, subjectIds)),
         db
@@ -71,7 +77,8 @@ export default async function TutorResourcesPage({
     );
   }
 
-  const subjectList = [...subjectRows].sort((a, b) => a.name.localeCompare(b.name));
+  // Names can repeat; where two do, the label adds the year level.
+  const subjectList = distinctSubjects(subjectRows);
   const topicsBySubject = new Map<string, Array<{ id: string; name: string }>>();
   for (const t of topicRows) {
     if (!topicsBySubject.has(t.subjectId)) topicsBySubject.set(t.subjectId, []);
@@ -109,14 +116,14 @@ export default async function TutorResourcesPage({
     { id: "", label: "All subjects", count: allResources.length },
     ...subjectList.map((s) => ({
       id: s.id,
-      label: s.name,
+      label: s.label,
       count: bySubject.get(s.id)?.length ?? 0,
     })),
   ];
 
   const panelSubjects = subjectList.map((s) => ({
     id: s.id,
-    name: s.name,
+    name: s.label,
     topics: topicsBySubject.get(s.id) ?? [],
   }));
 
