@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, Eye } from "lucide-react";
-import {
-  Empty,
-  GlassPanel,
-  Pill,
-  buttonVariants,
-  type PillTone,
-} from "@/components/admin/ui";
+import { Eye } from "lucide-react";
+import { Empty, GlassPanel, Pill, type PillTone } from "@/components/admin/ui";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
   CurriculumRail,
   type RailWeek,
 } from "@/components/subjects/curriculum-rail";
+import {
+  MATERIAL_BUTTON,
+  MATERIAL_BUTTON_QUIET,
+  MaterialCard,
+  MaterialNotReady,
+} from "@/components/subjects/material-card";
+import { WeekOverview } from "@/components/subjects/week-overview";
 import { HomeworkCreatePanel } from "@/components/homework/homework-create-panel";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
@@ -21,20 +22,18 @@ import { classDisplayName } from "@/lib/class-display";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { formatDueDate } from "@/lib/format";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
+import { subjectTone } from "@/lib/subject-tone";
+import { cn } from "@/lib/utils";
+import { ClassHero } from "../_components/class-hero";
 import { getClassHub } from "../_lib/class-hub";
 import {
   getTutorCurriculum,
-  type TutorCurriculumWeek,
   type TutorWeekHomework,
   type TutorWeekQuiz,
 } from "./_queries";
 import { WeekPlanEditor } from "./_components/week-plan-editor";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
-
-/** Buttons on the dark admin-plan bar. */
-const ON_DARK =
-  "min-h-[34px] rounded-[10px] border-white/25 bg-white/10 px-3 text-[13px] text-white hover:border-white/40 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60";
 
 export default async function TutorClassCurriculumPage({
   params,
@@ -49,7 +48,7 @@ export default async function TutorClassCurriculumPage({
 
   const hub = await getClassHub(tutor.id, classId);
   if (!hub) notFound();
-  const data = await getTutorCurriculum(tutor.id, classId, termParam);
+  const data = await getTutorCurriculum(tutor.id, classId, termParam, weekParam);
   if (!data) notFound();
 
   const selected =
@@ -91,179 +90,181 @@ export default async function TutorClassCurriculumPage({
     ],
   }));
 
+  const tone = subjectTone(data.subjectName, data.subjectColor);
+  const className = classDisplayName(hub.subjectName, hub.name);
+
   return (
-    <CurriculumLayout
-      attached
-      framed
-      subject={{ name: data.subjectName, color: data.subjectColor }}
-      rail={
-        <CurriculumRail
-          basePath={`/tutor/classes/${classId}/curriculum`}
-          currentTermId={data.currentTerm.id}
-          terms={data.termsAvailable.map((t) => ({
-            id: t.id,
-            label: `${t.year} · Term ${t.termNumber}`,
-          }))}
-          weeks={railWeeks}
-          selectedWeekId={selected?.subjectWeekId ?? null}
-          currentWeekIdHint={data.currentWeekId}
-        />
-      }
-    >
-      {!selected ? (
-        <GlassPanel>
-          <Empty className="py-12">
-            No curriculum has been set up for {data.subjectName} in Term{" "}
-            {data.currentTerm.termNumber}, {data.currentTerm.year} yet.
-          </Empty>
-        </GlassPanel>
-      ) : (
-        <div className="flex min-w-0 flex-col gap-5">
-          <AdminPlanBar
-            week={selected}
-            videoSignedUrl={videoSignedUrl}
-            bookletSignedUrl={bookletSignedUrl}
+    <>
+      <ClassHero
+        hub={hub}
+        tutorId={tutor.id}
+        title={selected?.title}
+        kicker={selected ? `${className} · Week ${selected.weekNumber}` : undefined}
+      />
+      <CurriculumLayout
+        attached
+        framed
+        defaultOpen
+        rail={
+          <CurriculumRail
+            basePath={`/tutor/classes/${classId}/curriculum`}
+            currentTermId={data.currentTerm.id}
+            terms={data.termsAvailable.map((t) => ({
+              id: t.id,
+              label: `Term ${t.termNumber} · ${t.year}`,
+            }))}
+            weeks={railWeeks}
+            selectedWeekId={selected?.subjectWeekId ?? null}
+            currentWeekIdHint={data.currentWeekId}
+            accent={tone.flat}
           />
-
-          <GlassPanel
-            title="For students this week"
-            titleId="week-plan-heading"
-            action={
-              <span className="flex items-center gap-1.5 pr-1.5 text-[12px] font-bold text-ink-soft">
-                <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                Students and parents see this on the week and its lessons
-              </span>
-            }
-          >
-            <WeekPlanEditor
-              key={selected.subjectWeekId}
-              classId={classId}
-              subjectWeekId={selected.subjectWeekId}
-              initialBody={selected.note ?? ""}
-              attachments={attachments}
-              topics={data.topics}
-            />
+        }
+      >
+        {!selected ? (
+          <GlassPanel>
+            <Empty className="py-12">
+              No curriculum has been set up for {data.subjectName} in Term{" "}
+              {data.currentTerm.termNumber}, {data.currentTerm.year} yet.
+            </Empty>
           </GlassPanel>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-5">
+            <WeekOverview
+              subjectName={data.subjectName}
+              subjectColor={data.subjectColor}
+              description={selected.description}
+              objectives={selected.objectives}
+              emptyText="No overview for this week yet."
+              note="Set by admin"
+            />
 
-          <div className="flex flex-wrap items-start gap-5">
-            <GlassPanel
-              title="Homework"
-              titleId="week-homework-heading"
-              className="min-w-0 flex-[999_1_340px]"
+            <section
+              aria-labelledby="lm-h"
+              className="glass flex flex-col gap-1.5 rounded-[24px] p-1.5"
             >
-              <div className="border-b border-line p-4">
-                <HomeworkCreatePanel
-                  actor="tutor"
-                  weekId={selected.subjectWeekId}
-                  classes={[
-                    { id: classId, label: classDisplayName(hub.subjectName, hub.name) },
-                  ]}
-                  initialClassId={classId}
-                />
+              <h2 id="lm-h" className="m-0 px-3 pb-1 pt-2 text-[16px] font-extrabold text-ink">
+                Lesson &amp; materials
+              </h2>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <MaterialCard
+                  kind="video"
+                  title="Recorded lesson"
+                  status={videoSignedUrl ? "Uploaded" : "Not uploaded yet"}
+                  statusTone={videoSignedUrl ? "done" : "waiting"}
+                >
+                  {videoSignedUrl ? (
+                    <span className="flex w-full rounded-[12px] transition-opacity hover:opacity-90" style={{ background: tone.flat }}>
+                      <VideoViewerButton
+                        url={videoSignedUrl}
+                        title={`Week ${selected.weekNumber} recording`}
+                        className={VIEW_BUTTON}
+                      >
+                        Watch
+                      </VideoViewerButton>
+                    </span>
+                  ) : (
+                    <MaterialNotReady />
+                  )}
+                </MaterialCard>
+                <MaterialCard
+                  kind="booklet"
+                  title="Week booklet"
+                  status={bookletSignedUrl ? "Uploaded" : "Not uploaded yet"}
+                  statusTone={bookletSignedUrl ? "done" : "waiting"}
+                >
+                  {bookletSignedUrl ? (
+                    <span className="flex w-full rounded-[12px] transition-opacity hover:opacity-90" style={{ background: tone.flat }}>
+                      <PdfViewerButton
+                        url={bookletSignedUrl}
+                        title={`Week ${selected.weekNumber} booklet`}
+                        className={VIEW_BUTTON}
+                      >
+                        Open booklet
+                      </PdfViewerButton>
+                    </span>
+                  ) : (
+                    <MaterialNotReady />
+                  )}
+                </MaterialCard>
               </div>
-              {selected.homework.length === 0 ? (
-                <Empty className="py-8">No homework for this week yet.</Empty>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {selected.homework.map((h) => (
-                    <HomeworkRow key={h.id} hw={h} />
-                  ))}
-                </ul>
-              )}
-            </GlassPanel>
+            </section>
 
             <GlassPanel
-              title="Weekly quiz"
-              titleId="week-quiz-heading"
-              className="min-w-0 flex-[1_1_260px]"
+              title="For students this week"
+              titleId="week-plan-heading"
+              action={
+                <span className="flex items-center gap-1.5 pr-1.5 text-[12px] font-bold text-ink-soft">
+                  <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Students and parents see this on the week and its lessons
+                </span>
+              }
             >
-              <QuizCard quiz={selected.quiz} />
+              <WeekPlanEditor
+                key={selected.subjectWeekId}
+                classId={classId}
+                subjectWeekId={selected.subjectWeekId}
+                initialBody={selected.note ?? ""}
+                attachments={attachments}
+                topics={data.topics}
+              />
             </GlassPanel>
-          </div>
-        </div>
-      )}
-    </CurriculumLayout>
-  );
-}
 
-/** The admin's plan for the week: one compact, read-only dark bar. */
-function AdminPlanBar({
-  week,
-  videoSignedUrl,
-  bookletSignedUrl,
-}: {
-  week: TutorCurriculumWeek;
-  videoSignedUrl: string | null;
-  bookletSignedUrl: string | null;
-}) {
-  const objectives = (week.objectives ?? "")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return (
-    <section
-      aria-labelledby="admin-plan-heading"
-      className="flex flex-col gap-3 rounded-[22px] bg-ink px-[18px] py-4 text-white"
-    >
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <h2 id="admin-plan-heading" className="text-[16px] font-extrabold">
-          Week {week.weekNumber} · {week.title}
-        </h2>
-        <span className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-white/70">
-          Plan from admin
-        </span>
-      </div>
-      {week.description ? (
-        <p className="whitespace-pre-wrap text-[14px] leading-[1.55] text-white/85">
-          {week.description}
-        </p>
-      ) : (
-        objectives.length === 0 && (
-          <p className="text-[14px] text-white/70">No overview for this week yet.</p>
-        )
-      )}
-      {objectives.length > 0 && (
-        <ul aria-label="Goals" className="flex flex-wrap gap-1.5">
-          {objectives.map((o, i) => (
-            <li
-              key={i}
-              className="flex min-h-7 items-center gap-1.5 rounded-[14px] bg-white/10 px-2.5 py-1 text-[12px] font-semibold"
+            <div
+              className={
+                selected.quiz ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" : undefined
+              }
             >
-              <Check className="h-3 w-3 shrink-0 text-[#7EE2B0]" strokeWidth={3} aria-hidden />
-              {o}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex flex-wrap gap-2 border-t border-white/[0.14] pt-3">
-        {videoSignedUrl ? (
-          <VideoViewerButton url={videoSignedUrl} title={`Week ${week.weekNumber} recording`} className={ON_DARK}>
-            Recorded lesson
-          </VideoViewerButton>
-        ) : (
-          <MissingMaterial>Recorded lesson · not uploaded yet</MissingMaterial>
+              <section
+                aria-labelledby="hw-h"
+                className="glass flex min-w-0 flex-col gap-1.5 rounded-[24px] p-1.5"
+              >
+                <h2 id="hw-h" className="m-0 px-3 pb-1 pt-2 text-[16px] font-extrabold text-ink">
+                  Homework
+                </h2>
+                <div className="panel overflow-hidden">
+                  <div className="border-b border-[#EFF0F5] px-4 py-3">
+                    <HomeworkCreatePanel
+                      actor="tutor"
+                      weekId={selected.subjectWeekId}
+                      classes={[{ id: classId, label: className }]}
+                      initialClassId={classId}
+                    />
+                  </div>
+                  {selected.homework.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-[14px] text-[#5E5A73]">
+                      No homework this week.
+                    </p>
+                  ) : (
+                    <ul className="m-0 list-none divide-y divide-[#EFF0F5] p-0">
+                      {selected.homework.map((h) => (
+                        <HomeworkRow key={h.id} hw={h} accent={tone.flat} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </section>
+
+              {selected.quiz && <QuizCard quiz={selected.quiz} accent={tone.flat} />}
+            </div>
+          </div>
         )}
-        {bookletSignedUrl ? (
-          <PdfViewerButton url={bookletSignedUrl} title={`Week ${week.weekNumber} booklet`} className={ON_DARK}>
-            Week booklet
-          </PdfViewerButton>
-        ) : (
-          <MissingMaterial>Week booklet · not uploaded yet</MissingMaterial>
-        )}
-      </div>
-    </section>
+      </CurriculumLayout>
+    </>
   );
 }
 
-function MissingMaterial({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="flex min-h-[34px] items-center rounded-[10px] border border-dashed border-white/30 px-3 text-[13px] font-semibold text-white/70">
-      {children}
-    </span>
-  );
-}
+/** A viewer button inside a span filled with the subject colour (the viewer
+ *  buttons take a class, not a style). */
+const VIEW_BUTTON = cn(
+  MATERIAL_BUTTON,
+  "min-h-10 gap-2 rounded-[12px] border-0 bg-transparent px-3.5 text-[14px] font-extrabold text-white hover:border-0 hover:bg-transparent",
+);
 
-function HomeworkRow({ hw }: { hw: TutorWeekHomework }) {
+/** Pill button at the end of a homework or quiz row. */
+const ROW_BUTTON =
+  "flex h-9 shrink-0 items-center rounded-[11px] px-3.5 text-[13px] font-extrabold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
+
+function HomeworkRow({ hw, accent }: { hw: TutorWeekHomework; accent: string }) {
   const pct = hw.assigned > 0 ? Math.round((hw.handedIn / hw.assigned) * 100) : 0;
   const meta = [
     hw.isTest ? "Test" : null,
@@ -274,25 +275,25 @@ function HomeworkRow({ hw }: { hw: TutorWeekHomework }) {
     .filter(Boolean)
     .join(" · ");
   return (
-    <li className="flex items-center gap-2.5 px-4 py-3">
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[14px] font-bold text-ink">{hw.title}</span>
-        <span className="text-[12px] text-muted">{meta}</span>
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-extrabold text-ink">{hw.title}</span>
+        <span className="truncate text-[13px] font-medium text-[#5E5A73]">{meta}</span>
       </span>
       <span
         role="img"
         aria-label={`${pct}% handed in`}
         className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-[3px] bg-surface-3 sm:block"
       >
-        <span className="block h-full bg-ink" style={{ width: `${pct}%` }} />
+        <span className="block h-full" style={{ width: `${pct}%`, background: accent }} />
       </span>
       <Link
         href={`/tutor/homework/${hw.id}`}
-        className={buttonVariants({
-          variant: hw.toMark > 0 ? "primary" : "outline",
-          size: "sm",
-          className: "shrink-0",
-        })}
+        className={cn(
+          ROW_BUTTON,
+          hw.toMark > 0 ? "text-white hover:opacity-90" : MATERIAL_BUTTON_QUIET,
+        )}
+        style={hw.toMark > 0 ? { background: accent } : undefined}
       >
         {hw.toMark > 0 ? `Mark ${hw.toMark}` : "Open"}
       </Link>
@@ -300,10 +301,8 @@ function HomeworkRow({ hw }: { hw: TutorWeekHomework }) {
   );
 }
 
-function QuizCard({ quiz }: { quiz: TutorWeekQuiz | null }) {
-  if (!quiz) {
-    return <Empty className="py-8">No quiz for this week.</Empty>;
-  }
+/** The week's quiz; weeks without one show no card, as for students. */
+function QuizCard({ quiz, accent }: { quiz: TutorWeekQuiz; accent: string }) {
   const mine = quiz.assignedToMe;
   const action =
     mine && quiz.status === "requested"
@@ -318,33 +317,45 @@ function QuizCard({ quiz }: { quiz: TutorWeekQuiz | null }) {
     quiz.note?.trim() &&
     (quiz.status === "requested" || quiz.status === "changes_requested");
   return (
-    <div className="flex flex-col gap-2.5 p-4">
-      <Pill
-        tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone}
-        className="h-[22px] self-start px-2 text-[11px]"
-      >
-        {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
-      </Pill>
-      <span className="text-[14px] font-extrabold text-ink">{quiz.title}</span>
-      {showNote ? (
-        <p className="whitespace-pre-wrap text-[13px] leading-[1.45] text-ink-soft">
-          Admin: {quiz.note}
-        </p>
-      ) : (
-        <span className="text-[13px] text-muted">
-          {quiz.questionCount} {quiz.questionCount === 1 ? "question" : "questions"}
+    <section
+      aria-labelledby="qz-h"
+      className="glass flex min-w-0 flex-col gap-1.5 self-start rounded-[24px] p-1.5"
+    >
+      <h2 id="qz-h" className="m-0 px-3 pb-1 pt-2 text-[16px] font-extrabold text-ink">
+        Weekly quiz
+      </h2>
+      <div className="panel flex flex-col gap-3 px-4 py-3.5">
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="text-[15px] font-extrabold text-ink [overflow-wrap:anywhere]">
+            {quiz.title}
+          </span>
+          {showNote ? (
+            <span className="whitespace-pre-wrap text-[13px] leading-[1.45] text-[#5E5A73]">
+              Admin: {quiz.note}
+            </span>
+          ) : (
+            <span className="text-[13px] font-medium text-[#5E5A73]">
+              {quiz.questionCount} {quiz.questionCount === 1 ? "question" : "questions"}
+            </span>
+          )}
         </span>
-      )}
-      <Link
-        href={`/tutor/quizzes/${quiz.id}`}
-        className={buttonVariants({
-          variant: action === "View quiz" ? "outline" : "primary",
-          size: "md",
-          className: "w-full",
-        })}
-      >
-        {action}
-      </Link>
-    </div>
+        <Pill
+          tone={(QUIZ_STATUS_TONE[quiz.status] ?? "default") as PillTone}
+          className="self-start"
+        >
+          {QUIZ_STATUS_LABEL[quiz.status] ?? quiz.status}
+        </Pill>
+        <Link
+          href={`/tutor/quizzes/${quiz.id}`}
+          className={cn(
+            MATERIAL_BUTTON,
+            action === "View quiz" ? MATERIAL_BUTTON_QUIET : "text-white hover:opacity-90",
+          )}
+          style={action === "View quiz" ? undefined : { background: accent }}
+        >
+          {action}
+        </Link>
+      </div>
+    </section>
   );
 }

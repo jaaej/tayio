@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Empty, GlassPanel, Pill, buttonVariants } from "@/components/admin/ui";
 import { requireTutor } from "@/app/tutor/_data";
+import { ClassHero } from "../_components/class-hero";
 import { formatTimeRange, parseLessonDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -54,7 +55,8 @@ export default async function TutorClassLessonsPage({
     termWeekLabel(date, termList, hub.termWeek?.termId ?? null);
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
+      <ClassHero hub={hub} tutorId={tutor.id} />
       <LessonSection
         title="This week"
         rows={groups.thisWeek}
@@ -90,7 +92,7 @@ export default async function TutorClassLessonsPage({
           ) : null
         }
       />
-    </div>
+    </>
   );
 }
 

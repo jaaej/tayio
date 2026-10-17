@@ -13,6 +13,10 @@ Last updated: 17 October 2026
 
 ## Manual QA required
 
+- [ ] Tutor class page in the student layout (17 October 2026): sign in as a tutor at 1440px and 390px and open a class from Classes.
+  On each tab (Week plan, Lessons, Students, Announcements) confirm the coloured hero: back button, the tabs as pills with the Lessons and Announcements counts in yellow, and "Today ... Open lesson" on a lesson day.
+  On Week plan, pick weeks in the rail and confirm the hero title follows the week; open an uploaded booklet and video; edit "For students this week" and attach a file; add homework; open a week with a requested quiz and press Write quiz.
+
 - [ ] Admin curriculum in the student layout (17 October 2026): sign in as admin at 1440px and 390px and open a subject's Curriculum from Classes.
   Confirm the hero is in the subject colour with "Back to classes" (returns to Classes), "<Subject> · Week N", the week title and a white Edit week button, and that the weeks rail starts open with the selected week filled in the subject colour.
   Edit a week from the hero and save; add a week from the rail; open Manage topics under the rail and rename a topic; upload and replace a booklet and a video; write a quiz and request one from the Weekly quiz card; add homework.
@@ -549,6 +553,15 @@ Last updated: 17 October 2026
 
 ## Recently implemented
 
+- [x] Tutor class page in the student My subjects layout (17 October 2026, owner request; owner chose the coloured hero on all four class tabs).
+  `ClassHero` (`src/app/tutor/classes/[id]/_components/class-hero.tsx`) replaces the glass class header and is rendered by each tab, because a layout cannot see `?week=`: a round back button and the class tabs as hero pills (Lessons and Announcements counts in yellow, the student count as a plain tally), then the title and a white "Today 10:00am · Open lesson" button.
+  Week plan titles the hero with the open week ("Year 9 Maths · Saturday AM · Week 1" over "linear equations"); the other tabs show the schedule over the class name. The layout is now only the frame.
+  Week plan body: the weeks rail opens by default with the selected week in the subject colour; the student Overview in the deep subject colour, marked "Set by admin"; Lesson & materials cards (Watch and Open booklet in the subject colour, "Not ready" until admin uploads); For students this week (unchanged editor); then Homework beside a Weekly quiz card, which is hidden for weeks without a quiz, as for students.
+  Shared, not copied: the student subject tabs and the tutor class tabs are one `HeroTabs`, and the Overview, material card and "Not ready" button come from `src/components/subjects/`; the student page still renders identically (pixel diff).
+  Fixed on admin and tutor curriculum: a `?week=` link without `?term=` for a week in another term showed the create form (admin) or silently another week (tutor); both now open that week's own term.
+  Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs at 1440px and 390px (no horizontal overflow) of all four tabs, week switching in the rail, and a booklet uploaded as admin then opened as the tutor (removed afterwards).
+  Known, not changed: on the lighter subject colours (teal especially) the white text on the translucent unselected tabs is about 2.8:1, below the 4.5:1 target; this comes from the student hero design and affects students and tutors alike.
+
 - [x] Admin curriculum page rebuilt to look like the student's My subjects page (17 October 2026, owner request with a screenshot of `/student/subjects/[id]`).
   `/admin/subjects/[id]/curriculum` now opens with the student hero in the subject colour: a white "Back to classes" pill where the student's subject tabs sit (admin has every subject, so tabs would not scale), "<Subject> · Week N", the week title, and a white Edit week button where the student's Message button sits.
   Below it: the weeks rail, open by default, with the selected week filled in the subject colour (term label now "Term 2 · 2026", as for students); the deep subject-colour Overview ("No overview yet." when empty); Lesson & materials cards matching the student's (Upload file in the subject colour, View and Replace in grey); then Homework beside a 280px Weekly quiz card.
@@ -558,7 +571,7 @@ Last updated: 17 October 2026
   `NewQuizPanel` takes `surface="panel"`, so "Request from tutor" uses the outline button on a white panel, where the glass button had no visible edge.
   Bug fixed: deleting a curriculum week left its video and booklet in storage. Reproduced on dev (the booklet was still in the `curriculum` bucket after the delete); `deleteSubjectWeek` now removes both, checked the same way.
   Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs at 1440px and 390px (no horizontal overflow) of create week, edit week, booklet upload, Manage topics, delete week, a pending-review quiz, the no-quiz card and Back to classes, on violet, rose and teal subjects. Video upload was not run. Test weeks and files were removed afterwards.
-  Still different across roles: the tutor class curriculum (ink Overview, its own layout) and the parent subject page (its own hero and chips) do not use these shared components yet.
+  Still different across roles: the parent subject page (its own hero and chips) does not use these shared components yet (the tutor page does since the entry below).
   Weeks deleted before this fix may have left files in the `curriculum` bucket in dev and Production; they have not been swept.
 
 - [x] Admin class and subject editing, built to the owner's handoff `taiyo-admin-classes-edit.zip` (16 October 2026, owner request).

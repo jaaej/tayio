@@ -5,6 +5,7 @@ import {
   MATERIAL_BUTTON,
   MATERIAL_BUTTON_QUIET,
   MaterialCard,
+  MaterialNotReady as NotReady,
 } from "@/components/subjects/material-card";
 import { cn } from "@/lib/utils";
 import type { ChecklistTask } from "../../_lib/week-checklist";
@@ -93,14 +94,6 @@ function buttonClass(task: ChecklistTask): string {
 
 function buttonStyle(task: ChecklistTask, accent: string): React.CSSProperties | undefined {
   return task.state === "done" ? undefined : { background: accent };
-}
-
-function NotReady() {
-  return (
-    <span aria-disabled className={cn(MATERIAL_BUTTON, "cursor-default bg-[#F1F2F7] text-[#8C8AA0]")}>
-      Not ready
-    </span>
-  );
 }
 
 function status(task: ChecklistTask) {

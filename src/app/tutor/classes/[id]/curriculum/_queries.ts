@@ -87,6 +87,8 @@ export async function getTutorCurriculum(
   tutorId: string,
   classId: string,
   selectedTermId: string | undefined,
+  /** The `?week=` being opened: without a term, its own term is shown. */
+  linkedWeekId?: string,
 ): Promise<TutorCurriculumData | null> {
   const [cls] = await db
     .select({
@@ -113,8 +115,22 @@ export async function getTutorCurriculum(
     .from(terms)
     .orderBy(desc(terms.year), desc(terms.termNumber));
 
+  const [linkedWeek] =
+    !selectedTermId && linkedWeekId && /^[0-9a-f-]{36}$/i.test(linkedWeekId)
+      ? await db
+          .select({ termId: subjectWeeks.termId })
+          .from(subjectWeeks)
+          .where(
+            and(
+              eq(subjectWeeks.id, linkedWeekId),
+              eq(subjectWeeks.subjectId, cls.subjectId),
+            ),
+          )
+          .limit(1)
+      : [];
   const term =
     (selectedTermId && allTerms.find((t) => t.id === selectedTermId)) ||
+    (linkedWeek && allTerms.find((t) => t.id === linkedWeek.termId)) ||
     (await resolveCurrentTerm()) ||
     (await resolveMostRecentPastTerm()) ||
     allTerms[0];

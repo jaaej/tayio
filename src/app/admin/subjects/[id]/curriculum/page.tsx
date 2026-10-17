@@ -32,6 +32,8 @@ import { WeekForm } from "./_components/week-form";
 
 type SearchParams = Promise<{ term?: string; week?: string; new?: string }>;
 
+const UUID = /^[0-9a-f-]{36}$/i;
+
 export default async function AdminSubjectCurriculumPage({
   params,
   searchParams,
@@ -66,9 +68,23 @@ export default async function AdminSubjectCurriculumPage({
     .select()
     .from(terms)
     .orderBy(desc(terms.year), desc(terms.termNumber));
+  // A week link without a term (e.g. from a quiz or a notification) opens
+  // that week's own term, not the current one.
+  const [linkedWeek] =
+    weekParam && !termParam && UUID.test(weekParam)
+      ? await db
+          .select({ termId: subjectWeeks.termId })
+          .from(subjectWeeks)
+          .where(
+            and(eq(subjectWeeks.id, weekParam), eq(subjectWeeks.subjectId, subjectId)),
+          )
+          .limit(1)
+      : [];
   const currentTerm = termParam
     ? allTerms.find((t) => t.id === termParam)
-    : ((await resolveCurrentTerm()) ?? allTerms[0]);
+    : linkedWeek
+      ? allTerms.find((t) => t.id === linkedWeek.termId)
+      : ((await resolveCurrentTerm()) ?? allTerms[0]);
 
   if (!currentTerm) {
     return (
@@ -119,9 +135,8 @@ export default async function AdminSubjectCurriculumPage({
   const weekCounts: Record<string, number> = {};
   for (const r of countRows) if (r.topicId) weekCounts[r.topicId] = r.n;
 
-  const selectedWeek = weekParam
-    ? weeks.find((w) => w.id === weekParam)
-    : weeks[0];
+  const selectedWeek =
+    (weekParam ? weeks.find((w) => w.id === weekParam) : undefined) ?? weeks[0];
   const bookletSignedUrl = selectedWeek
     ? await signCurriculumUrl(selectedWeek.bookletUrl)
     : null;

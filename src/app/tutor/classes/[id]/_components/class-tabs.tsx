@@ -1,20 +1,24 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SegmentedLinks } from "@/components/admin/ui";
+import { HeroBackIcon, HeroTabs } from "@/components/subjects/subject-hero";
 
-/** The class page's tab row. A client component only to read the active tab
- * from the URL; the layout passes the counts. */
+/** The class page's tab row on the coloured class hero, after the back
+ * button. A client component only to read the active tab from the URL; the
+ * hero passes the counts. */
 export function ClassTabs({
   classId,
   lessonsToFinish,
   rosterCount,
   changesRequested,
+  fg,
 }: {
   classId: string;
   lessonsToFinish: number;
   rosterCount: number;
   changesRequested: number;
+  /** The subject's `fg`, for the selected tab and the back button. */
+  fg: string;
 }) {
   const pathname = usePathname();
   const base = `/tutor/classes/${classId}`;
@@ -26,7 +30,12 @@ export function ClassTabs({
       count: lessonsToFinish,
       countTone: "warn" as const,
     },
-    { label: "Students", href: `${base}/students`, count: rosterCount },
+    {
+      label: "Students",
+      href: `${base}/students`,
+      count: rosterCount,
+      countTone: "neutral" as const,
+    },
     {
       label: "Announcements",
       href: `${base}/announcements`,
@@ -35,10 +44,10 @@ export function ClassTabs({
     },
   ];
   return (
-    <SegmentedLinks
+    <HeroTabs
       label="Class sections"
-      size="md"
-      className="max-w-full flex-wrap self-start"
+      fg={fg}
+      leading={<HeroBackIcon href="/tutor/classes" label="All classes" fg={fg} />}
       items={tabs.map((tab) => ({
         ...tab,
         active: pathname === tab.href || pathname.startsWith(`${tab.href}/`),

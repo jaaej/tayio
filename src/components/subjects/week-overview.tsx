@@ -15,6 +15,7 @@ export function WeekOverview({
   description,
   objectives,
   emptyText,
+  note,
 }: {
   subjectName: string;
   /** The subject's stored colour (`subjects.color`). */
@@ -22,6 +23,8 @@ export function WeekOverview({
   description: string | null;
   objectives: string | null;
   emptyText?: string;
+  /** Small label beside the heading, e.g. "Set by admin" for tutors. */
+  note?: string;
 }) {
   const deep = subjectTone(subjectName, subjectColor).deep;
   const items = (objectives ?? "")
@@ -35,9 +38,20 @@ export function WeekOverview({
       className="flex flex-col gap-4 rounded-[24px] px-[22px] py-5 text-white"
       style={{ background: deep }}
     >
-      <h2 id="ov-h" className="m-0 text-[19px] font-extrabold">
-        Overview
-      </h2>
+      {note ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 id="ov-h" className="m-0 text-[19px] font-extrabold">
+            Overview
+          </h2>
+          <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] opacity-85">
+            {note}
+          </span>
+        </div>
+      ) : (
+        <h2 id="ov-h" className="m-0 text-[19px] font-extrabold">
+          Overview
+        </h2>
+      )}
       {description && (
         <p className="m-0 whitespace-pre-line text-[15px] leading-[1.6] opacity-95">{description}</p>
       )}

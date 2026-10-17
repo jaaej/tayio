@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HERO_ACTION, HERO_PILL, SubjectHero } from "@/components/subjects/subject-hero";
+import { HERO_ACTION, HeroTabs, SubjectHero } from "@/components/subjects/subject-hero";
 import { subjectTone } from "@/lib/subject-tone";
 import type { SubjectTab } from "../../_lib/subject-page";
 
@@ -43,31 +43,17 @@ export function SubjectHeader({
       title={title}
       kicker={kicker}
       nav={
-        <nav aria-label="Subjects" className="flex flex-wrap gap-1.5">
-          {tabs.map((tab) => {
-            const active = tab.subjectId === subjectId;
-            return (
-              <Link
-                key={tab.subjectId}
-                href={`/student/subjects/${tab.subjectId}`}
-                aria-current={active ? "page" : undefined}
-                className={HERO_PILL}
-                style={
-                  active
-                    ? { background: "#FFFFFF", color: deep, fontWeight: 800 }
-                    : { background: "rgba(255,255,255,.18)", color: "#FFFFFF", fontWeight: 700 }
-                }
-              >
-                {tab.subjectName}
-                {tab.dueCount > 0 && (
-                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] bg-[#FFD600] px-[5px] text-[11px] font-extrabold text-[#1B1240]">
-                    {tab.dueCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <HeroTabs
+          label="Subjects"
+          fg={deep}
+          items={tabs.map((tab) => ({
+            label: tab.subjectName,
+            href: `/student/subjects/${tab.subjectId}`,
+            active: tab.subjectId === subjectId,
+            count: tab.dueCount,
+            countTone: "warn" as const,
+          }))}
+        />
       }
       actions={
         (showRing || showMessage) && (

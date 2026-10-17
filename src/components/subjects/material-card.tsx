@@ -7,6 +7,18 @@ export const MATERIAL_BUTTON =
 /** The quiet grey fill for a button whose work is done (or a secondary one). */
 export const MATERIAL_BUTTON_QUIET = "bg-[#F1F2F7] text-ink hover:bg-[#E7E9F1]";
 
+/** The greyed-out button of material that is not uploaded yet. */
+export function MaterialNotReady() {
+  return (
+    <span
+      aria-disabled
+      className="flex h-10 w-full items-center justify-center rounded-[12px] bg-[#F1F2F7] text-[14px] font-extrabold text-[#8C8AA0]"
+    >
+      Not ready
+    </span>
+  );
+}
+
 const KINDS = {
   video: { Icon: Play, bg: "#E4ECFF", fg: "#3B6BFF" },
   booklet: { Icon: FileText, bg: "#FDF1E0", fg: "#B45309" },
