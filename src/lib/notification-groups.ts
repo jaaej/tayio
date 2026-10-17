@@ -63,6 +63,8 @@ export function notificationGroupFor(
     title.includes("changes requested") ||
     title.includes("overdue") ||
     title.startsWith("payment reminder") ||
+    // An admin decides before the student leaves their trial classes.
+    title.startsWith("free trial ends") ||
     title.includes("declined") ||
     title.includes("cancelled") ||
     title.includes("canceled")

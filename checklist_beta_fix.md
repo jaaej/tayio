@@ -13,6 +13,9 @@ Last updated: 17 October 2026
 
 ## Manual QA required
 
+- [ ] Free trial ends, student leaves (17 October 2026): give a test student a trial ending tomorrow and add them to a class.
+  On the last day, confirm admins get "Free trial ends today" (Action needed) naming the class; the next morning, confirm they are off that class's roll, their older classes are untouched, the tutor gets "Free trial ended", and the admin follow-up names the class. Re-add them and confirm they stay.
+
 - [ ] Duplicate subject names (17 October 2026): in Production, add a second subject with an existing name and a different level.
   Confirm both show on Classes with their levels, New quiz lists them as "Name (Year N)" with only that subject's weeks, and the Quizzes filter, timetables' colour legends and student and parent Homework tabs keep them apart.
 
@@ -1435,6 +1438,12 @@ Last updated: 17 October 2026
 
 ## Free-trial students
 
+- [x] Students leave their trial classes automatically when the trial ends (17 October 2026, owner request).
+  The daily sweep (`runFreeTrialSweep` in `src/lib/free-trial-notifications.ts`, renamed from `runFreeTrialNotifications`; run by the cron and after an admin saves a trial) withdraws the student, the morning after the trial's last day, from the classes they joined for the trial: from a week before it started to its last day (`joinedForTrial`, tested). Older classes are kept, and a class re-added after the trial is not removed again.
+  Owner decision: trial students are created and enrolled by admins only, so to keep a student the admin extends or clears the trial (the trial card now says so); re-adding them after removal also works.
+  Notices: admins get "Free trial ends today" (Action needed) on the last day naming the classes they leave tomorrow; the tutor of each class left gets "Free trial ended" (Updates); the existing admin follow-up now names the classes left. Withdrawal keeps past attendance and notes.
+  Only trials ending on or after 18 October 2026 (`TRIAL_WITHDRAW_FROM_END_DATE`) are acted on, so trials that ended earlier (students who stayed on without the trial being cleared) are never removed retroactively.
+  Verified on dev: lint, 555 tests, a production build, and the real sweep run for simulated days on a student given a trial and added to a class through the UI: reminder on the last day, removed from that class only the next day (two older classes kept), tutor told, follow-up named the class, nothing repeated the day after, and a re-add after the trial stayed. Test data removed.
 - [x] Complete the free-trial notification and attendance workflow.
   - Admin can set a student's trial start date, end date,
     and internal note from the student profile.

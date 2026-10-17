@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { runTutorCoverReminders } from "@/lib/tutor-cover";
-import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
+import { runFreeTrialSweep } from "@/lib/free-trial-notifications";
 import { deliverPendingAnnouncementEmails } from "@/lib/announcement-email";
 import { runTutorCheckinReminders } from "@/lib/tutor-checkins";
 import { ensureRecurringLessons } from "@/lib/recurring-lessons";
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const [cover, freeTrials, checkins, announcementEmails, recurringLessons] = await Promise.all([
     runTutorCoverReminders(),
-    runFreeTrialNotifications(),
+    runFreeTrialSweep(),
     runTutorCheckinReminders(),
     deliverPendingAnnouncementEmails({ limit: 100 }),
     ensureRecurringLessons(),

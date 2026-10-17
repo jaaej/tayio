@@ -185,6 +185,15 @@ describe("notificationGroupFor", () => {
     ];
     for (const c of cases) expect(notificationGroupFor(c)).toBe("updates");
   });
+
+  it("asks admin to act on a trial's last day and tells the tutor once the student has left", () => {
+    expect(
+      notificationGroupFor({ title: "Free trial ends today", href: "/admin/users/s1" }),
+    ).toBe("action");
+    expect(
+      notificationGroupFor({ title: "Free trial ended", href: "/tutor/classes/c1/students" }),
+    ).toBe("updates");
+  });
 });
 
 describe("NOTIFICATION_GROUPS", () => {

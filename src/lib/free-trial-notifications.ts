@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -18,8 +18,13 @@ import {
 import { formatDateLong, formatTime } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import {
+  TRIAL_WITHDRAW_FROM_END_DATE,
+  freeTrialEndsTodayDedupeKey,
   freeTrialFollowUpDedupeKey,
+  freeTrialLeftClassDedupeKey,
   freeTrialTodayDedupeKey,
+  joinedForTrial,
+  trialWithdrawalDue,
 } from "@/lib/free-trial-rules";
 import { ADMIN_TIERS } from "@/lib/roles";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
@@ -138,6 +143,68 @@ async function getTodaysTrialLessons(today: string): Promise<TrialLessonEvent[]>
   return Array.from(unique.values());
 }
 
+type TrialClass = {
+  studentId: string;
+  studentName: string;
+  endDate: string;
+  classId: string;
+  classLabel: string;
+  tutorId: string;
+  tutorActive: boolean;
+};
+
+/**
+ * Classes that students joined for a trial ending today or already over
+ * (from the automatic-removal rollout on) and are still in.
+ */
+async function classesJoinedForTrials(today: string): Promise<TrialClass[]> {
+  const rows = await db
+    .select({
+      studentId: studentTrials.studentId,
+      studentFirst: trialStudent.firstName,
+      studentLast: trialStudent.lastName,
+      startDate: studentTrials.startDate,
+      endDate: studentTrials.endDate,
+      classId: classes.id,
+      className: classes.name,
+      subjectName: subjects.name,
+      tutorId: classes.tutorId,
+      tutorActive: assignedTutor.isActive,
+      enrolledAt: enrollments.enrolledAt,
+    })
+    .from(studentTrials)
+    .innerJoin(trialStudent, eq(trialStudent.id, studentTrials.studentId))
+    .innerJoin(enrollments, eq(enrollments.studentId, studentTrials.studentId))
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(assignedTutor, eq(assignedTutor.id, classes.tutorId))
+    .where(
+      and(
+        isNull(enrollments.withdrawnAt),
+        gte(studentTrials.endDate, TRIAL_WITHDRAW_FROM_END_DATE),
+        lte(studentTrials.endDate, today),
+      ),
+    );
+  return rows
+    .filter((r) => joinedForTrial(melbourneDate(r.enrolledAt), r))
+    .map((r) => ({
+      studentId: r.studentId,
+      studentName: `${r.studentFirst} ${r.studentLast}`.trim(),
+      endDate: r.endDate,
+      classId: r.classId,
+      classLabel: classDisplayName(r.subjectName, r.className),
+      tutorId: r.tutorId,
+      tutorActive: r.tutorActive,
+    }));
+}
+
+/** "Year 9 Maths · Saturday AM and Year 9 English · Tuesday PM". */
+function listClasses(labels: string[]): string {
+  return labels.length <= 1
+    ? labels.join("")
+    : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
 async function insertDeduped(
   values: Array<typeof notifications.$inferInsert>,
 ): Promise<number> {
@@ -150,11 +217,53 @@ async function insertDeduped(
   return inserted.length;
 }
 
-/** Daily, retry-safe free-trial alert sweep. It is run by the same secured
- * Vercel cron as tutor cover reminders and immediately after an admin saves a
- * trial, so a trial added on the day is not missed. */
-export async function runFreeTrialNotifications(now = new Date()) {
+/** Daily, retry-safe free-trial sweep: today's trial alerts, the last-day
+ * reminder, leaving the classes joined for a trial once it is over (tutors are
+ * told), and the admin follow-up. It is run by the same secured Vercel cron as
+ * tutor cover reminders and immediately after an admin saves a trial, so a
+ * trial added on the day is not missed. */
+export async function runFreeTrialSweep(now = new Date()) {
   const today = melbourneDate(now);
+  const trialClasses = await classesJoinedForTrials(today);
+
+  // Leave the classes joined for trials that are over. Only rows this run
+  // actually withdrew are announced, so a retry never repeats a notice.
+  const left = new Map<string, string[]>();
+  const tutorValues: Array<typeof notifications.$inferInsert> = [];
+  for (const c of trialClasses.filter((x) => trialWithdrawalDue(x.endDate, today))) {
+    const withdrawn = await db
+      .update(enrollments)
+      .set({ withdrawnAt: now })
+      .where(
+        and(
+          eq(enrollments.classId, c.classId),
+          eq(enrollments.studentId, c.studentId),
+          isNull(enrollments.withdrawnAt),
+        ),
+      )
+      .returning({ classId: enrollments.classId });
+    if (withdrawn.length === 0) continue;
+    left.set(c.studentId, [...(left.get(c.studentId) ?? []), c.classLabel]);
+    if (c.tutorActive) {
+      tutorValues.push({
+        userId: c.tutorId,
+        channel: "in_app",
+        title: "Free trial ended",
+        body: `${c.studentName}’s free trial has ended, so they’re no longer in ${c.classLabel}.`,
+        href: `/tutor/classes/${c.classId}/students`,
+        dedupeKey: freeTrialLeftClassDedupeKey(c.classId, c.studentId, c.endDate),
+      });
+    }
+  }
+
+  // Last day: tell admins which classes the student leaves tomorrow.
+  const endingToday = new Map<string, { name: string; endDate: string; classes: string[] }>();
+  for (const c of trialClasses.filter((x) => x.endDate === today)) {
+    const entry = endingToday.get(c.studentId) ?? { name: c.studentName, endDate: c.endDate, classes: [] };
+    entry.classes.push(c.classLabel);
+    endingToday.set(c.studentId, entry);
+  }
+
   const [adminRows, events, endedTrials] = await Promise.all([
     db
       .select({ id: profiles.id })
@@ -213,9 +322,26 @@ export async function runFreeTrialNotifications(now = new Date()) {
     }
   }
 
+  const endsTodayValues: Array<typeof notifications.$inferInsert> = [];
+  for (const [studentId, trial] of endingToday) {
+    for (const userId of adminIds) {
+      endsTodayValues.push({
+        userId,
+        channel: "in_app",
+        title: "Free trial ends today",
+        body:
+          `${trial.name}’s free trial ends today. Tomorrow they leave ` +
+          `${listClasses(trial.classes)} unless you extend or clear the trial.`,
+        href: `/admin/users/${studentId}`,
+        dedupeKey: freeTrialEndsTodayDedupeKey(studentId, trial.endDate),
+      });
+    }
+  }
+
   const followUpValues: Array<typeof notifications.$inferInsert> = [];
   for (const trial of endedTrials) {
     const studentName = `${trial.firstName} ${trial.lastName}`.trim();
+    const leftClasses = left.get(trial.studentId) ?? [];
     for (const userId of adminIds) {
       followUpValues.push({
         userId,
@@ -223,6 +349,7 @@ export async function runFreeTrialNotifications(now = new Date()) {
         title: "Bump student for free-trial follow-up",
         body:
           `${studentName}’s free trial ended on ${formatDateLong(trial.endDate)}. ` +
+          (leftClasses.length > 0 ? `They have left ${listClasses(leftClasses)}. ` : "") +
           "Follow up with the student or family.",
         href: `/admin/users/${trial.studentId}`,
         dedupeKey: freeTrialFollowUpDedupeKey(
@@ -233,13 +360,18 @@ export async function runFreeTrialNotifications(now = new Date()) {
     }
   }
 
-  const [todaySent, followUpsSent] = await Promise.all([
+  const [todaySent, followUpsSent, endsTodaySent, tutorsTold] = await Promise.all([
     insertDeduped(todayValues),
     insertDeduped(followUpValues),
+    insertDeduped(endsTodayValues),
+    insertDeduped(tutorValues),
   ]);
   return {
     todaySent,
     followUpsSent,
+    endsTodaySent,
+    tutorsTold,
+    classesLeft: [...left.values()].reduce((n, list) => n + list.length, 0),
     trialLessons: events.length,
   };
 }

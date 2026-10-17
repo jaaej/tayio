@@ -10,7 +10,7 @@ import { requireAdmin } from "./guard";
 import { withActor } from "@/lib/with-actor";
 import { coarseRole } from "@/lib/roles";
 import { validateTrialRange } from "@/lib/student-trial";
-import { runFreeTrialNotifications } from "@/lib/free-trial-notifications";
+import { runFreeTrialSweep } from "@/lib/free-trial-notifications";
 
 const setSchema = z.object({
   studentId: z.string().uuid(),
@@ -64,7 +64,7 @@ export async function setStudentTrial(input: z.infer<typeof setSchema>) {
   // lesson query in the system.
   after(async () => {
     try {
-      await runFreeTrialNotifications();
+      await runFreeTrialSweep();
       revalidatePath("/admin/notifications");
     } catch (error) {
       console.error("[student-trial] notification sweep failed:", error);

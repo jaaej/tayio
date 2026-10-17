@@ -8,6 +8,7 @@ import {
   clearStudentTrial,
 } from "@/app/admin/_lib/actions-trial";
 import { formatDateLong } from "@/lib/format";
+import { TRIAL_WITHDRAW_FROM_END_DATE } from "@/lib/free-trial-rules";
 
 type Trial = { startDate: string; endDate: string; note: string | null };
 
@@ -50,13 +51,20 @@ export function StudentTrialManager({
   return (
     <div className="space-y-3">
       {trial ? (
-        <div className="flex items-center gap-2 text-[13px]">
-          <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-[12px] font-bold text-brand-700">
-            Trial period
-          </span>
-          <span className="text-ink-soft">
-            {formatDateLong(trial.startDate)} – {formatDateLong(trial.endDate)}
-          </span>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-[12px] font-bold text-brand-700">
+              Trial period
+            </span>
+            <span className="text-ink-soft">
+              {formatDateLong(trial.startDate)} – {formatDateLong(trial.endDate)}
+            </span>
+          </div>
+          {trial.endDate >= TRIAL_WITHDRAW_FROM_END_DATE && (
+            <p className="text-[12px] text-ink-soft">
+              The day after it ends, they leave the classes they joined for the trial. To keep them, extend or clear the trial first.
+            </p>
+          )}
         </div>
       ) : (
         <p className="text-[13px] text-muted">
