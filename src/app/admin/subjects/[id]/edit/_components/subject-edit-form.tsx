@@ -18,7 +18,22 @@ import { ColourSwatches, LevelSelect } from "@/app/admin/classes/_components/sub
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { subjectTone, type SubjectColor } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
-import { changeNotice, roomTaken, type CardSlot } from "../_lib/class-card";
+import {
+  rankTutorsForSlot,
+  type TutorClassSlot,
+  type TutorWeeklyWindow,
+} from "@/app/admin/classes/_lib/tutor-fit";
+import {
+  changeNotice,
+  detailsPatch,
+  hasStudentChanges,
+  roomTaken,
+  studentChanges,
+  type CardDetails,
+  type CardSlot,
+  type CardStudent,
+} from "../_lib/class-card";
+import { ClassStudents } from "./class-students";
 
 export type EditClass = {
   id: string;
@@ -29,6 +44,8 @@ export type EditClass = {
   /** Linked parents of the enrolled students, each counted once. */
   parents: number;
   saved: CardSlot;
+  details: CardDetails;
+  students: CardStudent[];
 };
 
 type Card = {
@@ -41,6 +58,9 @@ type Card = {
   /** Null for a class added on this page and not saved yet. */
   saved: CardSlot | null;
   current: CardSlot;
+  savedDetails: CardDetails | null;
+  details: CardDetails;
+  students: CardStudent[];
 };
 
 type OtherSlot = {
@@ -67,6 +87,14 @@ const DAYS = [
   [0, "Sunday"],
 ] as const;
 
+const CLASS_TYPES = [
+  ["group", "Group"],
+  ["one_on_one", "One-on-one"],
+] as const;
+
+const STEP =
+  "grid h-full w-9 shrink-0 place-items-center text-[17px] font-bold text-ink transition-colors hover:bg-[#F1F2F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:opacity-40";
+
 const EMPTY_SLOT: CardSlot = { weekday: null, startTime: "", endTime: "", room: "", tutorId: "" };
 
 function dirty(card: Card) {
@@ -78,8 +106,23 @@ function dirty(card: Card) {
     a.startTime !== b.startTime ||
     a.endTime !== b.endTime ||
     a.room.trim() !== b.room.trim() ||
-    a.tutorId !== b.tutorId
+    a.tutorId !== b.tutorId ||
+    Object.keys(detailsPatch(card.savedDetails, card.details)).length > 0 ||
+    hasStudentChanges(studentChanges(card.students))
   );
+}
+
+/** An http(s) link, or blank. */
+function linkError(link: string): string | null {
+  const value = link.trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") return null;
+  } catch {
+    /* falls through */
+  }
+  return "Enter the full online link, starting with https://";
 }
 
 export function SubjectEditForm({
@@ -89,15 +132,27 @@ export function SubjectEditForm({
   tutors,
   rooms,
   otherSlots,
+  tutorWindows,
+  classSlots,
+  subjects,
+  students,
 }: {
   subject: { id: string; name: string; yearLevel: string; color: SubjectColor };
   sub: string;
   classes: EditClass[];
-  tutors: { id: string; name: string }[];
+  tutors: { id: string; name: string; firstName: string; lastName: string }[];
   /** Room chips: rooms any class uses, then "Online". */
   rooms: string[];
   /** Every weekly class's saved slot and room, for "Taken at this time". */
   otherSlots: OtherSlot[];
+  /** Tutors' weekly availability, to rank them for each card's slot. */
+  tutorWindows: TutorWeeklyWindow[];
+  /** Every weekly class, to spot a tutor already teaching then. */
+  classSlots: (TutorClassSlot & { classId: string })[];
+  /** Subjects a class can be moved to. */
+  subjects: { id: string; name: string }[];
+  /** Every student account, for each card's Add a student. */
+  students: { id: string; name: string; detail: string }[];
 }) {
   const router = useRouter();
   const formId = useId();
@@ -106,7 +161,7 @@ export function SubjectEditForm({
   const [level, setLevel] = useState(subject.yearLevel);
   const [color, setColor] = useState<SubjectColor>(subject.color);
   const [cards, setCards] = useState<Card[]>(() =>
-    classes.map((c) => ({ key: c.id, ...c, current: c.saved })),
+    classes.map((c) => ({ key: c.id, ...c, current: c.saved, savedDetails: c.details })),
   );
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -122,6 +177,15 @@ export function SubjectEditForm({
     setClassErrors(({ [key]: _gone, ...rest }) => rest);
   }
 
+  function updateDetails(key: string, patch: Partial<CardDetails>) {
+    setCards((cs) => cs.map((c) => (c.key === key ? { ...c, details: { ...c.details, ...patch } } : c)));
+    setClassErrors(({ [key]: _gone, ...rest }) => rest);
+  }
+
+  function updateStudents(key: string, list: CardStudent[]) {
+    setCards((cs) => cs.map((c) => (c.key === key ? { ...c, students: list } : c)));
+  }
+
   function addClass() {
     const key = `new-${crypto.randomUUID()}`;
     setCards((cs) => [
@@ -134,6 +198,9 @@ export function SubjectEditForm({
         parents: 0,
         saved: null,
         current: { ...EMPTY_SLOT, tutorId: tutors.length === 1 ? tutors[0].id : "" },
+        savedDetails: null,
+        details: { name: "", subjectId: subject.id, classType: "group", capacity: 8, onlineLink: "" },
+        students: [],
       },
     ]);
   }
@@ -144,9 +211,14 @@ export function SubjectEditForm({
     // Checked here so each card says what is missing; the server checks too.
     const errors: Record<string, string> = {};
     for (const c of cards) {
+      const capacity = c.details.capacity;
       if (!c.current.tutorId) errors[c.key] = "Choose a tutor.";
       else if (c.current.weekday !== null && (!c.current.startTime || !c.current.endTime)) {
         errors[c.key] = "Choose a start and end time.";
+      } else if (!Number.isInteger(capacity) || capacity < 1 || capacity > 200) {
+        errors[c.key] = "Capacity must be a whole number from 1 to 200.";
+      } else if (linkError(c.details.onlineLink)) {
+        errors[c.key] = linkError(c.details.onlineLink)!;
       }
     }
     setClassErrors(errors);
@@ -160,15 +232,20 @@ export function SubjectEditForm({
           name: name.trim(),
           yearLevel: level || undefined,
           color,
-          classes: cards.filter(dirty).map((c) => ({
-            key: c.key,
-            id: c.id,
-            weekday: c.current.weekday,
-            startTime: c.current.startTime,
-            endTime: c.current.endTime,
-            tutorId: c.current.tutorId,
-            location: c.current.room,
-          })),
+          classes: cards.filter(dirty).map((c) => {
+            const changes = studentChanges(c.students);
+            return {
+              key: c.key,
+              id: c.id,
+              weekday: c.current.weekday,
+              startTime: c.current.startTime,
+              endTime: c.current.endTime,
+              tutorId: c.current.tutorId,
+              location: c.current.room,
+              ...detailsPatch(c.savedDetails, c.details),
+              ...(hasStudentChanges(changes) && { students: changes }),
+            };
+          }),
         });
         if (!result.ok) {
           setError(result.error ?? null);
@@ -355,9 +432,35 @@ export function SubjectEditForm({
               end: `${formId}-${card.key}-end`,
               tutor: `${formId}-${card.key}-tutor`,
               room: `${formId}-${card.key}-room`,
+              name: `${formId}-${card.key}-name`,
+              type: `${formId}-${card.key}-type`,
+              capacity: `${formId}-${card.key}-capacity`,
+              link: `${formId}-${card.key}-link`,
+              subject: `${formId}-${card.key}-subject`,
             };
+            const ranked = rankTutorsForSlot(
+              tutors,
+              tutorWindows,
+              classSlots.filter((s) => s.classId !== card.id),
+              {
+                weekday: card.current.weekday,
+                startTime: card.current.startTime || null,
+                endTime: card.current.endTime || null,
+                subjectId: card.details.subjectId,
+              },
+            );
+            const free = ranked.filter((t) => t.fit === "free" || t.fit === "unknown");
+            const notFree = ranked.filter((t) => t.fit !== "free" && t.fit !== "unknown");
+            const movingTo =
+              card.details.subjectId !== subject.id
+                ? subjects.find((x) => x.id === card.details.subjectId)?.name
+                : null;
             return (
-              <div key={card.key} className="panel flex flex-col gap-3.5 px-[18px] py-4">
+              <div
+                key={card.key}
+                id={card.id ? `class-${card.id}` : undefined}
+                className="panel flex scroll-mt-6 flex-col gap-3.5 px-[18px] py-4 target:ring-2 target:ring-[#7C62F0]"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
                     <span className="text-[15px] font-extrabold text-ink">{card.title}</span>
@@ -366,7 +469,6 @@ export function SubjectEditForm({
                   {card.id ? (
                     <DeleteClassButton
                       id={card.id}
-                      variant="inline"
                       onDeleted={() => {
                         setCards((cs) => cs.filter((c) => c.key !== card.key));
                         router.refresh();
@@ -446,12 +548,38 @@ export function SubjectEditForm({
                           Choose tutor
                         </option>
                       )}
-                      {tutors.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
+                      {notFree.length === 0 ? (
+                        free.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          {free.length > 0 && (
+                            <optgroup label="Free then">
+                              {free.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="Not free then">
+                            {notFree.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </>
+                      )}
                     </SelectField>
+                    {ranked.find((t) => t.id === card.current.tutorId)?.note && (
+                      <p className="text-[12px] font-semibold text-warn">
+                        {ranked.find((t) => t.id === card.current.tutorId)?.note}
+                      </p>
+                    )}
                   </div>
                   <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
                     <label htmlFor={ids.room} className={LBL}>
@@ -496,6 +624,132 @@ export function SubjectEditForm({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 items-start gap-3.5 lg:[grid-template-columns:minmax(0,1.3fr)_196px_132px_minmax(0,1.2fr)_minmax(0,1fr)]">
+                  <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                    <label htmlFor={ids.name} className={LBL}>
+                      Class name
+                    </label>
+                    <input
+                      id={ids.name}
+                      value={card.details.name}
+                      onChange={(e) => updateDetails(card.key, { name: e.target.value })}
+                      placeholder={card.saved ? undefined : "Named from its day and time"}
+                      maxLength={200}
+                      autoComplete="off"
+                      className={INPUT}
+                    />
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+                    <span id={ids.type} className={LBL}>
+                      Type
+                    </span>
+                    <div
+                      role="radiogroup"
+                      aria-labelledby={ids.type}
+                      className="flex h-10 gap-0.5 rounded-[11px] bg-[#F1F2F7] p-[3px]"
+                    >
+                      {CLASS_TYPES.map(([value, label]) => {
+                        const on = card.details.classType === value;
+                        return (
+                          <label
+                            key={value}
+                            className={cn(
+                              "flex flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-[9px] px-2 text-[13px] transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400",
+                              on ? "bg-ink font-bold text-white" : "font-semibold text-ink-soft hover:text-ink",
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={`${formId}-${card.key}-type`}
+                              value={value}
+                              checked={on}
+                              onChange={() => updateDetails(card.key, { classType: value })}
+                              className="sr-only"
+                            />
+                            {label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+                    <label htmlFor={ids.capacity} className={LBL}>
+                      Capacity
+                    </label>
+                    <div className="flex h-10 items-center overflow-hidden rounded-[11px] border border-[#DCDEE9] bg-white focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10">
+                      <button
+                        type="button"
+                        aria-label="Decrease capacity"
+                        disabled={card.details.capacity <= 1}
+                        onClick={() =>
+                          updateDetails(card.key, { capacity: Math.max(1, card.details.capacity - 1) })
+                        }
+                        className={STEP}
+                      >
+                        −
+                      </button>
+                      <input
+                        id={ids.capacity}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={200}
+                        value={Number.isNaN(card.details.capacity) ? "" : card.details.capacity}
+                        onChange={(e) => updateDetails(card.key, { capacity: e.target.valueAsNumber })}
+                        className="h-full min-w-0 flex-1 border-0 bg-transparent text-center text-[14px] font-bold tabular-nums text-ink outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Increase capacity"
+                        disabled={card.details.capacity >= 200}
+                        onClick={() =>
+                          updateDetails(card.key, { capacity: Math.min(200, (card.details.capacity || 0) + 1) })
+                        }
+                        className={STEP}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                    <label htmlFor={ids.link} className={LBL}>
+                      Online link
+                    </label>
+                    <input
+                      id={ids.link}
+                      type="url"
+                      value={card.details.onlineLink}
+                      onChange={(e) => updateDetails(card.key, { onlineLink: e.target.value })}
+                      placeholder="https://"
+                      maxLength={2000}
+                      autoComplete="off"
+                      className={INPUT}
+                    />
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                    <label htmlFor={ids.subject} className={LBL}>
+                      Subject
+                    </label>
+                    <SelectField
+                      id={ids.subject}
+                      value={card.details.subjectId}
+                      onChange={(e) => updateDetails(card.key, { subjectId: e.target.value })}
+                      className={SELECT}
+                    >
+                      {subjects.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
+                </div>
+
+                {movingTo && (
+                  <p className="flex items-center gap-2 rounded-[12px] bg-[#FCEFDF] px-3 py-2.5 text-[13px] font-semibold text-[#7A4108]">
+                    Saving moves this class to {movingTo}, so it leaves this page.
+                  </p>
+                )}
                 {classErrors[card.key] && (
                   <p role="alert" className="text-[13px] font-semibold text-bad">
                     {classErrors[card.key]}
@@ -510,6 +764,13 @@ export function SubjectEditForm({
                     {notice}
                   </p>
                 )}
+
+                <ClassStudents
+                  students={card.students}
+                  capacity={card.details.capacity || 1}
+                  candidates={students}
+                  onChange={(list) => updateStudents(card.key, list)}
+                />
               </div>
             );
           })}

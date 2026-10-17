@@ -17,7 +17,7 @@ import {
   classFamilies,
   type ClassDeletionImpact,
 } from "./class-lessons";
-import { applyClassEdit, classPatchSchema, insertClass, patchTimeError } from "./class-writes";
+import { classPatchSchema, insertClass, patchTimeError } from "./class-writes";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -29,9 +29,8 @@ const classSchema = classPatchSchema.required({
   isRecurring: true,
 });
 
-function revalidateSchedules(classId?: string) {
+function revalidateSchedules() {
   revalidatePath("/admin/classes");
-  if (classId) revalidatePath(`/admin/classes/${classId}`);
   revalidatePath("/admin");
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/notifications");
@@ -57,29 +56,6 @@ export async function createClass(input: z.input<typeof classSchema>) {
   }
   revalidateSchedules();
   return { ok: true as const, id };
-}
-
-const updateClassSchema = classSchema.extend({ id: z.string().uuid() });
-
-/** Save a class and carry the change to its upcoming lessons (applyClassEdit). */
-export async function updateClass(input: z.input<typeof updateClassSchema>) {
-  const user = await requireAdmin();
-  const { id, ...patch } = updateClassSchema.parse(input);
-  const timeError = patchTimeError(patch);
-  if (timeError) return { ok: false as const, error: timeError };
-  const saved = await withActor({ id: user.id, role: "admin" }, (tx) =>
-    applyClassEdit(tx, id, patch, new Date()),
-  );
-  if (!saved) return { ok: false as const, error: "This class no longer exists." };
-  if (patch.isRecurring) {
-    try {
-      await ensureRecurringLessons({ classIds: [id] });
-    } catch (error) {
-      console.error("[classes] recurring lesson extension failed:", error);
-    }
-  }
-  revalidateSchedules(id);
-  return { ok: true as const };
 }
 
 /**

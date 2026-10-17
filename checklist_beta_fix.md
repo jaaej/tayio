@@ -13,6 +13,11 @@ Last updated: 17 October 2026
 
 ## Manual QA required
 
+- [ ] Subject page as the home of its classes (17 October 2026): sign in as admin at 1440px and 390px.
+  From Classes, click a class on the schedule and confirm it opens the subject page at that class (outlined).
+  On a class card, change the name, type, capacity and online link; add a student, set their delivery and private note; withdraw another; check the rows say "Joins on save" / "Leaves on save", then Save and reopen to confirm each change. Repeat one change and press Cancel to confirm nothing is saved.
+  Add a class and pick a tutor after the day and time: tutors free then are listed first, with the reason under the field for one who is not. Move a class to another subject and confirm the warning, then that it appears on the other subject's page after saving.
+
 - [ ] Tutor class page in the student layout (17 October 2026): sign in as a tutor at 1440px and 390px and open a class from Classes.
   On each tab (Week plan, Lessons, Students, Announcements) confirm the coloured hero: back button, the tabs as pills with the Lessons and Announcements counts in yellow, and "Today ... Open lesson" on a lesson day.
   On Week plan, pick weeks in the rail and confirm the hero title follows the week; open an uploaded booklet and video; edit "For students this week" and attach a file; add homework; open a week with a requested quiz and press Write quiz.
@@ -553,6 +558,14 @@ Last updated: 17 October 2026
 
 ## Recently implemented
 
+- [x] Subject page is the home of its classes; the class page is retired (17 October 2026, owner request: "everything in the other page should be in here").
+  `/admin/subjects/[id]/edit` class cards now carry what `/admin/classes/[id]` held: class name, Group / One-on-one, capacity, online link, subject (move, with a warning that the class leaves the page), and a Students section (`_components/class-students.tsx`) to add students, set delivery and a private admin note, and withdraw.
+  Owner decisions: student changes wait for Save changes like every other field (rows say "Joins on save" / "Leaves on save" with Undo, so Cancel really cancels); New class stays on Classes, and the card's tutor list is ranked the same way (free then first, the reason under the field), via `rankTutorsForSlot`.
+  The one Save (`saveSubjectPage`) now also applies changed details through `applyClassEdit` / `insertClass` and the student changes (`applyStudentChanges`) in the same transaction; a joining account that is not a student, or a move to a deleted subject, refuses the whole save. Change rules are pure and tested (`detailsPatch`, `studentChanges` in `_lib/class-card.ts`, 8 new tests).
+  `/admin/classes/[id]` redirects to the subject page at `#class-<id>` (the card is outlined), so schedule blocks, the dashboard feed, notifications, reports and profiles keep working. Removed as unused: the class page's `edit-class-form.tsx` and `enrollments-manager.tsx`, the instant enrolment actions (`actions-enrollments.ts`), `updateClass`, and the delete button's full-width variant.
+  Verified on :3000 against dev: typecheck, lint, 546 tests, a production build, and a browser run: redirect to the card, add a class with every field and a staged student, save (checked in the database), reopen through the old URL, withdraw and change capacity, save (checked), stage an add and Cancel (nothing saved), delete the class; phone width has no overflow. The test class and its notifications were removed.
+  Same as before, not changed: enrolling or withdrawing sends no notification, and capacity is a warning ("At capacity"), not a block.
+
 - [x] Tutor class page in the student My subjects layout (17 October 2026, owner request; owner chose the coloured hero on all four class tabs).
   `ClassHero` (`src/app/tutor/classes/[id]/_components/class-hero.tsx`) replaces the glass class header and is rendered by each tab, because a layout cannot see `?week=`: a round back button and the class tabs as hero pills (Lessons and Announcements counts in yellow, the student count as a plain tally), then the title and a white "Today 10:00am · Open lesson" button.
   Week plan titles the hero with the open week ("Year 9 Maths · Saturday AM · Week 1" over "linear equations"); the other tabs show the schedule over the class name. The layout is now only the frame.
@@ -586,7 +599,7 @@ Last updated: 17 October 2026
   Room: the class Location field is labelled Room and sits after the time in New class; tutors see it on Classes, Today, the lesson page, and the timetable hover; admin schedule blocks show "Tom Tutor · Room 2".
   The shared confirmation dialog is restyled to the handoff's glass dialog (icon tile, class line, bold counts, red warning, type-to-confirm) for every admin confirm.
   Verified on :3000 against dev: typecheck, lint, 538 tests, a production build, and browser runs of each flow at 1440px (edit page also at 390px): save with a move and an added class, delete an unrun class, the blocked class to Attendance to Delete lesson to delete chain, and create then delete a subject. Throwaway test data was removed afterwards.
-  Not done: the class page (`/admin/classes/[id]`) keeps its own full edit form (name, type, capacity, online link, enrolments) beside the subject edit page; both save through `applyClassEdit`.
+  Since 17 October 2026 the class page is gone: everything it held is on the subject page (entry above).
 
 - [x] Admin New class: the tutor is chosen after the day and times, ranked by availability (15 October 2026, owner request).
   The Tutor section now sits under When; every tutor is listed, those available for the whole class first ("Free then"), then "Not free then" with a note: "Teaching <class> then" (available but already teaching a class that overlaps) or "Outside their available hours" / "No available hours set".
