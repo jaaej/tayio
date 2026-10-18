@@ -10,7 +10,7 @@ import {
   melbourneNow,
   type ClassHub,
 } from "../_lib/class-hub";
-import { needsFinishingCount } from "../_lib/lesson-progress";
+import { needsFinishingCount } from "@/lib/lesson-progress";
 import { ClassTabs } from "./class-tabs";
 
 /**

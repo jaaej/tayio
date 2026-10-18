@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { COVER_TIME_ZONE, melbourneDate } from "@/lib/tutor-cover-rules";
 import { weekNumberOn } from "@/lib/week-plan-rules";
-import { addDays, mondayOf, type LessonCounts } from "./lesson-progress";
+import { addDays, mondayOf, type LessonCounts } from "@/lib/lesson-progress";
 
 // Data behind the class page (shared header + tabs). Wrapped in React
 // `cache` so the layout and the tab page share one query per request.

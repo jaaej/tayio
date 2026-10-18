@@ -10,63 +10,21 @@ export type FlagTone = "bad" | "warn" | "info" | "good";
  *  was opened from, so its back button keeps returning there. */
 export const LIST_PARAM_KEYS = ["class"] as const;
 
-/** Same definition as the admin profile facts: arriving late or leaving
- *  early still counts as attending. */
-export const ATTENDED_STATUSES = [
-  "present",
-  "late",
-  "left_early",
-  "makeup_attended",
-] as const;
-
 /** How many recent marked lessons the attendance figure looks back over. */
 export const RECENT_LESSONS = 8;
 
-export type AttendanceSummary = {
-  attended: number;
-  total: number;
-  percent: number | null;
-};
-
-export function attendanceSummary(statuses: readonly string[]): AttendanceSummary {
-  const total = statuses.length;
-  const attended = statuses.filter((s) =>
-    (ATTENDED_STATUSES as readonly string[]).includes(s),
-  ).length;
-  return {
-    attended,
-    total,
-    percent: total === 0 ? null : Math.round((attended / total) * 100),
-  };
-}
-
-export type HomeworkState = "marked" | "to_mark" | "overdue" | "due_today" | "open";
+// The attendance and homework rules are shared by every role.
+export { attendanceSummary, type AttendanceSummary } from "@/lib/attendance-rules";
+export { homeworkState, type HomeworkState } from "@/lib/homework-rules";
+import { HOMEWORK_STATE_LABEL, type HomeworkState } from "@/lib/homework-rules";
 
 export const HOMEWORK_STATE: Record<HomeworkState, { label: string; tone: FlagTone | "default" }> = {
-  marked: { label: "Marked", tone: "good" },
-  to_mark: { label: "To mark", tone: "warn" },
-  overdue: { label: "Overdue", tone: "bad" },
-  due_today: { label: "Due today", tone: "warn" },
-  open: { label: "Not handed in", tone: "default" },
+  marked: { label: HOMEWORK_STATE_LABEL.marked, tone: "good" },
+  to_mark: { label: HOMEWORK_STATE_LABEL.to_mark, tone: "warn" },
+  overdue: { label: HOMEWORK_STATE_LABEL.overdue, tone: "bad" },
+  due_today: { label: HOMEWORK_STATE_LABEL.due_today, tone: "warn" },
+  open: { label: HOMEWORK_STATE_LABEL.open, tone: "default" },
 };
-
-/**
- * Where a piece of homework stands for the tutor. `submitted` and `late` are
- * handed-in work waiting for marking (the marking queue's definition); the
- * not-handed-in statuses become overdue once the due date (a Melbourne
- * calendar date) has passed.
- */
-export function homeworkState(
-  status: string,
-  dueDate: string,
-  today: string,
-): HomeworkState {
-  if (status === "marked" || status === "returned") return "marked";
-  if (status === "submitted" || status === "late") return "to_mark";
-  if (dueDate < today) return "overdue";
-  if (dueDate === today) return "due_today";
-  return "open";
-}
 
 type ParamSource = URLSearchParams | Record<string, string | string[] | undefined>;
 

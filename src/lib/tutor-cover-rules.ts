@@ -70,6 +70,13 @@ export function melbourneDate(now = new Date()): string {
   return `${p.year}-${two(p.month)}-${two(p.day)}`;
 }
 
+/** Melbourne wall-clock time, HH:MM:SS (servers run in UTC). */
+export function melbourneTime(now = new Date()): string {
+  const p = partsAt(now);
+  const two = (value: number) => String(value).padStart(2, "0");
+  return `${two(p.hour)}:${two(p.minute)}:${two(p.second)}`;
+}
+
 export function inclusiveDayCount(startDate: string, endDate: string): number {
   const [sy, sm, sd] = startDate.split("-").map(Number);
   const [ey, em, ed] = endDate.split("-").map(Number);

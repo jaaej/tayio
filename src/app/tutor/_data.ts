@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { and, eq, inArray, sql, desc, isNull, asc } from "drizzle-orm";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
 import { db } from "@/db/client";
 import {
   announcements,
@@ -339,6 +340,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     .select({
       lessonId: attendance.lessonId,
       status: attendance.status,
+      moved: attendanceMovedSql,
       note: attendance.note,
       markedAt: attendance.markedAt,
       lessonDate: lessons.date,

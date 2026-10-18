@@ -15,7 +15,7 @@ import {
   groupLessons,
   termWeekLabel,
   type LessonView,
-} from "../_lib/lesson-progress";
+} from "@/lib/lesson-progress";
 
 const DONE_PAGE = 10;
 

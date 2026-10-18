@@ -81,7 +81,7 @@ export default async function TutorStudentProfilePage({
 
   const name = `${student.firstName} ${student.lastName}`.trim();
   const recent = attendance.slice(0, RECENT_LESSONS);
-  const att = attendanceSummary(recent.map((a) => a.status));
+  const att = attendanceSummary(recent);
 
   const homeworkRows = homework.map((h) => {
     const dueDate = melbourneDate(h.dueDate);

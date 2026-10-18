@@ -1,4 +1,5 @@
-// Pure rules for the class Lessons tab: where each lesson goes (this week,
+// Pure rules for a lesson's progress, shared by the tutor class Lessons tab,
+// tutor Today, the lesson page and the admin dashboard: where each lesson goes (this week,
 // needs finishing, done) and how its attendance and notes read. Kept free of
 // I/O so the grouping and date math are unit tested.
 

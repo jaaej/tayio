@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, asc, desc, eq, gt, gte, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, lessons, profiles, subjects } from "@/db/schema";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { classDisplayName } from "@/lib/class-display";
+import { unmarkedOnRollSql } from "@/lib/lesson-progress-sql";
 import {
   QUEUE_VIEWS,
   buildQueue,
@@ -84,20 +85,9 @@ function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: num
       subjectColor: subjects.color,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
-      // Students on the roll who have no attendance row yet. It mirrors who the
-      // save action accepts: a make-up lesson's roll is only the students
-      // moved into it, and those rows are written when the move is booked.
-      // Students who enrolled after the lesson date were never expected there.
-      unmarkedCount: sql<number>`case when ${lessons.status} = 'makeup' then 0 else (
-        select count(*)::int from enrollments e
-        where e.class_id = ${lessons.classId}
-          and e.withdrawn_at is null
-          and (e.enrolled_at at time zone 'Australia/Melbourne')::date <= ${lessons.date}
-          and not exists (
-            select 1 from attendance a
-            where a.lesson_id = ${lessons.id} and a.student_id = e.student_id
-          )
-      ) end`,
+      // Students on the roll who have no attendance row yet (shared with the
+      // admin dashboard's count, so the two always agree).
+      unmarkedCount: unmarkedOnRollSql,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
