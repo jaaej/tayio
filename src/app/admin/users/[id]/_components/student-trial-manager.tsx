@@ -93,14 +93,18 @@ export function StudentTrialManager({
         </div>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="trial-note">Note (optional)</Label>
+        <Label htmlFor="trial-note">Note for the tutor (optional)</Label>
         <Input
           id="trial-note"
           value={note}
           maxLength={200}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. trialing Year 9 Maths"
+          aria-describedby="trial-note-help"
+          placeholder="e.g. new to the syllabus, go easy on homework"
         />
+        <p id="trial-note-help" className="text-[12px] text-muted">
+          Tutors see this on the roll during the trial.
+        </p>
       </div>
 
       {error && <p className="text-[12px] font-semibold text-bad">{error}</p>}

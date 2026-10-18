@@ -205,6 +205,7 @@ export type StudentToWatch = {
   className: string | null;
   reason: string;
   tone: "bad" | "warn";
+  section: "attendance" | "homework";
 };
 
 /**

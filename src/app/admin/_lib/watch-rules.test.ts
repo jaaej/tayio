@@ -47,8 +47,16 @@ describe("rankWatchList", () => {
     );
     const ranked = rankWatchList(signals, 5);
     expect(ranked.map((r) => r.studentId)).toEqual(["a", "b", "c"]);
-    expect(ranked[0].why).toEqual({ reason: "Missed 2 of last 2 lessons", tone: "bad" });
-    expect(ranked[1].why).toEqual({ reason: "3 homework tasks overdue", tone: "warn" });
+    expect(ranked[0].why).toEqual({
+      reason: "Missed 2 of last 2 lessons",
+      tone: "bad",
+      section: "attendance",
+    });
+    expect(ranked[1].why).toEqual({
+      reason: "3 homework tasks overdue",
+      tone: "warn",
+      section: "homework",
+    });
   });
 
   it("keeps to the limit", () => {

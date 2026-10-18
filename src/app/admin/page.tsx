@@ -222,23 +222,24 @@ export default async function AdminDashboard({
         <PersonStatusTable
           empty="No students with repeated absences or overdue homework."
           phoneAction={false}
-          rows={watch.map((s) => ({
-            id: s.studentId,
-            firstName: s.firstName,
-            lastName: s.lastName,
-            context: s.className,
-            reason: s.reason,
-            tone: s.tone,
-            href: `/admin/users/${s.studentId}`,
-            action: (
-              <Link
-                href={`/admin/users/${s.studentId}`}
-                className="text-[12px] font-bold text-brand-700 hover:underline"
-              >
-                View student
-              </Link>
-            ),
-          }))}
+          rows={watch.map((s) => {
+            // The student's history, at the section the reason is about.
+            const href = `/admin/users/${s.studentId}?tab=history#${s.section}`;
+            return {
+              id: s.studentId,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              context: s.className,
+              reason: s.reason,
+              tone: s.tone,
+              href,
+              action: (
+                <Link href={href} className="text-[12px] font-bold text-brand-700 hover:underline">
+                  View history
+                </Link>
+              ),
+            };
+          })}
         />
       </GlassPanel>
 

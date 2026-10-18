@@ -59,6 +59,12 @@ import { ROLE_AVATAR } from "../_components/role-style";
 import { normaliseYearLevel } from "../_lib/directory-list";
 import { ListLink, ProfileTabLinks } from "../_components/list-link";
 import { getProfileFacts } from "../_lib/profile-facts";
+import { getStudentHistory } from "../_lib/student-history";
+import {
+  AttendanceHistoryList,
+  HomeworkHistoryList,
+  StaffNotesTimeline,
+} from "@/components/student-history/history-lists";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
@@ -152,6 +158,9 @@ export default async function UserDetailPage({
           : Promise.resolve([]),
       ])
     : [null, null, null, null, [], null, [], null, []];
+
+  const history =
+    isStudent && activeTab === "history" ? await getStudentHistory(id) : null;
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
@@ -417,9 +426,35 @@ export default async function UserDetailPage({
     </ProfileSection>
   );
 
+  const historySections = isStudent && history && [
+    <ProfileSection
+      key="attendance"
+      id="attendance"
+      title="Attendance"
+      note={
+        history.summary.percent === null
+          ? undefined
+          : `${history.summary.percent}% · ${history.summary.attended} of ${history.summary.total} attended`
+      }
+      flush
+    >
+      <AttendanceHistoryList
+        rows={history.attendance}
+        lessonHref={(lessonId) => `/admin/attendance/${lessonId}`}
+      />
+    </ProfileSection>,
+    <ProfileSection key="homework" id="homework" title="Homework" flush>
+      <HomeworkHistoryList rows={history.homework} />
+    </ProfileSection>,
+    <ProfileSection key="notes" id="staff-notes" title="Staff notes" flush>
+      <StaffNotesTimeline accountNote={history.accountNote} notes={history.notes} />
+    </ProfileSection>,
+  ];
+
   const panels: Record<UserTab, ReactNode[]> = {
     profile: [noteSection, familySection, profileSection, trialSection],
     lessons: [classMoveSection, calendarSection, leaveSection],
+    history: historySections || [],
     credits: [creditsSection],
     curriculum: [curriculumSection],
     reports: [reportsSection],

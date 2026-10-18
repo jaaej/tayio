@@ -49,7 +49,12 @@ export function watchSignalsFrom(
   return { absences, overdueHomework };
 }
 
-export type WatchReason = { reason: string; tone: "bad" | "warn" };
+export type WatchReason = {
+  reason: string;
+  tone: "bad" | "warn";
+  /** The part of the student's history the reason is about. */
+  section: "attendance" | "homework";
+};
 
 /**
  * Students to watch, most urgent first: absences rank above homework because
@@ -63,14 +68,22 @@ export function rankWatchList(
     .sort((a, b) => b[1].absent - a[1].absent)
     .map(([studentId, a]) => ({
       studentId,
-      why: { reason: `Missed ${a.absent} of last ${a.counted} lessons`, tone: "bad" as const },
+      why: {
+        reason: `Missed ${a.absent} of last ${a.counted} lessons`,
+        tone: "bad" as const,
+        section: "attendance" as const,
+      },
     }));
   const homework = [...signals.overdueHomework]
     .filter(([studentId]) => !signals.absences.has(studentId))
     .sort((a, b) => b[1] - a[1])
     .map(([studentId, count]) => ({
       studentId,
-      why: { reason: `${count} homework tasks overdue`, tone: "warn" as const },
+      why: {
+        reason: `${count} homework tasks overdue`,
+        tone: "warn" as const,
+        section: "homework" as const,
+      },
     }));
   return [...absent, ...homework].slice(0, limit);
 }
