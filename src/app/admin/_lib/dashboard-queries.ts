@@ -1,37 +1,30 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import {
-  announcements,
-  classes,
-  enrollments,
-  invoices,
-  lessonNotes,
-  lessons,
-  profiles,
-  rescheduleRequests,
-  subjects,
-  tutorCoverRequests,
-  tutorLeaveRequests,
-  tutorWeeklyCheckins,
-} from "@/db/schema";
+import { classes, enrollments, invoices, profiles, subjects } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
-import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { inclusiveDayCount, melbourneDate } from "@/lib/tutor-cover-rules";
+import { getAdminQueues } from "./admin-queues";
+import { rankWatchList } from "./watch-rules";
+import { getWatchSignals } from "./watch-signals";
 
 /*
  * Data for the admin dashboard's To do, Revenue, and Students to watch cards.
- * Each to-do item is a real backlog the admin can act on from one linked page;
- * an item with nothing outstanding is omitted rather than shown as zero.
+ * Each to-do item is a real backlog the admin can act on from one linked page,
+ * counted by the same function that page (or its sidebar badge) uses; an item
+ * with nothing outstanding is omitted rather than shown as zero.
  */
 
 export type TodoKind =
+  | "cover"
   | "attendance"
-  | "overdue"
-  | "reschedules"
+  | "notes"
+  | "leave"
+  | "class_moves"
+  | "quizzes"
   | "announcements"
-  | "checkins"
-  | "notes";
+  | "overdue"
+  | "checkins";
 
 export type TodoItem = {
   kind: TodoKind;
@@ -45,17 +38,6 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Melbourne wall-clock time as HH:MM:SS - servers run in UTC. */
-function melbourneTime(now: Date) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Australia/Melbourne",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).format(now);
-}
-
 function shortDate(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", {
     weekday: "long",
@@ -64,100 +46,98 @@ function shortDate(iso: string) {
   });
 }
 
+/** One row per live queue, most time-critical first. */
 export async function getDashboardTodo(
   now: Date,
   opts: { showMoney: boolean; isOwner: boolean },
 ): Promise<TodoItem[]> {
   const todayIso = melbourneDate(now);
-  const nowTime = melbourneTime(now);
-  const lookbackIso = addIsoDays(todayIso, -14);
-  const lastWeekStart = weekStartForIsoDate(addIsoDays(todayIso, -7));
-
-  const [unmarked, overdue, reschedules, pendingNotices, checkins, notes] =
-    await Promise.all([
-      // Finished lessons in the last fortnight with enrolled students but no
-      // attendance rows at all.
-      db
-        .select({
-          count: sql<number>`count(*)::int`,
-          oldest: sql<string | null>`min(${lessons.date})::text`,
-        })
-        .from(lessons)
-        .where(
-          and(
-            inArray(lessons.status, ["upcoming", "completed", "makeup"]),
-            gte(lessons.date, lookbackIso),
-            sql`(${lessons.date} < ${todayIso} or (${lessons.date} = ${todayIso} and ${lessons.endTime} <= ${nowTime}))`,
-            sql`not exists (select 1 from attendance a where a.lesson_id = ${lessons.id})`,
-            sql`exists (select 1 from enrollments e where e.class_id = ${lessons.classId} and e.withdrawn_at is null)`,
-          ),
-        ),
-      db
-        .select({
-          count: sql<number>`count(*)::int`,
-          total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-          oldest: sql<string | null>`min(${invoices.dueDate})::text`,
-        })
-        .from(invoices)
-        .where(
-          and(
-            sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-            lt(invoices.dueDate, todayIso),
-          ),
-        ),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(rescheduleRequests)
-        .where(eq(rescheduleRequests.status, "pending")),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(announcements)
-        .where(eq(announcements.status, "pending")),
-      opts.isOwner
-        ? db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(tutorWeeklyCheckins)
-            .where(
-              and(
-                eq(tutorWeeklyCheckins.weekStart, lastWeekStart),
-                inArray(tutorWeeklyCheckins.status, ["pending", "disputed"]),
-              ),
-            )
-        : Promise.resolve([{ count: 0 }]),
-      db
-        .select({
-          tutors: sql<number>`count(distinct ${lessons.tutorId})::int`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(lessons)
-        .leftJoin(lessonNotes, eq(lessonNotes.lessonId, lessons.id))
-        .where(
-          and(
-            eq(lessons.status, "completed"),
-            gte(lessons.date, lookbackIso),
-            lt(lessons.date, todayIso),
-            isNull(lessonNotes.id),
-          ),
-        ),
-    ]);
-
+  const q = await getAdminQueues(now, { isOwner: opts.isOwner });
   const items: TodoItem[] = [];
 
-  const u = unmarked[0];
-  if (u && u.count > 0) {
+  const cover = q.coverLeave;
+  if (cover.coverOpen > 0) {
     items.push({
-      kind: "attendance",
-      title: `${plural(u.count, "lesson")} need${u.count === 1 ? "s" : ""} attendance marked`,
-      detail: u.oldest ? `Oldest is from ${shortDate(u.oldest)}` : "From the last two weeks",
-      action: "Mark now",
-      href: "/admin/attendance",
+      kind: "cover",
+      title: `${plural(cover.coverOpen, "lesson")} need${cover.coverOpen === 1 ? "s" : ""} a cover tutor`,
+      detail:
+        cover.coverSoon > 0
+          ? `${cover.coverSoon} start${cover.coverSoon === 1 ? "s" : ""} within 48 hours`
+          : `Soonest is ${shortDate(cover.coverNext ?? todayIso)}`,
+      action: "Assign",
+      href: "/admin/reschedules",
     });
   }
 
-  const o = overdue[0];
-  if (o && o.count > 0) {
-    const late = o.oldest ? inclusiveDayCount(o.oldest, todayIso) - 1 : 0;
-    const total = Number(o.total).toLocaleString("en-AU", {
+  const marking = q.backlog.toMark;
+  if (marking.count > 0 && marking.oldest) {
+    items.push({
+      kind: "attendance",
+      title: `${plural(marking.count, "lesson")} need${marking.count === 1 ? "s" : ""} attendance marked`,
+      detail: `Oldest is from ${shortDate(marking.oldest)}`,
+      action: "Mark now",
+      // From the oldest, so the queue lists exactly these lessons.
+      href: `/admin/attendance?from=${marking.oldest}`,
+    });
+  }
+
+  const notes = q.backlog.notes;
+  if (notes.count > 0 && notes.oldest) {
+    items.push({
+      kind: "notes",
+      title: `${plural(notes.count, "lesson")} without notes`,
+      detail: `From ${plural(notes.tutors, "tutor")} · oldest ${shortDate(notes.oldest)}`,
+      action: "View",
+      href: "/admin/attendance?view=notes",
+    });
+  }
+
+  if (cover.leavePending > 0) {
+    items.push({
+      kind: "leave",
+      title: `${plural(cover.leavePending, "leave request")} to approve`,
+      detail: `Earliest starts ${shortDate(cover.leaveNext ?? todayIso)}`,
+      action: "Review",
+      href: "/admin/reschedules?tab=leave",
+    });
+  }
+
+  if (cover.classMovesPending > 0) {
+    items.push({
+      kind: "class_moves",
+      title: `${plural(cover.classMovesPending, "class move request")} waiting`,
+      detail: "Families are waiting for an answer",
+      action: "Review",
+      href: "/admin/reschedules?tab=moves",
+    });
+  }
+
+  if (q.quizzes.count > 0) {
+    items.push({
+      kind: "quizzes",
+      title: `${plural(q.quizzes.count, "quiz", "quizzes")} to review`,
+      detail: q.quizzes.oldest
+        ? `Oldest sent ${shortDate(melbourneDate(q.quizzes.oldest))}`
+        : "Sent by tutors",
+      action: "Review",
+      href: "/admin/quizzes?status=pending_review",
+    });
+  }
+
+  if (q.announcements > 0) {
+    items.push({
+      kind: "announcements",
+      title: `${plural(q.announcements, "tutor announcement")} to approve`,
+      detail: "Not visible to families until approved",
+      action: "Review",
+      href: "/admin/announcements",
+    });
+  }
+
+  const o = q.overdue;
+  if (o.count > 0 && o.oldestDue) {
+    const late = inclusiveDayCount(o.oldestDue, todayIso) - 1;
+    const total = o.total.toLocaleString("en-AU", {
       style: "currency",
       currency: "AUD",
       maximumFractionDigits: 0,
@@ -170,51 +150,17 @@ export async function getDashboardTodo(
         ? `${total} total · oldest ${plural(late, "day")} late`
         : `Oldest ${plural(late, "day")} late`,
       action: "Review",
-      href: "/admin/payments",
+      href: "/admin/payments?status=overdue",
     });
   }
 
-  const r = reschedules[0];
-  if (r && r.count > 0) {
-    items.push({
-      kind: "reschedules",
-      title: `${plural(r.count, "reschedule request")} waiting`,
-      detail: "Families are waiting for an answer",
-      action: "Review",
-      href: "/admin/reschedules",
-    });
-  }
-
-  const a = pendingNotices[0];
-  if (a && a.count > 0) {
-    items.push({
-      kind: "announcements",
-      title: `${plural(a.count, "tutor announcement")} to approve`,
-      detail: "Not visible to families until approved",
-      action: "Review",
-      href: "/admin/announcements",
-    });
-  }
-
-  const c = checkins[0];
-  if (c && c.count > 0) {
+  if (q.checkins.count > 0) {
     items.push({
       kind: "checkins",
-      title: `${plural(c.count, "tutor")} still to approve last week's hours`,
+      title: `${plural(q.checkins.count, "tutor")} still to approve last week's hours`,
       detail: "Payroll uses approved check-ins only",
       action: "Open",
-      href: `/admin/tutor-checkins?week=${lastWeekStart}`,
-    });
-  }
-
-  const n = notes[0];
-  if (n && n.count > 0) {
-    items.push({
-      kind: "notes",
-      title: `${plural(n.count, "lesson")} without notes`,
-      detail: `From ${plural(n.tutors, "tutor")} in the last two weeks`,
-      action: "View",
-      href: "/admin/attendance",
+      href: `/admin/tutor-checkins?week=${q.checkins.weekStart}`,
     });
   }
 
@@ -262,59 +208,17 @@ export type StudentToWatch = {
 };
 
 /**
- * Students with a concrete warning sign: repeated absences across their last
- * four marked lessons, or homework still outstanding. Absences rank first
- * because they are the earlier signal of a family drifting away.
+ * Students with a concrete warning sign (the shared watch rules): repeated
+ * absences across their last four counted lessons, or homework overdue.
+ * Absences rank first because they are the earlier signal of a family
+ * drifting away.
  */
 export async function getStudentsToWatch(limit = 5): Promise<StudentToWatch[]> {
-  const absenceRows = await db.execute<{
-    student_id: string;
-    absent: number;
-    marked: number;
-  }>(sql`
-    select student_id,
-           count(*) filter (where status = 'absent')::int as absent,
-           count(*)::int as marked
-    from (
-      select a.student_id, a.status,
-             row_number() over (partition by a.student_id order by l.date desc, l.start_time desc) as rn
-      from attendance a
-      join lessons l on l.id = a.lesson_id
-    ) recent
-    where rn <= 4
-    group by student_id
-    having count(*) filter (where status = 'absent') >= 2
-    order by absent desc
-    limit ${limit}
-  `);
-
-  const homeworkRows = await db.execute<{ student_id: string; pending: number }>(sql`
-    select ha.student_id, count(*)::int as pending
-    from homework_assignments ha
-    join homework h on h.id = ha.homework_id
-    where ha.status in ('not_started','viewed','late','resubmission_requested')
-      and h.due_date < now()
-    group by ha.student_id
-    having count(*) >= 2
-    order by pending desc
-    limit ${limit}
-  `);
-
-  const reasons = new Map<string, { reason: string; tone: "bad" | "warn" }>();
-  for (const row of absenceRows) {
-    reasons.set(row.student_id, {
-      reason: `Missed ${row.absent} of last ${row.marked} lessons`,
-      tone: "bad",
-    });
-  }
-  for (const row of homeworkRows) {
-    if (reasons.has(row.student_id)) continue;
-    reasons.set(row.student_id, {
-      reason: `${row.pending} homework tasks overdue`,
-      tone: "warn",
-    });
-  }
-  const ids = [...reasons.keys()].slice(0, limit);
+  // Ranked in full, then trimmed after deactivated accounts drop out, so the
+  // list still fills up to `limit`.
+  const ranked = rankWatchList(await getWatchSignals(), Number.POSITIVE_INFINITY);
+  const reasons = new Map(ranked.map((r) => [r.studentId, r.why]));
+  const ids = [...reasons.keys()];
   if (ids.length === 0) return [];
 
   const [people, classRows] = await Promise.all([
@@ -352,34 +256,20 @@ export async function getStudentsToWatch(limit = 5): Promise<StudentToWatch[]> {
   }
   const personById = new Map(people.map((p) => [p.id, p]));
 
-  return ids.flatMap((id) => {
-    const person = personById.get(id);
-    const why = reasons.get(id);
-    if (!person || !why) return [];
-    return [
-      {
-        studentId: id,
-        firstName: person.firstName,
-        lastName: person.lastName,
-        className: classByStudent.get(id) ?? null,
-        ...why,
-      },
-    ];
-  });
-}
-
-/**
- * Sidebar badge for Reschedules: everything on that page still waiting on an
- * admin - parent reschedule requests, tutor leave requests, and lessons that
- * still need a cover tutor.
- */
-export async function getRescheduleBadgeCount(): Promise<number> {
-  const [row] = await db.execute<{ count: number }>(sql`
-    select
-      (select count(*) from ${rescheduleRequests} where ${rescheduleRequests.status} = 'pending')
-      + (select count(*) from ${tutorLeaveRequests} where ${tutorLeaveRequests.status} = 'pending')
-      + (select count(*) from ${tutorCoverRequests} where ${tutorCoverRequests.status} = 'open')
-      as count
-  `);
-  return Number(row?.count ?? 0);
+  return ids
+    .flatMap((id) => {
+      const person = personById.get(id);
+      const why = reasons.get(id);
+      if (!person || !why) return [];
+      return [
+        {
+          studentId: id,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          className: classByStudent.get(id) ?? null,
+          ...why,
+        },
+      ];
+    })
+    .slice(0, limit);
 }

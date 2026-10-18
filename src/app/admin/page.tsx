@@ -1,12 +1,15 @@
 import Link from "next/link";
 import {
-  CalendarClock,
+  ArrowRightLeft,
+  CalendarOff,
   ClipboardCheck,
   CreditCard,
+  ListChecks,
   Lock,
   Megaphone,
   NotebookPen,
   Plus,
+  UserCheck,
   Wallet,
 } from "lucide-react";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
@@ -42,12 +45,15 @@ import { WeekPanel } from "@/components/dashboard/week-panel";
 export const dynamic = "force-dynamic";
 
 const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
+  cover: { icon: <UserCheck className="h-4 w-4" />, tone: "bg-bad-bg text-bad" },
   attendance: { icon: <ClipboardCheck className="h-4 w-4" />, tone: "bg-warn-bg text-warn" },
-  overdue: { icon: <CreditCard className="h-4 w-4" />, tone: "bg-bad-bg text-bad" },
-  reschedules: { icon: <CalendarClock className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
-  announcements: { icon: <Megaphone className="h-4 w-4" />, tone: "bg-info-bg text-info" },
-  checkins: { icon: <Wallet className="h-4 w-4" />, tone: "bg-good-bg text-good" },
   notes: { icon: <NotebookPen className="h-4 w-4" />, tone: "bg-surface-2 text-ink-soft" },
+  leave: { icon: <CalendarOff className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
+  class_moves: { icon: <ArrowRightLeft className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
+  quizzes: { icon: <ListChecks className="h-4 w-4" />, tone: "bg-info-bg text-info" },
+  announcements: { icon: <Megaphone className="h-4 w-4" />, tone: "bg-info-bg text-info" },
+  overdue: { icon: <CreditCard className="h-4 w-4" />, tone: "bg-bad-bg text-bad" },
+  checkins: { icon: <Wallet className="h-4 w-4" />, tone: "bg-good-bg text-good" },
 };
 
 const LINE_SM = buttonVariants({ variant: "outline", size: "md" });

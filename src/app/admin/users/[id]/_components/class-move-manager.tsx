@@ -1,14 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, X } from "lucide-react";
 import { buttonVariants } from "@/components/admin/ui";
 import { useRouter } from "next/navigation";
-import {
-  adminMoveStudent,
-  approvePermanentClassMove,
-  rejectPermanentClassMove,
-} from "@/app/_actions/class-moves";
+import { adminMoveStudent } from "@/app/_actions/class-moves";
+import { ClassMoveRequestCard } from "@/app/admin/_components/class-move-request-card";
 import type { ClassMoveData, ClassMoveOption } from "@/lib/class-moves";
 import { SidePanel } from "@/components/ui/side-panel";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -37,8 +33,6 @@ export function ClassMoveManager({
   const [fromClassId, setFromClassId] = useState(current[0]?.id ?? "");
   const [toClassId, setToClassId] = useState("");
   const [reason, setReason] = useState("");
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectNote, setRejectNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,8 +69,6 @@ export function ClassMoveManager({
         throw new Error(message);
       }
       setSuccess(result.message ?? "Saved.");
-      setRejectingId(null);
-      setRejectNote("");
       setPanelOpen(false);
       router.refresh();
     } finally {
@@ -149,90 +141,7 @@ export function ClassMoveManager({
           ) : (
             <div className="space-y-3">
               {pendingRequests.map((request) => (
-                <div key={request.id} className="rounded-[12px] border border-warn/25 bg-warn-bg/55 p-4">
-                  <div className="text-[12px] font-extrabold text-ink">
-                    {request.fromLabel}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-ink-soft">
-                    <span>{request.fromSchedule}</span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
-                    <span>{request.toSchedule}</span>
-                  </div>
-                  <p className="mt-2 text-[12px] leading-relaxed text-muted">
-                    {request.reason}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted">
-                    Requested by {request.requestedByName}
-                  </p>
-
-                  {rejectingId === request.id ? (
-                    <div className="mt-3 space-y-2 border-t border-warn/20 pt-3">
-                      <textarea
-                        value={rejectNote}
-                        onChange={(event) => setRejectNote(event.target.value)}
-                        rows={3}
-                        maxLength={2000}
-                        placeholder="Optional explanation for the family"
-                        className="w-full resize-y rounded-[10px] border border-line-field bg-surface px-3 py-2.5 text-[12px] text-ink outline-none focus:border-brand-500"
-                      />
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => setRejectingId(null)}
-                          className="min-h-10 rounded-full border border-line-field bg-surface px-3.5 text-[11px] font-bold text-ink"
-                        >
-                          Keep pending
-                        </button>
-                        <LoadingButton
-                          disabled={busy}
-                          variant="danger"
-                          size="sm"
-                          pendingLabel="Declining…"
-                          successLabel="Declined"
-                          errorLabel="Try again"
-                          onAction={() =>
-                            run(() =>
-                              rejectPermanentClassMove({
-                                requestId: request.id,
-                                note: rejectNote,
-                              }),
-                            )
-                          }
-                        >
-                          Confirm decline
-                        </LoadingButton>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-warn/20 pt-3">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setRejectingId(request.id)}
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-bad/30 bg-surface px-3.5 text-[11px] font-bold text-bad"
-                      >
-                        <X className="h-3.5 w-3.5" aria-hidden />
-                        Decline
-                      </button>
-                      <LoadingButton
-                        disabled={busy}
-                        variant="success"
-                        size="sm"
-                        pendingLabel="Moving…"
-                        successLabel="Moved"
-                        errorLabel="Try again"
-                        onAction={() =>
-                          run(() =>
-                            approvePermanentClassMove({ requestId: request.id }),
-                          )
-                        }
-                      >
-                        Approve and move
-                      </LoadingButton>
-                    </div>
-                  )}
-                </div>
+                <ClassMoveRequestCard key={request.id} request={request} />
               ))}
             </div>
           )}

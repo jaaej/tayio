@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -33,6 +33,7 @@ export type ClassMoveOption = {
 export type ClassMoveHistoryRow = {
   id: string;
   studentId: string;
+  studentName: string;
   requestedById: string;
   requestedByName: string;
   fromClassId: string;
@@ -55,16 +56,32 @@ export type ClassMoveData = {
 export async function getClassMoveHistory(
   studentId: string,
 ): Promise<ClassMoveHistoryRow[]> {
+  return classMoveRows(eq(classMoveRequests.studentId, studentId), 20);
+}
+
+/** Every family request still waiting on the office, oldest first. */
+export async function getPendingClassMoves(): Promise<ClassMoveHistoryRow[]> {
+  return classMoveRows(eq(classMoveRequests.status, "pending"), 200, "oldest");
+}
+
+async function classMoveRows(
+  where: SQL,
+  limit: number,
+  order: "newest" | "oldest" = "newest",
+): Promise<ClassMoveHistoryRow[]> {
   const fromClass = alias(classes, "move_from_class");
   const toClass = alias(classes, "move_to_class");
   const fromSubject = alias(subjects, "move_from_subject");
   const toSubject = alias(subjects, "move_to_subject");
   const requester = alias(profiles, "move_requester");
+  const student = alias(profiles, "move_student");
 
   const rows = await db
     .select({
       id: classMoveRequests.id,
       studentId: classMoveRequests.studentId,
+      studentFirst: student.firstName,
+      studentLast: student.lastName,
       requestedById: classMoveRequests.requestedById,
       requesterFirst: requester.firstName,
       requesterLast: requester.lastName,
@@ -91,13 +108,17 @@ export async function getClassMoveHistory(
     .innerJoin(fromSubject, eq(fromSubject.id, fromClass.subjectId))
     .innerJoin(toSubject, eq(toSubject.id, toClass.subjectId))
     .innerJoin(requester, eq(requester.id, classMoveRequests.requestedById))
-    .where(eq(classMoveRequests.studentId, studentId))
-    .orderBy(desc(classMoveRequests.createdAt))
-    .limit(20);
+    .innerJoin(student, eq(student.id, classMoveRequests.studentId))
+    .where(where)
+    .orderBy(
+      order === "newest" ? desc(classMoveRequests.createdAt) : asc(classMoveRequests.createdAt),
+    )
+    .limit(limit);
 
   return rows.map((row) => ({
     id: row.id,
     studentId: row.studentId,
+    studentName: `${row.studentFirst} ${row.studentLast}`.trim(),
     requestedById: row.requestedById,
     requestedByName: `${row.requesterFirst} ${row.requesterLast}`.trim(),
     fromClassId: row.fromClassId,

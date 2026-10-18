@@ -35,7 +35,7 @@ import {
   GlassInitial,
   GlassMobileHeader,
 } from "@/components/portal/glass-chrome";
-import { getRescheduleBadgeCount } from "@/app/admin/_lib/dashboard-queries";
+import { coverLeaveBadge, getCoverLeaveQueue } from "@/app/admin/_lib/admin-queues";
 import {
   PortalSearch,
   type PortalSearchDestination,
@@ -62,7 +62,9 @@ const SECTIONS: NavSection[] = [
         also: ["/admin/subjects", "/admin/quizzes", "/admin/terms"],
       },
       { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
-      { label: "Reschedules", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
+      // Tutor cover, leave, family class moves and class credits. The URL is
+      // kept from when it held parent reschedule approvals.
+      { label: "Cover & leave", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },
     ],
   },
   {
@@ -116,19 +118,23 @@ export async function AdminShell({
   const user = await getCurrentUser();
   let unread = 0;
   let notifUnread = 0;
-  let reschedulesWaiting = 0;
+  let coverLeaveWaiting = 0;
   if (user) {
     try {
-      [unread, notifUnread, reschedulesWaiting] = await Promise.all([
+      // The same counts as the dashboard's To do rows for this page.
+      const [threads, notices, coverLeave] = await Promise.all([
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
-        getRescheduleBadgeCount(),
+        getCoverLeaveQueue(),
       ]);
+      unread = threads;
+      notifUnread = notices;
+      coverLeaveWaiting = coverLeaveBadge(coverLeave);
     } catch (err) {
       console.error("[admin-shell] badge counts failed:", err);
       unread = 0;
       notifUnread = 0;
-      reschedulesWaiting = 0;
+      coverLeaveWaiting = 0;
     }
   }
   const canSeeOwnerNav = isUnrestrictedAdmin(
@@ -141,7 +147,7 @@ export async function AdminShell({
       .map((item) => {
         if (item.href === "/admin/messages") return { ...item, badge: unread };
         if (item.href === "/admin/reschedules") {
-          return { ...item, badge: reschedulesWaiting };
+          return { ...item, badge: coverLeaveWaiting };
         }
         if (item.href === "/admin/notifications") {
           return { ...item, badge: notifUnread, badgeTone: "danger" as const };
