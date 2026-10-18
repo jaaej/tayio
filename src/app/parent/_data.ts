@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
@@ -16,12 +16,14 @@ import {
   lessonNotes,
   lessons,
   profiles,
-  progressTopics,
   subjects,
 } from "@/db/schema";
 import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
 import { isInvoiceOpen } from "@/lib/invoice-rules";
 import { isHandedIn } from "@/lib/homework-rules";
+import { meanMastery, type TopicMastery } from "@/lib/topic-mastery";
+import { getSubjectMastery } from "@/lib/topic-mastery-data";
+import { getStudentProgressBySubject } from "@/app/student/_lib/queries";
 import { attendanceSummary } from "@/lib/attendance-rules";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 
@@ -80,13 +82,6 @@ export type DashboardData = {
     tutorName: string;
   } | null;
 };
-
-const MASTERY_PERCENT = {
-  not_started: 0,
-  needs_work: 30,
-  improving: 65,
-  strong: 92,
-} as const;
 
 export async function getDashboardData(studentId: string): Promise<DashboardData> {
   const attendanceRows = await db
@@ -712,112 +707,30 @@ export async function getHomeworkDueBetween(
   return rows;
 }
 
-export type SubjectMastery = {
-  subjectId: string;
-  subjectName: string;
-  percent: number;
-  topicCount: number;
+export type ChildMastery = {
+  /** Mean of the subjects with marks; null before anything is marked. */
+  overall: number | null;
+  subjects: Array<{
+    subjectId: string;
+    subjectName: string;
+    subjectColor: string | null;
+    percent: number | null;
+    topics: TopicMastery[];
+  }>;
 };
 
-export async function getTopicMastery(studentId: string): Promise<SubjectMastery[]> {
-  const rows = await db
-    .select({
-      subjectId: progressTopics.subjectId,
-      subjectName: subjects.name,
-      mastery: progressTopics.mastery,
-    })
-    .from(progressTopics)
-    .innerJoin(subjects, eq(subjects.id, progressTopics.subjectId))
-    .where(eq(progressTopics.studentId, studentId));
-
-  const bySubject = new Map<string, { subjectName: string; sum: number; count: number }>();
-  for (const r of rows) {
-    const cur = bySubject.get(r.subjectId) ?? {
-      subjectName: r.subjectName,
-      sum: 0,
-      count: 0,
-    };
-    cur.sum += MASTERY_PERCENT[r.mastery];
-    cur.count += 1;
-    bySubject.set(r.subjectId, cur);
-  }
-  return Array.from(bySubject, ([subjectId, v]) => ({
-    subjectId,
-    subjectName: v.subjectName,
-    percent: v.count > 0 ? Math.round(v.sum / v.count) : 0,
-    topicCount: v.count,
-  })).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-}
-
-export type MasteryLevel = "not_started" | "needs_work" | "improving" | "strong";
-
-export type ChildSubjectProgress = {
-  subjectId: string;
-  subjectName: string;
-  subjectColor: string | null;
-  yearLevel: string | null;
-  masteryPercent: number;
-  topics: Array<{ topic: string; mastery: MasteryLevel }>;
-};
-
-export async function getChildProgressBySubject(
-  studentId: string,
-): Promise<ChildSubjectProgress[]> {
-  const enrolledSubjects = await db
-    .select({
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      yearLevel: subjects.yearLevel,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(
-      and(eq(enrollments.studentId, studentId), isNull(enrollments.withdrawnAt)),
-    )
-    .orderBy(asc(subjects.name));
-
-  const seen = new Set<string>();
-  const uniqueSubjects = enrolledSubjects.filter((s) => {
-    if (seen.has(s.subjectId)) return false;
-    seen.add(s.subjectId);
-    return true;
-  });
-
-  if (uniqueSubjects.length === 0) return [];
-
-  const subjectIds = uniqueSubjects.map((s) => s.subjectId);
-
-  const allTopics = await db
-    .select({
-      subjectId: progressTopics.subjectId,
-      topic: progressTopics.topic,
-      mastery: progressTopics.mastery,
-    })
-    .from(progressTopics)
-    .where(
-      and(
-        eq(progressTopics.studentId, studentId),
-        inArray(progressTopics.subjectId, subjectIds),
-      ),
-    )
-    .orderBy(asc(progressTopics.topic));
-
-  const topicsBySubject = new Map<string, Array<{ topic: string; mastery: MasteryLevel }>>();
-  for (const row of allTopics) {
-    const arr = topicsBySubject.get(row.subjectId) ?? [];
-    arr.push({ topic: row.topic, mastery: row.mastery });
-    topicsBySubject.set(row.subjectId, arr);
-  }
-
-  return uniqueSubjects.map((s) => {
-    const topics = topicsBySubject.get(s.subjectId) ?? [];
-    const sum = topics.reduce((acc, t) => acc + MASTERY_PERCENT[t.mastery], 0);
-    const masteryPercent =
-      topics.length > 0 ? Math.round(sum / topics.length) : 0;
-    return { ...s, masteryPercent, topics };
-  });
+/** A child's topic mastery from their marks, the loader students use too. */
+export async function getChildMastery(studentId: string): Promise<ChildMastery> {
+  const enrolled = await getStudentProgressBySubject(studentId);
+  const mastery = await getSubjectMastery(studentId, enrolled.map((s) => s.subjectId));
+  const subjects = enrolled.map((s) => ({
+    subjectId: s.subjectId,
+    subjectName: s.subjectName,
+    subjectColor: s.subjectColor,
+    percent: mastery.get(s.subjectId)?.percent ?? null,
+    topics: mastery.get(s.subjectId)?.topics ?? [],
+  }));
+  return { overall: meanMastery(subjects), subjects };
 }
 
 export type InvoiceRow = {

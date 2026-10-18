@@ -8,9 +8,9 @@ import {
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
-import { MASTERY_LABEL } from "@/lib/status";
+import { MASTERY_LEVEL_LABEL, type MasteryLevel } from "@/lib/topic-mastery";
 import {
-  getChildProgressBySubject,
+  getChildMastery,
   getDashboardData,
   resolveSelectedChild,
 } from "../_data";
@@ -18,30 +18,16 @@ import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switche
 import { StatusPill } from "../_components/status-pill";
 import { Table, Th, Td, Tr } from "../_components/table";
 
-type Mastery = "not_started" | "needs_work" | "improving" | "strong";
-
-const MASTERY_PILL: Record<Mastery, string> = {
+const LEVEL_PILL: Record<MasteryLevel, string> = {
   strong: "bg-emerald-100 text-emerald-900",
   improving: "bg-brand-100 text-brand-700",
   needs_work: "bg-amber-100 text-amber-900",
-  not_started: "bg-surface-2 text-ink-soft",
 };
 
-// Coarse 4-step bar widths for a visual sense of level. These are NOT measured
-// percentages (there is no per-topic score), so no numeric % is ever shown -
-// the category pill is the honest label.
-const MASTERY_STEP: Record<Mastery, number> = {
-  strong: 100,
-  improving: 66,
-  needs_work: 33,
-  not_started: 8,
-};
-
-const MASTERY_BAR: Record<Mastery, string> = {
+const LEVEL_BAR: Record<MasteryLevel, string> = {
   strong: "bg-emerald-500",
   improving: "bg-brand-500",
   needs_work: "bg-amber-500",
-  not_started: "bg-line-strong",
 };
 
 type SearchParams = Promise<{ child?: string }>;
@@ -66,32 +52,23 @@ export default async function ParentProgressPage({
     );
   }
 
-  const [subjects, dashboard] = await Promise.all([
-    getChildProgressBySubject(selected.id),
+  const [mastery, dashboard] = await Promise.all([
+    getChildMastery(selected.id),
     getDashboardData(selected.id),
   ]);
 
-  const topics = subjects.flatMap((s) =>
+  const topics = mastery.subjects.flatMap((s) =>
     s.topics.map((t) => ({
       ...t,
       subjectName: s.subjectName,
       subjectColor: s.subjectColor,
     })),
   );
-  const trackedSubjects = subjects.filter((s) => s.topics.length > 0);
+  const trackedSubjects = mastery.subjects.filter((s) => s.percent !== null);
+  const overall = mastery.overall;
 
-  const overall =
-    trackedSubjects.length > 0
-      ? Math.round(
-          trackedSubjects.reduce((acc, s) => acc + s.masteryPercent, 0) /
-            trackedSubjects.length,
-        )
-      : null;
-
-  const strongCount = topics.filter((t) => t.mastery === "strong").length;
-  const needsWorkCount = topics.filter(
-    (t) => t.mastery === "needs_work" || t.mastery === "not_started",
-  ).length;
+  const strongCount = topics.filter((t) => t.level === "strong").length;
+  const needsWorkCount = topics.filter((t) => t.level === "needs_work").length;
 
   return (
     <div className="space-y-6">
@@ -138,7 +115,7 @@ export default async function ParentProgressPage({
           icon={<AlertTriangle className="h-5 w-5" />}
           tone={needsWorkCount === 0 ? "good" : "coral"}
           accent
-          delta="Weak or untouched"
+          delta="Below 60%"
           deltaTone={needsWorkCount === 0 ? "up" : "down"}
         />
         <StatTile
@@ -179,9 +156,7 @@ export default async function ParentProgressPage({
         {topics.length === 0 ? (
           <Card>
             <Empty>
-              {selected.firstName} isn&apos;t enrolled in any subjects with tracked
-              topics yet. Once classes start, the tutor will begin tracking
-              topics here.
+              {selected.firstName}&apos;s subjects have no curriculum topics yet.
             </Empty>
           </Card>
         ) : (
@@ -196,10 +171,9 @@ export default async function ParentProgressPage({
                 </tr>
               </thead>
               <tbody>
-                {topics.map((t, i) => {
-                  const m = t.mastery as Mastery;
+                {topics.map((t) => {
                   return (
-                    <Tr key={`${t.subjectName}-${t.topic}-${i}`}>
+                    <Tr key={t.topicId}>
                       <Td className="font-bold text-ink">{t.topic}</Td>
                       <Td>
                         <SubjectPill name={t.subjectName} color={t.subjectColor} />
@@ -207,15 +181,15 @@ export default async function ParentProgressPage({
                       <Td>
                         <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
                           <span
-                            className={`block h-full rounded-full ${MASTERY_BAR[m]}`}
-                            style={{ width: `${MASTERY_STEP[m]}%` }}
+                            className={`block h-full rounded-full ${t.level ? LEVEL_BAR[t.level] : ""}`}
+                            style={{ width: `${t.percent ?? 0}%` }}
                           />
                         </div>
                       </Td>
                       <Td>
                         <StatusPill
-                          label={MASTERY_LABEL[m] ?? m}
-                          className={MASTERY_PILL[m]}
+                          label={t.level ? `${t.percent}% · ${MASTERY_LEVEL_LABEL[t.level]}` : "No marks yet"}
+                          className={t.level ? LEVEL_PILL[t.level] : "bg-surface-2 text-ink-soft"}
                         />
                       </Td>
                     </Tr>

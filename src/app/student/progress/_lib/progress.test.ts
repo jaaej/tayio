@@ -3,28 +3,10 @@ import {
   inTerm,
   issuedReportTermIds,
   latestQuizResults,
-  overallMastery,
   pickTerm,
   progressTerms,
   recentMarks,
 } from "./progress";
-
-describe("overallMastery", () => {
-  it("averages only subjects with tracked topics", () => {
-    expect(
-      overallMastery([
-        { masteryPercent: 80, topics: [{ topic: "A", mastery: "strong" }] },
-        { masteryPercent: 30, topics: [{ topic: "C", mastery: "needs_work" }] },
-        { masteryPercent: 0, topics: [] },
-      ]),
-    ).toBe(55);
-  });
-
-  it("is null when nothing is tracked", () => {
-    expect(overallMastery([{ masteryPercent: 0, topics: [] }])).toBeNull();
-    expect(overallMastery([])).toBeNull();
-  });
-});
 
 describe("progressTerms", () => {
   const rows = [

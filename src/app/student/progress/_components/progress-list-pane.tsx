@@ -151,7 +151,7 @@ function SubjectItem({
   selectedOnDesktop: boolean;
 }) {
   const dot = subjectTone(subject.subjectName, subject.subjectColor).dot;
-  const tracked = subject.topicCount > 0;
+  const tracked = subject.masteryPercent !== null;
 
   return (
     <Link
@@ -174,7 +174,7 @@ function SubjectItem({
       <span aria-hidden className="h-1.5 overflow-hidden rounded-[3px] bg-[#EEEFF6]">
         <span
           className="block h-full"
-          style={{ width: `${tracked ? subject.masteryPercent : 0}%`, background: dot }}
+          style={{ width: `${subject.masteryPercent ?? 0}%`, background: dot }}
         />
       </span>
     </Link>

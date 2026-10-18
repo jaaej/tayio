@@ -34,7 +34,7 @@ import {
   getInvoicesForParent,
   getOutstandingBalanceForParent,
   getParentAnnouncements,
-  getTopicMastery,
+  getChildMastery,
   resolveSelectedChild,
 } from "./_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "./_components/child-switcher";
@@ -84,7 +84,7 @@ export default async function ParentDashboard({
   ] = await Promise.all([
     getDashboardData(selected.id),
     getFeedback(selected.id),
-    getTopicMastery(selected.id),
+    getChildMastery(selected.id),
     getHomework(selected.id),
     getInvoicesForParent(user.id),
     getOutstandingBalanceForParent(user.id),
@@ -93,10 +93,8 @@ export default async function ParentDashboard({
     getAdminContact(),
   ]);
 
-  const overallMastery =
-    mastery.length > 0
-      ? Math.round(mastery.reduce((acc, m) => acc + m.percent, 0) / mastery.length)
-      : null;
+  const overallMastery = mastery.overall;
+  const markedSubjects = mastery.subjects.filter((s) => s.percent !== null).length;
 
   const feedbackItems: FeedbackItem[] = feedback.slice(0, 4).map((f) => ({
     id: String(f.id),
@@ -192,7 +190,11 @@ export default async function ParentDashboard({
           icon={<TrendingUp className="h-5 w-5" />}
           tone="grape"
           accent
-          delta={`${mastery.length} subject${mastery.length === 1 ? "" : "s"}`}
+          delta={
+            overallMastery === null
+              ? "No marks yet"
+              : `${markedSubjects} subject${markedSubjects === 1 ? "" : "s"}`
+          }
           href={`/parent/progress${childQs}`}
         />
         <StatTile
