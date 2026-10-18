@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
 import { Avatar, Empty, GlassPanel, Pill } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { attendance, enrollments, lessons, profiles } from "@/db/schema";
 import { requireTutor } from "@/app/tutor/_data";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
+import {
+  attendanceSummary,
+  isMovedAbsence,
+  type AttendanceMark,
+} from "@/lib/attendance-rules";
 import { getClassHub } from "../_lib/class-hub";
 import { ClassHero } from "../_components/class-hero";
 
@@ -34,17 +40,13 @@ export default async function TutorClassStudentsPage({
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 
   const studentIds = students.map((s) => s.id);
-  const summaries = new Map<
-    string,
-    { present: number; late: number; absent: number; total: number }
-  >();
-
+  const marksByStudent = new Map<string, AttendanceMark[]>();
   if (studentIds.length > 0) {
-    const attendanceRows = await db
+    const rows = await db
       .select({
         studentId: attendance.studentId,
         status: attendance.status,
-        total: sql<number>`count(*)::int`,
+        moved: attendanceMovedSql,
       })
       .from(attendance)
       .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
@@ -53,25 +55,11 @@ export default async function TutorClassStudentsPage({
           eq(lessons.classId, classId),
           inArray(attendance.studentId, studentIds),
         ),
-      )
-      .groupBy(attendance.studentId, attendance.status);
-
-    for (const r of attendanceRows) {
-      const existing = summaries.get(r.studentId) ?? {
-        present: 0,
-        late: 0,
-        absent: 0,
-        total: 0,
-      };
-      existing.total += r.total;
-      if (r.status === "present" || r.status === "makeup_attended") {
-        existing.present += r.total;
-      } else if (r.status === "late" || r.status === "left_early") {
-        existing.late += r.total;
-      } else if (r.status === "absent") {
-        existing.absent += r.total;
-      }
-      summaries.set(r.studentId, existing);
+      );
+    for (const r of rows) {
+      const marks = marksByStudent.get(r.studentId) ?? [];
+      marks.push(r);
+      marksByStudent.set(r.studentId, marks);
     }
   }
 
@@ -87,11 +75,10 @@ export default async function TutorClassStudentsPage({
           <ul className="divide-y divide-line">
             {students.map((s) => {
               const name = `${s.firstName} ${s.lastName}`.trim();
-              const sum = summaries.get(s.id);
-              const rate =
-                sum && sum.total > 0
-                  ? Math.round(((sum.present + sum.late) / sum.total) * 100)
-                  : null;
+              const marks = marksByStudent.get(s.id) ?? [];
+              const sum = attendanceSummary(marks);
+              const moved = marks.filter(isMovedAbsence).length;
+              const rate = sum.percent;
               const tone =
                 rate === null
                   ? "default"
@@ -124,8 +111,13 @@ export default async function TutorClassStudentsPage({
                         <>
                           <Pill tone={tone}>{rate}% attendance</Pill>
                           <span className="hidden text-[11px] tabular-nums text-muted sm:block">
-                            {sum!.present} present · {sum!.late} late ·{" "}
-                            {sum!.absent} absent
+                            {[
+                              `${sum.attended} attended`,
+                              `${sum.absent} absent`,
+                              moved > 0 ? `${moved} moved` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </>
                       )}

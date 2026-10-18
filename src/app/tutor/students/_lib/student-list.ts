@@ -49,3 +49,72 @@ export function withListQuery(
   const qs = params.toString();
   return qs ? `${path}?${qs}` : path;
 }
+
+type TimelineLesson = {
+  lessonId: string;
+  lessonDate: string;
+  className: string;
+  /** The tutor who teaches the lesson (`lessons.tutor_id`). */
+  lessonTutorId: string;
+};
+
+export type TimelineMark = TimelineLesson & {
+  status: string;
+  moved: boolean | null;
+  /** The roll note (staff only). */
+  note: string | null;
+};
+
+export type TimelineNote<N> = TimelineLesson & { authorId: string; note: N };
+
+export type LessonTimelineEntry<N> = {
+  lessonId: string;
+  date: string;
+  className: string;
+  mark: { status: string; moved: boolean | null; note: string | null } | null;
+  notes: N[];
+  /** The viewer teaches this lesson, so its page (roll and notes) opens. */
+  canEdit: boolean;
+  /** The viewer has written a note on it. */
+  hasOwnNote: boolean;
+};
+
+/**
+ * One entry per lesson, newest first: its attendance mark and roll note and
+ * every note written on it, so the profile reads as one history instead of
+ * an attendance list beside a notes list.
+ */
+export function lessonTimeline<N>(
+  marks: readonly TimelineMark[],
+  notes: readonly TimelineNote<N>[],
+  viewerId: string,
+): LessonTimelineEntry<N>[] {
+  const entries = new Map<string, LessonTimelineEntry<N>>();
+  const entryFor = (lesson: TimelineLesson) => {
+    let entry = entries.get(lesson.lessonId);
+    if (!entry) {
+      entry = {
+        lessonId: lesson.lessonId,
+        date: lesson.lessonDate,
+        className: lesson.className,
+        mark: null,
+        notes: [],
+        canEdit: lesson.lessonTutorId === viewerId,
+        hasOwnNote: false,
+      };
+      entries.set(lesson.lessonId, entry);
+    }
+    return entry;
+  };
+  for (const mark of marks) {
+    entryFor(mark).mark = { status: mark.status, moved: mark.moved, note: mark.note };
+  }
+  for (const row of notes) {
+    const entry = entryFor(row);
+    entry.notes.push(row.note);
+    if (row.authorId === viewerId) entry.hasOwnNote = true;
+  }
+  return [...entries.values()].sort(
+    (a, b) => b.date.localeCompare(a.date) || a.className.localeCompare(b.className),
+  );
+}

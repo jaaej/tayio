@@ -16,7 +16,7 @@ import { initialsOf } from "@/components/admin/ui/glass";
 import { cn } from "@/lib/utils";
 import {
   MARKING_VIEWS,
-  groupToMark,
+  groupToMarkByClass,
   listHref,
   matchesQuery,
   parseMarkingView,
@@ -135,16 +135,15 @@ export function MarkingQueuePane({
         (filtered.toMark.length === 0 ? (
           <Empty>{q ? "Nothing matches this search." : "All caught up - nothing waiting to mark."}</Empty>
         ) : (
-          groupToMark(filtered.toMark).map((group) => (
+          groupToMarkByClass(filtered.toMark).map((group) => (
             <ListPaneGroup
               key={group.key}
               id={`marking-group-${group.key}`}
               label={
-                group.key === "late" ? (
-                  <span className="text-bad">Late - review first</span>
-                ) : (
-                  "Submitted"
-                )
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate">{group.label}</span>
+                  <span className="shrink-0 tabular-nums text-warn">{group.items.length}</span>
+                </span>
               }
             >
               {group.items.map((i) => (
@@ -245,9 +244,16 @@ function SubmissionRow({
           <span className="truncate">{item.homeworkTitle}</span>
         </span>
       </span>
-      {when && (
-        <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-muted">{when}</span>
-      )}
+      <span className="flex shrink-0 flex-col items-end gap-0.5">
+        {item.status === "late" && (
+          <span className="inline-flex h-5 items-center rounded-full bg-bad-bg px-[7px] text-[11px] font-extrabold text-bad">
+            Late
+          </span>
+        )}
+        {when && (
+          <span className="whitespace-nowrap text-[11px] font-bold text-muted">{when}</span>
+        )}
+      </span>
     </ListPaneRow>
   );
 }

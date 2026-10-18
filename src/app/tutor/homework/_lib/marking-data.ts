@@ -4,7 +4,12 @@ import { db } from "@/db/client";
 import { classes, homework, homeworkAssignments, profiles, subjects } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
 import { tutorHomeworkFilter } from "@/app/tutor/_lib/homework-access";
-import { sortToMark, type HomeworkItem, type SubmissionItem } from "./marking-list";
+import {
+  groupToMarkByClass,
+  sortToMark,
+  type HomeworkItem,
+  type SubmissionItem,
+} from "./marking-list";
 
 /** How many recently marked submissions the Marked view lists. */
 const MARKED_LIMIT = 60;
@@ -19,6 +24,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
       lastName: profiles.lastName,
       subjectName: subjects.name,
       subjectColor: subjects.color,
+      classId: homework.classId,
       className: classes.name,
       status: homeworkAssignments.status,
       submittedAt: homeworkAssignments.submittedAt,
@@ -43,6 +49,7 @@ function toItem(r: Row): SubmissionItem {
     studentName: `${r.firstName} ${r.lastName}`.trim(),
     subjectName: r.subjectName,
     subjectColor: r.subjectColor,
+    classId: r.classId,
     classLabel: r.className
       ? classDisplayName(r.subjectName, r.className)
       : null,
@@ -52,10 +59,11 @@ function toItem(r: Row): SubmissionItem {
   };
 }
 
-/** Submissions waiting for this tutor, late first. */
+/** Submissions waiting for this tutor in queue order: class by class, late
+ *  work first then the oldest (`groupToMarkByClass`). */
 export async function getToMark(tutorId: string): Promise<SubmissionItem[]> {
   const rows = await submissionsQuery(tutorId, ["submitted", "late"]);
-  return sortToMark(rows.map(toItem));
+  return groupToMarkByClass(sortToMark(rows.map(toItem))).flatMap((group) => group.items);
 }
 
 /** Everything the Marking list pane shows, in one round of queries. */
