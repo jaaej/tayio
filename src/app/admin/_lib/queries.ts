@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { ADMIN_TIERS, STUDENT_TIERS, coarseRole } from "@/lib/roles";
+import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
@@ -43,7 +43,6 @@ import {
   familyLinks,
   invoices,
   lessonCancellations,
-  lessonNotes,
   lessons,
   profiles,
   rescheduleRequests,
@@ -58,6 +57,9 @@ import {
 } from "@/db/schema";
 import { distinctSubjects } from "@/lib/subject-label";
 import { classEditHref } from "./class-links";
+import { audienceLabelMaps, describeAudience } from "./announcement-audience";
+import { getOverdueInvoices } from "./admin-queues";
+import { OPEN_INVOICE_STATUSES, isInvoiceOverdue } from "@/lib/invoice-rules";
 
 function isoDate(d: Date) {
   // Local calendar date, not UTC - matches local dates in lesson/date columns.
@@ -65,134 +67,16 @@ function isoDate(d: Date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export type OpsStats = {
-  activeStudents: number;
-  activeTutors: number;
-  lessonsThisWeek: number;
-  lessonsCompletedThisWeek: number;
-  overdueCount: number;
-  overdueTotal: number;
-  notesPending: number;
-  revenueMonth: number;
-  revenueLastMonth: number;
-};
-
-export async function getOpsStats(opts: {
-  weekStart: Date;
-  weekEnd: Date;
-  monthStart: Date;
-  prevMonthStart: Date;
-  today: Date;
-}): Promise<OpsStats> {
-  const { weekStart, weekEnd, monthStart, prevMonthStart, today } = opts;
-  const todayIso = isoDate(today);
-
-  const [students] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(profiles)
-    .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)));
-
-  const [tutors] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(profiles)
-    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)));
-
-  const [weekLessons] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      completed: sql<number>`count(*) filter (where ${lessons.status} = 'completed')::int`,
-    })
-    .from(lessons)
-    .where(
-      and(
-        gte(lessons.date, isoDate(weekStart)),
-        lt(lessons.date, isoDate(weekEnd)),
-      ),
-    );
-
-  const [overdue] = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, todayIso),
-      ),
-    );
-
-  const [notes] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(lessons)
-    .leftJoin(lessonNotes, eq(lessonNotes.lessonId, lessons.id))
-    .where(
-      and(
-        eq(lessons.status, "completed"),
-        lt(lessons.date, todayIso),
-        isNull(lessonNotes.id),
-      ),
-    );
-
-  const [revMonth] = await db
-    .select({
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(and(eq(invoices.status, "paid"), gte(invoices.issuedAt, monthStart)));
-
-  const [revPrev] = await db
-    .select({
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.status, "paid"),
-        gte(invoices.issuedAt, prevMonthStart),
-        lt(invoices.issuedAt, monthStart),
-      ),
-    );
-
-  return {
-    activeStudents: students?.count ?? 0,
-    activeTutors: tutors?.count ?? 0,
-    lessonsThisWeek: weekLessons?.total ?? 0,
-    lessonsCompletedThisWeek: weekLessons?.completed ?? 0,
-    overdueCount: overdue?.count ?? 0,
-    overdueTotal: Number(overdue?.total ?? 0),
-    notesPending: notes?.count ?? 0,
-    revenueMonth: Number(revMonth?.total ?? 0),
-    revenueLastMonth: Number(revPrev?.total ?? 0),
-  };
-}
-
 export type OverdueSummary = {
   overdueTotal: number;
   overdueCount: number;
 };
 
-/** Open invoices past their due date (Melbourne today), for the PIN-gated
- *  revenue page. Collected-per-month figures come from getMonthlyRevenue. */
+/** Overdue invoices (the shared invoice rule), for the PIN-gated revenue
+ *  page. Collected-per-month figures come from getMonthlyRevenue. */
 export async function getOverdueSummary(now: Date): Promise<OverdueSummary> {
-  const [overdue] = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, melbourneDate(now)),
-      ),
-    );
-
-  return {
-    overdueTotal: Number(overdue?.total ?? 0),
-    overdueCount: overdue?.count ?? 0,
-  };
+  const overdue = await getOverdueInvoices(now);
+  return { overdueTotal: overdue.total, overdueCount: overdue.count };
 }
 
 export type RecentPayment = {
@@ -239,6 +123,23 @@ export type ActivityEvent = {
   href: string;
 };
 
+async function getAudienceLabels() {
+  const [subjectRows, classRows, tutorRows] = await Promise.all([
+    db
+      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
+      .from(subjects),
+    db
+      .select({ id: classes.id, name: classes.name, subjectName: subjects.name })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId)),
+    db
+      .select({ id: profiles.id, firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.role, "tutor")),
+  ]);
+  return audienceLabelMaps({ subjects: subjectRows, classes: classRows, tutors: tutorRows });
+}
+
 export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
   const student = alias(profiles, "student");
   const enrolRows = await db
@@ -278,13 +179,25 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       at: announcements.publishedAt,
       title: announcements.title,
       audienceRole: announcements.audienceRole,
+      audienceClassId: announcements.audienceClassId,
       className: classes.name,
+      targetRoles: announcements.targetRoles,
+      targetSubjectIds: announcements.targetSubjectIds,
+      targetYearLevels: announcements.targetYearLevels,
+      targetClassIds: announcements.targetClassIds,
+      targetTutorIds: announcements.targetTutorIds,
+      includeLinkedParents: announcements.includeLinkedParents,
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
     .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
+  // Names for targeted announcements, read the same way as the
+  // Announcements page so both describe the audience alike.
+  const audienceLabels = annRows.some((r) => r.targetRoles.length > 0)
+    ? await getAudienceLabels()
+    : audienceLabelMaps({ subjects: [], classes: [], tutors: [] });
 
   const events: ActivityEvent[] = [];
   for (const r of enrolRows) {
@@ -312,16 +225,11 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
     });
   }
   for (const r of annRows) {
-    const audience = r.className
-      ? `Class · ${r.className}`
-      : r.audienceRole
-        ? `All ${r.audienceRole}s`
-        : "Everyone";
     events.push({
       kind: "announcement",
       at: r.at,
       title: r.title,
-      meta: audience,
+      meta: describeAudience(r, audienceLabels),
       href: "/admin/announcements",
     });
   }
@@ -1461,13 +1369,12 @@ export async function getFinancialReport(
     })
     .from(invoices)
     .innerJoin(parent, eq(parent.id, invoices.parentId))
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, toExclusiveIso),
-      ),
-    )
-    .orderBy(asc(invoices.dueDate));
+    .where(inArray(invoices.status, [...OPEN_INVOICE_STATUSES]))
+    .orderBy(asc(invoices.dueDate))
+    // Overdue as of the end of the range, by the shared invoice rule.
+    .then((rows) =>
+      rows.filter((r) => isInvoiceOverdue({ status: r.status, dueDate: r.date }, toExclusiveIso)),
+    );
 
   const toLine = (r: {
     id: string;

@@ -11,11 +11,7 @@ import {
 } from "@/db/schema";
 import { Empty, GlassPanel, PageHeader, Pill } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
-import {
-  ANNOUNCEMENT_ROLES,
-  targetSummary,
-  type AnnouncementTargetRules,
-} from "@/lib/announcement-rules";
+import { audienceLabelMaps, describeAudience } from "@/app/admin/_lib/announcement-audience";
 import { CreateAnnouncementForm } from "./_components/create-announcement-form";
 import { AnnouncementReviewActions } from "./_components/announcement-review-actions";
 import { DeleteAnnouncementButton } from "./_components/delete-announcement-button";
@@ -110,11 +106,11 @@ export default async function AnnouncementsPage() {
       label: `${row.firstName} ${row.lastName}`.trim(),
     })),
   };
-  const labelMaps = {
-    subjects: new Map(options.subjects.map((entry) => [entry.id, entry.label])),
-    classes: new Map(options.classes.map((entry) => [entry.id, entry.label])),
-    tutors: new Map(options.tutors.map((entry) => [entry.id, entry.label])),
-  };
+  const labelMaps = audienceLabelMaps({
+    subjects: subjectRows,
+    classes: classRows,
+    tutors: tutorRows,
+  });
   const pendingRows = rows.filter((row) => row.status === "pending");
   const historyRows = rows.filter((row) => row.status !== "pending");
 
@@ -297,41 +293,6 @@ function HistoryRow({ row, audience }: { row: AnnouncementRow; audience: string 
       </div>
     </li>
   );
-}
-
-function describeAudience(
-  row: AnnouncementRow,
-  labels: {
-    subjects: Map<string, string>;
-    classes: Map<string, string>;
-    tutors: Map<string, string>;
-  },
-) {
-  const roles = row.targetRoles.filter(
-    (role): role is AnnouncementTargetRules["roles"][number] =>
-      ANNOUNCEMENT_ROLES.includes(
-        role as AnnouncementTargetRules["roles"][number],
-      ),
-  );
-  if (roles.length === 0) {
-    if (row.audienceClassId) return `Class · ${row.className ?? "Unknown class"}`;
-    if (row.audienceRole) return `All ${row.audienceRole}s`;
-    return "Everyone";
-  }
-  const rules: AnnouncementTargetRules = {
-    roles,
-    subjectIds: row.targetSubjectIds,
-    yearLevels: row.targetYearLevels,
-    classIds: row.targetClassIds,
-    tutorIds: row.targetTutorIds,
-    includeLinkedParents: row.includeLinkedParents,
-  };
-  return targetSummary(rules, {
-    subjects: rules.subjectIds.map((id) => labels.subjects.get(id) ?? "Removed subject"),
-    years: rules.yearLevels,
-    classes: rules.classIds.map((id) => labels.classes.get(id) ?? "Removed class"),
-    tutors: rules.tutorIds.map((id) => labels.tutors.get(id) ?? "Removed tutor"),
-  });
 }
 
 function naturalCompare(a: string, b: string) {
