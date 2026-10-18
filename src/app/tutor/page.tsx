@@ -184,7 +184,8 @@ export default async function TutorToday({
       icon: <CircleHelp className={ICON} aria-hidden />,
       tone: "bg-brand-50 text-brand-700",
       title: `${changes ? "Quiz changes requested" : "Quiz requested"}: ${q.subjectName}, Week ${q.weekNumber}`,
-      detail: q.note?.trim() || q.title,
+      // A sent-back quiz shows what to change; a new request, the brief.
+      detail: (changes ? q.reviewNote?.trim() : q.note?.trim()) || q.title,
       href: q.href,
       action: "Open week",
     });

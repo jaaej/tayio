@@ -1383,7 +1383,11 @@ export const quizzes = pgTable(
       .notNull()
       .references(() => profiles.id),
     assignedTutorId: uuid("assigned_tutor_id").references(() => profiles.id),
+    /** The admin's brief when asking a tutor for the quiz. */
     note: text("note"),
+    /** The latest change request from a review (migration 0067). */
+    reviewNote: text("review_note"),
+    reviewNoteAt: timestamp("review_note_at", { withTimezone: true }),
     approvedBy: uuid("approved_by").references(() => profiles.id),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

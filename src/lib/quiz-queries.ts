@@ -50,7 +50,7 @@ export type QuizListRow = {
   assignedTutorId: string | null;
   assignedTutorName: string | null;
   createdByName: string;
-  /** Admin instructions on a request, or what to change on a sent-back quiz. */
+  /** The admin's brief on a request. */
   note: string | null;
   /** Answerable questions only - `context` rows are passage wrappers, not items. */
   questionCount: number;
@@ -79,7 +79,11 @@ export type QuizWithContent = {
     termNumber: number;
     weekNumber: number;
     assignedTutorId: string | null;
+    /** The admin's brief. */
     note: string | null;
+    /** The latest change request, and when it was sent. */
+    reviewNote: string | null;
+    reviewNoteAt: Date | null;
     createdBy: string;
   };
   questions: Array<{
@@ -261,6 +265,8 @@ export async function getQuizWithContent(
       weekNumber: subjectWeeks.weekNumber,
       assignedTutorId: quizzes.assignedTutorId,
       note: quizzes.note,
+      reviewNote: quizzes.reviewNote,
+      reviewNoteAt: quizzes.reviewNoteAt,
       createdBy: quizzes.createdBy,
     })
     .from(quizzes)

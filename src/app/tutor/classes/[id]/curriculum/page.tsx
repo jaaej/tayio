@@ -32,6 +32,7 @@ import {
   type TutorWeekQuiz,
 } from "./_queries";
 import { WeekPlanEditor } from "./_components/week-plan-editor";
+import { quizNotes } from "@/lib/quiz-notes";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
 
@@ -312,10 +313,12 @@ function QuizCard({ quiz, accent }: { quiz: TutorWeekQuiz; accent: string }) {
         : mine && quiz.status === "draft"
           ? "Continue quiz"
           : "View quiz";
-  const showNote =
-    mine &&
-    quiz.note?.trim() &&
-    (quiz.status === "requested" || quiz.status === "changes_requested");
+  // The admin's brief and the latest change request, labelled as on the
+  // quiz page, while the quiz is this tutor's to write or fix.
+  const notes =
+    mine && (quiz.status === "requested" || quiz.status === "changes_requested")
+      ? quizNotes(quiz)
+      : [];
   return (
     <section
       aria-labelledby="qz-h"
@@ -329,10 +332,19 @@ function QuizCard({ quiz, accent }: { quiz: TutorWeekQuiz; accent: string }) {
           <span className="text-[15px] font-extrabold text-ink [overflow-wrap:anywhere]">
             {quiz.title}
           </span>
-          {showNote ? (
-            <span className="whitespace-pre-wrap text-[13px] leading-[1.45] text-[#5E5A73]">
-              Admin: {quiz.note}
-            </span>
+          {notes.length > 0 ? (
+            notes.map((note) => (
+              <span
+                key={note.key}
+                className="whitespace-pre-wrap text-[13px] leading-[1.45] text-[#5E5A73]"
+              >
+                <strong className={note.tone === "bad" ? "font-extrabold text-bad" : "font-extrabold text-ink"}>
+                  {note.label}
+                  {note.date && ` · ${note.date}`}:
+                </strong>{" "}
+                {note.text}
+              </span>
+            ))
           ) : (
             <span className="text-[13px] font-medium text-[#5E5A73]">
               {quiz.questionCount} {quiz.questionCount === 1 ? "question" : "questions"}

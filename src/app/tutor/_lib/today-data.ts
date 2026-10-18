@@ -261,6 +261,8 @@ export type QuizRequest = {
   subjectName: string;
   weekNumber: number;
   note: string | null;
+  /** The latest change request, for a quiz sent back. */
+  reviewNote: string | null;
   /** The quiz's week in the tutor's class week plan, where the quiz lives. */
   href: string;
 };
@@ -277,6 +279,7 @@ export async function getQuizRequests(tutorId: string): Promise<QuizRequest[]> {
       subjectName: subjects.name,
       weekNumber: subjectWeeks.weekNumber,
       note: quizzes.note,
+      reviewNote: quizzes.reviewNote,
     })
     .from(quizzes)
     .innerJoin(subjects, eq(subjects.id, quizzes.subjectId))
