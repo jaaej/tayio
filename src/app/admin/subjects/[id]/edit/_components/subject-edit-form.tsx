@@ -112,19 +112,6 @@ function dirty(card: Card) {
   );
 }
 
-/** An http(s) link, or blank. */
-function linkError(link: string): string | null {
-  const value = link.trim();
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    if (url.protocol === "http:" || url.protocol === "https:") return null;
-  } catch {
-    /* falls through */
-  }
-  return "Enter the full online link, starting with https://";
-}
-
 export function SubjectEditForm({
   subject,
   sub,
@@ -134,7 +121,6 @@ export function SubjectEditForm({
   otherSlots,
   tutorWindows,
   classSlots,
-  subjects,
   students,
 }: {
   subject: { id: string; name: string; yearLevel: string; color: SubjectColor };
@@ -149,8 +135,6 @@ export function SubjectEditForm({
   tutorWindows: TutorWeeklyWindow[];
   /** Every weekly class, to spot a tutor already teaching then. */
   classSlots: (TutorClassSlot & { classId: string })[];
-  /** Subjects a class can be moved to. */
-  subjects: { id: string; name: string }[];
   /** Every student account, for each card's Add a student. */
   students: { id: string; name: string; detail: string }[];
 }) {
@@ -199,7 +183,7 @@ export function SubjectEditForm({
         saved: null,
         current: { ...EMPTY_SLOT, tutorId: tutors.length === 1 ? tutors[0].id : "" },
         savedDetails: null,
-        details: { name: "", subjectId: subject.id, classType: "group", capacity: 8, onlineLink: "" },
+        details: { name: "", classType: "group", capacity: 8 },
         students: [],
       },
     ]);
@@ -217,8 +201,6 @@ export function SubjectEditForm({
         errors[c.key] = "Choose a start and end time.";
       } else if (!Number.isInteger(capacity) || capacity < 1 || capacity > 200) {
         errors[c.key] = "Capacity must be a whole number from 1 to 200.";
-      } else if (linkError(c.details.onlineLink)) {
-        errors[c.key] = linkError(c.details.onlineLink)!;
       }
     }
     setClassErrors(errors);
@@ -434,8 +416,6 @@ export function SubjectEditForm({
               name: `${formId}-${card.key}-name`,
               type: `${formId}-${card.key}-type`,
               capacity: `${formId}-${card.key}-capacity`,
-              link: `${formId}-${card.key}-link`,
-              subject: `${formId}-${card.key}-subject`,
             };
             const ranked = rankTutorsForSlot(
               tutors,
@@ -445,15 +425,11 @@ export function SubjectEditForm({
                 weekday: card.current.weekday,
                 startTime: card.current.startTime || null,
                 endTime: card.current.endTime || null,
-                subjectId: card.details.subjectId,
+                subjectId: subject.id,
               },
             );
             const free = ranked.filter((t) => t.fit === "free" || t.fit === "unknown");
             const notFree = ranked.filter((t) => t.fit !== "free" && t.fit !== "unknown");
-            const movingTo =
-              card.details.subjectId !== subject.id
-                ? subjects.find((x) => x.id === card.details.subjectId)?.name
-                : null;
             return (
               <div
                 key={card.key}
@@ -623,7 +599,7 @@ export function SubjectEditForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 items-start gap-3.5 lg:[grid-template-columns:minmax(0,1.3fr)_196px_132px_minmax(0,1.2fr)_minmax(0,1fr)]">
+                <div className="grid grid-cols-2 items-start gap-3.5 lg:[grid-template-columns:minmax(0,1fr)_196px_132px]">
                   <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
                     <label htmlFor={ids.name} className={LBL}>
                       Class name
@@ -710,45 +686,8 @@ export function SubjectEditForm({
                       </button>
                     </div>
                   </div>
-                  <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
-                    <label htmlFor={ids.link} className={LBL}>
-                      Online link
-                    </label>
-                    <input
-                      id={ids.link}
-                      type="url"
-                      value={card.details.onlineLink}
-                      onChange={(e) => updateDetails(card.key, { onlineLink: e.target.value })}
-                      placeholder="https://"
-                      maxLength={2000}
-                      autoComplete="off"
-                      className={INPUT}
-                    />
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
-                    <label htmlFor={ids.subject} className={LBL}>
-                      Subject
-                    </label>
-                    <SelectField
-                      id={ids.subject}
-                      value={card.details.subjectId}
-                      onChange={(e) => updateDetails(card.key, { subjectId: e.target.value })}
-                      className={SELECT}
-                    >
-                      {subjects.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </div>
                 </div>
 
-                {movingTo && (
-                  <p className="flex items-center gap-2 rounded-[12px] bg-[#FCEFDF] px-3 py-2.5 text-[13px] font-semibold text-[#7A4108]">
-                    Saving moves this class to {movingTo}, so it leaves this page.
-                  </p>
-                )}
                 {classErrors[card.key] && (
                   <p role="alert" className="text-[13px] font-semibold text-bad">
                     {classErrors[card.key]}

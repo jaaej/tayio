@@ -31,15 +31,16 @@ export const classPatchSchema = z.object({
   classType: z.enum(["group", "one_on_one"]).optional(),
   capacity: z.coerce.number().int().min(1).max(200).optional(),
   location: z.string().max(200).nullable().optional(),
-  onlineLink: z.string().url().max(2000).or(z.literal("")).nullable().optional(),
   isRecurring: z.coerce.boolean().optional(),
   weekday: z.coerce.number().int().min(0).max(6).nullable().optional(),
   startTime: z.string().regex(timeRegex).nullable().optional(),
   endTime: z.string().regex(timeRegex).nullable().optional(),
 });
 export type ClassPatch = z.infer<typeof classPatchSchema>;
+/** An edit to a saved class; a class stays in its subject. */
+export type ClassEdit = Omit<ClassPatch, "subjectId">;
 
-/** Blank and missing are the same for a room or link. */
+/** Blank and missing are the same for a room. */
 export function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -52,7 +53,7 @@ function tutorName(row: { firstName: string; lastName: string } | undefined) {
 /** The weekly slot a class would have after `patch`. */
 function slotAfter(
   current: Omit<ClassSlot, "isRecurring"> & { isRecurring: boolean },
-  patch: ClassPatch,
+  patch: ClassEdit,
 ): ClassSlot {
   const pick = <K extends keyof ClassSlot>(key: K, value: ClassSlot[K] | undefined) =>
     value === undefined ? current[key] : value;
@@ -63,7 +64,6 @@ function slotAfter(
     startTime: pick("startTime", patch.startTime === undefined ? undefined : patch.startTime || null),
     endTime: pick("endTime", patch.endTime === undefined ? undefined : patch.endTime || null),
     location: patch.location === undefined ? current.location : clean(patch.location),
-    onlineLink: patch.onlineLink === undefined ? current.onlineLink : clean(patch.onlineLink),
   };
 }
 
@@ -87,7 +87,6 @@ export async function insertClass(
     startTime: data.startTime || null,
     endTime: data.endTime || null,
     location: clean(data.location),
-    onlineLink: clean(data.onlineLink),
   };
   const name = data.name ?? slotClassName(slot) ?? "Class";
 
@@ -117,7 +116,6 @@ export async function insertClass(
       classType: data.classType ?? "group",
       capacity: data.capacity ?? 8,
       location: slot.location,
-      onlineLink: slot.onlineLink,
       isRecurring: slot.isRecurring,
       weekday: slot.weekday,
       startTime: slot.startTime,
@@ -161,7 +159,7 @@ export async function insertClass(
 export async function applyClassEdit(
   tx: DbTx,
   id: string,
-  patch: ClassPatch,
+  patch: ClassEdit,
   now: Date,
 ): Promise<boolean> {
   // The same lock the lesson sweep takes, so the two never interleave.
@@ -176,7 +174,6 @@ export async function applyClassEdit(
     startTime: current.startTime,
     endTime: current.endTime,
     location: current.location,
-    onlineLink: current.onlineLink,
   };
   const after = slotAfter(before, patch);
   const change = slotChangeSummary(before, after);
@@ -190,12 +187,10 @@ export async function applyClassEdit(
     .update(classes)
     .set({
       name: nextName,
-      subjectId: patch.subjectId ?? current.subjectId,
       tutorId: after.tutorId,
       classType: patch.classType ?? current.classType,
       capacity: patch.capacity ?? current.capacity,
       location: after.location,
-      onlineLink: after.onlineLink,
       isRecurring: after.isRecurring,
       weekday: after.weekday,
       startTime: after.startTime,
@@ -215,7 +210,7 @@ export async function applyClassEdit(
     tx
       .select({ name: subjects.name })
       .from(subjects)
-      .where(eq(subjects.id, patch.subjectId ?? current.subjectId)),
+      .where(eq(subjects.id, current.subjectId)),
     tx
       .select({ id: profiles.id, firstName: profiles.firstName, lastName: profiles.lastName })
       .from(profiles)

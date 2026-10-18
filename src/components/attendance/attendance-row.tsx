@@ -21,17 +21,10 @@ export type RollStudent = {
   href?: string;
   /** Short muted detail after the name (a year level). */
   detail?: string | null;
-  /** Shown only when it deviates from the class default. */
-  deliveryMode?: "online" | "in_person" | null;
   onLeave?: boolean;
   /** Free-trial context for the tutor, shown under the row. */
   trialNote?: string | null;
 };
-
-const DELIVERY = {
-  online: { label: "Online", tone: "info" },
-  in_person: { label: "In person", tone: "default" },
-} as const;
 
 /**
  * One student on an attendance roll: avatar, name and flags, the segmented
@@ -52,9 +45,7 @@ export function AttendanceRow({
   const [note, setNote] = useState(student.note);
   const noteId = useId();
   const hasNote = note.trim().length > 0;
-  const delivery = student.deliveryMode ? DELIVERY[student.deliveryMode] : null;
-  const hasTags =
-    delivery || student.onLeave || student.onTrial || student.movedOutTo || student.makeupFrom;
+  const hasTags = student.onLeave || student.onTrial || student.movedOutTo || student.makeupFrom;
 
   return (
     <li className="border-b border-line px-3 py-3 sm:px-4">
@@ -78,7 +69,6 @@ export function AttendanceRow({
           </span>
           {hasTags && (
             <span className="flex flex-wrap gap-1.5">
-              {delivery && <Pill tone={delivery.tone}>{delivery.label}</Pill>}
               {student.onLeave && <Pill tone="warn">On leave</Pill>}
               {student.onTrial && <Pill tone="info">Free trial</Pill>}
               {student.movedOutTo && (

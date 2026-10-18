@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { roomsInUse } from "./rooms";
+import { roomChoices, roomsInUse } from "./rooms";
 
 describe("roomsInUse", () => {
   it("lists each room once, trimmed, in natural order", () => {
@@ -8,5 +8,12 @@ describe("roomsInUse", () => {
       "Room 2",
       "Room 10",
     ]);
+  });
+});
+
+describe("roomChoices", () => {
+  it("offers Online once, after the rooms in use", () => {
+    expect(roomChoices(["Room 2", "online", null])).toEqual(["Room 2", "Online"]);
+    expect(roomChoices([])).toEqual(["Online"]);
   });
 });

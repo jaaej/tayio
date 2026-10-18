@@ -53,9 +53,7 @@ function lessonSelect() {
       subjectName: subjects.name,
       subjectColor: subjects.color,
       lessonLocation: lessons.location,
-      lessonOnline: lessons.onlineLink,
       classLocation: classes.location,
-      classOnline: classes.onlineLink,
       recordingUrl: lessons.recordingUrl,
       studentCount: sql<number>`(
         select count(*)::int from ${enrollments}
@@ -72,7 +70,6 @@ type LessonRow = Awaited<ReturnType<ReturnType<typeof lessonSelect>["execute"]>>
 
 function toDayLesson(r: LessonRow): DayLesson {
   const location = r.lessonLocation ?? r.classLocation;
-  const online = r.lessonOnline ?? r.classOnline;
   return {
     id: r.id,
     classId: r.classId,
@@ -82,7 +79,7 @@ function toDayLesson(r: LessonRow): DayLesson {
     className: r.className,
     subjectName: r.subjectName,
     subjectColor: r.subjectColor,
-    place: location ?? (online ? "Online" : null),
+    place: location,
     recordingUrl: r.recordingUrl,
     studentCount: r.studentCount,
   };

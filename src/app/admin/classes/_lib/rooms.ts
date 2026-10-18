@@ -5,3 +5,8 @@ export function roomsInUse(locations: (string | null)[]): string[] {
   );
   return [...rooms].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
+
+/** The rooms to offer for a class: the rooms in use, then "Online". */
+export function roomChoices(locations: (string | null)[]): string[] {
+  return [...roomsInUse(locations).filter((r) => r.toLowerCase() !== "online"), "Online"];
+}

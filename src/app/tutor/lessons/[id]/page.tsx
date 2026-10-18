@@ -60,7 +60,6 @@ export default async function LessonDetailPage({
       onTrial: s.onTrial,
       trialNote: s.trialNote,
       onLeave: s.onLeave,
-      deliveryMode: s.deliveryMode,
       detail: s.yearLevel ? yearLevelLabel(s.yearLevel) : null,
       href: `/tutor/students/${s.id}`,
       movedOutTo: movedOutById.get(s.id),

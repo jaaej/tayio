@@ -72,19 +72,10 @@ export async function createSubject(
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
-/** Students joining, leaving, or with a new delivery mode or private note. */
+/** Students joining or leaving a class. */
 const studentChangesSchema = z.object({
   add: z.array(z.string().uuid()).max(200),
   withdraw: z.array(z.string().uuid()).max(200),
-  updates: z
-    .array(
-      z.object({
-        studentId: z.string().uuid(),
-        deliveryMode: z.enum(["in_person", "online"]).nullable().optional(),
-        adminNotes: z.string().max(2000).optional(),
-      }),
-    )
-    .max(200),
 });
 
 /**
@@ -100,10 +91,8 @@ const classCardSchema = z.object({
   tutorId: z.string().uuid(),
   location: z.string().max(200),
   name: z.string().trim().min(1).max(200).optional(),
-  subjectId: z.string().uuid().optional(),
   classType: z.enum(["group", "one_on_one"]).optional(),
   capacity: z.number().int().min(1).max(200).optional(),
-  onlineLink: z.string().trim().url().max(2000).or(z.literal("")).optional(),
   students: studentChangesSchema.optional(),
 });
 
@@ -121,9 +110,8 @@ type StudentChanges = z.infer<typeof studentChangesSchema>;
 
 /**
  * Apply a card's student changes inside the save's transaction: a joining
- * student is enrolled (or re-enrolled after leaving), a leaving one is
- * withdrawn (attendance and notes are kept), and delivery modes and private
- * notes are set on current enrolments.
+ * student is enrolled (or re-enrolled after leaving), and a leaving one is
+ * withdrawn (attendance and notes are kept).
  */
 async function applyStudentChanges(tx: DbTx, classId: string, changes: StudentChanges) {
   if (changes.add.length > 0) {
@@ -174,27 +162,9 @@ async function applyStudentChanges(tx: DbTx, classId: string, changes: StudentCh
         ),
       );
   }
-
-  for (const update of changes.updates) {
-    const set: Partial<typeof enrollments.$inferInsert> = {};
-    if (update.deliveryMode !== undefined) set.deliveryMode = update.deliveryMode;
-    if (update.adminNotes !== undefined) set.adminNotes = update.adminNotes.trim() || null;
-    if (Object.keys(set).length === 0) continue;
-    await tx
-      .update(enrollments)
-      .set(set)
-      .where(
-        and(
-          eq(enrollments.classId, classId),
-          eq(enrollments.studentId, update.studentId),
-          isNull(enrollments.withdrawnAt),
-        ),
-      );
-  }
 }
 
 class NotAStudent extends Error {}
-class MoveTargetGone extends Error {}
 
 /**
  * The edit page's one Save: the subject and every class card together, in
@@ -220,10 +190,8 @@ export async function saveSubjectPage(
       endTime: card.endTime || null,
       location: card.location,
       ...(card.name !== undefined && { name: card.name }),
-      ...(card.subjectId !== undefined && { subjectId: card.subjectId }),
       ...(card.classType !== undefined && { classType: card.classType }),
       ...(card.capacity !== undefined && { capacity: card.capacity }),
-      ...(card.onlineLink !== undefined && { onlineLink: card.onlineLink }),
     };
     const error =
       weekly && (!card.startTime || !card.endTime)
@@ -245,15 +213,6 @@ export async function saveSubjectPage(
         .returning({ id: subjects.id });
       if (updated.length === 0) throw new SubjectGone();
 
-      const moves = [...new Set(cards.flatMap(({ patch }) => patch.subjectId ?? []))];
-      if (moves.length > 0) {
-        const found = await tx
-          .select({ id: subjects.id })
-          .from(subjects)
-          .where(inArray(subjects.id, moves));
-        if (found.length !== moves.length) throw new MoveTargetGone();
-      }
-
       const ids: string[] = [];
       for (const { card, patch } of cards) {
         let classId: string;
@@ -262,17 +221,17 @@ export async function saveSubjectPage(
             .select({ id: classes.id })
             .from(classes)
             .where(and(eq(classes.id, card.id), eq(classes.subjectId, data.id)));
-          if (!owned) continue; // deleted or moved elsewhere since the page loaded
+          if (!owned) continue; // deleted since the page loaded
           await applyClassEdit(tx, card.id, patch, now);
           classId = card.id;
         } else {
           // Named like the other classes ("Year 9 Maths · Friday PM") unless
           // the admin typed a name.
-          const dayName = slotClassName({ ...patch, onlineLink: null, location: null });
+          const dayName = slotClassName({ ...patch, location: null });
           classId = await insertClass(tx, {
             ...patch,
             name: patch.name ?? `${data.name} · ${dayName ?? "Class"}`,
-            subjectId: patch.subjectId ?? data.id,
+            subjectId: data.id,
           });
         }
         if (card.students) await applyStudentChanges(tx, classId, card.students);
@@ -282,9 +241,6 @@ export async function saveSubjectPage(
     });
   } catch (error) {
     if (error instanceof SubjectGone) return { ok: false, error: "This subject no longer exists." };
-    if (error instanceof MoveTargetGone) {
-      return { ok: false, error: "The subject a class was moved to no longer exists." };
-    }
     if (error instanceof NotAStudent) {
       return { ok: false, error: "One of the students to add no longer has a student account." };
     }
@@ -440,7 +396,6 @@ export async function deleteSubject(
             startTime: classes.startTime,
             endTime: classes.endTime,
             location: classes.location,
-            onlineLink: classes.onlineLink,
           })
           .from(classes)
           .where(

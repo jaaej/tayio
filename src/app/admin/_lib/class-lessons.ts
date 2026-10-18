@@ -58,7 +58,6 @@ export async function loadSlotLessons(
       endTime: lessons.endTime,
       tutorId: lessons.tutorId,
       location: lessons.location,
-      onlineLink: lessons.onlineLink,
       hasDependents: lessonHasDependents(lessons.id),
     })
     .from(lessons)

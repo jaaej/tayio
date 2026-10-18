@@ -241,7 +241,6 @@ export type SubjectDetail = {
   tutorFirstName: string;
   tutorLastName: string;
   location: string | null;
-  onlineLink: string | null;
   weekday: number | null;
   startTime: string | null;
   endTime: string | null;
@@ -286,7 +285,6 @@ export async function getSubjectDetail(
       tutorFirstName: profiles.firstName,
       tutorLastName: profiles.lastName,
       location: classes.location,
-      onlineLink: classes.onlineLink,
       weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
@@ -664,7 +662,6 @@ export type LessonRow = {
   endTime: string;
   status: (typeof lessons.$inferSelect)["status"];
   location: string | null;
-  onlineLink: string | null;
   className: string;
   subjectId: string;
   subjectName: string;
@@ -696,7 +693,6 @@ export async function getStudentLessons(
       endTime: lessons.endTime,
       status: lessons.status,
       location: lessons.location,
-      onlineLink: lessons.onlineLink,
       className: classes.name,
       subjectId: classes.subjectId,
       subjectName: subjects.name,

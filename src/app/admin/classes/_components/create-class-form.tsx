@@ -23,7 +23,6 @@ export type CreateClassValues = {
   classType: ClassTypeValue;
   capacity: number;
   location: string | null;
-  onlineLink: string | null;
   isRecurring: boolean;
   weekday: number | null;
   startTime: string | null;
@@ -100,7 +99,6 @@ export function CreateClassForm({
           classType: fd.get("classType") === "one_on_one" ? "one_on_one" : "group",
           capacity: Number(fd.get("capacity") || 8),
           location: text("location") || null,
-          onlineLink: text("onlineLink") || null,
           isRecurring: fd.get("isRecurring") === "on",
           weekday: text("weekday") === "" ? null : Number(text("weekday")),
           startTime: text("startTime") || null,
@@ -160,16 +158,6 @@ export function CreateClassForm({
 
         <Section id={fid("s-where")} title="Where">
           <RoomField id={fid("location")} rooms={rooms} />
-          <Field id={fid("onlineLink")} label="Online link" optional>
-            <input
-              id={fid("onlineLink")}
-              name="onlineLink"
-              type="url"
-              placeholder="https://"
-              autoComplete="off"
-              className={FIELD}
-            />
-          </Field>
         </Section>
 
         <Section id={fid("s-tutor")} title="Tutor">

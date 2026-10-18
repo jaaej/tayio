@@ -6,16 +6,16 @@ import { Undo2, UserMinus, X } from "lucide-react";
 import { Avatar } from "@/components/admin/ui";
 import { SelectField } from "@/app/admin/classes/_components/class-fields";
 import { cn } from "@/lib/utils";
-import type { CardStudent, DeliveryMode } from "../_lib/class-card";
+import type { CardStudent } from "../_lib/class-card";
 
 const SMALL_SELECT = "h-9 rounded-[10px] border-[#DCDEE9] pl-2.5 text-[13px] font-semibold";
 const ROW_BUTTON =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
 
 /**
- * A class card's students: who is enrolled, their delivery mode and private
- * note, and the picker to add someone. Nothing here is sent until the page's
- * Save changes; staged joins and leaves say so on their row.
+ * A class card's students: who is enrolled and the picker to add someone.
+ * Nothing here is sent until the page's Save changes; staged joins and leaves
+ * say so on their row.
  */
 export function ClassStudents({
   students,
@@ -42,10 +42,7 @@ export function ClassStudents({
   function add() {
     const student = available.find((c) => c.id === picked);
     if (!student) return;
-    onChange([
-      ...students,
-      { ...student, saved: null, deliveryMode: null, adminNotes: "", leaving: false },
-    ]);
+    onChange([...students, { ...student, saved: false, leaving: false }]);
     setPicked("");
   }
 
@@ -137,25 +134,6 @@ export function ClassStudents({
                   </span>
                   <span className="truncate text-[12px] text-[#5E5A73]">{s.detail}</span>
                 </span>
-                {!s.leaving && (
-                  <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#5E5A73]">
-                    Delivery
-                    <SelectField
-                      aria-label={`Delivery for ${s.name}`}
-                      value={s.deliveryMode ?? ""}
-                      onChange={(e) =>
-                        patch(s.id, {
-                          deliveryMode: e.target.value === "" ? null : (e.target.value as DeliveryMode),
-                        })
-                      }
-                      className={SMALL_SELECT}
-                    >
-                      <option value="">Class default</option>
-                      <option value="in_person">In person</option>
-                      <option value="online">Online</option>
-                    </SelectField>
-                  </label>
-                )}
                 {s.leaving ? (
                   <button
                     type="button"
@@ -187,20 +165,10 @@ export function ClassStudents({
                   </button>
                 )}
               </div>
-              {s.leaving ? (
+              {s.leaving && (
                 <p className="text-[12px] text-[#5E5A73]">
                   Their past attendance and notes are kept.
                 </p>
-              ) : (
-                <textarea
-                  value={s.adminNotes}
-                  onChange={(e) => patch(s.id, { adminNotes: e.target.value })}
-                  maxLength={2000}
-                  rows={1}
-                  aria-label={`Private note for ${s.name}`}
-                  placeholder="Private note (admins only)"
-                  className="min-h-9 w-full resize-y rounded-[10px] border border-[#DCDEE9] bg-[#FAFBFD] px-3 py-[7px] text-[13px] leading-5 text-ink placeholder:text-[#8C8AA0] focus:border-ink focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-ink/10"
-                />
               )}
             </li>
           ))}

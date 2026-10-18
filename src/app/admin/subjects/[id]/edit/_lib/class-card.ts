@@ -99,15 +99,11 @@ export function roomTaken(
   );
 }
 
-export type DeliveryMode = "in_person" | "online";
-
 /** A class card's fields beyond its slot (the old class page's details). */
 export type CardDetails = {
   name: string;
-  subjectId: string;
   classType: "group" | "one_on_one";
   capacity: number;
-  onlineLink: string;
 };
 
 /** A student on a class card, saved or staged for the next save. */
@@ -116,70 +112,55 @@ export type CardStudent = {
   name: string;
   /** "Glen Waverley SC · noah@taiyo.com" or just the email. */
   detail: string;
-  /** The saved enrolment; null for a student added on this page. */
-  saved: { deliveryMode: DeliveryMode | null; adminNotes: string } | null;
-  deliveryMode: DeliveryMode | null;
-  adminNotes: string;
+  /** Enrolled already; false for a student added on this page. */
+  saved: boolean;
   /** Marked to leave the class when the page is saved. */
   leaving: boolean;
 };
 
 /**
  * The detail fields to send for a card: the changed ones for a saved class,
- * everything set for a new one. A blank name or link on a new class is left
- * out, so the class is named from its slot and has no link.
+ * everything set for a new one. A blank name on a new class is left out, so
+ * the class is named from its slot.
  */
 export function detailsPatch(saved: CardDetails | null, current: CardDetails): Partial<CardDetails> {
   const name = current.name.trim();
-  const link = current.onlineLink.trim();
   if (!saved) {
     return {
       ...(name && { name }),
-      subjectId: current.subjectId,
       classType: current.classType,
       capacity: current.capacity,
-      ...(link && { onlineLink: link }),
     };
   }
   return {
     ...(name && name !== saved.name.trim() && { name }),
-    ...(current.subjectId !== saved.subjectId && { subjectId: current.subjectId }),
     ...(current.classType !== saved.classType && { classType: current.classType }),
     ...(current.capacity !== saved.capacity && { capacity: current.capacity }),
-    ...(link !== saved.onlineLink.trim() && { onlineLink: link }),
   };
 }
 
 export type StudentChanges = {
   add: string[];
   withdraw: string[];
-  updates: { studentId: string; deliveryMode?: DeliveryMode | null; adminNotes?: string }[];
 };
 
 /**
- * What saving does to a card's students: who joins, who leaves, and whose
- * delivery mode or private note changes. A student added and removed again
- * before saving is simply left out.
+ * What saving does to a card's students: who joins and who leaves. A student
+ * added and removed again before saving is simply left out.
  */
 export function studentChanges(students: CardStudent[]): StudentChanges {
   const add: string[] = [];
   const withdraw: string[] = [];
-  const updates: StudentChanges["updates"] = [];
   for (const s of students) {
     if (s.leaving) {
       if (s.saved) withdraw.push(s.id);
-      continue;
+    } else if (!s.saved) {
+      add.push(s.id);
     }
-    if (!s.saved) add.push(s.id);
-    const was = s.saved ?? { deliveryMode: null, adminNotes: "" };
-    const update: StudentChanges["updates"][number] = { studentId: s.id };
-    if (s.deliveryMode !== was.deliveryMode) update.deliveryMode = s.deliveryMode;
-    if (s.adminNotes.trim() !== was.adminNotes.trim()) update.adminNotes = s.adminNotes.trim();
-    if (Object.keys(update).length > 1) updates.push(update);
   }
-  return { add, withdraw, updates };
+  return { add, withdraw };
 }
 
 export function hasStudentChanges(changes: StudentChanges): boolean {
-  return changes.add.length > 0 || changes.withdraw.length > 0 || changes.updates.length > 0;
+  return changes.add.length > 0 || changes.withdraw.length > 0;
 }

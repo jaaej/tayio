@@ -12,7 +12,6 @@ export type ClassSlot = {
   startTime: string | null;
   endTime: string | null;
   location: string | null;
-  onlineLink: string | null;
 };
 
 /**
@@ -26,14 +25,13 @@ export type SlotLesson = {
   endTime: string;
   tutorId: string;
   location: string | null;
-  onlineLink: string | null;
   /** Something points at this lesson (a booking, cover, cancellation, ...),
    *  so it is never deleted. */
   hasDependents: boolean;
 };
 
 export type LessonChange = Partial<
-  Pick<SlotLesson, "date" | "startTime" | "endTime" | "tutorId" | "location" | "onlineLink">
+  Pick<SlotLesson, "date" | "startTime" | "endTime" | "tutorId" | "location">
 >;
 
 export type ScheduleChangePlan = {
@@ -46,7 +44,7 @@ function fullTime(time: string): string {
   return time.length === 5 ? `${time}:00` : time;
 }
 
-/** Blank and missing rooms or links are the same. */
+/** Blank and missing rooms are the same. */
 function clean(value: string | null): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -156,8 +154,8 @@ export function classMoveSentence(
  * by an edit before this rule existed) keeps one. When the class stops
  * repeating, its weekly lessons go, except ones something points at.
  *
- * The tutor, room, and link follow the class unless a lesson was given its
- * own (a cover tutor, a different room).
+ * The tutor and room follow the class unless a lesson was given its own (a
+ * cover tutor, a different room).
  */
 export function planClassScheduleChange({
   before,
@@ -230,12 +228,6 @@ export function planClassScheduleChange({
       clean(l.location) === clean(before.location)
     ) {
       set.location = clean(after.location);
-    }
-    if (
-      clean(before.onlineLink) !== clean(after.onlineLink) &&
-      clean(l.onlineLink) === clean(before.onlineLink)
-    ) {
-      set.onlineLink = clean(after.onlineLink);
     }
     if (Object.keys(set).length > 0) updates.push({ id: l.id, set });
   }

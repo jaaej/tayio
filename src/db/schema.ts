@@ -238,18 +238,12 @@ export const classes = pgTable("classes", {
   capacity: integer("capacity").notNull().default(8),
   classType: classTypeEnum("class_type").notNull().default("group"),
   location: text("location"),
-  onlineLink: text("online_link"),
   isRecurring: boolean("is_recurring").notNull().default(true),
   weekday: integer("weekday"),
   startTime: time("start_time"),
   endTime: time("end_time"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
-
-export const deliveryModeEnum = pgEnum("delivery_mode", [
-  "in_person",
-  "online",
-]);
 
 export const enrollments = pgTable(
   "enrollments",
@@ -262,8 +256,6 @@ export const enrollments = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
-    deliveryMode: deliveryModeEnum("delivery_mode"),
-    adminNotes: text("admin_notes"),
   },
   (t) => [primaryKey({ columns: [t.classId, t.studentId] })],
 );
@@ -283,7 +275,6 @@ export const lessons = pgTable(
     endTime: time("end_time").notNull(),
     status: lessonStatusEnum("status").notNull().default("upcoming"),
     location: text("location"),
-    onlineLink: text("online_link"),
     recordingUrl: text("recording_url"),
     rescheduledFrom: uuid("rescheduled_from"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

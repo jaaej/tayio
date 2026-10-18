@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { SubjectPanel } from "./_components/subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
-import { roomsInUse } from "./_lib/rooms";
+import { roomChoices } from "./_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "./_lib/tutor-fit";
 import { SubjectBlock } from "../_components/subject-block";
 
@@ -97,7 +97,6 @@ export default async function ClassesPage({
         name: classes.name,
         capacity: classes.capacity,
         location: classes.location,
-        onlineLink: classes.onlineLink,
         weekday: classes.weekday,
         startTime: classes.startTime,
         endTime: classes.endTime,
@@ -292,7 +291,7 @@ export default async function ClassesPage({
     : weekRange(weekStart);
 
   const lessonMinutes = usualLessonMinutes(allRows);
-  const rooms = roomsInUse(allRows.map((r) => r.location));
+  const rooms = roomChoices(allRows.map((r) => r.location));
   const shownSubjects = isMonth
     ? rows
         .filter((r) => r.isRecurring && r.weekday !== null)
@@ -524,7 +523,6 @@ type ClassRow = {
   name: string;
   capacity: number;
   location: string | null;
-  onlineLink: string | null;
   weekday: number | null;
   startTime: string | null;
   endTime: string | null;

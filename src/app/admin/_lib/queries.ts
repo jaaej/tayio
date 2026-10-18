@@ -610,8 +610,6 @@ export type DirectoryUser = {
   }>;
   /** Internal account note visible only in the admin directory/profile. */
   adminNote: string | null;
-  /** Delivery modes used across the user's current classes. */
-  deliveryModes: Array<"in_person" | "online">;
 };
 
 /**
@@ -674,9 +672,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         className: classes.name,
         subjectId: subjects.id,
         subjectName: subjects.name,
-        deliveryMode: enrollments.deliveryMode,
-        location: classes.location,
-        onlineLink: classes.onlineLink,
       })
       .from(enrollments)
       .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -689,8 +684,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
         className: classes.name,
         subjectId: subjects.id,
         subjectName: subjects.name,
-        location: classes.location,
-        onlineLink: classes.onlineLink,
       })
       .from(classes)
       .innerJoin(subjects, eq(subjects.id, classes.subjectId)),
@@ -744,9 +737,7 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
   }
 
   type ClassInfo = DirectoryUser["classInfo"][number];
-  type DeliveryMode = DirectoryUser["deliveryModes"][number];
   const classesByUser = new Map<string, Map<string, ClassInfo>>();
-  const modesByUser = new Map<string, Set<DeliveryMode>>();
   const trialsByStudent = new Map(
     trialRows.map((row) => [
       row.studentId,
@@ -781,19 +772,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
     items.set(item.id, item);
     classesByUser.set(userId, items);
   };
-  const addMode = (userId: string, mode: DeliveryMode) => {
-    const modes = modesByUser.get(userId) ?? new Set<DeliveryMode>();
-    modes.add(mode);
-    modesByUser.set(userId, modes);
-  };
-  const addClassDefaultModes = (
-    userId: string,
-    location: string | null,
-    onlineLink: string | null,
-  ) => {
-    if (location?.trim()) addMode(userId, "in_person");
-    if (onlineLink?.trim()) addMode(userId, "online");
-  };
 
   for (const row of studentClassRows) {
     addClass(row.userId, {
@@ -802,11 +780,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       subjectId: row.subjectId,
       subjectName: row.subjectName,
     });
-    if (row.deliveryMode) {
-      addMode(row.userId, row.deliveryMode);
-    } else {
-      addClassDefaultModes(row.userId, row.location, row.onlineLink);
-    }
   }
 
   for (const row of tutorClassRows) {
@@ -816,7 +789,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       subjectId: row.subjectId,
       subjectName: row.subjectName,
     });
-    addClassDefaultModes(row.userId, row.location, row.onlineLink);
   }
 
   return people.map((p) => {
@@ -825,7 +797,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       (a, b) =>
         a.subjectName.localeCompare(b.subjectName) || a.name.localeCompare(b.name),
     );
-    const deliveryModeSet = modesByUser.get(p.id);
     const role = coarseRole(p.role);
     const today = melbourneDate(new Date());
     return {
@@ -844,9 +815,6 @@ export async function getUserDirectory(): Promise<DirectoryUser[]> {
       ),
       classInfo,
       adminNote: p.adminNote?.trim() || null,
-      deliveryModes: (["in_person", "online"] as const).filter((mode) =>
-        deliveryModeSet?.has(mode),
-      ),
     };
   });
 }

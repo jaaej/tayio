@@ -16,18 +16,17 @@ import { formatDateShort } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { STUDENT_TIERS } from "@/lib/roles";
-import { roomsInUse } from "@/app/admin/classes/_lib/rooms";
+import { roomChoices } from "@/app/admin/classes/_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "@/app/admin/classes/_lib/tutor-fit";
 import { SubjectEditForm, type EditClass } from "./_components/subject-edit-form";
 import type { CardStudent } from "./_lib/class-card";
-import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The home of a subject and all its classes (admin edit handoff, plus what
  * the old class page held): the subject's name, level and colour; each
- * class's day, time, tutor, room, name, type, capacity, link and students;
+ * class's day, time, tutor, room, name, type, capacity and students;
  * and the deletes. One Save saves everything. `/admin/classes/[id]` redirects
  * here, to the class's card.
  */
@@ -47,7 +46,7 @@ export default async function EditSubjectPage({
   if (!subject) notFound();
 
   const today = melbourneDate(new Date());
-  const [classRows, allSlots, tutorRows, subjectRows, studentRows, availabilityRows] = await Promise.all([
+  const [classRows, allSlots, tutorRows, studentRows, availabilityRows] = await Promise.all([
     db
       .select({
         id: classes.id,
@@ -60,7 +59,6 @@ export default async function EditSubjectPage({
         location: classes.location,
         classType: classes.classType,
         capacity: classes.capacity,
-        onlineLink: classes.onlineLink,
       })
       .from(classes)
       .where(eq(classes.subjectId, id))
@@ -91,11 +89,6 @@ export default async function EditSubjectPage({
       .from(profiles)
       .where(eq(profiles.role, "tutor"))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
-    // Where a class can be moved.
-    db
-      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
-      .from(subjects)
-      .then((rows) => distinctSubjects(rows).map((s) => ({ id: s.id, name: s.label }))),
     // Everyone who can be added to a class.
     db
       .select({
@@ -136,8 +129,6 @@ export default async function EditSubjectPage({
           .select({
             classId: enrollments.classId,
             studentId: enrollments.studentId,
-            deliveryMode: enrollments.deliveryMode,
-            adminNotes: enrollments.adminNotes,
             firstName: profiles.firstName,
             lastName: profiles.lastName,
             email: profiles.email,
@@ -170,13 +161,11 @@ export default async function EditSubjectPage({
   const studentsBy = new Map<string, CardStudent[]>();
   for (const r of enrolledRows) {
     const list = studentsBy.get(r.classId) ?? [];
-    const saved = { deliveryMode: r.deliveryMode, adminNotes: r.adminNotes ?? "" };
     list.push({
       id: r.studentId,
       name: `${r.firstName} ${r.lastName}`.trim(),
       detail: studentDetail(r),
-      saved,
-      ...saved,
+      saved: true,
       leaving: false,
     });
     studentsBy.set(r.classId, list);
@@ -233,10 +222,8 @@ export default async function EditSubjectPage({
       students: roster,
       details: {
         name: c.name,
-        subjectId: subject.id,
         classType: c.classType,
         capacity: c.capacity,
-        onlineLink: c.onlineLink ?? "",
       },
       saved: {
         weekday: weekly ? c.weekday : null,
@@ -267,7 +254,7 @@ export default async function EditSubjectPage({
       sub={sub}
       classes={editClasses}
       tutors={tutors}
-      rooms={[...roomsInUse(allSlots.map((s) => s.room)).filter((r) => r.toLowerCase() !== "online"), "Online"]}
+      rooms={roomChoices(allSlots.map((s) => s.room))}
       otherSlots={allSlots.map((s) => ({
         classId: s.id,
         weekday: s.weekday,
@@ -294,7 +281,6 @@ export default async function EditSubjectPage({
           endTime: s.endTime,
         }),
       )}
-      subjects={subjectRows}
       students={studentRows.map((r) => ({
         id: r.id,
         name: `${r.firstName} ${r.lastName}`.trim(),

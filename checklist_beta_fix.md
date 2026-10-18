@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 17 October 2026
+Last updated: 18 October 2026
 
 ## Status key
 
@@ -13,6 +13,10 @@ Last updated: 17 October 2026
 
 ## Manual QA required
 
+- [ ] Class card cleanup and staff-only attendance notes (18 October 2026): first apply migration `0065_class_card_cleanup.sql` to Production, after the code is deployed (the previous build reads the dropped columns).
+  As admin at 1440px and 390px, open a subject's pencil: each class card has Day, Starts, Ends, Tutor, Room, Class name, Type and Capacity (no Online link or Subject), and student rows have only Withdraw (no Delivery or private note). In New class, the Room suggestions end with "Online" and there is no Online link field.
+  Mark a lesson with a note as a tutor; confirm the admin roll shows the note, and the linked parent's Classes page and class page show the lesson's status without it.
+
 - [ ] Free trial ends, student leaves (17 October 2026): give a test student a trial ending tomorrow and add them to a class.
   On the last day, confirm admins get "Free trial ends today" (Action needed) naming the class; the next morning, confirm they are off that class's roll, their older classes are untouched, the tutor gets "Free trial ended", and the admin follow-up names the class. Re-add them and confirm they stay.
 
@@ -21,8 +25,9 @@ Last updated: 17 October 2026
 
 - [ ] Subject page as the home of its classes (17 October 2026): sign in as admin at 1440px and 390px.
   From Classes, click a class on the schedule and confirm it opens the subject page at that class (outlined).
-  On a class card, change the name, type, capacity and online link; add a student, set their delivery and private note; withdraw another; check the rows say "Joins on save" / "Leaves on save", then Save and reopen to confirm each change. Repeat one change and press Cancel to confirm nothing is saved.
-  Add a class and pick a tutor after the day and time: tutors free then are listed first, with the reason under the field for one who is not. Move a class to another subject and confirm the warning, then that it appears on the other subject's page after saving.
+  On a class card, change the name, type and capacity; add a student; withdraw another; check the rows say "Joins on save" / "Leaves on save", then Save and reopen to confirm each change. Repeat one change and press Cancel to confirm nothing is saved.
+  Add a class and pick a tutor after the day and time: tutors free then are listed first, with the reason under the field for one who is not.
+  (Online link, subject move, delivery and private note were removed on 18 October 2026; see the entry above.)
 
 - [ ] Tutor class page in the student layout (17 October 2026): sign in as a tutor at 1440px and 390px and open a class from Classes.
   On each tab (Week plan, Lessons, Students, Announcements) confirm the coloured hero: back button, the tabs as pills with the Lessons and Announcements counts in yellow, and "Today ... Open lesson" on a lesson day.
@@ -319,6 +324,8 @@ Last updated: 17 October 2026
   mode and fall back to the class location/link when no override is set.
 - [x] Confirm a tutor teaching both in-person and online classes shows both
   delivery badges, while accounts without class delivery data show no badge.
+  Both badges stopped rendering with the split view, and the delivery data was
+  removed on 18 October 2026 (migration 0065).
 - [x] Search the admin users list by the full subject name and by the class name
   and confirm the matching students and tutors remain visible.
 - [x] As Admin – reception, confirm admin account rows have no action gear,
@@ -564,6 +571,14 @@ Last updated: 17 October 2026
 
 ## Recently implemented
 
+- [x] Class card cleanup and staff-only attendance notes (18 October 2026, owner request after asking what per-student delivery was for).
+  Removed from the subject page's class cards (`/admin/subjects/[id]/edit`): the Online link and Subject (move) fields, and each student's Delivery select and private note. Capacity stays (owner decision): make-up and class-move pickers and Reports use it.
+  Removed everywhere, migration `0065_class_card_cleanup.sql`: `enrollments.delivery_mode` and its enum (it only drew a pill on the tutor's roll; the admin Users badges built on it had not rendered since the split view), `enrollments.admin_notes` (duplicated the account's internal note; any text is appended to `profiles.admin_notes` first), and `classes.online_link` / `lessons.online_link` (no role was ever shown the link). An online class is one whose room is "Online", now also suggested in New class (`roomChoices`, `src/app/admin/classes/_lib/rooms.ts`, tested).
+  Code: `saveSubjectPage` no longer moves classes or updates enrolments, and `applyClassEdit` takes a `ClassEdit` without `subjectId`; `class-card.ts` keeps only joins and leaves (`CardStudent.saved` is a boolean); class moves no longer copy the dropped fields; the shared roll row lost its delivery pill.
+  Attendance notes are staff-only (owner decision): `/parent/classes` and `/parent/classes/[classId]` no longer select or show them, and the migration withholds `attendance.note` from the `authenticated` role (column-level SELECT on every other column), so a student or parent cannot read it through the public API either. The app's own server connection is unaffected.
+  Verified against dev: typecheck, lint, 555 tests, a production build (isolated copy, the dev server kept running), `db:check-rls` (56 tables), migration applied to dev, `set role authenticated` refused `select note` and allowed `select status`, and browser runs of the subject page (1440px and 390px), a capacity change saved through it and reverted (checked in the database each time), New class, the admin and tutor rolls, tutor Classes and the parent class page (a child with notes on 16 and 17 June shows only the statuses).
+  Production: migration 0065 not applied yet. Before applying: 0 delivery modes, 0 enrolment notes, 0 class or lesson links, 0 attendance rows.
+
 - [x] Student profile without the quick-fact tiles (18 October 2026, owner request): `/admin/users/[id]` for a student no longer shows the Attendance, Homework, Invoices and Credits tiles above the tabs (`studentFacts` removed from `src/app/admin/users/_lib/profile-facts.ts`). Tutors keep Classes and Students, parents keep Invoices. Checked in the browser on a student profile; lint and 555 tests pass.
 
 - [x] Subjects may share a name (17 October 2026, owner request: two subjects both called "Mathematics").
@@ -575,6 +590,7 @@ Last updated: 17 October 2026
 
 - [x] Subject page is the home of its classes; the class page is retired (17 October 2026, owner request: "everything in the other page should be in here").
   `/admin/subjects/[id]/edit` class cards now carry what `/admin/classes/[id]` held: class name, Group / One-on-one, capacity, online link, subject (move, with a warning that the class leaves the page), and a Students section (`_components/class-students.tsx`) to add students, set delivery and a private admin note, and withdraw.
+  Since 18 October 2026 the online link, subject move, delivery and private note are gone (entry at the top).
   Owner decisions: student changes wait for Save changes like every other field (rows say "Joins on save" / "Leaves on save" with Undo, so Cancel really cancels); New class stays on Classes, and the card's tutor list is ranked the same way (free then first, the reason under the field), via `rankTutorsForSlot`.
   The one Save (`saveSubjectPage`) now also applies changed details through `applyClassEdit` / `insertClass` and the student changes (`applyStudentChanges`) in the same transaction; a joining account that is not a student, or a move to a deleted subject, refuses the whole save. Change rules are pure and tested (`detailsPatch`, `studentChanges` in `_lib/class-card.ts`, 8 new tests).
   `/admin/classes/[id]` redirects to the subject page at `#class-<id>` (the card is outlined), so schedule blocks, the dashboard feed, notifications, reports and profiles keep working. Removed as unused: the class page's `edit-class-form.tsx` and `enrollments-manager.tsx`, the instant enrolment actions (`actions-enrollments.ts`), `updateClass`, and the delete button's full-width variant.
@@ -1598,6 +1614,7 @@ Last updated: 17 October 2026
   in the split view rather than on the list row.
 - [x] Display `In person` and/or `Online` delivery status for students.
 - [x] Display both delivery modes for tutors who teach both types.
+  Removed 18 October 2026 (owner decision, migration 0065).
 - [x] Add admin-configurable quick-search aliases in Settings, such as `e1/2`
   for `English 1/2`.
 - [x] Search continues matching the original subject/class name after an

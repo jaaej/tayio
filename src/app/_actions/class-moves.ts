@@ -157,8 +157,6 @@ async function executeMove(input: {
         weekday: classes.weekday,
         startTime: classes.startTime,
         endTime: classes.endTime,
-        deliveryMode: enrollments.deliveryMode,
-        adminNotes: enrollments.adminNotes,
       })
       .from(enrollments)
       .innerJoin(classes, eq(classes.id, enrollments.classId))
@@ -251,11 +249,7 @@ async function executeMove(input: {
     if (targetEnrolment.length > 0) {
       await tx
         .update(enrollments)
-        .set({
-          withdrawnAt: null,
-          enrolledAt: movedAt,
-          deliveryMode: source?.deliveryMode ?? null,
-        })
+        .set({ withdrawnAt: null, enrolledAt: movedAt })
         .where(
           and(
             eq(enrollments.studentId, input.studentId),
@@ -267,8 +261,6 @@ async function executeMove(input: {
         studentId: input.studentId,
         classId: input.toClassId,
         enrolledAt: movedAt,
-        deliveryMode: source?.deliveryMode ?? null,
-        adminNotes: source?.adminNotes ?? null,
       });
     }
 

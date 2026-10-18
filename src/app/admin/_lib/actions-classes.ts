@@ -132,7 +132,6 @@ export async function deleteClass(id: string) {
         startTime: classes.startTime,
         endTime: classes.endTime,
         location: classes.location,
-        onlineLink: classes.onlineLink,
       })
       .from(classes)
       .innerJoin(subjects, eq(subjects.id, classes.subjectId))

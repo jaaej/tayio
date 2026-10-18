@@ -200,7 +200,6 @@ export type AttendanceRow = {
   subjectName: string | null;
   tutorName: string;
   status: typeof attendance.status.enumValues[number];
-  note: string | null;
 };
 
 export async function getAttendance(studentId: string): Promise<AttendanceRow[]> {
@@ -214,7 +213,6 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
       status: attendance.status,
-      note: attendance.note,
     })
     .from(attendance)
     .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
@@ -231,7 +229,6 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
     subjectName: r.subjectName,
     tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
     status: r.status,
-    note: r.note,
   }));
 }
 
@@ -408,7 +405,6 @@ export async function getParentClassDetail(
         tutorFirst: attnTutor.firstName,
         tutorLast: attnTutor.lastName,
         status: attendance.status,
-        note: attendance.note,
       })
       .from(attendance)
       .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
@@ -442,7 +438,6 @@ export async function getParentClassDetail(
       subjectName: r.subjectName,
       tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
       status: r.status,
-      note: r.note,
     })),
     feedback: childFeedback.filter((f) => f.classId === classId),
   };

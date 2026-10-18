@@ -136,7 +136,7 @@ Conventions referenced throughout:
 
 ### Classes (calendar + attendance + reschedule)
 1. **What it is** - Combined per-child calendar, attendance log, and the reschedule entry point.
-2. **How it works** - `/parent/classes` renders the shared interactive timetable and attendance for the selected linked child. `/parent/classes/[classId]` is the class detail. The older `/parent/classes/reschedule/[lessonId]` route remains in the tree but is not the current linked entry point. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
+2. **How it works** - `/parent/classes` renders the shared interactive timetable and attendance (each lesson's status; the tutor's attendance note is staff-only) for the selected linked child. `/parent/classes/[classId]` is the class detail. The older `/parent/classes/reschedule/[lessonId]` route remains in the tree but is not the current linked entry point. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
 3. **Rationale:** Keeping attendance, upcoming lessons, and the move action on one calendar reduces the number of places a parent must search.
 
 ### Reschedule a class
@@ -232,8 +232,8 @@ Conventions referenced throughout:
 3. **Rationale:** The parent-visible/internal split is enforced at the database layer: the `lesson_notes_safe` view (migration 0003) omits `internal_note`, so students/parents structurally cannot read it (per security-checklist A3). Lesson-notes split is a PRD cross-cutting non-negotiable.
 
 ### Attendance marking
-1. **What it is** - Mark per-lesson presence/late/absent/left-early with notes.
-2. **How it works** - `/tutor/lessons/[id]`. Table: `attendance` (`attendanceStatusEnum`, `markedBy`). Guard: `requireRole("tutor")` + lesson ownership.
+1. **What it is** - Mark per-lesson presence/late/absent/left-early with a staff-only note.
+2. **How it works** - `/tutor/lessons/[id]`. Table: `attendance` (`attendanceStatusEnum`, `markedBy`). Guard: `requireRole("tutor")` + lesson ownership. `attendance.note` is read only for tutors and admins; migration 0065 also withholds the column from the `authenticated` role, so a student or parent cannot read it through the public API.
 3. **Rationale:** `Rationale: not documented.`
 
 ### Student profile
@@ -305,10 +305,10 @@ Conventions referenced throughout:
 3. **Rationale:** Parent-child account linking is a first-class concept per the PRDs. The family-link manager can mark one linked parent as the student's primary contact; setting one clears any previous primary link.
 
 ### Class management
-1. **What it is** - Create, edit, and delete class slots (subject, tutor, capacity, type, room, online link, recurrence).
-2. **How it works** - `/admin/classes`, `/admin/classes/[id]`, and each subject's edit page `/admin/subjects/[id]/edit`. Table: `classes` (`classTypeEnum` group/one_on_one); the room is `classes.location`. Enrolments managed inline via `enrollments-manager.tsx`. Guard: `requireAdmin()`.
-   Every class edit goes through `applyClassEdit` (`src/app/admin/_lib/class-writes.ts`), from the class page form or the subject edit page, and carries the change to the upcoming lessons (`planClassScheduleChange` in `src/lib/class-schedule-change.ts`, tested), under the same advisory lock as the lesson sweep.
-   Each lesson moves to the new day in its own Monday-first week at the new time; one that would land in the past is removed unless something points at it. A week holding two weekly lessons keeps one, so lessons doubled by an edit before 16 October 2026 clean up on the next save. Tutor, room, and link follow the class unless a lesson has its own (a cover tutor).
+1. **What it is** - Create, edit, and delete class slots (subject, tutor, capacity, type, room, recurrence).
+2. **How it works** - New class on `/admin/classes`; editing on each subject's edit page `/admin/subjects/[id]/edit` (`/admin/classes/[id]` redirects to the class's card there). Table: `classes` (`classTypeEnum` group/one_on_one); the room is `classes.location`, and an online class is one whose room is "Online" (offered after the rooms in use, `roomChoices` in `src/app/admin/classes/_lib/rooms.ts`). A class stays in the subject it was created in. Guard: `requireAdmin()`.
+   Every class edit goes through `applyClassEdit` (`src/app/admin/_lib/class-writes.ts`) and carries the change to the upcoming lessons (`planClassScheduleChange` in `src/lib/class-schedule-change.ts`, tested), under the same advisory lock as the lesson sweep.
+   Each lesson moves to the new day in its own Monday-first week at the new time; one that would land in the past is removed unless something points at it. A week holding two weekly lessons keeps one, so lessons doubled by an edit before 16 October 2026 clean up on the next save. Tutor and room follow the class unless a lesson has its own (a cover tutor).
    A class named "<Subject> · <Day> AM|PM" is renamed when its day or time moves; custom names are kept.
    A new day, time or room tells the tutor, the enrolled students and their parents ("Year 9 Maths moves to Room 3 from Thu 22 Oct."); a new tutor tells both tutors. Name or colour changes send nothing.
    Delete (`delete-class-button.tsx`, `deleteClass`) always confirms. While any lesson has attendance, notes or marks the class is blocked ("This class has history"); "Review N lessons" opens `/admin/attendance?class=<id>&view=marked`, where each lesson that has started can be deleted from its page ("Delete lesson", `deleteLesson`). Once none are left the normal "Delete this class?" dialog appears. The rule is enforced in the server action too.
@@ -323,14 +323,14 @@ Conventions referenced throughout:
 3. **Rationale:** A fixed palette rather than a free colour picker keeps every pairing readable (each key's text and fills are contrast-tested). Stored files (booklets, videos, resource files) are not removed from storage when a subject is deleted, matching the other deletes; the same path can be shared by several rows.
 
 ### Enrolment management
-1. **What it is** - Onboard/move/withdraw students into classes, with per-enrolment admin notes and delivery mode.
-2. **How it works** - `/admin/classes/[id]` contains the enrolments manager for adding, withdrawing, and editing a student's class-specific delivery mode and internal note. Permanent class moves are handled from the student's `/admin/users/[id]` lesson panel. Table: `enrollments` (`withdrawnAt`, `deliveryMode`, `adminNotes`). Guard: `requireAdmin()`.
-3. **Rationale:** `enrollments.adminNotes` was added to move operational notes (`T3INV`, `MOVE CLASS BY NW`, holiday markers) out of the admin's spreadsheet and into the portal (per `docs/checklist.md` Excel-vs-portal audit, and memory `project_admin_excel_gap_2026_05_26`).
+1. **What it is** - Onboard/move/withdraw students into classes.
+2. **How it works** - Each class card on `/admin/subjects/[id]/edit` adds and withdraws students (`class-students.tsx`), staged until Save changes. Permanent class moves are handled from the student's `/admin/users/[id]` lesson panel. Table: `enrollments` (`withdrawnAt`). Guard: `requireAdmin()`.
+3. **Rationale:** Operational notes (`T3INV`, `MOVE CLASS BY NW`, holiday markers) live in the account's internal note (`profiles.adminNotes`, migration 0053), which follows the student between classes. The per-enrolment note and the per-student delivery mode were removed on 18 October 2026 (owner decision, migration 0065): the note duplicated the account note, and the delivery mode only drew a pill on the tutor's roll.
 
 ### Attendance (admin)
 1. **What it is** - Admin view to mark/inspect per-lesson attendance.
-2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`.
-3. **Rationale:** `Rationale: not documented.`
+2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`. The roll row is the shared `src/components/attendance/attendance-row.tsx`, as on the tutor lesson page.
+3. **Rationale:** `Rationale: not documented.` The attendance note is staff-only (owner decision, 18 October 2026): parents see each lesson's status, not the note.
 
 ### Payment management
 1. **What it is** - Create and manually edit invoices, including linked family, amount/currency, due date, description, status, and payment date.

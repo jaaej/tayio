@@ -156,7 +156,7 @@ export default async function TutorClassesPage() {
                 typeof c.weekday === "number" && c.startTime && c.endTime
                   ? `${WEEKDAY[c.weekday]} · ${formatTimeRange(c.startTime, c.endTime)}`
                   : "-";
-              const where = c.location ?? (c.onlineLink ? "Online" : "-");
+              const where = c.location ?? "-";
               return (
                 <article key={c.id} className="panel flex flex-col gap-3.5 p-4">
                   <div className="flex items-start gap-2.5">

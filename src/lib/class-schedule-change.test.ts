@@ -20,7 +20,6 @@ const MONDAY_4PM: ClassSlot = {
   startTime: "16:00:00",
   endTime: "17:00:00",
   location: "Room 9",
-  onlineLink: null,
 };
 
 function lesson(over: Partial<SlotLesson> & Pick<SlotLesson, "id" | "date">): SlotLesson {
@@ -29,7 +28,6 @@ function lesson(over: Partial<SlotLesson> & Pick<SlotLesson, "id" | "date">): Sl
     endTime: "17:00:00",
     tutorId: "tutor-a",
     location: "Room 9",
-    onlineLink: null,
     hasDependents: false,
     ...over,
   };
@@ -206,18 +204,6 @@ describe("planClassScheduleChange", () => {
       now: NOW,
     });
     expect(plan.updates).toEqual([{ id: "l1", set: { location: "Room 4" } }]);
-  });
-
-  it("updates the online link the same way", () => {
-    const plan = planClassScheduleChange({
-      before: MONDAY_4PM,
-      after: { ...MONDAY_4PM, onlineLink: "https://meet.example/abc" },
-      lessons: [MONDAYS[0]],
-      now: NOW,
-    });
-    expect(plan.updates).toEqual([
-      { id: "l1", set: { onlineLink: "https://meet.example/abc" } },
-    ]);
   });
 });
 

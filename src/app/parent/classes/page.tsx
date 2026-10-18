@@ -218,11 +218,6 @@ export default async function ParentClassesPage({
                       >
                         {meta || "-"}
                       </div>
-                      {r.note && (
-                        <p className="mt-1 text-xs text-muted leading-relaxed line-clamp-2">
-                          {r.note}
-                        </p>
-                      )}
                     </div>
                   </div>
                 );

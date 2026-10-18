@@ -49,7 +49,6 @@ export async function ensureRecurringLessons(
       startTime: classes.startTime,
       endTime: classes.endTime,
       location: classes.location,
-      onlineLink: classes.onlineLink,
     })
     .from(classes)
     .where(and(...filters));
@@ -103,7 +102,6 @@ export async function ensureRecurringLessons(
           endTime: classRow.endTime!,
           status: "upcoming" as const,
           location: classRow.location,
-          onlineLink: classRow.onlineLink,
         })),
       );
       lessonsCreated += missing.length;

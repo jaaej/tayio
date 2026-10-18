@@ -73,10 +73,8 @@ describe("roomTaken", () => {
 
 const DETAILS: CardDetails = {
   name: "Year 9 Maths · Thursday PM",
-  subjectId: "s1",
   classType: "group",
   capacity: 8,
-  onlineLink: "",
 };
 
 describe("detailsPatch", () => {
@@ -85,23 +83,19 @@ describe("detailsPatch", () => {
   });
 
   it("sends only the changed fields, trimmed", () => {
-    expect(
-      detailsPatch(DETAILS, { ...DETAILS, capacity: 6, onlineLink: " https://meet.example/x " }),
-    ).toEqual({ capacity: 6, onlineLink: "https://meet.example/x" });
-    expect(detailsPatch(DETAILS, { ...DETAILS, subjectId: "s2", classType: "one_on_one" })).toEqual({
-      subjectId: "s2",
+    expect(detailsPatch(DETAILS, { ...DETAILS, capacity: 6 })).toEqual({ capacity: 6 });
+    expect(detailsPatch(DETAILS, { ...DETAILS, name: " Year 9 Extension ", classType: "one_on_one" })).toEqual({
+      name: "Year 9 Extension",
       classType: "one_on_one",
     });
   });
 
-  it("clears a saved link but never blanks a saved name", () => {
-    const saved = { ...DETAILS, onlineLink: "https://meet.example/x" };
-    expect(detailsPatch(saved, { ...saved, onlineLink: "", name: "  " })).toEqual({ onlineLink: "" });
+  it("never blanks a saved name", () => {
+    expect(detailsPatch(DETAILS, { ...DETAILS, name: "  " })).toEqual({});
   });
 
-  it("leaves a blank name and link out of a new class, so it is named from its slot", () => {
+  it("leaves a blank name out of a new class, so it is named from its slot", () => {
     expect(detailsPatch(null, { ...DETAILS, name: "" })).toEqual({
-      subjectId: "s1",
       classType: "group",
       capacity: 8,
     });
@@ -112,9 +106,7 @@ const student = (over: Partial<CardStudent>): CardStudent => ({
   id: "st1",
   name: "Noah Singh",
   detail: "noah@taiyo.com",
-  saved: { deliveryMode: null, adminNotes: "" },
-  deliveryMode: null,
-  adminNotes: "",
+  saved: true,
   leaving: false,
   ...over,
 });
@@ -122,32 +114,19 @@ const student = (over: Partial<CardStudent>): CardStudent => ({
 describe("studentChanges", () => {
   it("has nothing to do for untouched students", () => {
     const changes = studentChanges([student({})]);
-    expect(changes).toEqual({ add: [], withdraw: [], updates: [] });
+    expect(changes).toEqual({ add: [], withdraw: [] });
     expect(hasStudentChanges(changes)).toBe(false);
   });
 
-  it("adds new students with their delivery mode and note", () => {
-    expect(
-      studentChanges([student({ id: "st2", saved: null, deliveryMode: "online", adminNotes: " Needs a laptop " })]),
-    ).toEqual({
-      add: ["st2"],
-      withdraw: [],
-      updates: [{ studentId: "st2", deliveryMode: "online", adminNotes: "Needs a laptop" }],
-    });
+  it("adds new students", () => {
+    const changes = studentChanges([student({}), student({ id: "st2", saved: false })]);
+    expect(changes).toEqual({ add: ["st2"], withdraw: [] });
+    expect(hasStudentChanges(changes)).toBe(true);
   });
 
   it("withdraws saved students marked to leave, and drops a staged add removed again", () => {
     expect(
-      studentChanges([student({ leaving: true }), student({ id: "st2", saved: null, leaving: true })]),
-    ).toEqual({ add: [], withdraw: ["st1"], updates: [] });
-  });
-
-  it("updates only what changed on a saved enrolment", () => {
-    const saved = { deliveryMode: "in_person" as const, adminNotes: "Old note" };
-    expect(studentChanges([student({ saved, deliveryMode: null, adminNotes: "Old note " })])).toEqual({
-      add: [],
-      withdraw: [],
-      updates: [{ studentId: "st1", deliveryMode: null }],
-    });
+      studentChanges([student({ leaving: true }), student({ id: "st2", saved: false, leaving: true })]),
+    ).toEqual({ add: [], withdraw: ["st1"] });
   });
 });
