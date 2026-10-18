@@ -564,6 +564,8 @@ Last updated: 17 October 2026
 
 ## Recently implemented
 
+- [x] Student profile without the quick-fact tiles (18 October 2026, owner request): `/admin/users/[id]` for a student no longer shows the Attendance, Homework, Invoices and Credits tiles above the tabs (`studentFacts` removed from `src/app/admin/users/_lib/profile-facts.ts`). Tutors keep Classes and Students, parents keep Invoices. Checked in the browser on a student profile; lint and 555 tests pass.
+
 - [x] Subjects may share a name (17 October 2026, owner request: two subjects both called "Mathematics").
   Migration `0064_subject_names_not_unique.sql` drops the unique constraint; `createSubject` and `saveSubjectPage` no longer refuse a repeated name.
   Everything that treated the name as the subject's identity now uses its id, found by an audit of `src/`: the New quiz subject and week pickers (`QuizTargetWeek` now carries `subjectId` and `subjectLabel`; before, two same-named subjects merged into one option and listed both subjects' weeks), the Quizzes filter (`?subject=` is an id), quiz list grouping, the colour legends on admin Classes, the tutor timetable and the student and parent timetable, the student dashboard's next lesson and featured subject, student and parent Homework subject tabs (`?subject=` is an id; parent homework outside a class is "Other"), and the student discussion's "Message tutor" link.
@@ -1026,10 +1028,10 @@ Last updated: 17 October 2026
     email, phone, and linked parents or children; Message
     (`/admin/messages/with/[userId]`) and the account menu
     (`_components/user-account-actions.tsx`, formerly `user-row-actions.tsx`).
-  - Quick facts (`_lib/profile-facts.ts`): students get Attendance and
-    Homework (last 30 days), Invoices (overdue or open count), and active
-    make-up Credits; tutors get Classes and Students; parents get Invoices;
-    admins get none.
+  - Quick facts (`_lib/profile-facts.ts`): tutors get Classes and Students;
+    parents get Invoices; students and admins get none (a student's
+    Attendance, Homework, Invoices and Credits tiles were removed on
+    18 October 2026, owner request).
   - Every existing section stays reachable as a `?tab=` tab; the internal note
     is the amber "admins only" block at the top of the Profile tab.
   - Removed: `user-table-row.tsx`, `user-note-button.tsx`, `user-tabs.tsx`,
