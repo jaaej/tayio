@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArra
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
+import { isInvoiceOpen } from "@/lib/invoice-rules";
 import { familyNoteWrittenSql } from "@/lib/lesson-recap";
 import {
   attendance,
@@ -19,96 +20,6 @@ import {
   subjects,
 } from "@/db/schema";
 import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
-
-export type RecentFeedback = {
-  lessonId: string;
-  date: string;
-  comment: string;
-  subjectName: string;
-  subjectColor: string | null;
-  tutorFirstName: string;
-  tutorLastName: string;
-};
-
-export async function getRecentFeedback(
-  studentId: string,
-  limit = 3,
-): Promise<RecentFeedback[]> {
-  return db
-    .select({
-      lessonId: lessons.id,
-      date: lessons.date,
-      comment: lessonNotes.parentVisibleComment,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        isNotNull(lessonNotes.parentVisibleComment),
-      ),
-    )
-    .orderBy(desc(lessons.date))
-    .limit(limit)
-    .then((rows) =>
-      rows
-        .filter((r) => r.comment !== null)
-        .map((r) => ({ ...r, comment: r.comment as string })),
-    );
-}
-
-export type RecentGrade = {
-  homeworkId: string;
-  title: string;
-  score: string;
-  feedback: string | null;
-  markedAt: Date;
-  className: string | null;
-};
-
-export async function getRecentGrades(
-  studentId: string,
-  limit = 5,
-): Promise<RecentGrade[]> {
-  return db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      score: homeworkAssignments.score,
-      feedback: homeworkAssignments.feedback,
-      markedAt: homeworkAssignments.markedAt,
-      className: classes.name,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .where(
-      and(
-        eq(homeworkAssignments.studentId, studentId),
-        eq(homeworkAssignments.status, "marked"),
-        isNotNull(homeworkAssignments.score),
-        isNotNull(homeworkAssignments.markedAt),
-      ),
-    )
-    .orderBy(desc(homeworkAssignments.markedAt))
-    .limit(limit)
-    .then((rows) =>
-      rows
-        .filter((r) => r.markedAt !== null && r.score !== null)
-        .map((r) => ({
-          ...r,
-          score: r.score as string,
-          markedAt: r.markedAt as Date,
-        })),
-    );
-}
 
 export type SubjectSummary = {
   classId: string;
@@ -402,62 +313,6 @@ export async function getEnrolledClassIds(studentId: string) {
   return rows.map((r) => r.classId);
 }
 
-export type LessonRow = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: (typeof lessons.$inferSelect)["status"];
-  location: string | null;
-  className: string;
-  subjectId: string;
-  subjectName: string;
-  subjectColor: string | null;
-  tutorFirstName: string;
-  tutorLastName: string;
-};
-
-export async function getStudentLessons(
-  studentId: string,
-  opts: { from?: Date; to?: Date; limit?: number } = {},
-): Promise<LessonRow[]> {
-  const enrolledClassIds = await getEnrolledClassIds(studentId);
-  if (enrolledClassIds.length === 0) return [];
-
-  const conditions = [inArray(lessons.classId, enrolledClassIds)];
-  if (opts.from) {
-    conditions.push(gte(lessons.date, isoDate(opts.from)));
-  }
-  if (opts.to) {
-    conditions.push(lt(lessons.date, isoDate(opts.to)));
-  }
-
-  const query = db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      location: lessons.location,
-      className: classes.name,
-      subjectId: classes.subjectId,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .where(and(...conditions))
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  const rows = opts.limit ? await query.limit(opts.limit) : await query;
-  return rows;
-}
-
 export type HomeworkRow = {
   homeworkId: string;
   title: string;
@@ -551,41 +406,6 @@ export async function getDueHomeworkCount(studentId: string) {
       ),
     );
   return rows[0]?.count ?? 0;
-}
-
-export async function getNextDueHomework(studentId: string): Promise<HomeworkRow | null> {
-  const rows = await db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      description: homework.description,
-      attachmentUrl: homework.attachmentUrl,
-      dueDate: homework.dueDate,
-      allowResubmission: homework.allowResubmission,
-      status: homeworkAssignments.status,
-      submittedAt: homeworkAssignments.submittedAt,
-      submissionUrl: homeworkAssignments.submissionUrl,
-      submissionText: homeworkAssignments.submissionText,
-      score: homeworkAssignments.score,
-      feedback: homeworkAssignments.feedback,
-      markedAt: homeworkAssignments.markedAt,
-      className: classes.name,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(
-      and(
-        eq(homeworkAssignments.studentId, studentId),
-        notInArray(homeworkAssignments.status, [...HANDED_IN_STATUSES]),
-      ),
-    )
-    .orderBy(asc(homework.dueDate))
-    .limit(1);
-  return rows[0] ?? null;
 }
 
 export type LessonWithNoteListItem = {
@@ -908,12 +728,7 @@ export async function getOutstandingBalanceForStudent(
     .from(invoices)
     .where(eq(invoices.studentId, studentId));
   return rows
-    .filter(
-      (r) =>
-        r.status === "unpaid" ||
-        r.status === "overdue" ||
-        r.status === "partially_paid",
-    )
+    .filter((r) => isInvoiceOpen(r.status))
     .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 

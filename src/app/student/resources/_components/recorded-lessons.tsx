@@ -17,12 +17,9 @@ export async function RecordedLessons({ studentId }: { studentId: string }) {
       aria-labelledby="rl-h"
       className="glass flex flex-col rounded-[24px] p-1.5 lg:sticky lg:top-[var(--portal-sticky-top)] lg:max-h-[var(--portal-fill-h)]"
     >
-      <div className="flex items-center justify-between pb-2.5 pl-3 pr-2 pt-2">
-        <h2 id="rl-h" className="text-[16px] font-extrabold text-ink">
-          Recorded lessons
-        </h2>
-        <span className="text-[13px] font-semibold text-ink-soft">{lessons.length} total</span>
-      </div>
+      <h2 id="rl-h" className="pb-2.5 pl-3 pr-2 pt-2 text-[16px] font-extrabold text-ink">
+        Recorded lessons
+      </h2>
       <div className="panel scroll-fade flex min-h-0 flex-col gap-0.5 p-1.5 lg:overflow-y-auto">
         {lessons.length === 0 ? (
           <Empty>No lessons yet.</Empty>

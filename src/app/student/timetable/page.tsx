@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader, buttonVariants } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
-import { parseMonthParam } from "../_components/month-calendar";
+import { parseMonthParam } from "@/lib/month-param";
 import { InteractiveTimetable, RailCard } from "../_components/interactive-timetable";
 import { termAllowanceLabel } from "../_components/timetable-helpers";
 import { getAdminContactForStudent, getStudentHomework } from "../_lib/queries";
