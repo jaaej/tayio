@@ -21,9 +21,9 @@ import {
 import { cn } from "@/lib/utils";
 import {
   PAYMENT_REMINDER_KEY_PREFIX,
+  displayStatus,
   formatTotals,
   groupInvoicesByFamily,
-  isOpenStatus,
   parseStatusFilter,
   summariseByStatus,
   type InvoiceStatus,
@@ -171,8 +171,14 @@ export default async function PaymentsPage({
     description: r.description,
   }));
 
-  const summary = summariseByStatus(invoiceRows);
-  const families = groupInvoicesByFamily(invoiceRows, { status, query, childrenByParent });
+  const todayIso = melbourneDate();
+  const summary = summariseByStatus(invoiceRows, todayIso);
+  const families = groupInvoicesByFamily(invoiceRows, {
+    status,
+    today: todayIso,
+    query,
+    childrenByParent,
+  });
 
   const familyIds = families.map((f) => f.parentId);
   const reminders =
@@ -190,7 +196,6 @@ export default async function PaymentsPage({
           .groupBy(notifications.userId);
   const lastReminder = new Map(reminders.map((r) => [r.userId, r.at]));
 
-  const todayIso = melbourneDate();
   const now = new Date();
 
   return (
@@ -331,7 +336,8 @@ export default async function PaymentsPage({
             >
               <ul className="divide-y divide-line">
                 {family.invoices.map((r) => {
-                  const pastDue = isOpenStatus(r.status) && r.dueDate < todayIso;
+                  const shown = displayStatus(r, todayIso);
+                  const pastDue = shown === "overdue";
                   const name = [r.description || "Invoice", r.studentName].filter(Boolean).join(" · ");
                   return (
                     <li
@@ -357,7 +363,12 @@ export default async function PaymentsPage({
                         {dueLabel(r.dueDate)}
                       </div>
                       <div className="justify-self-end md:justify-self-start">
-                        <InvoiceStatusSelect id={r.id} status={r.status} label={`Status for ${name}`} />
+                        <InvoiceStatusSelect
+                          id={r.id}
+                          status={r.status}
+                          shown={shown}
+                          label={`Status for ${name}`}
+                        />
                       </div>
                       <div className="col-span-2 flex justify-end gap-1.5 md:col-span-1">
                         {r.status !== "paid" && <MarkPaidButton id={r.id} />}

@@ -11,6 +11,10 @@ import {
   type InvoiceStatus,
 } from "./families";
 
+// Fixtures are due 16 October, after this "today"; tests that need them
+// past due use a later date.
+const TODAY = "2026-10-12";
+
 function inv(over: Partial<FamilyInvoiceInput> = {}): FamilyInvoiceInput {
   return {
     id: "i1",
@@ -83,7 +87,7 @@ describe("groupInvoicesByFamily", () => {
         inv({ id: "c", status: "paid" }),
         inv({ id: "d", parentId: "p2", parentName: "Helen Brown", studentName: "Isla Brown" }),
       ],
-      { status: null },
+      { status: null, today: TODAY },
     );
     expect(families.map((f) => f.parentId)).toEqual(["p1", "p2"]);
     expect(families[0].invoices.map((i) => i.id)).toEqual(["a", "b", "c"]);
@@ -99,7 +103,7 @@ describe("groupInvoicesByFamily", () => {
         inv({ id: "b", status: "unpaid" }),
         inv({ id: "c", parentId: "p2", parentName: "Helen", status: "paid" }),
       ],
-      { status: "overdue" },
+      { status: "overdue", today: TODAY },
     );
     expect(families).toHaveLength(1);
     expect(families[0].invoices.map((i) => i.id)).toEqual(["a"]);
@@ -111,6 +115,7 @@ describe("groupInvoicesByFamily", () => {
       [inv({ studentName: "Sarah Student" }), inv({ id: "b", studentName: null })],
       {
         status: null,
+        today: TODAY,
         childrenByParent: new Map([["p1", ["sarah student", "Tom Student"]]]),
       },
     );
@@ -123,7 +128,7 @@ describe("groupInvoicesByFamily", () => {
       inv({ id: "b", parentId: "p2", parentName: "Helen Brown", parentEmail: "h@x.com", studentName: "Isla Brown" }),
     ];
     const ids = (query: string) =>
-      groupInvoicesByFamily(rows, { status: null, query }).map((f) => f.parentId);
+      groupInvoicesByFamily(rows, { status: null, today: TODAY, query }).map((f) => f.parentId);
     expect(ids("isla")).toEqual(["p2"]);
     expect(ids("PAT@")).toEqual(["p1"]);
     expect(ids("  ")).toEqual(["p2", "p1"]);
@@ -138,9 +143,49 @@ describe("groupInvoicesByFamily", () => {
         inv({ id: "c", parentId: "p3", parentName: "Bea", amount: "50", status: "paid" }),
         inv({ id: "d", parentId: "p4", parentName: "Abe", amount: "50", status: "paid" }),
       ],
-      { status: null },
+      { status: null, today: TODAY },
     );
     expect(families.map((f) => f.parentName)).toEqual(["Amy", "Zed", "Abe", "Bea"]);
+  });
+});
+
+describe("overdue by date", () => {
+  const LATER = "2026-10-20";
+
+  it("files an unpaid invoice past its due date under overdue", () => {
+    const rows = [
+      inv({ id: "a", status: "unpaid", dueDate: "2026-10-16" }),
+      inv({ id: "b", status: "unpaid", dueDate: "2026-10-30" }),
+      inv({ id: "c", status: "paid", dueDate: "2026-10-01" }),
+    ];
+    const s = summariseByStatus(rows, LATER);
+    expect(s.overdue.count).toBe(1);
+    expect(s.unpaid.count).toBe(1);
+    expect(s.paid.count).toBe(1);
+
+    const families = groupInvoicesByFamily(rows, { status: "overdue", today: LATER });
+    expect(families[0].invoices.map((i) => i.id)).toEqual(["a"]);
+    expect(families[0].overdueCount).toBe(1);
+  });
+
+  it("sorts a family with a past-due unpaid invoice first", () => {
+    const families = groupInvoicesByFamily(
+      [
+        inv({ id: "a", parentId: "p1", parentName: "Zed", amount: "900", dueDate: "2026-10-30" }),
+        inv({ id: "b", parentId: "p2", parentName: "Amy", amount: "10", dueDate: "2026-10-16" }),
+      ],
+      { status: null, today: LATER },
+    );
+    expect(families.map((f) => f.parentName)).toEqual(["Amy", "Zed"]);
+  });
+
+  it("counts a past-due unpaid invoice as overdue in the reminder", () => {
+    expect(
+      buildPaymentReminderBody(
+        [{ amount: "320", currency: "AUD", status: "unpaid", dueDate: "2026-10-16" }],
+        LATER,
+      ),
+    ).toContain("including 1 overdue");
   });
 });
 
@@ -150,7 +195,7 @@ describe("summariseByStatus", () => {
       inv({ status: "overdue" }),
       inv({ status: "overdue", amount: "10.50" }),
       inv({ status: "paid" }),
-    ]);
+    ], TODAY);
     expect(s.overdue).toEqual({ count: 2, totals: [{ currency: "AUD", amount: 330.5 }] });
     expect(s.paid.count).toBe(1);
     expect(s.refunded).toEqual({ count: 0, totals: [] });
@@ -166,15 +211,21 @@ describe("payment reminder", () => {
 
   it("summarises the open balance for the parent", () => {
     expect(
-      buildPaymentReminderBody([
-        { amount: "320", currency: "AUD", status: "overdue" },
-        { amount: "160", currency: "AUD", status: "partially_paid" },
-      ]),
+      buildPaymentReminderBody(
+        [
+          { amount: "320", currency: "AUD", status: "overdue", dueDate: "2026-10-30" },
+          { amount: "160", currency: "AUD", status: "partially_paid", dueDate: "2026-10-30" },
+        ],
+        TODAY,
+      ),
     ).toBe(
       "You have 2 invoices totalling $480 that are awaiting payment, including 1 overdue. Open Payments to see the details.",
     );
     expect(
-      buildPaymentReminderBody([{ amount: "320", currency: "AUD", status: "unpaid" }]),
+      buildPaymentReminderBody(
+        [{ amount: "320", currency: "AUD", status: "unpaid", dueDate: "2026-10-30" }],
+        TODAY,
+      ),
     ).toBe(
       "You have 1 invoice totalling $320 that is awaiting payment. Open Payments to see the details.",
     );

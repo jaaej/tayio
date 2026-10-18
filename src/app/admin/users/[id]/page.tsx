@@ -167,7 +167,7 @@ export default async function UserDetailPage({
       isStudent || isTutor
         ? getUserSchedulePeriod(id, user.role)
         : Promise.resolve(null),
-      getProfileFacts(id, user.role),
+      getProfileFacts(id, user.role, user.email),
       isStudent
         ? db
             .select({
@@ -544,6 +544,7 @@ export default async function UserDetailPage({
               value={fact.value}
               sub={fact.sub}
               tone={fact.tone}
+              href={fact.href}
             />
           ))}
         </div>

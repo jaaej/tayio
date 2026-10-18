@@ -12,6 +12,8 @@ import {
   subjects,
   terms,
 } from "@/db/schema";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { attendanceSummary, type AttendanceMark } from "@/lib/attendance-rules";
 import type { ClassMetricRow } from "./reports-metrics";
 
 export type TermOption = {
@@ -86,16 +88,27 @@ export async function getClassMetricRows(term: {
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .orderBy(asc(classes.name));
 
-  const att = await db
+  // Every mark in the term, so the shared rule decides what counts: a moved
+  // lesson (approved reschedule or credit) is not an absence.
+  const marks = await db
     .select({
       classId: lessons.classId,
-      attended: sql<number>`count(*) filter (where ${attendance.status} in ('present','late','left_early','makeup_attended'))`.mapWith(Number),
-      marked: sql<number>`count(*)`.mapWith(Number),
+      status: attendance.status,
+      moved: attendanceMovedSql,
     })
     .from(attendance)
     .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
-    .where(and(gte(lessons.date, term.startDate), lte(lessons.date, term.endDate)))
-    .groupBy(lessons.classId);
+    .where(and(gte(lessons.date, term.startDate), lte(lessons.date, term.endDate)));
+  const marksByClass = new Map<string, AttendanceMark[]>();
+  for (const m of marks) {
+    const list = marksByClass.get(m.classId) ?? [];
+    list.push(m);
+    marksByClass.set(m.classId, list);
+  }
+  const att = [...marksByClass].map(([classId, list]) => {
+    const summary = attendanceSummary(list);
+    return { classId, attended: summary.attended, marked: summary.total };
+  });
 
   const hw = await db
     .select({

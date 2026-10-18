@@ -234,6 +234,7 @@ export async function sendPaymentReminder(parentId: string) {
       amount: invoices.amount,
       currency: invoices.currency,
       status: invoices.status,
+      dueDate: invoices.dueDate,
     })
     .from(invoices)
     .where(
@@ -245,6 +246,7 @@ export async function sendPaymentReminder(parentId: string) {
   if (open.length === 0) {
     return { ok: false as const, error: "This family has nothing owing." };
   }
+  const today = melbourneDate();
 
   const inserted = await withActor({ id: user.id, role: "admin" }, (tx) =>
     tx
@@ -253,9 +255,9 @@ export async function sendPaymentReminder(parentId: string) {
         userId: parent.id,
         channel: "in_app",
         title: PAYMENT_REMINDER_TITLE,
-        body: buildPaymentReminderBody(open),
+        body: buildPaymentReminderBody(open, today),
         href: "/parent/payments",
-        dedupeKey: paymentReminderDedupeKey(parent.id, melbourneDate()),
+        dedupeKey: paymentReminderDedupeKey(parent.id, today),
       })
       .onConflictDoNothing()
       .returning({ id: notifications.id }),

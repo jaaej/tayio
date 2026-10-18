@@ -26,14 +26,18 @@ const STATUS_TONE: Record<InvoiceStatus, string> = {
 /**
  * The invoice's status pill is also its status control: a native select laid
  * over the pill, so the current state and the way to change it are one thing.
+ * The pill shows `shown` (an open invoice past its due date reads Overdue,
+ * the rule every role uses); the select edits the stored status.
  */
 export function InvoiceStatusSelect({
   id,
   status,
+  shown = status,
   label,
 }: {
   id: string;
   status: InvoiceStatus;
+  shown?: InvoiceStatus;
   /** Accessible name, e.g. "Status for Term 4 · Sarah Student". */
   label: string;
 }) {
@@ -43,14 +47,15 @@ export function InvoiceStatusSelect({
     <span
       className={cn(
         "relative inline-flex h-[30px] items-center gap-1 rounded-full pl-2.5 pr-2 text-[12px] font-bold transition focus-within:ring-2 focus-within:ring-brand-400",
-        STATUS_TONE[status],
+        STATUS_TONE[shown],
         pending && "opacity-60",
       )}
+      title={shown !== status ? "Past its due date" : undefined}
     >
-      <span aria-hidden>{STATUS_LABEL[status]}</span>
+      <span aria-hidden>{STATUS_LABEL[shown]}</span>
       <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
       <select
-        aria-label={label}
+        aria-label={shown !== status ? `${label} (past its due date)` : label}
         value={status}
         disabled={pending}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait"
