@@ -20,6 +20,8 @@ import {
   subjects,
 } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
+import { attendanceSummary } from "@/lib/attendance-rules";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
 
 export type ParentChild = {
   id: string;
@@ -86,16 +88,14 @@ const MASTERY_PERCENT = {
 
 export async function getDashboardData(studentId: string): Promise<DashboardData> {
   const attendanceRows = await db
-    .select({ status: attendance.status })
+    .select({ status: attendance.status, moved: attendanceMovedSql })
     .from(attendance)
     .where(eq(attendance.studentId, studentId));
-  const attendanceCount = attendanceRows.length;
-  const presentLike = attendanceRows.filter(
-    (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
-  ).length;
-  const absenceCount = attendanceRows.filter((r) => r.status === "absent").length;
-  const attendanceRate =
-    attendanceCount > 0 ? Math.round((presentLike / attendanceCount) * 100) : null;
+  // A moved or credited lesson is neither attended nor an absence.
+  const summary = attendanceSummary(attendanceRows);
+  const attendanceCount = summary.total;
+  const absenceCount = summary.absent;
+  const attendanceRate = summary.percent;
 
   const homeworkRows = await db
     .select({ status: homeworkAssignments.status })
@@ -200,6 +200,8 @@ export type AttendanceRow = {
   subjectName: string | null;
   tutorName: string;
   status: typeof attendance.status.enumValues[number];
+  /** An absence written by a reschedule or a credit: reads "Moved". */
+  moved: boolean;
 };
 
 export async function getAttendance(studentId: string): Promise<AttendanceRow[]> {
@@ -213,6 +215,7 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
       status: attendance.status,
+      moved: attendanceMovedSql,
     })
     .from(attendance)
     .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
@@ -229,6 +232,7 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
     subjectName: r.subjectName,
     tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
     status: r.status,
+    moved: r.moved,
   }));
 }
 
@@ -405,6 +409,7 @@ export async function getParentClassDetail(
         tutorFirst: attnTutor.firstName,
         tutorLast: attnTutor.lastName,
         status: attendance.status,
+        moved: attendanceMovedSql,
       })
       .from(attendance)
       .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
@@ -438,6 +443,7 @@ export async function getParentClassDetail(
       subjectName: r.subjectName,
       tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
       status: r.status,
+      moved: r.moved,
     })),
     feedback: childFeedback.filter((f) => f.classId === classId),
   };

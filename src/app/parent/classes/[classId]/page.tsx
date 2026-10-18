@@ -5,10 +5,8 @@ import { ClipboardCheck, UserX, CalendarDays, BookOpen } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime, relativeTime } from "@/lib/format";
-import {
-  ATTENDANCE_STATUS_LABEL,
-  ATTENDANCE_STATUS_STYLE,
-} from "@/lib/status";
+import { ATTENDANCE_STATUS_STYLE } from "@/lib/status";
+import { attendanceLabel, attendanceSummary } from "@/lib/attendance-rules";
 import { getParentClassDetail, resolveSelectedChild } from "../../_data";
 import { SectionHeader } from "../../_components/section-header";
 import { StatusPill } from "../../_components/status-pill";
@@ -47,15 +45,8 @@ export default async function ParentClassDetailPage({
       ? `${WEEKDAY[detail.weekday]} · ${formatTime(detail.startTime)}–${formatTime(detail.endTime)}`
       : "No recurring slot";
 
-  const total = detail.attendance.length;
-  const present = detail.attendance.filter(
-    (r) =>
-      r.status === "present" ||
-      r.status === "late" ||
-      r.status === "makeup_attended",
-  ).length;
-  const absent = detail.attendance.filter((r) => r.status === "absent").length;
-  const rate = total > 0 ? Math.round((present / total) * 100) : null;
+  // A moved or credited lesson is not an absence and is left out of the rate.
+  const { total, absent, percent: rate } = attendanceSummary(detail.attendance);
 
   const childQs = `?child=${selected.id}`;
   const classDetail = classNameDetail(detail.subjectName, detail.className);
@@ -105,7 +96,7 @@ export default async function ParentClassDetailPage({
             title="Attendance"
             link={{ href: `/parent/feedback${childQs}`, label: "Tutor feedback" }}
           />
-          {total === 0 ? (
+          {detail.attendance.length === 0 ? (
             <Empty>
               No attendance has been recorded yet for {selected.firstName} in
               this class.
@@ -164,8 +155,12 @@ export default async function ParentClassDetailPage({
                         </div>
                         <span className="shrink-0">
                           <StatusPill
-                            label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
-                            className={ATTENDANCE_STATUS_STYLE[r.status]}
+                            label={attendanceLabel(r)}
+                            className={
+                              r.moved
+                                ? "bg-surface-2 text-ink-soft"
+                                : ATTENDANCE_STATUS_STYLE[r.status]
+                            }
                           />
                         </span>
                       </div>

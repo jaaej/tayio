@@ -6,10 +6,8 @@ import { getStudentHomework } from "@/app/student/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { listRedeemableCredits } from "@/lib/credits";
-import {
-  ATTENDANCE_STATUS_LABEL,
-  ATTENDANCE_STATUS_STYLE,
-} from "@/lib/status";
+import { ATTENDANCE_STATUS_STYLE } from "@/lib/status";
+import { attendanceLabel, attendanceSummary } from "@/lib/attendance-rules";
 import { getAdminContact, getAttendance, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { parseMonthParam } from "../_components/month-param";
@@ -79,15 +77,12 @@ export default async function ParentClassesPage({
     .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
 
   // Attendance summary (folded in from the retired /parent/attendance page).
-  const attTotal = attendanceRows.length;
-  const attPresent = attendanceRows.filter(
-    (r) =>
-      r.status === "present" ||
-      r.status === "late" ||
-      r.status === "makeup_attended",
-  ).length;
-  const attAbsent = attendanceRows.filter((r) => r.status === "absent").length;
-  const attRate = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null;
+  // A moved or credited lesson is not an absence and is left out of the rate.
+  const {
+    total: attTotal,
+    absent: attAbsent,
+    percent: attRate,
+  } = attendanceSummary(attendanceRows);
 
   return (
     <div className="space-y-6">
@@ -178,7 +173,7 @@ export default async function ParentClassesPage({
                   icon={<CalendarDays className="h-5 w-5" />}
                   tone="sky"
                   accent
-                  delta="This term"
+                  delta="All logged lessons"
                 />
               </div>
               <div className="divide-y divide-line/70 border-t border-line">
@@ -207,8 +202,12 @@ export default async function ParentClassesPage({
                         </div>
                         <span className="shrink-0">
                           <StatusPill
-                            label={ATTENDANCE_STATUS_LABEL[r.status] ?? r.status}
-                            className={ATTENDANCE_STATUS_STYLE[r.status]}
+                            label={attendanceLabel(r)}
+                            className={
+                              r.moved
+                                ? "bg-surface-2 text-ink-soft"
+                                : ATTENDANCE_STATUS_STYLE[r.status]
+                            }
                           />
                         </span>
                       </div>
