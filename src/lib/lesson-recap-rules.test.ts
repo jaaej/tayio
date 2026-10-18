@@ -19,10 +19,11 @@ describe("recapBlocks", () => {
       performance: "On track",
       struggles: "  ",
     });
+    // In the editor's words, so a field is never named two ways.
     expect(blocks.map((b) => [b.label, b.body])).toEqual([
       ["Topic covered", "Quadratics"],
-      ["How it went", "On track"],
-      ["From the tutor", "Great work"],
+      ["Performance", "On track"],
+      ["Comment", "Great work"],
     ]);
   });
 
