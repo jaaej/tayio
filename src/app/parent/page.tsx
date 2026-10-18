@@ -327,33 +327,41 @@ export default async function ParentDashboard({
           </Card>
 
           <Card>
-            <SectionHeader title="Announcements" />
+            <SectionHeader
+              title="Announcements"
+              link={{ href: "/parent/notifications?filter=announcements", label: "See all" }}
+            />
             {notices.length === 0 ? (
               <Empty>No announcements right now.</Empty>
             ) : (
-              <div className="divide-y divide-line/70">
+              <ul className="divide-y divide-line/70">
                 {notices.map((n) => (
-                  <div key={n.id} className="flex gap-3 px-5 py-3.5">
-                    <Megaphone
-                      className="h-[18px] w-[18px] text-brand-500 shrink-0 mt-0.5"
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="text-sm font-bold text-ink truncate">
-                          {n.title}
-                        </div>
-                        <div className="text-[11px] text-muted shrink-0">
-                          {relativeTime(new Date(n.publishedAt))}
-                        </div>
-                      </div>
-                      <p className="mt-1 text-sm text-ink-soft leading-relaxed line-clamp-2">
-                        {n.body}
-                      </p>
-                    </div>
-                  </div>
+                  <li key={n.id}>
+                    <Link
+                      href={`/parent/notifications?announcement=${n.id}`}
+                      className="flex gap-3 px-5 py-3.5 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+                    >
+                      <Megaphone
+                        className="h-[18px] w-[18px] text-brand-500 shrink-0 mt-0.5"
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-3">
+                          <span className="text-sm font-bold text-ink truncate">
+                            {n.title}
+                          </span>
+                          <span className="text-[11px] text-muted shrink-0">
+                            {relativeTime(new Date(n.publishedAt))}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-sm text-ink-soft leading-relaxed line-clamp-2">
+                          {n.body}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </Card>
 
