@@ -19,6 +19,8 @@ import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
 type SearchParams = Promise<{
   child?: string;
   month?: string;
+  /** Opens with this lesson selected (the Overview's "Can't make it?"). */
+  lesson?: string;
 }>;
 
 function isoLocal(d: Date | string) {
@@ -111,6 +113,7 @@ export default async function ParentClassesPage({
               subjectQuery={`?child=${selected.id}`}
               messageBase="/parent/messages/with"
               recapBase="/parent/feedback"
+              initialLessonId={params.lesson}
             />
           </div>
           <ClassMoveRequestPanel

@@ -41,9 +41,15 @@ import { SectionHeader } from "./_components/section-header";
 import { StatusPill } from "./_components/status-pill";
 import { Table, Th, Td, Tr } from "./_components/table";
 import { RecapPreviewList } from "@/components/lessons/lesson-recap";
+import { NextLessonCard } from "@/components/parent/next-lesson-card";
+import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { nextAttendingLesson } from "@/app/student/_components/timetable-helpers";
 import { getFamilyRecaps } from "@/lib/lesson-recap";
 
 type SearchParams = Promise<{ child?: string }>;
+
+/** How far ahead the Overview looks for the next lesson. */
+const NEXT_LESSON_LOOKAHEAD_DAYS = 56;
 
 export default async function ParentDashboard({
   searchParams,
@@ -71,6 +77,7 @@ export default async function ParentDashboard({
     );
   }
 
+  const now = new Date();
   const [
     data,
     recaps,
@@ -81,6 +88,7 @@ export default async function ParentDashboard({
     notices,
     tutors,
     admin,
+    lessonChips,
   ] = await Promise.all([
     getDashboardData(selected.id),
     getFamilyRecaps(selected.id, { limit: 4 }),
@@ -91,7 +99,14 @@ export default async function ParentDashboard({
     getParentAnnouncements(user.id, 4),
     getChildTutors(selected.id),
     getAdminContact(),
+    // The next lesson comes from the Timetable's own lessons.
+    buildTimetableChips(
+      selected.id,
+      new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + NEXT_LESSON_LOOKAHEAD_DAYS),
+    ),
   ]);
+  const nextLesson = nextAttendingLesson(lessonChips, now);
 
   const overallMastery = mastery.overall;
   const markedSubjects = mastery.subjects.filter((s) => s.percent !== null).length;
@@ -99,7 +114,6 @@ export default async function ParentDashboard({
 
   const recentHomework = homeworkRows.slice(0, 5);
   const recentInvoices = invoices.slice(0, 4);
-  const now = new Date();
   const today = melbourneDayKey(now);
 
   const childQs = `?child=${selected.id}`;
@@ -206,6 +220,15 @@ export default async function ParentDashboard({
       <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-5 lg:gap-6">
         {/* LEFT */}
         <div className="space-y-5 min-w-0 rise" style={{ animationDelay: "80ms" }}>
+          <NextLessonCard
+            lesson={nextLesson}
+            timetableHref={`/parent/classes${childQs}`}
+            cantMakeItHref={
+              nextLesson
+                ? `/parent/classes${childQs}&month=${nextLesson.date.slice(0, 7)}&lesson=${nextLesson.id}`
+                : null
+            }
+          />
           <Card>
             <SectionHeader
               title="From the tutor"

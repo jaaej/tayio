@@ -143,6 +143,7 @@ export function InteractiveTimetable({
   canSelfServe = true,
   glass = false,
   aside,
+  initialLessonId,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -175,12 +176,17 @@ export function InteractiveTimetable({
   glass?: boolean;
   /** Extra rail panels below the selected lesson and credits. */
   aside?: ReactNode;
+  /** Open with this lesson selected (a "Can't make it?" link names it);
+   *  otherwise the next lesson. */
+  initialLessonId?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
   const [selectedId, setSelectedId] = useState<string | null>(() =>
-    defaultSelectedLessonId(lessons, new Date()),
+    initialLessonId && lessons.some((l) => l.id === initialLessonId)
+      ? initialLessonId
+      : defaultSelectedLessonId(lessons, new Date()),
   );
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [loading, startLoad] = useTransition();
