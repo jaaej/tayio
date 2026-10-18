@@ -1,10 +1,11 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
   homework,
   homeworkAssignments,
+  lessons,
   quizzes,
   resources,
   subjectTopics,
@@ -16,6 +17,7 @@ import { getClassWeekPlans } from "@/lib/week-plans";
 import { weekNumberOn } from "@/lib/week-plan-rules";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
 import { LIVE_QUIZ_STATUSES } from "@/lib/quiz-status";
+import { LESSON_OFF_STATUSES } from "@/lib/lesson-progress-sql";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 
 export type TutorSectionAttachment = {
@@ -52,6 +54,15 @@ export type TutorWeekQuiz = {
   assignedToMe: boolean;
 };
 
+/** This class's lesson in the week, for its recording link. */
+export type TutorWeekLesson = {
+  id: string;
+  date: string;
+  recordingUrl: string | null;
+  /** This tutor teaches it (a covered lesson's page is the cover tutor's). */
+  mine: boolean;
+};
+
 export type TutorCurriculumWeek = {
   subjectWeekId: string;
   weekNumber: number;
@@ -67,6 +78,8 @@ export type TutorCurriculumWeek = {
   hasSection: boolean;               // note or ≥1 attachment
   homework: TutorWeekHomework[];
   quiz: TutorWeekQuiz | null;
+  /** The class's first lesson in the week, if it has one. */
+  lesson: TutorWeekLesson | null;
 };
 
 export type TutorCurriculumData = {
@@ -154,7 +167,7 @@ export async function getTutorCurriculum(
     .where(eq(subjectTopics.subjectId, cls.subjectId));
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  const [plans, quizRows, hwRows] = await Promise.all([
+  const [plans, quizRows, hwRows, lessonRows] = await Promise.all([
     getClassWeekPlans(classId, weekIds),
     weekIds.length
       ? db
@@ -211,7 +224,37 @@ export async function getTutorCurriculum(
           .groupBy(homework.id)
           .orderBy(asc(homework.dueDate))
       : Promise.resolve([]),
+    // The class's own lessons in the term (not make-ups, nothing that did
+    // not run), matched to weeks the way getLessonWeek does.
+    db
+      .select({
+        id: lessons.id,
+        date: lessons.date,
+        recordingUrl: lessons.recordingUrl,
+        tutorId: lessons.tutorId,
+      })
+      .from(lessons)
+      .where(
+        and(
+          eq(lessons.classId, classId),
+          gte(lessons.date, term.startDate),
+          lte(lessons.date, term.endDate),
+          notInArray(lessons.status, ["makeup", ...LESSON_OFF_STATUSES]),
+        ),
+      )
+      .orderBy(asc(lessons.date), asc(lessons.startTime)),
   ]);
+  const lessonByWeek = new Map<number, TutorWeekLesson>();
+  for (const l of lessonRows) {
+    const week = weekNumberOn(term.startDate, l.date);
+    if (lessonByWeek.has(week)) continue;
+    lessonByWeek.set(week, {
+      id: l.id,
+      date: l.date,
+      recordingUrl: l.recordingUrl,
+      mine: l.tutorId === tutorId,
+    });
+  }
 
   const atts = [...plans.values()].flatMap((p) => p.attachments);
   const attIds = atts.map((a) => a.id);
@@ -286,6 +329,7 @@ export async function getTutorCurriculum(
       hasSection: Boolean(plan?.body) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
       quiz: quizByWeek.get(tpl.id) ?? null,
+      lesson: lessonByWeek.get(tpl.weekNumber) ?? null,
     };
   });
 

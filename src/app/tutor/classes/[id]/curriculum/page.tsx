@@ -29,6 +29,7 @@ import { getClassHub } from "../_lib/class-hub";
 import {
   getTutorCurriculum,
   type TutorWeekHomework,
+  type TutorWeekLesson,
   type TutorWeekQuiz,
 } from "./_queries";
 import { WeekPlanEditor } from "./_components/week-plan-editor";
@@ -80,9 +81,7 @@ export default async function TutorClassCurriculumPage({
     topicName: w.topicName,
     pills: [
       ...(w.hasSection ? [{ label: "Notes", tone: "neutral" as const }] : []),
-      ...(w.homework.length > 0
-        ? [{ label: `${w.homework.length} HW`, tone: "neutral" as const }]
-        : []),
+      ...homeworkPill(w.homework),
       ...(w.quiz?.assignedToMe &&
       (w.quiz.status === "requested" || w.quiz.status === "changes_requested")
         ? [{ label: "Quiz to do", tone: "warn" as const }]
@@ -145,7 +144,7 @@ export default async function TutorClassCurriculumPage({
               <h2 id="lm-h" className="m-0 px-3 pb-1 pt-2 text-[16px] font-extrabold text-ink">
                 Lesson &amp; materials
               </h2>
-              <div className="grid gap-1.5 sm:grid-cols-2">
+              <div className="grid gap-1.5 sm:grid-cols-2 2xl:grid-cols-3">
                 <MaterialCard
                   kind="video"
                   title="Recorded lesson"
@@ -186,6 +185,7 @@ export default async function TutorClassCurriculumPage({
                     <MaterialNotReady />
                   )}
                 </MaterialCard>
+                <ClassRecordingCard lesson={selected.lesson} accent={tone.flat} title={className} />
               </div>
             </section>
 
@@ -250,6 +250,70 @@ export default async function TutorClassCurriculumPage({
         )}
       </CurriculumLayout>
     </>
+  );
+}
+
+/** The week's homework on the rail: what waits to be marked, else how many. */
+function homeworkPill(homework: TutorWeekHomework[]) {
+  if (homework.length === 0) return [];
+  const toMark = homework.reduce((n, h) => n + h.toMark, 0);
+  return toMark > 0
+    ? [{ label: `${toMark} to mark`, tone: "warn" as const }]
+    : [{ label: `${homework.length} HW`, tone: "neutral" as const }];
+}
+
+/**
+ * This class's own recording of its lesson in the week (the link the tutor
+ * adds on the lesson page), apart from the admin's Recorded lesson above.
+ */
+function ClassRecordingCard({
+  lesson,
+  accent,
+  title,
+}: {
+  lesson: TutorWeekLesson | null;
+  accent: string;
+  title: string;
+}) {
+  const lessonHref = lesson ? `/tutor/lessons/${lesson.id}?from=class#recording` : null;
+  return (
+    <MaterialCard
+      kind="video"
+      title="Class recording"
+      status={
+        !lesson
+          ? "No lesson this week"
+          : lesson.recordingUrl
+            ? "Link added"
+            : "No link yet"
+      }
+      statusTone={!lesson ? "neutral" : lesson.recordingUrl ? "done" : "waiting"}
+    >
+      {lesson?.recordingUrl ? (
+        <div className="grid grid-cols-2 gap-1.5">
+          <span className="flex rounded-[12px] transition-opacity hover:opacity-90" style={{ background: accent }}>
+            <VideoViewerButton url={lesson.recordingUrl} title={`${title} recording`} className={VIEW_BUTTON}>
+              Watch
+            </VideoViewerButton>
+          </span>
+          {lesson.mine && lessonHref ? (
+            <Link href={lessonHref} className={cn(MATERIAL_BUTTON, MATERIAL_BUTTON_QUIET)}>
+              Change link
+            </Link>
+          ) : null}
+        </div>
+      ) : lesson?.mine && lessonHref ? (
+        <Link
+          href={lessonHref}
+          className={cn(MATERIAL_BUTTON, "text-white hover:opacity-90")}
+          style={{ background: accent }}
+        >
+          Add link
+        </Link>
+      ) : (
+        <MaterialNotReady />
+      )}
+    </MaterialCard>
   );
 }
 

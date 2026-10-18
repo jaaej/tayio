@@ -169,7 +169,7 @@ const QUIZ_STATUS_PHRASE: Record<string, string> = {
 };
 
 /**
- * The one-line state of a lesson's week, e.g. "Recording uploaded · quiz
+ * The one-line state of a lesson's week, e.g. "Class recording added · quiz
  * needs changes · homework due Thu". Only facts the tutor can act on or rely
  * on; nothing is said about a missing recording before the lesson has ended.
  */
@@ -182,8 +182,9 @@ export function weekStatusLine(input: {
   todayIso: string;
 }): string {
   const parts: string[] = [];
-  if (input.hasRecording) parts.push("recording uploaded");
-  else if (input.lessonDone) parts.push("no recording yet");
+  // The lesson's own recording link, not the admin's week video.
+  if (input.hasRecording) parts.push("class recording added");
+  else if (input.lessonDone) parts.push("no class recording yet");
   const quiz = input.quizStatus ? QUIZ_STATUS_PHRASE[input.quizStatus] : undefined;
   if (quiz) parts.push(quiz);
   if (input.homeworkDueIso) {
