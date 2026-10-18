@@ -34,3 +34,20 @@ export async function signHomeworkAttachment(
     .createSignedUrl(value, SIGNED_URL_TTL_SECONDS);
   return data?.signedUrl ?? null;
 }
+
+/**
+ * A student's uploaded submission as a short-lived signed URL, for a viewer
+ * other than the student (their parent). Signed with the service client, so
+ * the caller must already have checked the viewer may see this assignment.
+ */
+export async function signHomeworkSubmission(
+  value: string | null | undefined,
+): Promise<string | null> {
+  if (!value) return null;
+  if (value.startsWith("http")) return value;
+  const supabase = createAdminClient();
+  const { data } = await supabase.storage
+    .from(HOMEWORK_BUCKET)
+    .createSignedUrl(value, SIGNED_URL_TTL_SECONDS);
+  return data?.signedUrl ?? null;
+}

@@ -45,7 +45,7 @@ import {
 import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
 import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
 import { parseTabParam, tabsForRole, type UserTab } from "@/lib/user-detail-tabs";
-import { parseMonthParam } from "@/app/student/_components/month-calendar";
+import { parseMonthParam } from "@/lib/month-param";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { getStudentHomework } from "@/app/student/_lib/queries";
 import { isHandedIn } from "@/lib/homework-rules";

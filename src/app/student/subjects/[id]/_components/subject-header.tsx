@@ -6,7 +6,9 @@ import type { SubjectTab } from "../../_lib/subject-page";
 /**
  * Hero in the subject colour (StudentSubjectColourPage): the subject tabs,
  * which replace the separate subjects list, then the week, its title, the
- * week's done ring and the message button.
+ * week's done ring and the message button. The parent's subject page uses
+ * the same hero for their child, with its own links (`basePath`, `query`,
+ * `messageBase`).
  */
 export function SubjectHeader({
   tabs,
@@ -18,6 +20,9 @@ export function SubjectHeader({
   progress,
   tutorId,
   tutorFirstName,
+  basePath = "/student/subjects",
+  query = "",
+  messageBase = "/student/messages/with",
 }: {
   tabs: SubjectTab[];
   subjectId: string;
@@ -28,6 +33,10 @@ export function SubjectHeader({
   progress?: { done: number; total: number };
   tutorId?: string;
   tutorFirstName?: string | null;
+  /** Subject tab links: `${basePath}/${subjectId}${query}`. */
+  basePath?: string;
+  query?: string;
+  messageBase?: string;
 }) {
   const tone = subjectTone(subjectName, subjectColor);
   const bg = tone.flat;
@@ -48,7 +57,7 @@ export function SubjectHeader({
           fg={deep}
           items={tabs.map((tab) => ({
             label: tab.subjectName,
-            href: `/student/subjects/${tab.subjectId}`,
+            href: `${basePath}/${tab.subjectId}${query}`,
             active: tab.subjectId === subjectId,
             count: tab.dueCount,
             countTone: "warn" as const,
@@ -76,7 +85,7 @@ export function SubjectHeader({
             )}
             {showMessage && (
               <Link
-                href={`/student/messages/with/${tutorId}`}
+                href={`${messageBase}/${tutorId}`}
                 className={HERO_ACTION}
                 style={{ color: deep }}
               >

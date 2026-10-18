@@ -1,34 +1,8 @@
 /**
- * Pure helpers for the student Progress split view: overall mastery, the
- * term picker, issued reports and the merged "Recent marks" list. Kept free
- * of the database so they are unit tested.
+ * Pure helpers for the Progress split view: the term picker, issued reports
+ * and the merged "Recent marks" list. Topic mastery is `@/lib/topic-mastery`.
+ * Kept free of the database so they are unit tested.
  */
-
-export type Mastery = "not_started" | "needs_work" | "improving" | "strong";
-
-export const MASTERY_LABEL: Record<Mastery, string> = {
-  strong: "All good",
-  improving: "Improving",
-  needs_work: "Needs focused effort",
-  not_started: "Not started",
-};
-
-/** The order levels are explained in, best first. */
-export const MASTERY_ORDER: Mastery[] = ["strong", "improving", "needs_work", "not_started"];
-
-type Topic = { topic: string; mastery: Mastery };
-
-/**
- * Overall mastery across subjects that have tracked topics (a subject with
- * no topics yet is not a 0%). Null when nothing is tracked anywhere.
- */
-export function overallMastery(
-  subjects: Array<{ masteryPercent: number; topics: Topic[] }>,
-): number | null {
-  const tracked = subjects.filter((s) => s.topics.length > 0);
-  if (tracked.length === 0) return null;
-  return Math.round(tracked.reduce((sum, s) => sum + s.masteryPercent, 0) / tracked.length);
-}
 
 export type ProgressTerm = {
   id: string;

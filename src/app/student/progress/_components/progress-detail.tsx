@@ -3,18 +3,19 @@ import { ChevronLeft, LineChart } from "lucide-react";
 import { formatDateShort, formatScore, melbourneDayKey } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
-import { MASTERY_LABEL, type Mastery, type RecentMark } from "../_lib/progress";
+import { MASTERY_LEVEL_LABEL, type MasteryLevel } from "@/lib/topic-mastery";
+import type { RecentMark } from "../_lib/progress";
 import type { ProgressDetail } from "../_lib/progress-data";
 
-/** Bar colour, pill fill and pill text per effort level. */
-const LEVEL: Record<Mastery, { c: string; bg: string; fg: string }> = {
+/** Bar colour, pill fill and pill text per level; `none` before any marks. */
+const LEVEL: Record<MasteryLevel | "none", { c: string; bg: string; fg: string }> = {
   strong: { c: "#15803D", bg: "#E3F4EC", fg: "#15803D" },
   improving: { c: "#3B4FD8", bg: "#E7EFFD", fg: "#1E4FB8" },
   needs_work: { c: "#D97706", bg: "#FDF1E0", fg: "#8A4A06" },
-  not_started: { c: "#8C8AA0", bg: "#EEEFF6", fg: "#4A4660" },
+  none: { c: "#8C8AA0", bg: "#EEEFF6", fg: "#4A4660" },
 };
 
-const LEGEND: Mastery[] = ["strong", "improving", "needs_work"];
+const LEGEND: MasteryLevel[] = ["strong", "improving", "needs_work"];
 
 /**
  * Right pane of the progress split view: subject title with the term's test
@@ -25,16 +26,19 @@ export function ProgressDetailPane({
   detail,
   backHref = "/student/progress",
   desktopOnly = false,
+  markLinks = STUDENT_MARK_LINKS,
 }: {
   detail: ProgressDetail;
   /** The list on phones, keeping the chosen term. */
   backHref?: string;
   /** The index page's default subject: phones show the list instead. */
   desktopOnly?: boolean;
+  /** Where a mark opens; a parent opens homework only (quizzes are the
+   *  student's to take). */
+  markLinks?: MarkLinks;
 }) {
-  const tracked = detail.topics.length > 0;
   const facts = [
-    { k: "Mastery", v: tracked ? `${detail.masteryPercent}%` : "-" },
+    { k: "Mastery", v: detail.masteryPercent === null ? "-" : `${detail.masteryPercent}%` },
     { k: "Average score", v: detail.averagePercent === null ? "-" : `${detail.averagePercent}%` },
   ];
 
@@ -95,17 +99,17 @@ export function ProgressDetailPane({
                   className="h-2 w-2 rounded-full"
                   style={{ background: LEVEL[level].c }}
                 />
-                {MASTERY_LABEL[level]}
+                {MASTERY_LEVEL_LABEL[level]}
               </span>
             ))}
           </span>
         </span>
-        {tracked ? (
+        {detail.topics.length > 0 ? (
           detail.topics.map((t) => {
-            const level = LEVEL[t.mastery];
+            const level = LEVEL[t.level ?? "none"];
             return (
               <div
-                key={t.topic}
+                key={t.topicId}
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_140px_150px]"
               >
                 <span className="min-w-0 text-[14px] font-bold text-[#17152B] [overflow-wrap:anywhere]">
@@ -113,25 +117,27 @@ export function ProgressDetailPane({
                 </span>
                 <span
                   aria-hidden
+                  title={t.percent === null ? undefined : `${t.percent}%`}
                   className="order-last col-span-2 h-2 overflow-hidden rounded-[4px] bg-[#EEEFF6] sm:order-none sm:col-span-1"
                 >
                   <span
                     className="block h-full"
-                    style={{ width: `${t.percent}%`, background: level.c }}
+                    style={{ width: `${t.percent ?? 0}%`, background: level.c }}
                   />
                 </span>
                 <span
                   className="flex h-[22px] items-center justify-self-end whitespace-nowrap rounded-[11px] px-2 text-[11px] font-extrabold"
                   style={{ background: level.bg, color: level.fg }}
                 >
-                  {MASTERY_LABEL[t.mastery]}
+                  {t.level && <span className="sr-only">{t.percent}%, </span>}
+                  {t.level ? MASTERY_LEVEL_LABEL[t.level] : "No marks yet"}
                 </span>
               </div>
             );
           })
         ) : (
           <p className="text-[13px] text-[#5E5A73]">
-            Your tutor hasn&apos;t tracked any topics for this subject yet.
+            This subject&apos;s curriculum has no topics yet.
           </p>
         )}
       </div>
@@ -143,7 +149,7 @@ export function ProgressDetailPane({
             Nothing marked yet.
           </p>
         ) : (
-          detail.marks.map((m) => <MarkRow key={`${m.kind}-${m.id}`} mark={m} />)
+          detail.marks.map((m) => <MarkRow key={`${m.kind}-${m.id}`} mark={m} links={markLinks} />)
         )}
       </div>
     </section>
@@ -169,14 +175,20 @@ function markMeta(mark: RecentMark): string {
     .join(" · ");
 }
 
-function MarkRow({ mark }: { mark: RecentMark }) {
-  const href =
-    mark.kind === "quiz" ? `/student/quizzes/${mark.id}` : `/student/homework/${mark.id}`;
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 border-t border-[#EFF0F5] px-4 py-2.5 text-[#17152B] transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
-    >
+export type MarkLinks = { homework: string; quiz: string | null; query: string };
+
+const STUDENT_MARK_LINKS: MarkLinks = {
+  homework: "/student/homework",
+  quiz: "/student/quizzes",
+  query: "",
+};
+
+function MarkRow({ mark, links }: { mark: RecentMark; links: MarkLinks }) {
+  const base = mark.kind === "quiz" ? links.quiz : links.homework;
+  const className =
+    "flex items-center gap-3 border-t border-[#EFF0F5] px-4 py-2.5 text-[#17152B] transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400";
+  const body = (
+    <>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[14px] font-bold">{mark.title}</span>
         <span className="line-clamp-2 text-[12px] text-[#5E5A73]">{markMeta(mark)}</span>
@@ -184,7 +196,14 @@ function MarkRow({ mark }: { mark: RecentMark }) {
       <span className="shrink-0 text-[15px] font-extrabold tabular-nums">
         {mark.kind === "quiz" ? `${mark.correctCount} / ${mark.total}` : formatScore(mark.percent)}
       </span>
+    </>
+  );
+  return base ? (
+    <Link href={`${base}/${mark.id}${links.query}`} className={className}>
+      {body}
     </Link>
+  ) : (
+    <div className={cn(className, "hover:bg-transparent")}>{body}</div>
   );
 }
 

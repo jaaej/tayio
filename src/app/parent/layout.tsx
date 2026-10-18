@@ -1,4 +1,3 @@
-import "./theme.css";
 import { ParentShell } from "@/components/parent/shell";
 import { requireRole } from "@/lib/auth";
 

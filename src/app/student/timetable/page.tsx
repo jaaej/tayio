@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { PageHeader, buttonVariants } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
-import { parseMonthParam } from "../_components/month-calendar";
-import {
-  InteractiveTimetable,
-  RailCard,
-  type TimetableHw,
-} from "../_components/interactive-timetable";
+import { parseMonthParam } from "@/lib/month-param";
+import { InteractiveTimetable, RailCard } from "../_components/interactive-timetable";
 import { termAllowanceLabel } from "../_components/timetable-helpers";
 import { getAdminContactForStudent, getStudentHomework } from "../_lib/queries";
 import { listRedeemableCredits } from "@/lib/credits";
-import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { buildTimetableChips, buildTimetableHomework } from "@/app/_lib/timetable-chips";
 import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
 
@@ -53,17 +49,11 @@ export default async function TimetablePage({
     isUnrestricted ? listRedeemableCredits(user.id) : Promise.resolve([]),
   ]);
 
-  const fromIso = isoLocal(from);
-  const toIso = isoLocal(to);
-  const homework: TimetableHw[] = homeworkRows
-    .map((h) => ({
-      id: h.homeworkId,
-      dueDate: isoLocal(h.dueDate),
-      title: h.title,
-      done: h.status === "submitted" || h.status === "marked",
-      href: `/student/homework/${h.homeworkId}`,
-    }))
-    .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
+  const homework = buildTimetableHomework(
+    homeworkRows,
+    { fromIso: isoLocal(from), toIso: isoLocal(to) },
+    (id) => `/student/homework/${id}`,
+  );
 
   const allowance = isUnrestricted ? termAllowanceLabel(chips, new Date()) : null;
 

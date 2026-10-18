@@ -84,6 +84,8 @@ export type TimetableChip = {
   /** This lesson was converted to a class credit via a no-slot reschedule
    *  (credit granted from it, but not a cancellation). */
   convertedToCredit: boolean;
+  /** The tutor wrote a recap of this lesson for the family. */
+  hasRecap?: boolean;
 };
 export type TimetableHw = {
   id: string;
@@ -120,7 +122,7 @@ function monthParam(year: number, month: number) {
 
 /**
  * The month timetable shared by the student's own Timetable page and the
- * parent's per-child Classes page: the shared month grid on the left, and a
+ * parent's per-child Timetable: the shared month grid on the left, and a
  * side rail with the selected lesson, class credits and any extra panels the
  * page passes in. Clicking a lesson selects it; reschedule and cancel act on
  * the selected lesson. `canSelfServe` is false for a student without billing
@@ -137,11 +139,13 @@ export function InteractiveTimetable({
   subjectBase = "/student/subjects",
   subjectQuery = "",
   messageBase = "/student/messages/with",
+  recapBase = "/student/resources",
   canSelfServe = true,
   glass = false,
   aside,
   staffActions,
   shadedDates,
+  initialLessonId,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -163,12 +167,14 @@ export function InteractiveTimetable({
   subjectQuery?: string;
   /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
   messageBase?: string;
+  /** Base path for a past lesson's recap - `${recapBase}/${lesson.id}${subjectQuery}`. */
+  recapBase?: string;
   /** False for a student without billing access: no reschedule, cancel or
    *  credits; the selected lesson says to ask a parent instead. The server
    *  actions enforce the same rule. */
   canSelfServe?: boolean;
   /** Render the calendar and rail in glass frames (portals on the glass
-   *  shell). The parent portal, not yet on the glass shell, uses plain cards. */
+   *  shell); without it they are plain cards. */
   glass?: boolean;
   /** Extra rail panels below the selected lesson and credits. */
   aside?: ReactNode;
@@ -178,12 +184,17 @@ export function InteractiveTimetable({
   staffActions?: (lesson: TimetableChip) => ReactNode;
   /** Days to shade on the month grid, e.g. the student's leave. */
   shadedDates?: Set<string>;
+  /** Open with this lesson selected (a "Can't make it?" link names it);
+   *  otherwise the next lesson. */
+  initialLessonId?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [view, setView] = useState({ year: initialYear, month: initialMonth });
   const [selectedId, setSelectedId] = useState<string | null>(() =>
-    defaultSelectedLessonId(lessons, new Date()),
+    initialLessonId && lessons.some((l) => l.id === initialLessonId)
+      ? initialLessonId
+      : defaultSelectedLessonId(lessons, new Date()),
   );
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [loading, startLoad] = useTransition();
@@ -580,6 +591,7 @@ export function InteractiveTimetable({
                     selected.subjectId ? `${subjectBase}/${selected.subjectId}${subjectQuery}` : null
                   }
                   messageHref={adminId ? `${messageBase}/${adminId}` : null}
+                  recapHref={selected.hasRecap ? `${recapBase}/${selected.id}${subjectQuery}` : null}
                   onReschedule={() => openReschedule(selected.id)}
                   onCancel={() => setMode({ kind: "cancel-confirm", lessonId: selected.id })}
                   onAbortCancel={() => setMode({ kind: "idle" })}
@@ -714,6 +726,7 @@ function SelectedLesson({
   adminId,
   subjectHref,
   messageHref,
+  recapHref,
   onReschedule,
   onCancel,
   onAbortCancel,
@@ -730,6 +743,7 @@ function SelectedLesson({
   adminId: string | null;
   subjectHref: string | null;
   messageHref: string | null;
+  recapHref: string | null;
   onReschedule: () => void;
   onCancel: () => void;
   onAbortCancel: () => void;
@@ -844,8 +858,16 @@ function SelectedLesson({
         </div>
       )}
 
-      {!staffActions && (subjectHref || showOffice) && (
+      {!staffActions && (subjectHref || showOffice || recapHref) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {recapHref && (
+            <Link
+              href={recapHref}
+              className="rounded-[6px] text-[13px] font-bold text-[#3A1AA8] hover:text-[#21106B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Read the recap →
+            </Link>
+          )}
           {subjectHref && (
             <Link
               href={subjectHref}

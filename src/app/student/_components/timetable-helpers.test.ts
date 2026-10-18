@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { defaultSelectedLessonId, termAllowanceLabel } from "./timetable-helpers";
+import {
+  defaultSelectedLessonId,
+  isAttendingLesson,
+  nextAttendingLesson,
+  termAllowanceLabel,
+} from "./timetable-helpers";
 
-const NOW = new Date("2026-10-13T12:00:00");
+// Tue 13 Oct 2026, noon in Melbourne (AEDT, UTC+11); lesson times are
+// Melbourne wall-clock times whatever the server's timezone.
+const NOW = new Date("2026-10-13T12:00:00+11:00");
 
 function chip(over: Partial<Parameters<typeof defaultSelectedLessonId>[0][number] & {
   rescheduleRemaining: number | null;
@@ -12,6 +19,7 @@ function chip(over: Partial<Parameters<typeof defaultSelectedLessonId>[0][number
     date: "2026-10-15",
     startTime: "16:00:00",
     status: "upcoming",
+    studentState: "normal" as const,
     cancelled: false,
     convertedToCredit: false,
     rescheduleRemaining: 2,
@@ -51,6 +59,32 @@ describe("defaultSelectedLessonId", () => {
   it("returns null when nothing is coming up", () => {
     expect(defaultSelectedLessonId([chip({ date: "2026-10-01" })], NOW)).toBeNull();
     expect(defaultSelectedLessonId([], NOW)).toBeNull();
+  });
+});
+
+describe("nextAttendingLesson", () => {
+  it("skips a lesson the student moved away from and takes their make-up", () => {
+    const next = nextAttendingLesson(
+      [
+        chip({ id: "moved", date: "2026-10-14", studentState: "moved_out" }),
+        chip({ id: "requested-slot", date: "2026-10-14", startTime: "17:00:00", studentState: "pending_in" }),
+        chip({ id: "makeup", date: "2026-10-15", studentState: "makeup_in" }),
+        chip({ id: "regular", date: "2026-10-16" }),
+      ],
+      NOW,
+    );
+    expect(next?.id).toBe("makeup");
+  });
+
+  it("keeps the original lesson while a move waits for approval", () => {
+    expect(isAttendingLesson(chip({ studentState: "pending_out" }))).toBe(true);
+    expect(isAttendingLesson(chip({ status: "rescheduled" }))).toBe(false);
+  });
+
+  it("reads lesson times as Melbourne time", () => {
+    // 1 pm Melbourne is after noon Melbourne, whatever the server's zone.
+    expect(nextAttendingLesson([chip({ id: "one", date: "2026-10-13", startTime: "13:00:00" })], NOW)?.id).toBe("one");
+    expect(nextAttendingLesson([chip({ id: "eleven", date: "2026-10-13", startTime: "11:00:00" })], NOW)).toBeNull();
   });
 });
 

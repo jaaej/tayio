@@ -12,8 +12,9 @@ import {
 } from "@/db/schema";
 import { melbourneDayKey } from "@/lib/format";
 import { averageScore } from "@/lib/score-average";
+import { meanMastery, type MasteryLevel } from "@/lib/topic-mastery";
+import { getSubjectMastery } from "@/lib/topic-mastery-data";
 import {
-  MASTERY_PERCENT,
   getStudentOverallSubjectRank,
   getStudentProgressBySubject,
   getStudentProgressSubjectDetail,
@@ -23,11 +24,9 @@ import {
   isMarkedHomework,
   issuedReportTermIds,
   latestQuizResults,
-  overallMastery,
   pickTerm,
   progressTerms,
   recentMarks,
-  type Mastery,
   type ProgressTerm,
   type RecentMark,
 } from "./progress";
@@ -36,8 +35,8 @@ export type ProgressPaneSubject = {
   subjectId: string;
   subjectName: string;
   subjectColor: string | null;
-  masteryPercent: number;
-  topicCount: number;
+  /** From marks (`topic-mastery`); null before anything is marked. */
+  masteryPercent: number | null;
 };
 
 export type ProgressReport = { termId: string; label: string; href: string };
@@ -78,9 +77,14 @@ const getStudentTerms = cache(async (studentId: string) => {
   return { termRows, today, offered: progressTerms(termRows, firstEnrolledOn, today) };
 });
 
-/** Reports issued to this student ("Term report ready" notifications). */
+/**
+ * The student's term reports issued to `recipientId` ("Term report ready"
+ * notifications): to the student themselves, or to a parent, who is the
+ * one notified for a student without billing access.
+ */
 async function getIssuedReports(
   studentId: string,
+  recipientId: string,
   termRows: Array<{ id: string; year: number; termNumber: number; startDate: string }>,
 ): Promise<ProgressReport[]> {
   const rows = await db
@@ -88,7 +92,7 @@ async function getIssuedReports(
     .from(notifications)
     .where(
       and(
-        eq(notifications.userId, studentId),
+        eq(notifications.userId, recipientId),
         like(notifications.href, `/reports/${studentId}/%`),
       ),
     )
@@ -110,27 +114,32 @@ async function getIssuedReports(
 
 /**
  * The list pane: overall mastery, one row per enrolled subject, the term
- * picker's options and the student's reports. Cached per request, since the
- * layout and the index page both need it.
+ * picker's options and the student's reports as issued to `reportsFor` (the
+ * student, or their parent; null when the viewer may not open them).
+ * Cached per request, since the layout and the index page both need it.
  */
 export const getProgressPane = cache(
-  async (studentId: string, canOpenReports: boolean): Promise<ProgressPaneData> => {
+  async (studentId: string, reportsFor: string | null): Promise<ProgressPaneData> => {
     const [subjects, { termRows, today, offered }] = await Promise.all([
       getStudentProgressBySubject(studentId),
       getStudentTerms(studentId),
     ]);
+    const mastery = await getSubjectMastery(
+      studentId,
+      subjects.map((s) => s.subjectId),
+    );
+    const paneSubjects = subjects.map((s) => ({
+      subjectId: s.subjectId,
+      subjectName: s.subjectName,
+      subjectColor: s.subjectColor,
+      masteryPercent: mastery.get(s.subjectId)?.percent ?? null,
+    }));
     return {
-      overall: overallMastery(subjects),
-      subjects: subjects.map((s) => ({
-        subjectId: s.subjectId,
-        subjectName: s.subjectName,
-        subjectColor: s.subjectColor,
-        masteryPercent: s.masteryPercent,
-        topicCount: s.topics.length,
-      })),
+      overall: meanMastery(paneSubjects.map((s) => ({ percent: s.masteryPercent }))),
+      subjects: paneSubjects,
       terms: offered,
       defaultTermId: pickTerm(offered, null, today)?.id ?? null,
-      reports: canOpenReports ? await getIssuedReports(studentId, termRows) : null,
+      reports: reportsFor ? await getIssuedReports(studentId, reportsFor, termRows) : null,
     };
   },
 );
@@ -142,10 +151,12 @@ export type ProgressDetail = {
   subjectName: string;
   subjectColor: string | null;
   yearLevel: string | null;
-  masteryPercent: number;
+  /** From marks (`topic-mastery`); null before anything is marked. */
+  masteryPercent: number | null;
   rank: { rank: number; total: number } | null;
   averagePercent: number | null;
-  topics: Array<{ topic: string; mastery: Mastery; percent: number }>;
+  /** Every curriculum topic; percent and level are null with no marks yet. */
+  topics: Array<{ topicId: string; topic: string; percent: number | null; level: MasteryLevel | null }>;
   marks: RecentMark[];
 };
 
@@ -154,8 +165,8 @@ export type ProgressDetail = {
  * enrolled in it (getStudentProgressSubjectDetail checks the enrolment
  * first, so a guessed subject id 404s instead of leaking anything).
  * Marks, the average and the test rank cover the chosen term (homework by
- * due date, quizzes by their curriculum week); topic mastery has no term
- * history, so it is always the current level.
+ * due date, quizzes by their curriculum week); topic mastery is worked out
+ * from every mark so far, so it is always the current level.
  */
 export async function getProgressDetail(
   studentId: string,
@@ -171,7 +182,7 @@ export async function getProgressDetail(
   if (!detail) return null;
   const term = pickTerm(offered, termId, today);
 
-  const [rank, attemptRows] = await Promise.all([
+  const [rank, attemptRows, mastery] = await Promise.all([
     getStudentOverallSubjectRank(studentId, subjectId, term ?? undefined),
     db
       .select({
@@ -191,7 +202,9 @@ export async function getProgressDetail(
           term ? eq(subjectWeeks.termId, term.id) : undefined,
         ),
       ),
+    getSubjectMastery(studentId, [subjectId]),
   ]);
+  const subjectMastery = mastery.get(subjectId);
 
   const homework = term
     ? detail.homework.filter((h) => inTerm(melbourneDayKey(h.dueDate), term))
@@ -207,10 +220,15 @@ export async function getProgressDetail(
     subjectName: detail.subjectName,
     subjectColor: detail.subjectColor,
     yearLevel: detail.yearLevel,
-    masteryPercent: detail.masteryPercent,
+    masteryPercent: subjectMastery?.percent ?? null,
     rank,
     averagePercent: avg.percent,
-    topics: detail.topics.map((t) => ({ ...t, percent: MASTERY_PERCENT[t.mastery] })),
+    topics: (subjectMastery?.topics ?? []).map((t) => ({
+      topicId: t.topicId,
+      topic: t.topic,
+      percent: t.percent,
+      level: t.level,
+    })),
     marks: recentMarks(homework, quizResults),
   };
 }

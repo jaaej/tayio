@@ -1,8 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { cookies } from "next/headers";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { isoDate } from "@/lib/format";
 import {
   announcements,
   announcementRecipients,
@@ -13,13 +12,19 @@ import {
   homework,
   homeworkAssignments,
   invoices,
-  lessonNotes,
   lessons,
   profiles,
-  progressTopics,
   subjects,
 } from "@/db/schema";
-import { ADMIN_TIERS } from "@/lib/roles";
+import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
+import { isInvoiceOpen } from "@/lib/invoice-rules";
+import { isHandedIn } from "@/lib/homework-rules";
+import { meanMastery, type TopicMastery } from "@/lib/topic-mastery";
+import { getSubjectMastery } from "@/lib/topic-mastery-data";
+import { getStudentProgressBySubject } from "@/app/student/_lib/queries";
+import { attendanceSummary } from "@/lib/attendance-rules";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { SELECTED_CHILD_COOKIE, pickSelectedChild } from "@/lib/parent-child";
 
 export type ParentChild = {
   id: string;
@@ -45,16 +50,17 @@ export async function getParentChildren(parentId: string): Promise<ParentChild[]
   return rows;
 }
 
+/**
+ * The parent's children and the one to show: `?child=` if it is theirs,
+ * else the child they chose last (`SELECTED_CHILD_COOKIE`), else the first.
+ */
 export async function resolveSelectedChild(
   parentId: string,
   requested: string | undefined,
 ): Promise<{ children: ParentChild[]; selected: ParentChild | null }> {
-  const children = await getParentChildren(parentId);
-  if (children.length === 0) return { children, selected: null };
-  const match = requested
-    ? children.find((c) => c.id === requested) ?? children[0]
-    : children[0];
-  return { children, selected: match };
+  const [children, jar] = await Promise.all([getParentChildren(parentId), cookies()]);
+  const remembered = jar.get(SELECTED_CHILD_COOKIE)?.value;
+  return { children, selected: pickSelectedChild(children, requested, remembered) };
 }
 
 export type DashboardData = {
@@ -63,114 +69,26 @@ export type DashboardData = {
   absenceCount: number;
   homeworkCompleted: number;
   homeworkTotal: number;
-  nextLesson: {
-    date: string;
-    startTime: string;
-    subjectName: string;
-    tutorName: string;
-  } | null;
-  latestFeedback: {
-    createdAt: Date;
-    parentVisibleComment: string;
-    subjectName: string | null;
-    tutorName: string;
-  } | null;
 };
-
-const MASTERY_PERCENT = {
-  not_started: 0,
-  needs_work: 30,
-  improving: 65,
-  strong: 92,
-} as const;
 
 export async function getDashboardData(studentId: string): Promise<DashboardData> {
   const attendanceRows = await db
-    .select({ status: attendance.status })
+    .select({ status: attendance.status, moved: attendanceMovedSql })
     .from(attendance)
     .where(eq(attendance.studentId, studentId));
-  const attendanceCount = attendanceRows.length;
-  const presentLike = attendanceRows.filter(
-    (r) => r.status === "present" || r.status === "late" || r.status === "makeup_attended",
-  ).length;
-  const absenceCount = attendanceRows.filter((r) => r.status === "absent").length;
-  const attendanceRate =
-    attendanceCount > 0 ? Math.round((presentLike / attendanceCount) * 100) : null;
+  // A moved or credited lesson is neither attended nor an absence.
+  const summary = attendanceSummary(attendanceRows);
+  const attendanceCount = summary.total;
+  const absenceCount = summary.absent;
+  const attendanceRate = summary.percent;
 
   const homeworkRows = await db
     .select({ status: homeworkAssignments.status })
     .from(homeworkAssignments)
     .where(eq(homeworkAssignments.studentId, studentId));
   const homeworkTotal = homeworkRows.length;
-  const homeworkCompleted = homeworkRows.filter(
-    (r) => r.status === "submitted" || r.status === "marked" || r.status === "returned",
-  ).length;
-
-  const tutorProfile = profiles;
-  const today = isoDate(new Date());
-  const nextLessonRows = await db
-    .select({
-      date: lessons.date,
-      startTime: lessons.startTime,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
-    .from(enrollments)
-    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, today),
-        or(eq(lessons.status, "upcoming"), eq(lessons.status, "rescheduled")),
-      ),
-    )
-    .orderBy(lessons.date, lessons.startTime)
-    .limit(1);
-
-  const nextLesson = nextLessonRows[0]
-    ? {
-        date: nextLessonRows[0].date,
-        startTime: nextLessonRows[0].startTime,
-        subjectName: nextLessonRows[0].subjectName,
-        tutorName: `${nextLessonRows[0].tutorFirst} ${nextLessonRows[0].tutorLast}`.trim(),
-      }
-    : null;
-
-  const noteRows = await db
-    .select({
-      createdAt: lessonNotes.createdAt,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-    .leftJoin(classes, eq(classes.id, lessons.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        sql`${lessonNotes.parentVisibleComment} IS NOT NULL AND length(${lessonNotes.parentVisibleComment}) > 0`,
-      ),
-    )
-    .orderBy(desc(lessonNotes.createdAt))
-    .limit(1);
-
-  const latestFeedback = noteRows[0]
-    ? {
-        createdAt: noteRows[0].createdAt,
-        parentVisibleComment: noteRows[0].parentVisibleComment!,
-        subjectName: noteRows[0].subjectName,
-        tutorName: `${noteRows[0].tutorFirst} ${noteRows[0].tutorLast}`.trim(),
-      }
-    : null;
+  // A late hand-in is handed in (homework-rules).
+  const homeworkCompleted = homeworkRows.filter((r) => isHandedIn(r.status)).length;
 
   return {
     attendanceRate,
@@ -178,8 +96,6 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
     absenceCount,
     homeworkCompleted,
     homeworkTotal,
-    nextLesson,
-    latestFeedback,
   };
 }
 
@@ -189,7 +105,7 @@ export async function getOutstandingBalanceForParent(parentId: string): Promise<
     .from(invoices)
     .where(eq(invoices.parentId, parentId));
   return rows
-    .filter((r) => r.status === "unpaid" || r.status === "overdue" || r.status === "partially_paid")
+    .filter((r) => isInvoiceOpen(r.status))
     .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 
@@ -200,9 +116,15 @@ export type AttendanceRow = {
   subjectName: string | null;
   tutorName: string;
   status: typeof attendance.status.enumValues[number];
+  /** An absence written by a reschedule or a credit: reads "Moved". */
+  moved: boolean;
 };
 
-export async function getAttendance(studentId: string): Promise<AttendanceRow[]> {
+/** The child's marked lessons, newest first; `subjectId` narrows to one subject. */
+export async function getAttendance(
+  studentId: string,
+  opts: { subjectId?: string } = {},
+): Promise<AttendanceRow[]> {
   const tutorProfile = profiles;
   const rows = await db
     .select({
@@ -213,13 +135,19 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
       status: attendance.status,
+      moved: attendanceMovedSql,
     })
     .from(attendance)
     .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
     .leftJoin(classes, eq(classes.id, lessons.classId))
     .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(eq(attendance.studentId, studentId))
+    .where(
+      and(
+        eq(attendance.studentId, studentId),
+        opts.subjectId ? eq(classes.subjectId, opts.subjectId) : undefined,
+      ),
+    )
     .orderBy(desc(lessons.date), desc(lessons.startTime));
 
   return rows.map((r) => ({
@@ -229,6 +157,7 @@ export async function getAttendance(studentId: string): Promise<AttendanceRow[]>
     subjectName: r.subjectName,
     tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
     status: r.status,
+    moved: r.moved,
   }));
 }
 
@@ -273,544 +202,52 @@ export async function getHomework(studentId: string): Promise<HomeworkRow[]> {
   return rows;
 }
 
-export type FeedbackRow = {
-  id: string;
-  createdAt: Date;
-  lessonDate: string;
-  classId: string;
-  subjectName: string | null;
-  subjectColor: string | null;
-  tutorName: string;
-  topicCovered: string | null;
-  parentVisibleComment: string;
-};
-
-export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
-  const tutorProfile = profiles;
-  const rows = await db
-    .select({
-      id: lessonNotes.id,
-      createdAt: lessonNotes.createdAt,
-      lessonDate: lessons.date,
-      classId: lessons.classId,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-      topicCovered: lessonNotes.topicCovered,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-    .leftJoin(classes, eq(classes.id, lessons.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        sql`${lessonNotes.parentVisibleComment} IS NOT NULL AND length(${lessonNotes.parentVisibleComment}) > 0`,
-      ),
-    )
-    .orderBy(desc(lessonNotes.createdAt));
-
-  return rows.map((r) => ({
-    id: r.id,
-    createdAt: r.createdAt,
-    lessonDate: r.lessonDate,
-    classId: r.classId,
-    subjectName: r.subjectName,
-    subjectColor: r.subjectColor,
-    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-    topicCovered: r.topicCovered,
-    parentVisibleComment: r.parentVisibleComment!,
-  }));
-}
-
-export type ParentClassDetail = {
-  classId: string;
-  className: string;
-  subjectId: string;
-  subjectName: string;
-  tutorName: string;
-  weekday: number | null;
-  startTime: string | null;
-  endTime: string | null;
-  location: string | null;
-  attendance: AttendanceRow[];
-  feedback: FeedbackRow[];
-};
-
 /**
- * Per-class detail for one of the parent's children - the "relationship" view
- * (tutor, this child's attendance in this class, and this class's feedback),
- * distinct from the curriculum browser at /parent/subjects/[id]. Returns null
- * unless the child belongs to the parent AND is enrolled in the class, so it
- * enforces the parent -> child -> class scope.
+ * Which subject a class belongs to, for one of the parent's children who is
+ * (or was) in it: the requested child first. Null unless the class is a
+ * linked child's, so it keeps the parent -> child -> class scope.
  */
-export async function getParentClassDetail(
+export async function getParentClassSubject(
   parentId: string,
-  childId: string,
   classId: string,
-): Promise<ParentClassDetail | null> {
-  const [link] = await db
-    .select({ studentId: familyLinks.studentId })
-    .from(familyLinks)
-    .where(
-      and(
-        eq(familyLinks.parentId, parentId),
-        eq(familyLinks.studentId, childId),
-      ),
-    )
-    .limit(1);
-  if (!link) return null;
-
-  const [enrolled] = await db
-    .select({ studentId: enrollments.studentId })
-    .from(enrollments)
-    .where(
-      and(eq(enrollments.studentId, childId), eq(enrollments.classId, classId)),
-    )
-    .limit(1);
-  if (!enrolled) return null;
-
-  const tutorProfile = alias(profiles, "class_tutor");
-  const [cls] = await db
-    .select({
-      classId: classes.id,
-      className: classes.name,
-      subjectId: classes.subjectId,
-      subjectName: subjects.name,
-      weekday: classes.weekday,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-      location: classes.location,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
+  requestedChild: string | undefined,
+): Promise<{ subjectId: string; childId: string } | null> {
+  const rows = await db
+    .select({ subjectId: classes.subjectId, childId: enrollments.studentId })
     .from(classes)
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .leftJoin(tutorProfile, eq(tutorProfile.id, classes.tutorId))
-    .where(eq(classes.id, classId))
-    .limit(1);
-  if (!cls) return null;
-
-  const attnTutor = alias(profiles, "attn_tutor");
-  const [attnRows, childFeedback] = await Promise.all([
-    db
-      .select({
-        lessonId: lessons.id,
-        date: lessons.date,
-        startTime: lessons.startTime,
-        subjectName: subjects.name,
-        tutorFirst: attnTutor.firstName,
-        tutorLast: attnTutor.lastName,
-        status: attendance.status,
-      })
-      .from(attendance)
-      .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
-      .leftJoin(classes, eq(classes.id, lessons.classId))
-      .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-      .innerJoin(attnTutor, eq(attnTutor.id, lessons.tutorId))
-      .where(
-        and(
-          eq(attendance.studentId, childId),
-          eq(lessons.classId, classId),
-        ),
-      )
-      .orderBy(desc(lessons.date), desc(lessons.startTime)),
-    getFeedback(childId),
-  ]);
-
-  return {
-    classId: cls.classId,
-    className: cls.className,
-    subjectId: cls.subjectId,
-    subjectName: cls.subjectName,
-    tutorName: `${cls.tutorFirst ?? ""} ${cls.tutorLast ?? ""}`.trim(),
-    weekday: cls.weekday,
-    startTime: cls.startTime,
-    endTime: cls.endTime,
-    location: cls.location,
-    attendance: attnRows.map((r) => ({
-      lessonId: r.lessonId,
-      date: r.date,
-      startTime: r.startTime,
-      subjectName: r.subjectName,
-      tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-      status: r.status,
-    })),
-    feedback: childFeedback.filter((f) => f.classId === classId),
-  };
-}
-
-export type WeekLessonRow = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  subjectName: string;
-};
-
-export async function getLessonsBetween(
-  studentId: string,
-  fromIso: string,
-  toIso: string,
-): Promise<WeekLessonRow[]> {
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      subjectName: subjects.name,
-    })
-    .from(enrollments)
-    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, fromIso),
-        lt(lessons.date, toIso),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-  return rows;
-}
-
-export type MonthLessonRow = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  subjectName: string;
-  className: string;
-  tutorName: string;
-  status: typeof lessons.status.enumValues[number];
-  location: string | null;
-};
-
-export async function getMonthLessons(
-  studentId: string,
-  fromIso: string,
-  toIso: string,
-): Promise<MonthLessonRow[]> {
-  const tutorProfile = profiles;
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      subjectName: subjects.name,
-      className: classes.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-      status: lessons.status,
-      location: lessons.location,
-    })
-    .from(enrollments)
-    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, fromIso),
-        lt(lessons.date, toIso),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-  return rows.map((r) => ({
-    id: r.id,
-    date: r.date,
-    startTime: r.startTime,
-    endTime: r.endTime,
-    subjectName: r.subjectName,
-    className: r.className,
-    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-    status: r.status,
-    location: r.location,
-  }));
-}
-
-export type UpcomingLesson = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  subjectName: string;
-  tutorName: string;
-};
-
-export async function getUpcomingLessonsForChild(
-  studentId: string,
-  limit: number = 12,
-): Promise<UpcomingLesson[]> {
-  const tutorProfile = profiles;
-  const todayIso = (() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  })();
-
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
-    .from(enrollments)
-    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, todayIso),
-        eq(lessons.status, "upcoming"),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime))
-    .limit(limit);
-
-  return rows.map((r) => ({
-    id: r.id,
-    date: r.date,
-    startTime: r.startTime,
-    endTime: r.endTime,
-    subjectName: r.subjectName,
-    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-  }));
-}
-
-export async function getClassIdForLesson(lessonId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ classId: lessons.classId })
-    .from(lessons)
-    .where(eq(lessons.id, lessonId))
-    .limit(1);
-  return row?.classId ?? null;
-}
-
-export type RescheduleLessonDetail = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  subjectName: string;
-  tutorName: string;
-  childFirstName: string;
-  childId: string;
-  status: typeof lessons.status.enumValues[number];
-};
-
-/**
- * Fetches a lesson IF the requesting parent has at least one linked child
- * enrolled in the class. Returns null otherwise - caller must treat null as
- * "no access" or "not found" (do not leak the difference).
- */
-export async function getRescheduleLessonForParent(
-  parentId: string,
-  lessonId: string,
-): Promise<RescheduleLessonDetail | null> {
-  const tutorProfile = alias(profiles, "tutor_profile");
-  const childProfile = alias(profiles, "child_profile");
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-      childFirstName: childProfile.firstName,
-      childId: childProfile.id,
-      status: lessons.status,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .innerJoin(enrollments, eq(enrollments.classId, lessons.classId))
-    .innerJoin(childProfile, eq(childProfile.id, enrollments.studentId))
+    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
     .innerJoin(
       familyLinks,
-      and(
-        eq(familyLinks.studentId, enrollments.studentId),
-        eq(familyLinks.parentId, parentId),
-      ),
+      and(eq(familyLinks.studentId, enrollments.studentId), eq(familyLinks.parentId, parentId)),
     )
-    .where(and(eq(lessons.id, lessonId), isNull(enrollments.withdrawnAt)))
-    .limit(1);
-  const r = rows[0];
-  if (!r) return null;
-  return {
-    id: r.id,
-    date: r.date,
-    startTime: r.startTime,
-    endTime: r.endTime,
-    subjectName: r.subjectName,
-    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-    childFirstName: r.childFirstName,
-    childId: r.childId,
-    status: r.status,
-  };
+    .where(eq(classes.id, classId));
+  return rows.find((r) => r.childId === requestedChild) ?? rows[0] ?? null;
 }
 
-export type DueHomeworkRow = {
-  homeworkId: string;
-  title: string;
-  dueDate: Date;
-  className: string | null;
-  status: typeof homeworkAssignments.status.enumValues[number];
+export type ChildMastery = {
+  /** Mean of the subjects with marks; null before anything is marked. */
+  overall: number | null;
+  subjects: Array<{
+    subjectId: string;
+    subjectName: string;
+    subjectColor: string | null;
+    percent: number | null;
+    topics: TopicMastery[];
+  }>;
 };
 
-export async function getHomeworkDueBetween(
-  studentId: string,
-  from: Date,
-  to: Date,
-): Promise<DueHomeworkRow[]> {
-  const rows = await db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      className: classes.name,
-      status: homeworkAssignments.status,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
-    .leftJoin(classes, eq(classes.id, homework.classId))
-    .where(
-      and(
-        eq(homeworkAssignments.studentId, studentId),
-        gte(homework.dueDate, from),
-        lt(homework.dueDate, to),
-      ),
-    );
-  return rows;
-}
-
-export type SubjectMastery = {
-  subjectId: string;
-  subjectName: string;
-  percent: number;
-  topicCount: number;
-};
-
-export async function getTopicMastery(studentId: string): Promise<SubjectMastery[]> {
-  const rows = await db
-    .select({
-      subjectId: progressTopics.subjectId,
-      subjectName: subjects.name,
-      mastery: progressTopics.mastery,
-    })
-    .from(progressTopics)
-    .innerJoin(subjects, eq(subjects.id, progressTopics.subjectId))
-    .where(eq(progressTopics.studentId, studentId));
-
-  const bySubject = new Map<string, { subjectName: string; sum: number; count: number }>();
-  for (const r of rows) {
-    const cur = bySubject.get(r.subjectId) ?? {
-      subjectName: r.subjectName,
-      sum: 0,
-      count: 0,
-    };
-    cur.sum += MASTERY_PERCENT[r.mastery];
-    cur.count += 1;
-    bySubject.set(r.subjectId, cur);
-  }
-  return Array.from(bySubject, ([subjectId, v]) => ({
-    subjectId,
-    subjectName: v.subjectName,
-    percent: v.count > 0 ? Math.round(v.sum / v.count) : 0,
-    topicCount: v.count,
-  })).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-}
-
-export type MasteryLevel = "not_started" | "needs_work" | "improving" | "strong";
-
-export type ChildSubjectProgress = {
-  subjectId: string;
-  subjectName: string;
-  subjectColor: string | null;
-  yearLevel: string | null;
-  masteryPercent: number;
-  topics: Array<{ topic: string; mastery: MasteryLevel }>;
-};
-
-export async function getChildProgressBySubject(
-  studentId: string,
-): Promise<ChildSubjectProgress[]> {
-  const enrolledSubjects = await db
-    .select({
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      yearLevel: subjects.yearLevel,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(
-      and(eq(enrollments.studentId, studentId), isNull(enrollments.withdrawnAt)),
-    )
-    .orderBy(asc(subjects.name));
-
-  const seen = new Set<string>();
-  const uniqueSubjects = enrolledSubjects.filter((s) => {
-    if (seen.has(s.subjectId)) return false;
-    seen.add(s.subjectId);
-    return true;
-  });
-
-  if (uniqueSubjects.length === 0) return [];
-
-  const subjectIds = uniqueSubjects.map((s) => s.subjectId);
-
-  const allTopics = await db
-    .select({
-      subjectId: progressTopics.subjectId,
-      topic: progressTopics.topic,
-      mastery: progressTopics.mastery,
-    })
-    .from(progressTopics)
-    .where(
-      and(
-        eq(progressTopics.studentId, studentId),
-        inArray(progressTopics.subjectId, subjectIds),
-      ),
-    )
-    .orderBy(asc(progressTopics.topic));
-
-  const topicsBySubject = new Map<string, Array<{ topic: string; mastery: MasteryLevel }>>();
-  for (const row of allTopics) {
-    const arr = topicsBySubject.get(row.subjectId) ?? [];
-    arr.push({ topic: row.topic, mastery: row.mastery });
-    topicsBySubject.set(row.subjectId, arr);
-  }
-
-  return uniqueSubjects.map((s) => {
-    const topics = topicsBySubject.get(s.subjectId) ?? [];
-    const sum = topics.reduce((acc, t) => acc + MASTERY_PERCENT[t.mastery], 0);
-    const masteryPercent =
-      topics.length > 0 ? Math.round(sum / topics.length) : 0;
-    return { ...s, masteryPercent, topics };
-  });
+/** A child's topic mastery from their marks, the loader students use too. */
+export async function getChildMastery(studentId: string): Promise<ChildMastery> {
+  const enrolled = await getStudentProgressBySubject(studentId);
+  const mastery = await getSubjectMastery(studentId, enrolled.map((s) => s.subjectId));
+  const subjects = enrolled.map((s) => ({
+    subjectId: s.subjectId,
+    subjectName: s.subjectName,
+    subjectColor: s.subjectColor,
+    percent: mastery.get(s.subjectId)?.percent ?? null,
+    topics: mastery.get(s.subjectId)?.topics ?? [],
+  }));
+  return { overall: meanMastery(subjects), subjects };
 }
 
 export type InvoiceRow = {
@@ -893,28 +330,11 @@ export async function getChildTutors(studentId: string): Promise<ChildTutor[]> {
   );
 }
 
-export type AdminContact = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string | null;
-};
+export type AdminContact = OfficeContact;
 
+/** The office a parent messages: the same active admin students are offered. */
 export async function getAdminContact(): Promise<AdminContact | null> {
-  const rows = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-    })
-    .from(profiles)
-    .where(inArray(profiles.role, ADMIN_TIERS))
-    .orderBy(asc(profiles.createdAt))
-    .limit(1);
-  return rows[0] ?? null;
+  return getOfficeContact();
 }
 
 export type ParentDmContacts = {

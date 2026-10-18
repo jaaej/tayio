@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Bell,
@@ -15,6 +15,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/app/_actions/notifications";
+import { loadAnnouncementForInbox } from "@/app/_actions/announcement-inbox";
 import { buttonVariants } from "@/components/admin/ui/button";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import { PageHeader } from "@/components/admin/ui/page-header";
@@ -41,6 +42,8 @@ export type InboxItem = {
   title: string;
   body: string | null;
   href: string | null;
+  /** Set on an announcement delivery, which opens in place to its full text. */
+  announcementId: string | null;
   isUnread: boolean;
   isUrgent: boolean;
   group: NotificationGroupKey;
@@ -68,6 +71,12 @@ const GROUP_STYLE: Record<
   updates: { dot: "bg-muted-2", text: "text-ink-soft", tile: "bg-surface-3 text-ink-soft", Icon: Bell },
 };
 
+const announcementDate = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
+  day: "numeric",
+  month: "short",
+});
+
 const ITEM_LABEL = Object.fromEntries(
   NOTIFICATION_GROUPS.map((group) => [group.key, group.itemLabel]),
 ) as Record<NotificationGroupKey, string>;
@@ -82,13 +91,68 @@ const ITEM_LABEL = Object.fromEntries(
  *
  * Filtering is client-side: every row is already in the payload, so a pill tap
  * is instant and costs no extra query.
+ *
+ * `?announcement=<id>` (an announcement's notification or email link) opens
+ * that announcement in full; `?filter=<group>` starts on one kind, so the
+ * parent Overview can send "See all" to the announcements.
  */
 export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const searchParams = useSearchParams();
+  const linkedAnnouncement = searchParams.get("announcement");
+  const linked = linkedAnnouncement
+    ? (items.find((item) => item.announcementId === linkedAnnouncement) ?? null)
+    : null;
+  const [filter, setFilter] = useState<FilterKey>(() => {
+    const requested = searchParams.get("filter");
+    return NOTIFICATION_GROUPS.some((g) => g.key === requested) ? (requested as FilterKey) : "all";
+  });
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(linked ? [linked.id] : []),
+  );
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const linkedRef = useRef<HTMLLIElement>(null);
+  const openedLink = useRef(false);
+  // A linked announcement older than the loaded rows is fetched on its own.
+  const [olderAnnouncement, setOlderAnnouncement] = useState<{
+    title: string;
+    body: string;
+    isUrgent: boolean;
+    publishedAtIso: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!linkedAnnouncement || linked) return;
+    let live = true;
+    loadAnnouncementForInbox(linkedAnnouncement)
+      .then((result) => {
+        if (live && result.ok) setOlderAnnouncement(result.announcement);
+      })
+      .catch(() => {
+        // Nothing to show beyond the inbox itself.
+      });
+    return () => {
+      live = false;
+    };
+  }, [linkedAnnouncement, linked]);
+
+  // Arriving on an announcement's link: bring it into view and mark it read.
+  useEffect(() => {
+    if (!linked || openedLink.current) return;
+    openedLink.current = true;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    linkedRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+    if (!linked.isUnread) return;
+    setReadIds((current) => new Set(current).add(linked.id));
+    markNotificationRead(linked.id)
+      .then((result) => {
+        if (result.ok) router.refresh();
+      })
+      .catch(() => {
+        // The row stays unread on the server; it is marked again when opened.
+      });
+  }, [linked, router]);
 
   const displayedItems = items.map((item) =>
     readIds.has(item.id) ? { ...item, isUnread: false } : item,
@@ -213,6 +277,36 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
         }
       />
 
+      {olderAnnouncement && (
+        <section aria-label="Announcement" className="glass rounded-[24px] p-1.5">
+          <div className="panel flex items-start gap-3.5 bg-brand-50 px-[18px] py-3.5">
+            <span
+              aria-hidden
+              className={cn(
+                "grid h-9 w-9 shrink-0 place-items-center rounded-[10px]",
+                olderAnnouncement.isUrgent ? "bg-bad-bg text-bad" : GROUP_STYLE.announcements.tile,
+              )}
+            >
+              <Megaphone className="h-[17px] w-[17px]" strokeWidth={1.9} />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-[14px] font-semibold leading-snug text-ink">
+                {olderAnnouncement.title}
+              </span>
+              <span className="whitespace-pre-line text-[13px] leading-relaxed text-ink-soft">
+                {olderAnnouncement.body}
+              </span>
+            </span>
+            <time
+              dateTime={olderAnnouncement.publishedAtIso}
+              className="shrink-0 whitespace-nowrap text-[12px] tabular-nums text-ink-soft"
+            >
+              {announcementDate.format(new Date(olderAnnouncement.publishedAtIso))}
+            </time>
+          </div>
+        </section>
+      )}
+
       {displayedItems.length > 0 && (
         <div
           role="group"
@@ -305,7 +399,14 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
                   {section.items.map((item) => {
                     const style = GROUP_STYLE[item.group];
                     return (
-                      <li key={item.id}>
+                      <li
+                        key={item.id}
+                        ref={item.id === linked?.id ? linkedRef : undefined}
+                        className={cn(
+                          "scroll-mt-24",
+                          item.id === linked?.id && "bg-brand-50",
+                        )}
+                      >
                         <button
                           type="button"
                           onClick={() => openNotification(item)}
@@ -385,7 +486,7 @@ function Row({
           <span
             className={cn(
               "text-[13px] leading-relaxed text-ink-soft",
-              !expanded && "line-clamp-2 sm:line-clamp-1",
+              expanded ? "whitespace-pre-line" : "line-clamp-2 sm:line-clamp-1",
             )}
           >
             {item.body}

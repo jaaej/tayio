@@ -257,7 +257,7 @@ export async function rescheduleStudentLesson(
       [original.tutorId, `/tutor/lessons/${original.id}`],
       [slot.tutorId, `/tutor/lessons/${newLesson.id}`],
     ]);
-    for (const parent of parents) recipients.set(parent.id, "/parent/classes");
+    for (const parent of parents) recipients.set(parent.id, `/parent/timetable?child=${studentId}`);
     for (const owner of admins) recipients.set(owner.id, `/admin/users/${studentId}`);
     await tx.insert(notifications).values(Array.from(recipients, ([userId, href]) => ({
       userId,

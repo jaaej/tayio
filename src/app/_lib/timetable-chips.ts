@@ -17,7 +17,32 @@ import {
   type TermRow,
 } from "@/lib/reschedule-credits";
 import { getStudentTimetableLessons } from "@/app/student/_lib/queries";
-import type { TimetableChip } from "@/app/student/_components/interactive-timetable";
+import type { TimetableChip, TimetableHw } from "@/app/student/_components/interactive-timetable";
+import { melbourneDayKey } from "@/lib/format";
+import { isHandedIn } from "@/lib/homework-rules";
+import { recapLessonIds } from "@/lib/lesson-recap";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
+
+/**
+ * Homework due chips for the same timetable, on their Melbourne due day. A
+ * late hand-in is done, like any other (`homework-rules`). `from`/`to` are
+ * the YYYY-MM-DD window the page loaded lessons for (to exclusive).
+ */
+export function buildTimetableHomework(
+  rows: ReadonlyArray<{ homeworkId: string; title: string; dueDate: Date; status: string }>,
+  window: { fromIso: string; toIso: string },
+  href: (homeworkId: string) => string,
+): TimetableHw[] {
+  return rows
+    .map((h) => ({
+      id: h.homeworkId,
+      dueDate: melbourneDayKey(h.dueDate),
+      title: h.title,
+      done: isHandedIn(h.status),
+      href: href(h.homeworkId),
+    }))
+    .filter((h) => h.dueDate >= window.fromIso && h.dueDate < window.toIso);
+}
 
 /**
  * Builds the interactive-timetable chips for one student - shared by the
@@ -48,7 +73,7 @@ export async function buildTimetableChips(
       (l.studentState === "normal" ||
         l.studentState === "moved_out" ||
         l.studentState === "pending_out") &&
-      new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime()
+      lessonStartInstant(l.date, l.startTime).getTime() > now.getTime()
     );
   }
   const termByLessonId = new Map<string, TermRow | null>();
@@ -94,9 +119,18 @@ export async function buildTimetableChips(
   // lesson already converted to a no-slot reschedule credit needs the same
   // treatment - it has no `lessonCancellations` row, only a `classCredits`
   // row, so it's checked separately.
-  const [cancelledLessonIds, creditGrantedLessonIds] = await Promise.all([
+  // Past real lessons only: a pending request's chip has a synthetic id.
+  const pastIds = lessonRows
+    .filter(
+      (l) =>
+        l.studentState !== "pending_in" &&
+        lessonStartInstant(l.date, l.startTime).getTime() <= now.getTime(),
+    )
+    .map((l) => l.id);
+  const [cancelledLessonIds, creditGrantedLessonIds, recapIds] = await Promise.all([
     getCancelledLessonIds(studentId, lessonRows.map((l) => l.id)),
     getCreditGrantedLessonIds(studentId, lessonRows.map((l) => l.id)),
+    recapLessonIds(studentId, pastIds),
   ]);
 
   return lessonRows.map((l) => {
@@ -140,7 +174,7 @@ export async function buildTimetableChips(
     // shown greyed-out with this short reason instead of being hidden.
     const passed =
       l.status !== "upcoming" ||
-      new Date(`${l.date}T${l.startTime}`).getTime() <= now.getTime();
+      lessonStartInstant(l.date, l.startTime).getTime() <= now.getTime();
     function rescheduleReasonFor(): string | null {
       if (canReschedule) return null;
       if (passed) return "Passed";
@@ -189,6 +223,7 @@ export async function buildTimetableChips(
       cancelReason: cancelReasonFor(),
       cancelled: alreadyCancelled,
       convertedToCredit: creditGranted && !alreadyCancelled,
+      hasRecap: recapIds.has(l.id),
     };
   });
 }

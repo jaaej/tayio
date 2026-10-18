@@ -74,7 +74,8 @@ export async function getSubjectTabs(studentId: string): Promise<SubjectTab[]> {
 /**
  * Everything the merged subject page shows: the subject tabs, the weeks
  * rail, the selected week (the requested one, else this teaching week, else
- * the first open week) and its checklist.
+ * the first open week) and its checklist. The parent's subject page reads
+ * the same for their child, after checking the family link.
  */
 export async function getStudentSubjectPage(
   studentId: string,

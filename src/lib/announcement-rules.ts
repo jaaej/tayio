@@ -23,17 +23,34 @@ export function uniqueValues(values: string[]): string[] {
   );
 }
 
-export function announcementHrefForRole(role: UserRole): string {
+/** The shared notification inbox of each role. */
+export function inboxHrefForRole(role: UserRole): string {
   switch (coarseRole(role)) {
     case "admin":
-      return "/admin/announcements";
+      return "/admin/notifications";
     case "tutor":
       return "/tutor/notifications";
     case "parent":
-      return "/parent";
+      return "/parent/notifications";
     default:
-      return "/student";
+      return "/student/notifications";
   }
+}
+
+/**
+ * Where an announcement notification (and its email) leads: the role's
+ * inbox, which shows the announcement in full, opened at that announcement
+ * when its id is given.
+ */
+export function announcementHrefForRole(role: UserRole, announcementId?: string): string {
+  const inbox = inboxHrefForRole(role);
+  return announcementId ? `${inbox}?announcement=${announcementId}` : inbox;
+}
+
+/** Announcement deliveries carry `announcement:<id>` as their dedupe key. */
+export function announcementIdFromDedupeKey(key: string | null | undefined): string | null {
+  const match = /^announcement:([0-9a-f-]{36})$/i.exec(key ?? "");
+  return match ? match[1] : null;
 }
 
 export function targetSummary(

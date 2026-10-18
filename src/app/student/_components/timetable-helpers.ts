@@ -1,9 +1,35 @@
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 import type { TimetableChip } from "./interactive-timetable";
 
 type ChipTiming = Pick<TimetableChip, "id" | "date" | "startTime">;
 
+/** Lesson dates and times are Melbourne wall-clock values. */
 function startsAt(chip: Pick<TimetableChip, "date" | "startTime">) {
-  return new Date(`${chip.date}T${chip.startTime}`).getTime();
+  return lessonStartInstant(chip.date, chip.startTime).getTime();
+}
+
+export type AttendanceChip = Pick<
+  TimetableChip,
+  "status" | "studentState" | "cancelled" | "convertedToCredit"
+>;
+
+/**
+ * Whether the student is on this lesson: one source for "next lesson" on the
+ * timetable, the student dashboard and the parent Overview. A lesson they
+ * moved away from, cancelled for a credit or turned into a credit is not
+ * theirs any more, nor is a lesson the office cancelled or rescheduled; a
+ * make-up they were booked into is. A move still waiting for approval keeps
+ * them on the original lesson, and its requested slot is not a lesson yet.
+ */
+export function isAttendingLesson(chip: AttendanceChip): boolean {
+  return (
+    chip.status !== "cancelled" &&
+    chip.status !== "rescheduled" &&
+    chip.studentState !== "moved_out" &&
+    chip.studentState !== "pending_in" &&
+    !chip.cancelled &&
+    !chip.convertedToCredit
+  );
 }
 
 function byStart(a: ChipTiming, b: ChipTiming) {
@@ -11,27 +37,29 @@ function byStart(a: ChipTiming, b: ChipTiming) {
 }
 
 /**
- * The lesson the timetable opens with in its "Selected lesson" card: the next
- * lesson that has not started and is still on (not cancelled or converted to a
- * credit). Null when nothing is coming up in the loaded window.
+ * The student's next lesson: the soonest one they are on (`isAttendingLesson`)
+ * that has not started yet. Null when nothing is coming up in the window.
+ */
+export function nextAttendingLesson<T extends ChipTiming & AttendanceChip>(
+  chips: readonly T[],
+  now: Date,
+): T | null {
+  return (
+    chips
+      .filter((c) => isAttendingLesson(c) && startsAt(c) > now.getTime())
+      .sort(byStart)[0] ?? null
+  );
+}
+
+/**
+ * The lesson the timetable opens with in its "Selected lesson" card: the
+ * student's next lesson (`nextAttendingLesson`).
  */
 export function defaultSelectedLessonId(
-  chips: Pick<
-    TimetableChip,
-    "id" | "date" | "startTime" | "status" | "cancelled" | "convertedToCredit"
-  >[],
+  chips: Array<ChipTiming & AttendanceChip>,
   now: Date,
 ): string | null {
-  const next = chips
-    .filter(
-      (c) =>
-        c.status === "upcoming" &&
-        !c.cancelled &&
-        !c.convertedToCredit &&
-        startsAt(c) > now.getTime(),
-    )
-    .sort(byStart)[0];
-  return next?.id ?? null;
+  return nextAttendingLesson(chips, now)?.id ?? null;
 }
 
 /**

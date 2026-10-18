@@ -18,7 +18,8 @@ export default async function StudentProgressLayout({ children }: { children: Re
   const user = await requireRole("student");
   const pane = await getProgressPane(
     user.id,
-    isUnrestrictedStudent(user.app_metadata?.role as UserRole | undefined),
+    // Without billing access the reports go to the parent, not the student.
+    isUnrestrictedStudent(user.app_metadata?.role as UserRole | undefined) ? user.id : null,
   );
 
   return (

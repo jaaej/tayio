@@ -123,8 +123,9 @@ describe("due dates (Melbourne time)", () => {
     expect(dueStatus(new Date("2026-10-30T06:00:00.000Z"), now)).toEqual({ label: "Due Fri 30 Oct", short: "", tone: "muted" });
   });
 
-  it("calls work overdue as soon as its due time passes", () => {
-    expect(dueStatus(new Date("2026-10-12T22:00:00.000Z"), now).label).toBe("Overdue");
+  it("calls work overdue from the day after its due day, not on the day", () => {
+    // Due 9 am today: past the time, but due today is not overdue.
+    expect(dueStatus(new Date("2026-10-12T22:00:00.000Z"), now).label).toBe("Due today");
     expect(dueStatus(new Date("2026-10-12T06:00:00.000Z"), now).label).toBe("Overdue by 1 day");
     expect(dueStatus(new Date("2026-10-09T06:00:00.000Z"), now)).toMatchObject({
       label: "Overdue by 4 days",

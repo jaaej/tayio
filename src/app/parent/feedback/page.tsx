@@ -1,13 +1,13 @@
-import Link from "next/link";
-import { Card, PageHeader, Empty } from "@/components/parent/ui";
-import { SubjectPill } from "@/components/data/subject-pill";
+import { PageHeader } from "@/components/admin/ui";
+import { RecapCard } from "@/components/lessons/lesson-recap";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, relativeTime } from "@/lib/format";
-import { getFeedback, resolveSelectedChild } from "../_data";
-import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
+import { getFamilyRecaps } from "@/lib/lesson-recap";
+import { resolveSelectedChild } from "../_data";
+import { EmptyChildrenNotice } from "../_components/empty-children";
 
 type SearchParams = Promise<{ child?: string }>;
 
+/** Every lesson recap the tutors wrote for the child, newest first. */
 export default async function ParentFeedbackPage({
   searchParams,
 }: {
@@ -15,84 +15,38 @@ export default async function ParentFeedbackPage({
 }) {
   const user = await requireRole("parent");
   const { child: requested } = await searchParams;
-  const { children, selected } = await resolveSelectedChild(user.id, requested);
+  const { selected } = await resolveSelectedChild(user.id, requested);
 
   if (!selected) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Tutor feedback"
-        />
+      <div className="flex flex-col gap-5">
+        <PageHeader title="Tutor feedback" />
         <EmptyChildrenNotice />
       </div>
     );
   }
 
-  const rows = await getFeedback(selected.id);
+  const recaps = await getFamilyRecaps(selected.id);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={`Feedback for ${selected.firstName}`}
-      />
-
-      {children.length > 1 && (
-        <div className="rise" style={{ animationDelay: "20ms" }}>
-          <ChildSwitcher
-            students={children}
-            selectedId={selected.id}
-            basePath="/parent/feedback"
-          />
+    <div className="flex max-w-[1080px] flex-col gap-5">
+      <PageHeader title={`Feedback for ${selected.firstName}`} />
+      {recaps.length === 0 ? (
+        <div className="glass rounded-[24px] p-1.5">
+          <p className="panel px-5 py-10 text-center text-[14px] text-muted">
+            No tutor feedback yet. Notes appear here after each of {selected.firstName}&apos;s
+            lessons.
+          </p>
         </div>
+      ) : (
+        recaps.map((r) => (
+          <RecapCard
+            key={r.lessonId}
+            recap={r}
+            href={`/parent/feedback/${r.lessonId}?child=${selected.id}`}
+          />
+        ))
       )}
-
-      <div className="rise space-y-4" style={{ animationDelay: "60ms" }}>
-        {rows.length === 0 ? (
-          <Card>
-            <Empty>
-              No tutor feedback yet. Notes will appear here after each of{" "}
-              {selected.firstName}&apos;s lessons.
-            </Empty>
-          </Card>
-        ) : (
-          rows.map((r) => (
-            <Card key={r.id}>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <SubjectPill
-                    name={r.subjectName ?? "Lesson"}
-                    color={r.subjectName ? r.subjectColor : null}
-                  />
-                  {r.topicCovered && (
-                    <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
-                      {r.topicCovered}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-muted font-semibold shrink-0">
-                  {formatDateLong(r.lessonDate)} · {r.tutorName}
-                </div>
-              </div>
-              <div className="px-5 py-5">
-                <p className="text-lg text-ink leading-relaxed">
-                  {r.parentVisibleComment}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
-                    {relativeTime(r.createdAt)}
-                  </div>
-                  <Link
-                    href={`/parent/classes/${r.classId}?child=${selected.id}`}
-                    className="text-[12px] font-bold text-brand-700 hover:text-brand-800 shrink-0"
-                  >
-                    View class →
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
     </div>
   );
 }

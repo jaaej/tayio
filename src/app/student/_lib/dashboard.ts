@@ -11,10 +11,12 @@ import {
   getYearBlitzRank,
 } from "@/app/student/math-game/_queries";
 import { formatTime, yearLevelLabel } from "@/lib/format";
+import { isHandedIn } from "@/lib/homework-rules";
+import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { isAttendingLesson } from "@/app/student/_components/timetable-helpers";
 import {
   getOutstandingBalanceForStudent,
   getStudentHomework,
-  getStudentLessons,
   getStudentSubjects,
 } from "./queries";
 import {
@@ -66,8 +68,6 @@ const LOOKAHEAD_DAYS = 28;
  */
 type WeekProgress = { weekDone: number; weekTotal: number };
 
-const DONE_HOMEWORK = new Set(["submitted", "marked", "returned", "late"]);
-
 async function currentWeeks(
   studentId: string,
   subjects: Array<{ subjectId: string; subjectName: string; subjectColor: string | null }>,
@@ -106,7 +106,7 @@ async function currentWeeks(
       hasBooklet: Boolean(week.bookletUrl),
       bookletOpened: Boolean(week.bookletOpenedAt),
       homeworkTotal: week.homework.length,
-      homeworkDone: week.homework.filter((h) => DONE_HOMEWORK.has(h.status)).length,
+      homeworkDone: week.homework.filter((h) => isHandedIn(h.status)).length,
     });
   }
   const attempts = await getLatestQuizAttempts(
@@ -141,10 +141,12 @@ export async function getStudentDashboard(
   const from = new Date(`${weekStartIso}T00:00:00`);
   const to = new Date(`${addIsoDays(todayIso, LOOKAHEAD_DAYS)}T00:00:00`);
 
-  const [enrolled, homeworkRows, lessonRows, termLabel, outstanding, yearLevel, bests] = await Promise.all([
+  const [enrolled, homeworkRows, lessonChips, termLabel, outstanding, yearLevel, bests] = await Promise.all([
     getStudentSubjects(studentId),
     getStudentHomework(studentId),
-    getStudentLessons(studentId, { from, to }),
+    // The timetable's own lessons, so a moved or cancelled lesson is never
+    // "next" and a make-up is.
+    buildTimetableChips(studentId, from, to),
     termWeekLabel(todayIso),
     opts.isUnrestricted ? getOutstandingBalanceForStudent(studentId) : Promise.resolve(null),
     getStudentYearLevel(studentId),
@@ -161,7 +163,7 @@ export async function getStudentDashboard(
   const weekItems = await currentWeeks(studentId, subjects, todayIso);
   const weekBySubject = new Map(weekItems.map((w) => [w.subjectId, w]));
 
-  const lessons: DashLesson[] = lessonRows.map((l) => ({
+  const lessons: DashLesson[] = lessonChips.filter(isAttendingLesson).map((l) => ({
     id: l.id,
     date: l.date,
     startTime: l.startTime,
@@ -244,7 +246,7 @@ function statusLine(
   const weekEnd = addIsoDays(weekStartIso, 7);
   const due = homework.filter(
     (hw) =>
-      ["not_started", "viewed", "resubmission_requested"].includes(hw.status) &&
+      !isHandedIn(hw.status) &&
       hw.dueDay >= todayIso &&
       hw.dueDay < weekEnd,
   ).length;

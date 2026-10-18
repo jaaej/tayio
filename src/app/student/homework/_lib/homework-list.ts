@@ -4,6 +4,7 @@
 // pane and the server detail page share them.
 
 import { melbourneDayKey } from "@/lib/format";
+import { isAwaitingMarking, isMarked } from "@/lib/homework-rules";
 
 export type HomeworkGroupKey = "todo" | "waiting" | "marked";
 export type HomeworkView = "all" | "todo" | "submitted" | "marked";
@@ -52,11 +53,11 @@ export type HomeworkListItem = {
 /**
  * "late" is a submission that came in after the due date (the submit route
  * sets it), so it waits for marking like any other. A resubmission request
- * puts the work back in the student's hands.
+ * puts the work back in the student's hands (`homework-rules`).
  */
 export function groupOf(status: string): HomeworkGroupKey {
-  if (status === "marked" || status === "returned") return "marked";
-  if (status === "submitted" || status === "late") return "waiting";
+  if (isMarked(status)) return "marked";
+  if (isAwaitingMarking(status)) return "waiting";
   return "todo";
 }
 
@@ -134,17 +135,17 @@ export type DueTone = "bad" | "warn" | "muted";
 /**
  * How urgent open work is, in words, so "overdue" and "due today" survive
  * being read without relying on colour. `short` is the list row's version,
- * where the date is already beside it. Past the due time on the due day
- * still counts as overdue.
+ * where the date is already beside it. Homework is due on a Melbourne day,
+ * so it is overdue from the day after (`isHomeworkOverdue`), never on the
+ * due day itself.
  */
 export function dueStatus(
   due: Date,
   now: Date = new Date(),
 ): { label: string; short: string; tone: DueTone } {
   const days = daysUntil(due, now);
-  if (due.getTime() < now.getTime()) {
-    const label =
-      days >= 0 ? "Overdue" : days === -1 ? "Overdue by 1 day" : `Overdue by ${-days} days`;
+  if (days < 0) {
+    const label = days === -1 ? "Overdue by 1 day" : `Overdue by ${-days} days`;
     return { label, short: "Overdue", tone: "bad" };
   }
   if (days === 0) return { label: "Due today", short: "Due today", tone: "bad" };
