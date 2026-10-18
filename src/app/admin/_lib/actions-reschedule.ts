@@ -24,6 +24,7 @@ import {
 import { requireAdmin } from "./guard";
 import { getLessonContextForStudent } from "./queries";
 import { ADMIN_TIERS } from "@/lib/roles";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 const slotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -79,7 +80,7 @@ export async function rescheduleStudentLesson(
     return { ok: false, error: "Only an upcoming original lesson can be moved." };
   }
 
-  const lessonStart = new Date(`${original.date}T${original.startTime}`);
+  const lessonStart = lessonStartInstant(original.date, original.startTime);
   if (lessonStart <= new Date()) {
     return { ok: false, error: "That lesson has already happened." };
   }
@@ -145,7 +146,7 @@ export async function rescheduleStudentLesson(
       )).limit(1);
     if (!liveOriginal || liveOriginal.status !== "upcoming" ||
         !enrolled || liveOriginal.rescheduledFrom ||
-        new Date(`${liveOriginal.date}T${liveOriginal.startTime}`) <= new Date()) {
+        lessonStartInstant(liveOriginal.date, liveOriginal.startTime) <= new Date()) {
       return { ok: false as const, error: "That original lesson is no longer upcoming." };
     }
 

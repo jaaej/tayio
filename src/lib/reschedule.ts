@@ -20,6 +20,7 @@ import {
 } from "@/lib/availability";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 import { isCompatibleRescheduleTarget } from "@/lib/reschedule-rules";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 const HOUR = 3600 * 1000;
 
@@ -52,7 +53,7 @@ export function reschedulePath(
   now: Date,
 ): ReschedulePath {
   if (lesson.classType === "one_on_one") return "approval";
-  const start = new Date(`${lesson.date}T${lesson.startTime}`);
+  const start = lessonStartInstant(lesson.date, lesson.startTime);
   const hours = (start.getTime() - now.getTime()) / HOUR;
   return hours >= 24 ? "group_direct" : "approval";
 }
@@ -187,7 +188,7 @@ export async function getGroupSwitchTargets(
 
   const out: GroupTarget[] = [];
   for (const r of rows) {
-    if (new Date(`${r.date}T${r.startTime}`).getTime() <= now.getTime()) continue;
+    if (lessonStartInstant(r.date, r.startTime).getTime() <= now.getTime()) continue;
     const seatsLeft = await seatsLeftOn(r.classId, r.lessonId, r.capacity);
     if (seatsLeft <= 0) continue;
     out.push({
@@ -260,7 +261,7 @@ export async function executeMakeupReschedule(p: {
     return { ok: false, error: "The make-up must stay with the assigned tutor." };
   }
   if (p.startTime >= p.endTime ||
-      new Date(`${p.date}T${p.startTime}`) <= new Date()) {
+      lessonStartInstant(p.date, p.startTime) <= new Date()) {
     return { ok: false, error: "Pick a future make-up time." };
   }
 
@@ -284,7 +285,7 @@ export async function executeMakeupReschedule(p: {
       )).limit(1);
     if (!live || !enrolled || live.status !== "upcoming" ||
         live.rescheduledFrom ||
-        new Date(`${live.date}T${live.startTime}`) <= new Date()) {
+        lessonStartInstant(live.date, live.startTime) <= new Date()) {
       return { ok: false, error: "That original lesson can no longer be moved." };
     }
 

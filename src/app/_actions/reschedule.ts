@@ -34,6 +34,7 @@ import {
   resolveTerm,
   RESCHEDULE_CAP,
 } from "@/lib/reschedule-credits";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -130,7 +131,7 @@ export async function loadRescheduleOptions(
   const original = await getReschedulableLesson(lessonId);
   if (!original) return { ok: false, error: "Lesson not found." };
   const now = new Date();
-  if (new Date(`${original.date}T${original.startTime}`).getTime() <= now.getTime()) {
+  if (lessonStartInstant(original.date, original.startTime).getTime() <= now.getTime()) {
     return { ok: false, error: "That lesson has already started." };
   }
   const slots = await getOneOnOneSlots(original, now);
@@ -184,7 +185,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
   const original = await getReschedulableLesson(lessonId);
   if (!original) return { ok: false, error: "Lesson not found." };
   const now = new Date();
-  if (new Date(`${original.date}T${original.startTime}`).getTime() <= now.getTime()) {
+  if (lessonStartInstant(original.date, original.startTime).getTime() <= now.getTime()) {
     return { ok: false, error: "That lesson has already started." };
   }
 
@@ -307,7 +308,7 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
   const original = await getReschedulableLesson(lessonId);
   if (!original) return { ok: false, error: "Lesson not found." };
   const now = new Date();
-  if (new Date(`${original.date}T${original.startTime}`).getTime() <= now.getTime()) {
+  if (lessonStartInstant(original.date, original.startTime).getTime() <= now.getTime()) {
     return { ok: false, error: "That lesson has already started." };
   }
 

@@ -12,6 +12,7 @@ import {
 import type { LeavePeriod } from "@/lib/student-leave";
 import { leaveDays } from "../../_lib/leave-days";
 import { MoveLessonPanel, type MovableLesson } from "./move-lesson-panel";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 /**
  * The student's timetable on their admin profile: the same calendar, lessons
@@ -90,7 +91,7 @@ function StaffLessonActions({
 }) {
   // A request still waiting for approval is not a lesson yet.
   if (lesson.studentState === "pending_in") return null;
-  const started = new Date(`${lesson.date}T${lesson.startTime}`).getTime() <= Date.now();
+  const started = lessonStartInstant(lesson.date, lesson.startTime).getTime() <= Date.now();
   // The same lessons the admin move accepts: an upcoming lesson the student
   // still has (not cancelled for a credit or turned into one).
   const movable =

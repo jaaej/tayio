@@ -4,6 +4,8 @@
  * docs/superpowers/specs/2026-07-29-reschedule-credits-design.md.
  */
 
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
+
 export const CANCEL_NOTICE_HOURS = 24;
 export const RESCHEDULE_NOTICE_DAYS = 7;
 export const CANCEL_CAP = 3;
@@ -18,9 +20,9 @@ export function resolveTerm(dateIso: string, terms: TermRow[]): TermRow | null {
   return terms.find((t) => t.startDate <= dateIso && dateIso <= t.endDate) ?? null;
 }
 
-/** Milliseconds from `now` to the local lesson start (date + HH:MM:SS). */
+/** Milliseconds from `now` to the lesson start (a Melbourne date and time). */
 function msUntilLessonStart(now: Date, date: string, startTime: string): number {
-  return new Date(`${date}T${startTime}`).getTime() - now.getTime();
+  return lessonStartInstant(date, startTime).getTime() - now.getTime();
 }
 
 /** At least 24h before the lesson start. */

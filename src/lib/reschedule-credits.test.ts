@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   resolveTerm,
   meetsCancelNotice,
@@ -28,7 +28,8 @@ describe("resolveTerm", () => {
 });
 
 describe("notice gates", () => {
-  const now = new Date("2026-08-01T09:00:00");
+  // 9 am in Melbourne (AEST, UTC+10); lesson times are Melbourne times.
+  const now = new Date("2026-08-01T09:00:00+10:00");
   it("cancel needs at least 24h notice", () => {
     expect(meetsCancelNotice(now, "2026-08-02", "10:00:00")).toBe(true); // 25h
     expect(meetsCancelNotice(now, "2026-08-02", "09:00:00")).toBe(true); // exactly 24h
@@ -59,5 +60,21 @@ describe("deriveCreditStatus", () => {
   });
   it("expired after the expiry day", () => {
     expect(deriveCreditStatus("active", "2026-09-25", "2026-09-26")).toBe("expired");
+  });
+});
+
+describe("notice is measured in Melbourne time on any server", () => {
+  // Midnight in Melbourne on 19 Oct 2026 (UTC+11) is 13:00 UTC on 18 Oct; an
+  // 8 pm lesson that day is 20 hours away. Production servers run in UTC.
+  const now = new Date("2026-10-18T13:00:00Z");
+  const original = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = original;
+  });
+
+  it("refuses a cancel 20 hours before the lesson, even on a UTC server", () => {
+    process.env.TZ = "UTC";
+    expect(meetsCancelNotice(now, "2026-10-19", "20:00:00")).toBe(false);
+    expect(meetsCancelNotice(now, "2026-10-20", "14:00:00")).toBe(true);
   });
 });
