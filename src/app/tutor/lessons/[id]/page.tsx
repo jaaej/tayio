@@ -20,11 +20,11 @@ export default async function LessonDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; student?: string }>;
 }) {
   const { id } = await params;
-  const { from } = await searchParams;
-  const cameFrom = from === "schedule" || from === "class" ? from : null;
+  const { from, student: fromStudent } = await searchParams;
+  const cameFrom = from === "schedule" || from === "class" || from === "student" ? from : null;
   const tutor = await requireTutor();
   // Scoped to lessons this tutor teaches; 404s otherwise.
   const { lesson, notes } = await getLessonForTutor(tutor.id, id);
@@ -91,7 +91,9 @@ export default async function LessonDetailPage({
             ? { href: "/tutor/timetable", label: "Back to Schedule & availability" }
             : cameFrom === "class" && ownsClass
               ? { href: `/tutor/classes/${lesson.classId}/lessons`, label: "Back to class" }
-              : { href: "/tutor", label: "Back to Today" }
+              : cameFrom === "student" && fromStudent && roll.some((s) => s.id === fromStudent)
+                ? { href: `/tutor/students/${fromStudent}?tab=lessons`, label: "Back to student" }
+                : { href: "/tutor", label: "Back to Today" }
         }
         eyebrow={
           <>

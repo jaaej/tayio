@@ -144,7 +144,7 @@ export default async function TutorStudentProfilePage({
         <Section title="Latest lesson note">
           {latestWithNote ? (
             <div className="-mx-4">
-              <TimelineEntry entry={latestWithNote} />
+              <TimelineEntry entry={latestWithNote} studentId={student.id} />
             </div>
           ) : (
             <p className="text-[13px] text-muted">No lesson notes yet.</p>
@@ -152,7 +152,7 @@ export default async function TutorStudentProfilePage({
         </Section>
       </div>
     ),
-    lessons: <LessonsTimeline entries={timeline} />,
+    lessons: <LessonsTimeline entries={timeline} studentId={student.id} />,
     homework: (
       <div className="p-4">
         <HomeworkList rows={homeworkRows} studentId={student.id} />
@@ -359,12 +359,18 @@ function HomeworkList({ rows, studentId }: { rows: HomeworkRow[]; studentId: str
   );
 }
 
-function LessonsTimeline({ entries }: { entries: LessonTimelineEntry<Note>[] }) {
+function LessonsTimeline({
+  entries,
+  studentId,
+}: {
+  entries: LessonTimelineEntry<Note>[];
+  studentId: string;
+}) {
   if (entries.length === 0) return <Empty>No lessons recorded yet.</Empty>;
   return (
     <div className="divide-y divide-line">
       {entries.map((entry) => (
-        <TimelineEntry key={entry.lessonId} entry={entry} />
+        <TimelineEntry key={entry.lessonId} entry={entry} studentId={studentId} />
       ))}
     </div>
   );
@@ -377,7 +383,13 @@ type Note = Profile["notes"][number] & { mine: boolean };
  * note), every note written on it under the editor's two visibility labels
  * and its author, and a link to the lesson when this tutor teaches it.
  */
-function TimelineEntry({ entry }: { entry: LessonTimelineEntry<Note> }) {
+function TimelineEntry({
+  entry,
+  studentId,
+}: {
+  entry: LessonTimelineEntry<Note>;
+  studentId: string;
+}) {
   const mark = entry.mark;
   const absent = mark?.status === "absent";
   const action = entry.canEdit
@@ -403,7 +415,7 @@ function TimelineEntry({ entry }: { entry: LessonTimelineEntry<Note> }) {
         )}
         {action && (
           <Link
-            href={`/tutor/lessons/${entry.lessonId}`}
+            href={`/tutor/lessons/${entry.lessonId}?from=student&student=${studentId}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9 rounded-[10px]")}
           >
             {action}
