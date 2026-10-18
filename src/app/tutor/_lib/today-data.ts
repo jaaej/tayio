@@ -19,6 +19,7 @@ import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { TUTOR_QUIZ_TODO_STATUSES } from "./nav-badges";
 import { quizWeekPlanHrefs } from "./quiz-week";
+import { tutorHomeworkFilter } from "./homework-access";
 
 // Queries behind the tutor Today page and the Classes next-class strip. Every
 // query is scoped to the signed-in tutor's id.
@@ -177,7 +178,7 @@ export async function getMarkingSummary(tutorId: string): Promise<MarkingSummary
     .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
     .where(
       and(
-        eq(homework.tutorId, tutorId),
+        tutorHomeworkFilter(tutorId),
         inArray(homeworkAssignments.status, ["submitted", "late"]),
       ),
     )
@@ -319,7 +320,7 @@ export async function getOverdueHomework(tutorId: string, now: Date) {
     .leftJoin(classes, eq(classes.id, homework.classId))
     .where(
       and(
-        eq(homework.tutorId, tutorId),
+        tutorHomeworkFilter(tutorId),
         inArray(homeworkAssignments.status, [
           "not_started",
           "viewed",

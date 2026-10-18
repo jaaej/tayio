@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, homework, homeworkAssignments, profiles, subjects } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
+import { tutorHomeworkFilter } from "@/app/tutor/_lib/homework-access";
 import { sortToMark, type HomeworkItem, type SubmissionItem } from "./marking-list";
 
 /** How many recently marked submissions the Marked view lists. */
@@ -28,7 +29,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
     .leftJoin(classes, eq(classes.id, homework.classId))
     .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
-    .where(and(eq(homework.tutorId, tutorId), inArray(homeworkAssignments.status, statuses)))
+    .where(and(tutorHomeworkFilter(tutorId), inArray(homeworkAssignments.status, statuses)))
     .$dynamic();
 }
 
@@ -64,7 +65,7 @@ export async function getMarkingPaneData(tutorId: string) {
     submissionsQuery(tutorId, ["marked", "returned", "resubmission_requested"])
       .where(
         and(
-          eq(homework.tutorId, tutorId),
+          tutorHomeworkFilter(tutorId),
           inArray(homeworkAssignments.status, ["marked", "returned", "resubmission_requested"]),
           isNotNull(homeworkAssignments.markedAt),
         ),
@@ -87,7 +88,7 @@ export async function getMarkingPaneData(tutorId: string) {
       .leftJoin(classes, eq(classes.id, homework.classId))
       .leftJoin(subjects, eq(subjects.id, classes.subjectId))
       .leftJoin(homeworkAssignments, eq(homeworkAssignments.homeworkId, homework.id))
-      .where(eq(homework.tutorId, tutorId))
+      .where(tutorHomeworkFilter(tutorId))
       .groupBy(homework.id, subjects.name, subjects.color, classes.name)
       .orderBy(desc(homework.dueDate)),
   ]);

@@ -51,6 +51,7 @@ import { classDisplayName } from "@/lib/class-display";
 import type { UserRole } from "@/db/schema";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
+import { tutorHomeworkFilter } from "./_lib/homework-access";
 
 const HOMEWORK_BUCKET = "homework-attachments";
 const TUTOR_HOMEWORK_UPLOAD_PURPOSE = "tutor-homework-attachment";
@@ -91,7 +92,7 @@ async function assertOwnsHomework(tutorId: string, homeworkId: string) {
   const [row] = await db
     .select({ id: homework.id })
     .from(homework)
-    .where(and(eq(homework.id, homeworkId), eq(homework.tutorId, tutorId)))
+    .where(and(eq(homework.id, homeworkId), tutorHomeworkFilter(tutorId)))
     .limit(1);
   if (!row) throw new Error("Homework not found");
 }
@@ -161,7 +162,7 @@ export async function sendHomeworkBump(studentIdInput: string) {
       .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
       .where(
         and(
-          eq(homework.tutorId, tutor.id),
+          tutorHomeworkFilter(tutor.id),
           eq(homeworkAssignments.studentId, studentId),
           inArray(homeworkAssignments.status, [
             "not_started",
@@ -657,7 +658,7 @@ export async function updateHomework(formData: FormData) {
   const [existing] = await db
     .select()
     .from(homework)
-    .where(and(eq(homework.id, homeworkId), eq(homework.tutorId, tutor.id)))
+    .where(and(eq(homework.id, homeworkId), tutorHomeworkFilter(tutor.id)))
     .limit(1);
   if (!existing) throw new Error("Homework not found");
 

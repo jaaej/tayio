@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { and, eq, inArray, sql, desc, isNull, asc } from "drizzle-orm";
+import { and, eq, inArray, sql, desc, isNull, asc, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 import { db } from "@/db/client";
 import {
@@ -19,6 +20,9 @@ import {
 import { requireRole } from "@/lib/auth";
 import { getLatestQuizAttempts } from "@/lib/quiz-scores";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
+import { tutorHomeworkFilter } from "./_lib/homework-access";
+
+const noteAuthor = alias(profiles, "note_author");
 
 export async function requireTutor() {
   const user = await requireRole("tutor");
@@ -357,6 +361,10 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     )
     .orderBy(desc(lessons.date));
 
+  // Notes on the lessons of this tutor's classes, whoever wrote them (a
+  // class taken over from another tutor keeps its history), plus the notes
+  // this tutor wrote. Another tutor's internal note is not sent: the editor
+  // promised its author "Only you and admin see this".
   const notes = await db
     .select({
       id: lessonNotes.id,
@@ -367,21 +375,29 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
       struggles: lessonNotes.struggles,
       nextLessonFocus: lessonNotes.nextLessonFocus,
       parentVisibleComment: lessonNotes.parentVisibleComment,
-      internalNote: lessonNotes.internalNote,
+      internalNote: sql<string | null>`case when ${lessonNotes.tutorId} = ${tutorId} then ${lessonNotes.internalNote} end`,
       createdAt: lessonNotes.createdAt,
+      authorId: lessonNotes.tutorId,
+      authorFirstName: noteAuthor.firstName,
+      authorLastName: noteAuthor.lastName,
       lessonDate: lessons.date,
+      lessonTutorId: lessons.tutorId,
       className: classes.name,
     })
     .from(lessonNotes)
     .innerJoin(lessons, eq(lessonNotes.lessonId, lessons.id))
     .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(noteAuthor, eq(noteAuthor.id, lessonNotes.tutorId))
     .where(
       and(
         eq(lessonNotes.studentId, studentId),
-        eq(lessonNotes.tutorId, tutorId),
+        or(
+          inArray(classes.id, classIds.length ? classIds : ["__none__"]),
+          eq(lessonNotes.tutorId, tutorId),
+        ),
       ),
     )
-    .orderBy(desc(lessonNotes.createdAt));
+    .orderBy(desc(lessons.date), desc(lessonNotes.createdAt));
 
   const homeworkRows = await db
     .select({
@@ -398,7 +414,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),
-        eq(homework.tutorId, tutorId),
+        tutorHomeworkFilter(tutorId),
       ),
     )
     .orderBy(desc(homework.dueDate));
@@ -459,7 +475,7 @@ export async function getHomeworkDetail(tutorId: string, homeworkId: string) {
   const [hw] = await db
     .select()
     .from(homework)
-    .where(and(eq(homework.id, homeworkId), eq(homework.tutorId, tutorId)))
+    .where(and(eq(homework.id, homeworkId), tutorHomeworkFilter(tutorId)))
     .limit(1);
   if (!hw) notFound();
 
@@ -492,7 +508,7 @@ export async function getPendingMarkCount(tutorId: string) {
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
     .where(
       and(
-        eq(homework.tutorId, tutorId),
+        tutorHomeworkFilter(tutorId),
         inArray(homeworkAssignments.status, ["submitted", "late"]),
       ),
     );
