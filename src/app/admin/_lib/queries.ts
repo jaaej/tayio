@@ -36,7 +36,6 @@ import {
 } from "@/lib/reschedule-credits";
 import {
   announcements,
-  attendance,
   classCredits,
   classes,
   enrollments,
@@ -326,126 +325,6 @@ export type StudentLesson = {
   /** rescheduledFrom uuid (null on normal lessons). Surfaced for context. */
   rescheduledFrom: string | null;
 };
-
-/**
- * Upcoming lessons for a student (from today, within `days` ahead), only
- * for classes they're still actively enrolled in. Used by admin reschedule UI.
- */
-export async function getStudentUpcomingLessons(
-  studentId: string,
-  days = 21,
-): Promise<StudentLesson[]> {
-  const now = new Date();
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const horizon = new Date(today);
-  horizon.setDate(today.getDate() + days);
-  // Local calendar date (isoDate is UTC-based, which shifts the day boundary
-  // and lets yesterday's lessons through in UTC+ timezones).
-  const localIso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      classId: classes.id,
-      className: classes.name,
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      tutorId: profiles.id,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-      rescheduledFrom: lessons.rescheduledFrom,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, localIso(today)),
-        lt(lessons.date, localIso(horizon)),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  // Exclude lessons the student has been rescheduled or cancelled OUT of (they
-  // hold an `absent` attendance on them), and any lesson that has already
-  // started - neither is genuinely "upcoming" for this student.
-  const absentRows = await db
-    .select({ lessonId: attendance.lessonId })
-    .from(attendance)
-    .where(
-      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
-    );
-  const absentIds = new Set(absentRows.map((a) => a.lessonId));
-
-  return rows.filter(
-    (l) =>
-      !absentIds.has(l.id) &&
-      new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime(),
-  );
-}
-
-/**
- * Lessons for one student between two local calendar dates, inclusive.
- * Sibling of getStudentUpcomingLessons, which only looks forward from today
- * and so cannot fill a calendar the admin can page backwards through.
- */
-export async function getStudentLessonsInRange(
-  studentId: string,
-  fromIso: string,
-  toIso: string,
-): Promise<StudentLesson[]> {
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      classId: classes.id,
-      className: classes.name,
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      tutorId: profiles.id,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-      rescheduledFrom: lessons.rescheduledFrom,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, fromIso),
-        lte(lessons.date, toIso),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  // A rescheduled or cancelled-out lesson remains in the class timetable for
-  // other students. Hide it from this student's calendar only.
-  const absentRows = await db
-    .select({ lessonId: attendance.lessonId })
-    .from(attendance)
-    .where(
-      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
-    );
-  const absentIds = new Set(absentRows.map((attendanceRow) => attendanceRow.lessonId));
-  return rows.filter((lesson) => !absentIds.has(lesson.id));
-}
 
 /**
  * Single lesson with subject/class/tutor context. Used by the reschedule

@@ -32,7 +32,6 @@ import {
 import {
   getReportTerms,
   getStudentLeave,
-  getStudentLessonsInRange,
   getStudentTrial,
   getTutorAvailabilityForTutor,
   getTutorRecord,
@@ -46,10 +45,10 @@ import {
 import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
 import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
 import { parseTabParam, tabsForRole, type UserTab } from "@/lib/user-detail-tabs";
-import {
-  monthBounds,
-  parseMonthParam,
-} from "@/app/student/_components/month-calendar";
+import { parseMonthParam } from "@/app/student/_components/month-calendar";
+import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { getStudentHomework } from "@/app/student/_lib/queries";
+import { isHandedIn } from "@/lib/homework-rules";
 import { getClassMoveData } from "@/lib/class-moves";
 import { getStudentCurriculumAccessOverview } from "@/app/admin/_lib/curriculum-access";
 import { cn } from "@/lib/utils";
@@ -73,7 +72,7 @@ import { CreditManagement } from "./_components/credit-management";
 import { StudentLeaveManager } from "./_components/student-leave-manager";
 import { StudentReportControls } from "./_components/student-report-controls";
 import { StudentTrialManager } from "./_components/student-trial-manager";
-import { AdminLessonCalendar } from "./_components/lesson-calendar";
+import { AdminStudentTimetable } from "./_components/student-timetable";
 import { ClassMoveManager } from "./_components/class-move-manager";
 import { CurriculumAccessManager } from "./_components/curriculum-access-manager";
 import { ProfileSection } from "./_components/profile-section";
@@ -125,9 +124,10 @@ export default async function UserDetailPage({
 
   const today = melbourneDate(new Date());
   const { year: calendarYear, month: calendarMonth } = parseMonthParam(month);
-  const { fromIso } = monthBounds(calendarYear, calendarMonth);
-  const calendarEnd = new Date(calendarYear, calendarMonth + 1, 0);
-  const toIso = `${calendarEnd.getFullYear()}-${String(calendarEnd.getMonth() + 1).padStart(2, "0")}-${String(calendarEnd.getDate()).padStart(2, "0")}`;
+  // The same window the student's timetable loads around the shown month;
+  // moving the calendar moves ?month and the server re-centres it.
+  const calendarFrom = new Date(calendarYear, calendarMonth - 1, 1);
+  const calendarTo = new Date(calendarYear, calendarMonth + 3, 1);
 
   const [
     creditActivity,
@@ -137,6 +137,7 @@ export default async function UserDetailPage({
     reportTerms,
     trial,
     calendarLessons,
+    calendarHomework,
     classMoveData,
     curriculumAccess,
   ] = isStudent
@@ -152,14 +153,15 @@ export default async function UserDetailPage({
         activeTab === "reports" ? getReportTerms() : Promise.resolve([]),
         getStudentTrial(id),
         activeTab === "lessons"
-          ? getStudentLessonsInRange(id, fromIso, toIso)
+          ? buildTimetableChips(id, calendarFrom, calendarTo)
           : Promise.resolve([]),
+        activeTab === "lessons" ? getStudentHomework(id) : Promise.resolve([]),
         activeTab === "lessons" ? getClassMoveData(id) : Promise.resolve(null),
         activeTab === "curriculum"
           ? getStudentCurriculumAccessOverview(id)
           : Promise.resolve([]),
       ])
-    : [null, null, null, null, [], null, [], null, []];
+    : [null, null, null, null, [], null, [], [], null, []];
 
   const [history, reportIssues] = await Promise.all([
     isStudent && activeTab === "history" ? getStudentHistory(id) : null,
@@ -334,15 +336,26 @@ export default async function UserDetailPage({
     <ClassMoveManager studentId={user.id} studentName={name} data={classMoveData} />
   );
 
+  const calendarFromIso = melbourneDate(calendarFrom);
+  const calendarToIso = melbourneDate(calendarTo);
   const calendarSection = isStudent && (
     <section className="px-4 py-5 sm:px-5">
-      <AdminLessonCalendar
+      <AdminStudentTimetable
         studentId={id}
-        year={calendarYear}
-        month={calendarMonth}
+        initialYear={calendarYear}
+        initialMonth={calendarMonth}
         lessons={calendarLessons}
+        // Homework due chips, with the shared rule for handed in.
+        homework={calendarHomework
+          .map((h) => ({
+            id: h.homeworkId,
+            dueDate: melbourneDate(h.dueDate),
+            title: h.title,
+            done: isHandedIn(h.status),
+            href: `${basePath}?tab=history#homework`,
+          }))
+          .filter((h) => h.dueDate >= calendarFromIso && h.dueDate < calendarToIso)}
         leavePeriods={leavePeriods ?? []}
-        basePath={basePath}
       />
     </section>
   );
