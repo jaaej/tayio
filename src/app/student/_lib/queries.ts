@@ -17,7 +17,7 @@ import {
   rescheduleRequests,
   subjects,
 } from "@/db/schema";
-import { ADMIN_TIERS } from "@/lib/roles";
+import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
 
 export type RecentFeedback = {
   lessonId: string;
@@ -1249,25 +1249,11 @@ export async function getOutstandingBalanceForStudent(
     .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 
-export type StudentAdminContact = {
-  id: string;
-  firstName: string;
-  lastName: string;
-} | null;
+export type StudentAdminContact = OfficeContact | null;
 
-/** One active admin the student can DM (unrestricted students only). */
+/** The office the student can DM (the same admin the parent portal offers). */
 export async function getAdminContactForStudent(): Promise<StudentAdminContact> {
-  const rows = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-    })
-    .from(profiles)
-    .where(and(inArray(profiles.role, ADMIN_TIERS), eq(profiles.isActive, true)))
-    .orderBy(asc(profiles.firstName))
-    .limit(1);
-  return rows[0] ?? null;
+  return getOfficeContact();
 }
 
 export type StudentTutorContact = {

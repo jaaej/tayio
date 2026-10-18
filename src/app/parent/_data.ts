@@ -19,7 +19,8 @@ import {
   progressTopics,
   subjects,
 } from "@/db/schema";
-import { ADMIN_TIERS } from "@/lib/roles";
+import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
+import { isInvoiceOpen } from "@/lib/invoice-rules";
 import { attendanceSummary } from "@/lib/attendance-rules";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 
@@ -189,7 +190,7 @@ export async function getOutstandingBalanceForParent(parentId: string): Promise<
     .from(invoices)
     .where(eq(invoices.parentId, parentId));
   return rows
-    .filter((r) => r.status === "unpaid" || r.status === "overdue" || r.status === "partially_paid")
+    .filter((r) => isInvoiceOpen(r.status))
     .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 
@@ -899,28 +900,11 @@ export async function getChildTutors(studentId: string): Promise<ChildTutor[]> {
   );
 }
 
-export type AdminContact = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string | null;
-};
+export type AdminContact = OfficeContact;
 
+/** The office a parent messages: the same active admin students are offered. */
 export async function getAdminContact(): Promise<AdminContact | null> {
-  const rows = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-    })
-    .from(profiles)
-    .where(inArray(profiles.role, ADMIN_TIERS))
-    .orderBy(asc(profiles.createdAt))
-    .limit(1);
-  return rows[0] ?? null;
+  return getOfficeContact();
 }
 
 export type ParentDmContacts = {

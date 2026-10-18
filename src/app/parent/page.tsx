@@ -11,11 +11,13 @@ import { Card, StatTile, Hero, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import {
-  formatDateLong,
   formatDueDate,
   formatMoney,
+  melbourneDayKey,
   relativeTime,
 } from "@/lib/format";
+import { formatInvoiceDay } from "@/lib/invoice-dates";
+import { invoiceDisplayStatus } from "@/lib/invoice-rules";
 import {
   HOMEWORK_STATUS_LABEL,
   HOMEWORK_STATUS_STYLE,
@@ -105,6 +107,8 @@ export default async function ParentDashboard({
 
   const recentHomework = homeworkRows.slice(0, 5);
   const recentInvoices = invoices.slice(0, 4);
+  const now = new Date();
+  const today = melbourneDayKey(now);
 
   const childQs = `?child=${selected.id}`;
 
@@ -290,15 +294,15 @@ export default async function ParentDashboard({
                         {r.description ?? "Tuition invoice"}
                       </div>
                       <div className="text-xs text-muted">
-                        Due {formatDateLong(r.dueDate)}
+                        Due {formatInvoiceDay(r.dueDate, now, { weekday: true })}
                       </div>
                     </div>
                     <div className="text-sm font-extrabold text-ink tabular-nums shrink-0">
-                      {formatMoney(Number(r.amount))}
+                      {formatMoney(Number(r.amount), r.currency)}
                     </div>
                     <StatusPill
-                      label={INVOICE_STATUS_LABEL[r.status] ?? r.status}
-                      className={INVOICE_STATUS_STYLE[r.status]}
+                      label={INVOICE_STATUS_LABEL[invoiceDisplayStatus(r, today)] ?? r.status}
+                      className={INVOICE_STATUS_STYLE[invoiceDisplayStatus(r, today)]}
                     />
                   </div>
                 ))}
