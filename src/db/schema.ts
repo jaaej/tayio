@@ -423,7 +423,10 @@ export const tutorLeaveRequests = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
+    /** Private to the tutor and admins. */
     reason: text("reason").notNull(),
+    /** For the covering tutors: shown on the Cover board (migration 0071). */
+    handoverNote: text("handover_note"),
     status: tutorLeaveStatusEnum("status").notNull().default("pending"),
     decidedById: uuid("decided_by_id").references(() => profiles.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -463,7 +466,11 @@ export const tutorCoverRequests = pgTable(
     replacementTutorId: uuid("replacement_tutor_id").references(
       () => profiles.id,
     ),
+    /** Private to the tutor and admins; leave copies its reason here. */
     reason: text("reason").notNull(),
+    /** A single class's note for the covering tutor. Leave covers read the
+     *  leave's note through leaveRequestId instead (migration 0071). */
+    handoverNote: text("handover_note"),
     status: tutorCoverStatusEnum("status").notNull().default("open"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     alert48SentAt: timestamp("alert_48_sent_at", { withTimezone: true }),

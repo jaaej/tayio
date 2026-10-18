@@ -13,7 +13,6 @@ import {
   subjectWeeks,
 } from "@/db/schema";
 import { getLessonWeek } from "@/lib/week-plans";
-import { getCoverBoardRows } from "@/lib/tutor-cover";
 import type { LessonCounts } from "@/lib/lesson-progress";
 import { lessonCountFields } from "@/lib/lesson-progress-sql";
 import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
@@ -74,7 +73,8 @@ function lessonSelect() {
 type LessonRow = Awaited<ReturnType<ReturnType<typeof lessonSelect>["execute"]>>[number];
 
 function toDayLesson(r: LessonRow): DayLesson {
-  const location = r.lessonLocation ?? r.classLocation;
+  // A make-up has no room of its own: it is taught in the class's room.
+  const location = r.lessonLocation?.trim() || r.classLocation?.trim() || null;
   return {
     id: r.id,
     classId: r.classId,
@@ -248,14 +248,6 @@ export async function getQuizRequests(tutorId: string): Promise<QuizRequest[]> {
     ...row,
     href: hrefs.get(row.subjectWeekId) ?? "/tutor/classes",
   }));
-}
-
-/** Open covers this tutor could take (not their own), soonest first. */
-export async function getClaimableCovers(tutorId: string, now: Date) {
-  const rows = await getCoverBoardRows(now);
-  return rows.filter(
-    (row) => row.status === "open" && row.originalTutorId !== tutorId,
-  );
 }
 
 /** Homework past due and not handed in, for "Students to bump". */

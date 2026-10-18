@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
-import { PageHeader, SubjectDot, buttonVariants } from "@/components/admin/ui";
+import { GlassPanel, PageHeader, SubjectDot, buttonVariants } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { classes } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateShort, formatTimeRange, formatWeekday } from "@/lib/format";
 import { getLessonRoll } from "@/lib/lesson-roll";
+import { getCoverHandover } from "@/lib/tutor-cover";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
 import { getLessonForTutor, requireTutor } from "../../_data";
@@ -28,7 +29,7 @@ export default async function LessonDetailPage({
   // Scoped to lessons this tutor teaches; 404s otherwise.
   const { lesson, notes } = await getLessonForTutor(tutor.id, id);
 
-  const [roll, week, [cls]] = await Promise.all([
+  const [roll, week, [cls], handover] = await Promise.all([
     getLessonRoll(lesson),
     getLessonWeek(lesson.classId, lesson.date),
     db
@@ -36,6 +37,7 @@ export default async function LessonDetailPage({
       .from(classes)
       .where(eq(classes.id, lesson.classId))
       .limit(1),
+    getCoverHandover(lesson.id, tutor.id),
   ]);
   // A covering tutor teaches the lesson but not the class: the class tabs
   // would 404 for them, so those links only show for the class's own tutor.
@@ -118,6 +120,18 @@ export default async function LessonDetailPage({
           makeupCount={roll.filter((s) => s.makeupFrom).length}
         />
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-5 lg:max-w-[420px]">
+          {handover && (
+            <GlassPanel
+              title={`Covering for ${handover.originalTutorFirst} ${handover.originalTutorLast}`.trim()}
+              titleId="handover-heading"
+            >
+              <p className="whitespace-pre-wrap p-3.5 text-[14px] leading-[1.55] text-ink [overflow-wrap:anywhere]">
+                {handover.handoverNote?.trim() || (
+                  <span className="text-[13px] text-muted">No handover note was left.</span>
+                )}
+              </p>
+            </GlassPanel>
+          )}
           <WeekPlanCard week={week} editHref={weekPlanHref} />
           <RecordingCard
             lessonId={lesson.id}
