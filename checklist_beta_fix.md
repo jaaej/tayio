@@ -14,12 +14,16 @@ Last updated: 18 October 2026
 ## Manual QA required
 
 - [ ] One lesson roll, one-on-one classes and one Room picker (18 October 2026): apply migration `0066_one_on_one_capacity.sql` to Production after the code is deployed (it goes with 0065; the previous build can save a one-on-one class with more than one place, which the new constraint refuses).
-  Roll: open the same lesson as its tutor and in admin Attendance; both rolls list the same students with year levels and the same On leave / Free trial / Make-up pills. Open a make-up lesson as its tutor and confirm only the booked student is listed.
-  One-on-one: on a class card pick One-on-one; Capacity reads "1 student", Save is refused while more than one student stays, and with one student the Add picker becomes "Withdraw to change student". Back to Group restores the saved size. New class with One-on-one shows "1 student".
+  Roll: open the same lesson as its tutor and in admin Attendance; both rolls list the same students with year levels and the same On leave / Free trial / Make-up pills.
+  Open a make-up lesson as its tutor and confirm only the booked student is listed.
+  One-on-one: on a class card pick One-on-one; Capacity reads "1 student", Save is refused while more than one student stays, and with one student the Add picker becomes "Withdraw to change student".
+  Back to Group restores the saved size.
+  New class with One-on-one shows "1 student".
   Room: in New class pick a day and time another class uses and confirm that room's chip is crossed out, as on the class card.
 
 - [ ] Class card cleanup and staff-only attendance notes (18 October 2026): first apply migration `0065_class_card_cleanup.sql` to Production, after the code is deployed (the previous build reads the dropped columns).
-  As admin at 1440px and 390px, open a subject's pencil: each class card has Day, Starts, Ends, Tutor, Room, Class name, Type and Capacity (no Online link or Subject), and student rows have only Withdraw (no Delivery or private note). In New class, the Room suggestions end with "Online" and there is no Online link field.
+  As admin at 1440px and 390px, open a subject's pencil: each class card has Day, Starts, Ends, Tutor, Room, Class name, Type and Capacity (no Online link or Subject), and student rows have only Withdraw (no Delivery or private note).
+  In New class, the Room suggestions end with "Online" and there is no Online link field.
   Mark a lesson with a note as a tutor; confirm the admin roll shows the note, and the linked parent's Classes page and class page show the lesson's status without it.
 
 - [ ] Free trial ends, student leaves (17 October 2026): give a test student a trial ending tomorrow and add them to a class.
@@ -574,23 +578,103 @@ Last updated: 18 October 2026
   it again after an admin requests changes and confirm every admin receives
   exactly one new review-cycle notification, without retry duplicates.
 
+## Consistency audit backlog (18 October 2026)
+
+Read-only code audit across all four portals (owner request: duplicated notes, the same thing shown differently, tasks split across pages).
+Items marked "checked" were confirmed in the code by hand; the rest come from the audit with file references and still need a look before building.
+Nothing here is built yet.
+
+Wrong numbers (fix first):
+
+- [ ] Attendance rate counts a moved lesson as an absence (checked).
+  An approved reschedule or credit writes `absent` on the original lesson (`src/lib/reschedule.ts` around 523-547), and every rate divides by it: parent Overview and Classes (`src/app/parent/_data.ts:88-98`), the term report PDF (`src/lib/student-report.ts:100-112`), admin Reports, tutor lists.
+  "Left early" counts as attended for tutors only.
+  Fix: one `attendanceSummary()` in `src/lib` used by every rate, leaving out moved or credited lessons.
+- [ ] "Overdue" invoices differ by role (checked).
+  Admin derives overdue from the due date; families count only invoices manually set to `overdue` (`src/app/parent/payments/page.tsx:27`, `src/app/student/payments/_lib/invoice-summary.ts:32`), and nothing sets that status.
+  The parent invoice date is formatted in UTC (`parent/payments/page.tsx:126`), a day early before about 11am Melbourne.
+  Fix: one invoice-state rule in `src/lib` for every role.
+- [ ] Homework "done" means different things (checked two): a late hand-in is done on the student board (`student/homework/_lib/homework-list.ts:57-61`), still due on the student and parent timetables (`student/timetable/page.tsx:63`, `parent/classes/page.tsx:76`), "Late" on parent Homework and overdue in admin flags.
+  Fix: one `homeworkState()`.
+- [ ] Admin "lessons without notes" never fires in Production (checked): it counts lessons with status `completed` (`admin/_lib/dashboard-queries.ts:136`), and nothing in the app sets that status (only `scripts/seed-demo.mjs`).
+  Tutor Today counts by date instead.
+  Fix: one "this lesson ran" rule (date passed, not cancelled or moved).
+- [ ] Topic mastery is always empty in Production (checked): nothing in the app writes `progress_topics` (seed only), yet student and parent Progress and the parent Overview show it.
+  Fix: base mastery on real marks, or hide it.
+
+Leaks and breakage:
+
+- [ ] Changing a class's tutor strands its homework and notes (checked): tutor access goes through the copied `homework.tutor_id` (`tutor/homework/_lib/marking-data.ts:31`, `assertOwnsHomework` in `tutor/_actions.ts`), and `applyClassEdit` never moves it.
+  The new tutor gets a 404 on "to mark"; the old one keeps the queue.
+  Fix: scope tutor access through `classes.tutor_id`.
+- [ ] A tutor's leave reason is shown to every tutor (checked): approval copies it into each cover request and the Cover board prints "Tutor: reason" (`tutor/cover/page.tsx:78`).
+  Fix: a private reason for admin and a separate handover note for the board.
+- [ ] The free-trial note is labelled "Note (optional)" next to "Internal note (admins only)" on the student profile (checked, `student-trial-manager.tsx:96`), but tutors see it on every roll during the trial.
+  Fix: label it "Note for the tutor".
+- [ ] Requesting changes on a quiz overwrites the admin's original brief (checked, `_actions/quizzes.ts:259` and the `requestChanges` update).
+  Fix: a separate review note.
+- [ ] Parents with more than one child land on the first child (checked): no menu link or notification carries `?child=` and `resolveSelectedChild` falls back to the first (`parent/_data.ts:48-58`).
+  Fix: remember the chosen child; put `child=` in notification links.
+
+Same feature, different versions (one feature, one implementation):
+
+- [ ] Lesson notes: each role sees different fields.
+  Parents see topic and comment only, and only when the comment is filled (checked, `parent/_data.ts` getFeedback); the student recap shows "Key concepts", which nothing writes; the tutor's own student profile shows only comment and internal note (checked).
+  Fix: one shared recap component and query.
+- [ ] Announcements can't be read in full by students or tutors (checked): the notification links to `/student` or the inbox (`src/lib/announcement-rules.ts:26-37`), and a linked inbox row never expands.
+  Fix: a shared announcement view per role, or unlinked rows that expand.
+- [ ] A student's lessons are computed three ways (timetable, dashboard, admin calendar).
+  The admin calendar hides every absent lesson, including real absences (checked, `admin/_lib/queries.ts:529-537`), and shows no make-ups.
+  Fix: one lesson source and the shared timetable.
+- [ ] Parent portal copies: Progress is a thinner copy of the student's (and the Overview mastery uses a third query), Resources renders a different component, Payments is built twice, and `src/components/parent/ui` is a drifted copy of the admin kit (checked it exists).
+- [ ] Staff notes about a student live in five places (account note, trial note, leave note, lesson internal note, attendance note) with no per-student timeline; the admin profile has none and the tutor profile doesn't show attendance notes.
+  The attendance note and the internal lesson note overlap (owner kept both for now).
+
+Buried or split tasks:
+
+- [ ] Admin: family class-move requests have no queue (only a notification and the student's Lessons tab), and the dashboard To do counts the retired reschedule-approval flow but not cover, leave, quizzes to review or class moves (checked, `dashboard-queries.ts:110`, `:379`).
+- [ ] Admin: "Students to watch" links to a profile with no attendance or homework history.
+- [ ] Admin: the "Reschedules" menu item holds Cover board, Leave, Credits and Term usage; moving a lesson and granting credit happen on the student profile.
+- [ ] Admin: dashboard "attendance to mark" and the Attendance queue count differently (14 vs 30 days, none vs any unmarked).
+- [ ] Admin: a lesson on the Classes schedule opens the subject edit page, while the dashboard's schedule opens its roll; Month view ignores term dates and holidays.
+- [ ] Admin: term reports are issued one student at a time with no sent/not-sent view.
+- [ ] Admin: tutor details live on three pages (`/admin/tutors` is owner-only and only linked from the availability board).
+- [ ] Tutor: "lessons to finish" is counted three ways (Today, class Lessons tab, lesson page), Today stops at 7 days, and absent students count as notes still to write.
+- [ ] Tutor: time away and cover requests are split between Schedule and the Cover board, a single-class cover request cannot be cancelled, and one action has four labels.
+- [ ] Tutor: "Recording" means the admin's week video on Week plan and the per-lesson link on the lesson page.
+- [ ] Tutor: weekly check-in opens on the current week, not the oldest pending one; the cover badge counts covers the tutor cannot take.
+- [ ] Parent: the Overview has no next lesson or overdue homework; one subject is split over three pages (Classes, class page, subject page) and the class page loops with Feedback.
+
+Small items: tutor destination named "Schedule & availability", "Open calendar" and "Open timetable"; microcopy subtitles on parent Progress, the parent class page, the parent Overview eyebrow and recorded lessons' "{n} total"; three copies of `parseMonthParam`, two using server time; the parent office contact can pick a deactivated admin; make-up lessons show no room on some views; a family's cancel reason is copied into the roll note as "Rescheduled: ..."; the admin feed shows targeted announcements as "Everyone"; unused files such as `src/components/student/notifications-inbox.tsx` and `src/components/ui/page-hero.tsx`.
+
 ## Recently implemented
 
 - [x] One lesson roll for admin and tutor; one-on-one means one student; one Room picker (18 October 2026, owner request).
-  Roll: `getLessonRoll` / `lessonRollIds` (`src/lib/lesson-roll.ts`, rule in `lesson-roll-rules.ts`, tested) build the roll for `/admin/attendance/[lessonId]` and `/tutor/lessons/[id]`, and both save actions (`adminSaveAttendance`, the tutor's `saveAttendance` and `saveLessonNote`) accept exactly those students. The admin roll gained year level, On leave, the free-trial note and profile links.
-  Bug fixed (reproduced on dev first): a make-up lesson is a private booking that only points at the student's class, but the tutor's roll listed that whole class (Chloe Zhang's make-up on 29 June showed Isla Brown and Lucas Tran too) and the tutor's save and lesson-note checks accepted them, which would have given those students attendance on, and access to, someone else's make-up. A make-up's roll is now only its bookings. Also fixed: a credit make-up (attendance but no reschedule record) showed nobody on the admin roll; it now shows the student, labelled from the lesson the credit came from.
-  One-on-one (owner chose exactly one student): `classCapacity` / `oneOnOneError` (`src/lib/class-capacity.ts`, tested). A one-on-one class always has capacity 1 (`insertClass`, `applyClassEdit`, both forms show "1 student"); `saveSubjectPage` refuses a save that leaves one with more than one current student; the card hides Add once its student is in. Make-ups and class moves already refuse a full class, so capacity 1 covers them. Migration `0066_one_on_one_capacity.sql` adds `classes_one_on_one_capacity` and turned dev's 4-student one-on-one "Year 10 Maths · Wednesday PM" into a group (Production had no one-on-one classes).
-  Room: `RoomPicker` (`src/app/admin/classes/_components/room-picker.tsx`) is the Room field in New class and on the class card: type a room or pick a chip (rooms in use, then Online), crossed out when another weekly class uses it at that time (`roomTaken`, moved to `classes/_lib/rooms.ts` with its tests). `RoomField` (the plain suggestion box) is gone.
+  Roll: `getLessonRoll` / `lessonRollIds` (`src/lib/lesson-roll.ts`, rule in `lesson-roll-rules.ts`, tested) build the roll for `/admin/attendance/[lessonId]` and `/tutor/lessons/[id]`, and both save actions (`adminSaveAttendance`, the tutor's `saveAttendance` and `saveLessonNote`) accept exactly those students.
+  The admin roll gained year level, On leave, the free-trial note and profile links.
+  Bug fixed (reproduced on dev first): a make-up lesson is a private booking that only points at the student's class, but the tutor's roll listed that whole class (Chloe Zhang's make-up on 29 June showed Isla Brown and Lucas Tran too) and the tutor's save and lesson-note checks accepted them, which would have given those students attendance on, and access to, someone else's make-up.
+  A make-up's roll is now only its bookings.
+  Also fixed: a credit make-up (attendance but no reschedule record) showed nobody on the admin roll; it now shows the student, labelled from the lesson the credit came from.
+  One-on-one (owner chose exactly one student): `classCapacity` / `oneOnOneError` (`src/lib/class-capacity.ts`, tested).
+  A one-on-one class always has capacity 1 (`insertClass`, `applyClassEdit`, both forms show "1 student"); `saveSubjectPage` refuses a save that leaves one with more than one current student; the card hides Add once its student is in.
+  Make-ups and class moves already refuse a full class, so capacity 1 covers them.
+  Migration `0066_one_on_one_capacity.sql` adds `classes_one_on_one_capacity` and turned dev's 4-student one-on-one "Year 10 Maths · Wednesday PM" into a group (Production had no one-on-one classes).
+  Room: `RoomPicker` (`src/app/admin/classes/_components/room-picker.tsx`) is the Room field in New class and on the class card: type a room or pick a chip (rooms in use, then Online), crossed out when another weekly class uses it at that time (`roomTaken`, moved to `classes/_lib/rooms.ts` with its tests).
+  `RoomField` (the plain suggestion box) is gone.
   Verified against dev: typecheck, lint, 561 tests, a production build (isolated copy), migration 0066 applied and its constraint refusing a one-on-one class with 8 places, `db:check-rls`, and browser runs: the tutor and admin rolls of a regular lesson and two make-ups, a refused one-on-one save, an unsaved one-on-one card with one student, and New class on Monday 4-5:30 pm with Rooms 1 and 2 crossed out.
   Production: migration 0066 not applied yet (see Manual QA).
 
 - [x] Class card cleanup and staff-only attendance notes (18 October 2026, owner request after asking what per-student delivery was for).
-  Removed from the subject page's class cards (`/admin/subjects/[id]/edit`): the Online link and Subject (move) fields, and each student's Delivery select and private note. Capacity stays (owner decision): make-up and class-move pickers and Reports use it.
-  Removed everywhere, migration `0065_class_card_cleanup.sql`: `enrollments.delivery_mode` and its enum (it only drew a pill on the tutor's roll; the admin Users badges built on it had not rendered since the split view), `enrollments.admin_notes` (duplicated the account's internal note; any text is appended to `profiles.admin_notes` first), and `classes.online_link` / `lessons.online_link` (no role was ever shown the link). An online class is one whose room is "Online", now also suggested in New class (`roomChoices`, `src/app/admin/classes/_lib/rooms.ts`, tested).
+  Removed from the subject page's class cards (`/admin/subjects/[id]/edit`): the Online link and Subject (move) fields, and each student's Delivery select and private note.
+  Capacity stays (owner decision): make-up and class-move pickers and Reports use it.
+  Removed everywhere, migration `0065_class_card_cleanup.sql`: `enrollments.delivery_mode` and its enum (it only drew a pill on the tutor's roll; the admin Users badges built on it had not rendered since the split view), `enrollments.admin_notes` (duplicated the account's internal note; any text is appended to `profiles.admin_notes` first), and `classes.online_link` / `lessons.online_link` (no role was ever shown the link).
+  An online class is one whose room is "Online", now also suggested in New class (`roomChoices`, `src/app/admin/classes/_lib/rooms.ts`, tested).
   Code: `saveSubjectPage` no longer moves classes or updates enrolments, and `applyClassEdit` takes a `ClassEdit` without `subjectId`; `class-card.ts` keeps only joins and leaves (`CardStudent.saved` is a boolean); class moves no longer copy the dropped fields; the shared roll row lost its delivery pill.
-  Attendance notes are staff-only (owner decision): `/parent/classes` and `/parent/classes/[classId]` no longer select or show them, and the migration withholds `attendance.note` from the `authenticated` role (column-level SELECT on every other column), so a student or parent cannot read it through the public API either. The app's own server connection is unaffected.
+  Attendance notes are staff-only (owner decision): `/parent/classes` and `/parent/classes/[classId]` no longer select or show them, and the migration withholds `attendance.note` from the `authenticated` role (column-level SELECT on every other column), so a student or parent cannot read it through the public API either.
+  The app's own server connection is unaffected.
   Verified against dev: typecheck, lint, 554 tests, a production build (isolated copy, the dev server kept running), `db:check-rls` (56 tables), migration applied to dev, `set role authenticated` refused `select note` and allowed `select status`, and browser runs of the subject page (1440px and 390px), a capacity change saved through it and reverted (checked in the database each time), New class, the admin and tutor rolls, tutor Classes and the parent class page (a child with notes on 16 and 17 June shows only the statuses).
-  Production: migration 0065 not applied yet. Before applying: 0 delivery modes, 0 enrolment notes, 0 class or lesson links, 0 attendance rows.
+  Production: migration 0065 not applied yet.
+  Before applying: 0 delivery modes, 0 enrolment notes, 0 class or lesson links, 0 attendance rows.
 
 - [x] Student profile without the quick-fact tiles (18 October 2026, owner request): `/admin/users/[id]` for a student no longer shows the Attendance, Homework, Invoices and Credits tiles above the tabs (`studentFacts` removed from `src/app/admin/users/_lib/profile-facts.ts`). Tutors keep Classes and Students, parents keep Invoices. Checked in the browser on a student profile; lint and 555 tests pass.
 
