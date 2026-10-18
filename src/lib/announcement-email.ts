@@ -122,7 +122,7 @@ export async function deliverPendingAnnouncementEmails({
         if (!claim) return "skipped" as const;
 
         try {
-          const href = `${siteOrigin()}${announcementHrefForRole(job.role)}`;
+          const href = `${siteOrigin()}${announcementHrefForRole(job.role, job.announcementId)}`;
           const response = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {

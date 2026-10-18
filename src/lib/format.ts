@@ -15,14 +15,29 @@ const dateShort = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "short",
 });
+const melbourneDateLong = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+const melbourneDueDate = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
 
 export function parseLessonDate(date: string): Date {
   // `lessons.date` is a postgres DATE - stringified as YYYY-MM-DD; treat as local.
   return new Date(`${date}T00:00:00`);
 }
 
+/** A DATE string reads as that calendar day; a moment reads as its Melbourne day. */
 export function formatDateLong(date: string | Date) {
-  return dateLong.format(typeof date === "string" ? parseLessonDate(date) : date);
+  return typeof date === "string"
+    ? dateLong.format(parseLessonDate(date))
+    : melbourneDateLong.format(date);
 }
 
 export function formatDateShort(date: string) {
@@ -70,12 +85,9 @@ export function formatTimeRange(start: string, end: string) {
     : `${a.clock} ${a.suffix} – ${b.clock} ${b.suffix}`;
 }
 
+/** A due moment as its Melbourne day: "Fri 24 Oct" (servers run in UTC). */
 export function formatDueDate(d: Date) {
-  return new Intl.DateTimeFormat("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  }).format(d);
+  return melbourneDueDate.format(d);
 }
 
 /** A homework score is a percentage the tutor awards: "85%", "92.5%". */

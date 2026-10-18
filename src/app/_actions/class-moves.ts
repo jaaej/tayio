@@ -48,7 +48,7 @@ function revalidateMovePaths(studentId: string) {
   revalidatePath("/admin/notifications");
   revalidatePath("/student/timetable");
   revalidatePath("/student/notifications");
-  revalidatePath("/parent/classes");
+  revalidatePath("/parent/timetable");
   revalidatePath("/parent/notifications");
 }
 
@@ -511,7 +511,7 @@ export async function requestPermanentClassMove(
             channel: "in_app" as const,
             title: `Relocate class time for ${studentName}`,
             body,
-            href: `/admin/users/${data.studentId}?tab=lessons#class-moves`,
+            href: "/admin/reschedules?tab=moves",
           })),
         );
       }

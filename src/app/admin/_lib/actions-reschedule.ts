@@ -276,7 +276,7 @@ export async function rescheduleStudentLesson(
   revalidatePath(`/tutor/lessons/${outcome.lessonId}`);
   revalidatePath(`/tutor/lessons/${original.id}`);
   revalidatePath("/student/timetable");
-  revalidatePath("/parent/classes");
+  revalidatePath("/parent/timetable");
 
   return { ok: true };
 }

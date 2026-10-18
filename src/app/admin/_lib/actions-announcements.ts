@@ -84,7 +84,7 @@ export async function createAnnouncement(input: CreateAnnouncementInput) {
           ? `Urgent announcement: ${data.title}`
           : `New announcement: ${data.title}`,
         body: data.body,
-        href: announcementHrefForRole(recipient.role),
+        href: announcementHrefForRole(recipient.role, created.id),
         dedupeKey: `announcement:${created.id}`,
       })),
     );
@@ -188,7 +188,7 @@ export async function approveAnnouncement(id: string) {
             ? `Urgent announcement: ${pending.title}`
             : `New announcement: ${pending.title}`,
           body: pending.body,
-          href: announcementHrefForRole(recipient.role),
+          href: announcementHrefForRole(recipient.role, announcementId),
           dedupeKey: `announcement:${announcementId}`,
         })),
         {

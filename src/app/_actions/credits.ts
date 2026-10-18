@@ -45,7 +45,7 @@ export async function cancelLesson(formData: FormData): Promise<Result> {
   if (!res.ok) return res;
 
   revalidatePath("/student/timetable");
-  revalidatePath("/parent/classes");
+  revalidatePath("/parent/timetable");
   revalidatePath("/admin/reschedules");
   return { ok: true, message: "Lesson cancelled - class credit added." };
 }
@@ -101,7 +101,7 @@ export async function redeemCredit(formData: FormData): Promise<Result> {
   if (!res.ok) return res;
 
   revalidatePath("/student/timetable");
-  revalidatePath("/parent/classes");
+  revalidatePath("/parent/timetable");
   revalidatePath("/admin/reschedules");
   return { ok: true, message: "Class booked with your credit." };
 }

@@ -1,9 +1,7 @@
 /**
  * Shared quiz-status labels/tones for the admin and tutor quiz pages.
- * Tone values are plain strings (not a specific Pill's tone union) so each
- * call site can cast to whichever Pill component it renders with -
- * admin pages use `@/components/admin/ui`'s Pill, tutor pages use
- * `@/components/student/pill`'s Pill, and the two tone unions differ.
+ * Tone values are plain strings (not a specific Pill's tone union), so each
+ * call site casts to the Pill it renders with.
  */
 export const QUIZ_STATUS_LABEL: Record<string, string> = {
   draft: "Draft",

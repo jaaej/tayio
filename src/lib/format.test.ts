@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  formatDateLong,
+  formatDueDate,
   formatMonthShort,
   melbourneGreeting,
   formatTime,
@@ -124,5 +126,20 @@ describe("formatMonthShort", () => {
   it("names the month of a lesson date", () => {
     expect(formatMonthShort("2026-10-19")).toBe("Oct");
     expect(formatMonthShort("2026-11-02")).toBe("Nov");
+  });
+});
+
+describe("dates from a moment read as the Melbourne day on any server", () => {
+  const original = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = original;
+  });
+
+  it("shows a midnight Melbourne due date on its own day on a UTC server", () => {
+    process.env.TZ = "UTC";
+    // 00:00 on Sat 24 Oct in Melbourne is 13:00 UTC on Fri 23 Oct.
+    const due = new Date("2026-10-23T13:00:00Z");
+    expect(formatDueDate(due)).toBe("Sat, 24 Oct");
+    expect(formatDateLong(due)).toMatch(/^Saturday,? 24 October$/);
   });
 });

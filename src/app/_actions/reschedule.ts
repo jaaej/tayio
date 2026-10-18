@@ -264,7 +264,7 @@ export async function submitReschedule(formData: FormData): Promise<Result> {
 
   const done = () => {
     revalidatePath("/student/timetable");
-    revalidatePath("/parent/classes");
+    revalidatePath("/parent/timetable");
     revalidatePath("/admin/attendance");
   };
 
@@ -383,7 +383,7 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
   if (notifRows.length) await db.insert(notifications).values(notifRows);
 
   revalidatePath("/student/timetable");
-  revalidatePath("/parent/classes");
+  revalidatePath("/parent/timetable");
   revalidatePath("/admin/attendance");
   return { ok: true, message: "Class credit added." };
 }
