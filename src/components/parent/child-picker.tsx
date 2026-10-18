@@ -7,17 +7,19 @@ import { cn } from "@/lib/utils";
 
 export type PickerChild = { id: string; firstName: string; yearLevel: string | null };
 
-/** Pages about the whole family, where switching child only remembers it. */
+/** Pages about the whole family, where switching child stays on the page. */
 const FAMILY_PAGES = ["/parent/messages", "/parent/notifications", "/parent/payments"];
 
 /**
  * Where to go after picking another child: the same section's main page
- * (a homework or a recap belongs to one child), or nowhere on family pages.
+ * (a homework or a recap belongs to one child), or the same family page.
+ * The URL always names the child, so the sidebar and phone-header pickers
+ * agree.
  */
-function targetFor(pathname: string, childId: string): string | null {
-  if (FAMILY_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
-  const section = pathname.split("/").slice(0, 3).join("/") || "/parent";
-  return `${section}?child=${childId}`;
+function targetFor(pathname: string, childId: string): string {
+  const family = FAMILY_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const page = family ? pathname : pathname.split("/").slice(0, 3).join("/") || "/parent";
+  return `${page}?child=${childId}`;
 }
 
 /**
@@ -54,9 +56,7 @@ export function ChildPicker({
     if (id === currentId) return;
     rememberSelectedChild(id);
     setCurrentId(id);
-    const target = targetFor(pathname, id);
-    if (target) router.push(target);
-    else router.refresh();
+    router.push(targetFor(pathname, id));
   }
 
   if (compact) {
