@@ -21,6 +21,7 @@ import type { TimetableChip, TimetableHw } from "@/app/student/_components/inter
 import { melbourneDayKey } from "@/lib/format";
 import { isHandedIn } from "@/lib/homework-rules";
 import { recapLessonIds } from "@/lib/lesson-recap";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 /**
  * Homework due chips for the same timetable, on their Melbourne due day. A
@@ -72,7 +73,7 @@ export async function buildTimetableChips(
       (l.studentState === "normal" ||
         l.studentState === "moved_out" ||
         l.studentState === "pending_out") &&
-      new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime()
+      lessonStartInstant(l.date, l.startTime).getTime() > now.getTime()
     );
   }
   const termByLessonId = new Map<string, TermRow | null>();
@@ -123,7 +124,7 @@ export async function buildTimetableChips(
     .filter(
       (l) =>
         l.studentState !== "pending_in" &&
-        new Date(`${l.date}T${l.startTime}`).getTime() <= now.getTime(),
+        lessonStartInstant(l.date, l.startTime).getTime() <= now.getTime(),
     )
     .map((l) => l.id);
   const [cancelledLessonIds, creditGrantedLessonIds, recapIds] = await Promise.all([
@@ -173,7 +174,7 @@ export async function buildTimetableChips(
     // shown greyed-out with this short reason instead of being hidden.
     const passed =
       l.status !== "upcoming" ||
-      new Date(`${l.date}T${l.startTime}`).getTime() <= now.getTime();
+      lessonStartInstant(l.date, l.startTime).getTime() <= now.getTime();
     function rescheduleReasonFor(): string | null {
       if (canReschedule) return null;
       if (passed) return "Passed";
