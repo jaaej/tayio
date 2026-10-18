@@ -1,8 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { isoDate } from "@/lib/format";
 import {
   announcements,
   announcementRecipients,
@@ -13,7 +12,6 @@ import {
   homework,
   homeworkAssignments,
   invoices,
-  lessonNotes,
   lessons,
   profiles,
   subjects,
@@ -24,6 +22,7 @@ import { isHandedIn } from "@/lib/homework-rules";
 import { meanMastery, type TopicMastery } from "@/lib/topic-mastery";
 import { getSubjectMastery } from "@/lib/topic-mastery-data";
 import { getStudentProgressBySubject } from "@/app/student/_lib/queries";
+import { getFamilyRecaps, type FamilyRecap } from "@/lib/lesson-recap";
 import { attendanceSummary } from "@/lib/attendance-rules";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 
@@ -69,18 +68,6 @@ export type DashboardData = {
   absenceCount: number;
   homeworkCompleted: number;
   homeworkTotal: number;
-  nextLesson: {
-    date: string;
-    startTime: string;
-    subjectName: string;
-    tutorName: string;
-  } | null;
-  latestFeedback: {
-    createdAt: Date;
-    parentVisibleComment: string;
-    subjectName: string | null;
-    tutorName: string;
-  } | null;
 };
 
 export async function getDashboardData(studentId: string): Promise<DashboardData> {
@@ -102,80 +89,12 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
   // A late hand-in is handed in (homework-rules).
   const homeworkCompleted = homeworkRows.filter((r) => isHandedIn(r.status)).length;
 
-  const tutorProfile = profiles;
-  const today = isoDate(new Date());
-  const nextLessonRows = await db
-    .select({
-      date: lessons.date,
-      startTime: lessons.startTime,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
-    .from(enrollments)
-    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, today),
-        or(eq(lessons.status, "upcoming"), eq(lessons.status, "rescheduled")),
-      ),
-    )
-    .orderBy(lessons.date, lessons.startTime)
-    .limit(1);
-
-  const nextLesson = nextLessonRows[0]
-    ? {
-        date: nextLessonRows[0].date,
-        startTime: nextLessonRows[0].startTime,
-        subjectName: nextLessonRows[0].subjectName,
-        tutorName: `${nextLessonRows[0].tutorFirst} ${nextLessonRows[0].tutorLast}`.trim(),
-      }
-    : null;
-
-  const noteRows = await db
-    .select({
-      createdAt: lessonNotes.createdAt,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      subjectName: subjects.name,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-    .leftJoin(classes, eq(classes.id, lessons.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        sql`${lessonNotes.parentVisibleComment} IS NOT NULL AND length(${lessonNotes.parentVisibleComment}) > 0`,
-      ),
-    )
-    .orderBy(desc(lessonNotes.createdAt))
-    .limit(1);
-
-  const latestFeedback = noteRows[0]
-    ? {
-        createdAt: noteRows[0].createdAt,
-        parentVisibleComment: noteRows[0].parentVisibleComment!,
-        subjectName: noteRows[0].subjectName,
-        tutorName: `${noteRows[0].tutorFirst} ${noteRows[0].tutorLast}`.trim(),
-      }
-    : null;
-
   return {
     attendanceRate,
     attendanceCount,
     absenceCount,
     homeworkCompleted,
     homeworkTotal,
-    nextLesson,
-    latestFeedback,
   };
 }
 
@@ -273,59 +192,6 @@ export async function getHomework(studentId: string): Promise<HomeworkRow[]> {
   return rows;
 }
 
-export type FeedbackRow = {
-  id: string;
-  createdAt: Date;
-  lessonDate: string;
-  classId: string;
-  subjectName: string | null;
-  subjectColor: string | null;
-  tutorName: string;
-  topicCovered: string | null;
-  parentVisibleComment: string;
-};
-
-export async function getFeedback(studentId: string): Promise<FeedbackRow[]> {
-  const tutorProfile = profiles;
-  const rows = await db
-    .select({
-      id: lessonNotes.id,
-      createdAt: lessonNotes.createdAt,
-      lessonDate: lessons.date,
-      classId: lessons.classId,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      tutorFirst: tutorProfile.firstName,
-      tutorLast: tutorProfile.lastName,
-      topicCovered: lessonNotes.topicCovered,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessons.id, lessonNotes.lessonId))
-    .leftJoin(classes, eq(classes.id, lessons.classId))
-    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(tutorProfile, eq(tutorProfile.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        sql`${lessonNotes.parentVisibleComment} IS NOT NULL AND length(${lessonNotes.parentVisibleComment}) > 0`,
-      ),
-    )
-    .orderBy(desc(lessonNotes.createdAt));
-
-  return rows.map((r) => ({
-    id: r.id,
-    createdAt: r.createdAt,
-    lessonDate: r.lessonDate,
-    classId: r.classId,
-    subjectName: r.subjectName,
-    subjectColor: r.subjectColor,
-    tutorName: `${r.tutorFirst} ${r.tutorLast}`.trim(),
-    topicCovered: r.topicCovered,
-    parentVisibleComment: r.parentVisibleComment!,
-  }));
-}
-
 export type ParentClassDetail = {
   classId: string;
   className: string;
@@ -337,7 +203,7 @@ export type ParentClassDetail = {
   endTime: string | null;
   location: string | null;
   attendance: AttendanceRow[];
-  feedback: FeedbackRow[];
+  feedback: FamilyRecap[];
 };
 
 /**
@@ -419,7 +285,7 @@ export async function getParentClassDetail(
         ),
       )
       .orderBy(desc(lessons.date), desc(lessons.startTime)),
-    getFeedback(childId),
+    getFamilyRecaps(childId, { classId }),
   ]);
 
   return {
@@ -441,7 +307,7 @@ export async function getParentClassDetail(
       status: r.status,
       moved: r.moved,
     })),
-    feedback: childFeedback.filter((f) => f.classId === classId),
+    feedback: childFeedback,
   };
 }
 

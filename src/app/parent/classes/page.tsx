@@ -110,6 +110,7 @@ export default async function ParentClassesPage({
               subjectBase="/parent/subjects"
               subjectQuery={`?child=${selected.id}`}
               messageBase="/parent/messages/with"
+              recapBase="/parent/feedback"
             />
           </div>
           <ClassMoveRequestPanel

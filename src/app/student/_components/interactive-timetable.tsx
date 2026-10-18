@@ -84,6 +84,8 @@ export type TimetableChip = {
   /** This lesson was converted to a class credit via a no-slot reschedule
    *  (credit granted from it, but not a cancellation). */
   convertedToCredit: boolean;
+  /** The tutor wrote a recap of this lesson for the family. */
+  hasRecap?: boolean;
 };
 export type TimetableHw = {
   id: string;
@@ -137,6 +139,7 @@ export function InteractiveTimetable({
   subjectBase = "/student/subjects",
   subjectQuery = "",
   messageBase = "/student/messages/with",
+  recapBase = "/student/resources",
   canSelfServe = true,
   glass = false,
   aside,
@@ -161,6 +164,8 @@ export function InteractiveTimetable({
   subjectQuery?: string;
   /** Base path for "Message the office" links - `${messageBase}/${adminId}`. */
   messageBase?: string;
+  /** Base path for a past lesson's recap - `${recapBase}/${lesson.id}${subjectQuery}`. */
+  recapBase?: string;
   /** False for a student without billing access: no reschedule, cancel or
    *  credits; the selected lesson says to ask a parent instead. The server
    *  actions enforce the same rule. */
@@ -572,6 +577,7 @@ export function InteractiveTimetable({
                     selected.subjectId ? `${subjectBase}/${selected.subjectId}${subjectQuery}` : null
                   }
                   messageHref={adminId ? `${messageBase}/${adminId}` : null}
+                  recapHref={selected.hasRecap ? `${recapBase}/${selected.id}${subjectQuery}` : null}
                   onReschedule={() => openReschedule(selected.id)}
                   onCancel={() => setMode({ kind: "cancel-confirm", lessonId: selected.id })}
                   onAbortCancel={() => setMode({ kind: "idle" })}
@@ -705,6 +711,7 @@ function SelectedLesson({
   adminId,
   subjectHref,
   messageHref,
+  recapHref,
   onReschedule,
   onCancel,
   onAbortCancel,
@@ -720,6 +727,7 @@ function SelectedLesson({
   adminId: string | null;
   subjectHref: string | null;
   messageHref: string | null;
+  recapHref: string | null;
   onReschedule: () => void;
   onCancel: () => void;
   onAbortCancel: () => void;
@@ -831,8 +839,16 @@ function SelectedLesson({
         </div>
       )}
 
-      {(subjectHref || showOffice) && (
+      {(subjectHref || showOffice || recapHref) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {recapHref && (
+            <Link
+              href={recapHref}
+              className="rounded-[6px] text-[13px] font-bold text-[#3A1AA8] hover:text-[#21106B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Read the recap →
+            </Link>
+          )}
           {subjectHref && (
             <Link
               href={subjectHref}

@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { ClipboardCheck, UserX, CalendarDays, BookOpen } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatTime, relativeTime } from "@/lib/format";
+import { formatDateLong, formatTime } from "@/lib/format";
 import { ATTENDANCE_STATUS_STYLE } from "@/lib/status";
 import { attendanceLabel, attendanceSummary } from "@/lib/attendance-rules";
+import { RecapCard } from "@/components/lessons/lesson-recap";
 import { getParentClassDetail, resolveSelectedChild } from "../../_data";
 import { SectionHeader } from "../../_components/section-header";
 import { StatusPill } from "../../_components/status-pill";
@@ -173,34 +174,24 @@ export default async function ParentClassDetailPage({
         </Card>
       </div>
 
-      <div className="rise" style={{ animationDelay: "60ms" }}>
-        <Card>
-          <SectionHeader title="Tutor feedback" />
-          {detail.feedback.length === 0 ? (
+      <div className="rise flex flex-col gap-4" style={{ animationDelay: "60ms" }}>
+        {detail.feedback.length === 0 ? (
+          <Card>
+            <SectionHeader title="Tutor feedback" />
             <Empty>
               No tutor feedback yet for this class. Notes appear here after each
               lesson.
             </Empty>
-          ) : (
-            <div className="divide-y divide-line/70">
-              {detail.feedback.map((f) => (
-                <div key={f.id} className="px-5 py-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="text-sm font-bold text-ink truncate">
-                      {f.topicCovered || "Lesson note"}
-                    </div>
-                    <div className="text-[11px] text-muted shrink-0">
-                      {relativeTime(f.createdAt)}
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-[13px] text-ink-soft leading-relaxed">
-                    {f.parentVisibleComment}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+          </Card>
+        ) : (
+          detail.feedback.map((r) => (
+            <RecapCard
+              key={r.lessonId}
+              recap={r}
+              href={`/parent/feedback/${r.lessonId}${childQs}`}
+            />
+          ))
+        )}
       </div>
     </div>
   );

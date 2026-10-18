@@ -20,6 +20,7 @@ import { getStudentTimetableLessons } from "@/app/student/_lib/queries";
 import type { TimetableChip, TimetableHw } from "@/app/student/_components/interactive-timetable";
 import { melbourneDayKey } from "@/lib/format";
 import { isHandedIn } from "@/lib/homework-rules";
+import { recapLessonIds } from "@/lib/lesson-recap";
 
 /**
  * Homework due chips for the same timetable, on their Melbourne due day. A
@@ -117,9 +118,18 @@ export async function buildTimetableChips(
   // lesson already converted to a no-slot reschedule credit needs the same
   // treatment - it has no `lessonCancellations` row, only a `classCredits`
   // row, so it's checked separately.
-  const [cancelledLessonIds, creditGrantedLessonIds] = await Promise.all([
+  // Past real lessons only: a pending request's chip has a synthetic id.
+  const pastIds = lessonRows
+    .filter(
+      (l) =>
+        l.studentState !== "pending_in" &&
+        new Date(`${l.date}T${l.startTime}`).getTime() <= now.getTime(),
+    )
+    .map((l) => l.id);
+  const [cancelledLessonIds, creditGrantedLessonIds, recapIds] = await Promise.all([
     getCancelledLessonIds(studentId, lessonRows.map((l) => l.id)),
     getCreditGrantedLessonIds(studentId, lessonRows.map((l) => l.id)),
+    recapLessonIds(studentId, pastIds),
   ]);
 
   return lessonRows.map((l) => {
@@ -212,6 +222,7 @@ export async function buildTimetableChips(
       cancelReason: cancelReasonFor(),
       cancelled: alreadyCancelled,
       convertedToCredit: creditGranted && !alreadyCancelled,
+      hasRecap: recapIds.has(l.id),
     };
   });
 }

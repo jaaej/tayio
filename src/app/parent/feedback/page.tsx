@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { Card, PageHeader, Empty } from "@/components/parent/ui";
-import { SubjectPill } from "@/components/data/subject-pill";
+import { RecapCard } from "@/components/lessons/lesson-recap";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, relativeTime } from "@/lib/format";
-import { getFeedback, resolveSelectedChild } from "../_data";
+import { getFamilyRecaps } from "@/lib/lesson-recap";
+import { resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 
 type SearchParams = Promise<{ child?: string }>;
 
+/** Every lesson recap the tutors wrote for the child, newest first. */
 export default async function ParentFeedbackPage({
   searchParams,
 }: {
@@ -28,7 +28,7 @@ export default async function ParentFeedbackPage({
     );
   }
 
-  const rows = await getFeedback(selected.id);
+  const recaps = await getFamilyRecaps(selected.id);
 
   return (
     <div className="space-y-6">
@@ -46,8 +46,8 @@ export default async function ParentFeedbackPage({
         </div>
       )}
 
-      <div className="rise space-y-4" style={{ animationDelay: "60ms" }}>
-        {rows.length === 0 ? (
+      <div className="rise flex flex-col gap-4" style={{ animationDelay: "60ms" }}>
+        {recaps.length === 0 ? (
           <Card>
             <Empty>
               No tutor feedback yet. Notes will appear here after each of{" "}
@@ -55,41 +55,12 @@ export default async function ParentFeedbackPage({
             </Empty>
           </Card>
         ) : (
-          rows.map((r) => (
-            <Card key={r.id}>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <SubjectPill
-                    name={r.subjectName ?? "Lesson"}
-                    color={r.subjectName ? r.subjectColor : null}
-                  />
-                  {r.topicCovered && (
-                    <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink truncate">
-                      {r.topicCovered}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-muted font-semibold shrink-0">
-                  {formatDateLong(r.lessonDate)} · {r.tutorName}
-                </div>
-              </div>
-              <div className="px-5 py-5">
-                <p className="text-lg text-ink leading-relaxed">
-                  {r.parentVisibleComment}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted">
-                    {relativeTime(r.createdAt)}
-                  </div>
-                  <Link
-                    href={`/parent/classes/${r.classId}?child=${selected.id}`}
-                    className="text-[12px] font-bold text-brand-700 hover:text-brand-800 shrink-0"
-                  >
-                    View class →
-                  </Link>
-                </div>
-              </div>
-            </Card>
+          recaps.map((r) => (
+            <RecapCard
+              key={r.lessonId}
+              recap={r}
+              href={`/parent/feedback/${r.lessonId}?child=${selected.id}`}
+            />
           ))
         )}
       </div>

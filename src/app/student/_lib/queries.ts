@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArra
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
 import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
+import { familyNoteWrittenSql } from "@/lib/lesson-recap";
 import {
   attendance,
   classCredits,
@@ -587,78 +588,6 @@ export async function getNextDueHomework(studentId: string): Promise<HomeworkRow
   return rows[0] ?? null;
 }
 
-export type LessonRecap = {
-  lessonId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: (typeof lessons.$inferSelect)["status"];
-  className: string;
-  subjectName: string;
-  subjectColor: string | null;
-  tutorFirstName: string;
-  tutorLastName: string;
-  topicCovered: string | null;
-  keyConcepts: string | null;
-  performance: string | null;
-  strengths: string | null;
-  struggles: string | null;
-  nextLessonFocus: string | null;
-  parentVisibleComment: string | null;
-  recordingUrl: string | null;
-  // internalNote intentionally excluded - never expose to students.
-};
-
-export async function getLessonRecap(
-  studentId: string,
-  lessonId: string,
-): Promise<LessonRecap | null> {
-  const enrolledClassIds = await getEnrolledClassIds(studentId);
-  if (enrolledClassIds.length === 0) return null;
-
-  const rows = await db
-    .select({
-      lessonId: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      className: classes.name,
-      subjectName: subjects.name,
-      subjectColor: subjects.color,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-      topicCovered: lessonNotes.topicCovered,
-      keyConcepts: lessonNotes.keyConcepts,
-      performance: lessonNotes.performance,
-      strengths: lessonNotes.strengths,
-      struggles: lessonNotes.struggles,
-      nextLessonFocus: lessonNotes.nextLessonFocus,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      recordingUrl: lessons.recordingUrl,
-      classId: lessons.classId,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .leftJoin(
-      lessonNotes,
-      and(
-        eq(lessonNotes.lessonId, lessons.id),
-        eq(lessonNotes.studentId, studentId),
-      ),
-    )
-    .where(eq(lessons.id, lessonId))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row) return null;
-  if (!enrolledClassIds.includes(row.classId)) return null;
-  const { classId: _classId, ...recap } = row;
-  return recap;
-}
-
 export type LessonWithNoteListItem = {
   lessonId: string;
   date: string;
@@ -667,12 +596,13 @@ export type LessonWithNoteListItem = {
   className: string;
   subjectName: string;
   subjectColor: string | null;
+  /** The tutor wrote something for the family (`hasFamilyNote`). */
   hasNote: boolean;
   recordingUrl: string | null;
 };
 
 /**
- * The student's most recent lessons (newest first) with whether a recap note
+ * The student's most recent lessons (newest first) with whether a recap
  * exists. `until` (YYYY-MM-DD, inclusive) drops lessons after that day, so a
  * list of past lessons never shows ones that have not happened yet.
  */
@@ -693,7 +623,7 @@ export async function getStudentLessonsWithNotes(
       subjectName: subjects.name,
       subjectColor: subjects.color,
       recordingUrl: lessons.recordingUrl,
-      noteId: lessonNotes.id,
+      hasNote: sql<boolean>`coalesce(${familyNoteWrittenSql}, false)`,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
@@ -714,7 +644,7 @@ export async function getStudentLessonsWithNotes(
     .orderBy(desc(lessons.date), desc(lessons.startTime))
     .limit(30);
 
-  return rows.map(({ noteId, ...r }) => ({ ...r, hasNote: noteId !== null }));
+  return rows;
 }
 
 // --- Attendance-aware timetable (reschedule spec 2026-07-10) ---

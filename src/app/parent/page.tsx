@@ -29,7 +29,6 @@ import {
   getAdminContact,
   getChildTutors,
   getDashboardData,
-  getFeedback,
   getHomework,
   getInvoicesForParent,
   getOutstandingBalanceForParent,
@@ -41,7 +40,8 @@ import { ChildSwitcher, EmptyChildrenNotice } from "./_components/child-switcher
 import { SectionHeader } from "./_components/section-header";
 import { StatusPill } from "./_components/status-pill";
 import { Table, Th, Td, Tr } from "./_components/table";
-import { FeedbackList, type FeedbackItem } from "./_components/feedback-list";
+import { RecapPreviewList } from "@/components/lessons/lesson-recap";
+import { getFamilyRecaps } from "@/lib/lesson-recap";
 
 type SearchParams = Promise<{ child?: string }>;
 
@@ -73,7 +73,7 @@ export default async function ParentDashboard({
 
   const [
     data,
-    feedback,
+    recaps,
     mastery,
     homeworkRows,
     invoices,
@@ -83,7 +83,7 @@ export default async function ParentDashboard({
     admin,
   ] = await Promise.all([
     getDashboardData(selected.id),
-    getFeedback(selected.id),
+    getFamilyRecaps(selected.id, { limit: 4 }),
     getChildMastery(selected.id),
     getHomework(selected.id),
     getInvoicesForParent(user.id),
@@ -96,13 +96,6 @@ export default async function ParentDashboard({
   const overallMastery = mastery.overall;
   const markedSubjects = mastery.subjects.filter((s) => s.percent !== null).length;
 
-  const feedbackItems: FeedbackItem[] = feedback.slice(0, 4).map((f) => ({
-    id: String(f.id),
-    subjectName: f.subjectName,
-    tutorName: f.tutorName,
-    parentVisibleComment: f.parentVisibleComment,
-    timeLabel: relativeTime(f.createdAt),
-  }));
 
   const recentHomework = homeworkRows.slice(0, 5);
   const recentInvoices = invoices.slice(0, 4);
@@ -216,15 +209,20 @@ export default async function ParentDashboard({
           <Card>
             <SectionHeader
               title="From the tutor"
-              link={{ href: "/parent/feedback", label: "All feedback" }}
+              link={{ href: `/parent/feedback${childQs}`, label: "All feedback" }}
             />
-            {feedbackItems.length === 0 ? (
+            {recaps.length === 0 ? (
               <Empty>
                 No tutor notes yet. After {selected.firstName}&apos;s next lesson the
                 tutor&apos;s note will appear here.
               </Empty>
             ) : (
-              <FeedbackList items={feedbackItems} />
+              <RecapPreviewList
+                items={recaps.map((recap) => ({
+                  recap,
+                  href: `/parent/feedback/${recap.lessonId}${childQs}`,
+                }))}
+              />
             )}
           </Card>
 
