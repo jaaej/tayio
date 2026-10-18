@@ -16,7 +16,7 @@ import {
 } from "@/lib/roles";
 import { getCurrentUser } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, formatDateShort } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
   accountScheduleStatusLabel,
@@ -32,7 +32,6 @@ import {
 import {
   getReportTerms,
   getStudentLeave,
-  getStudentLessonsInRange,
   getStudentTrial,
   getTutorAvailabilityForTutor,
   getTutorRecord,
@@ -46,10 +45,10 @@ import {
 import { TutorBankForm } from "@/app/admin/tutors/_components/tutor-bank-form";
 import { TutorAvailabilityEditor } from "@/app/admin/tutors/availability/_components/availability-editor";
 import { parseTabParam, tabsForRole, type UserTab } from "@/lib/user-detail-tabs";
-import {
-  monthBounds,
-  parseMonthParam,
-} from "@/app/student/_components/month-calendar";
+import { parseMonthParam } from "@/app/student/_components/month-calendar";
+import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { getStudentHomework } from "@/app/student/_lib/queries";
+import { isHandedIn } from "@/lib/homework-rules";
 import { getClassMoveData } from "@/lib/class-moves";
 import { getStudentCurriculumAccessOverview } from "@/app/admin/_lib/curriculum-access";
 import { cn } from "@/lib/utils";
@@ -59,13 +58,21 @@ import { ROLE_AVATAR } from "../_components/role-style";
 import { normaliseYearLevel } from "../_lib/directory-list";
 import { ListLink, ProfileTabLinks } from "../_components/list-link";
 import { getProfileFacts } from "../_lib/profile-facts";
+import { classEditHref } from "@/app/admin/_lib/class-links";
+import { getStudentHistory } from "../_lib/student-history";
+import { getStudentReportIssues } from "@/app/admin/_lib/term-reports";
+import {
+  AttendanceHistoryList,
+  HomeworkHistoryList,
+  StaffNotesTimeline,
+} from "@/components/student-history/history-lists";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
 import { StudentLeaveManager } from "./_components/student-leave-manager";
 import { StudentReportControls } from "./_components/student-report-controls";
 import { StudentTrialManager } from "./_components/student-trial-manager";
-import { AdminLessonCalendar } from "./_components/lesson-calendar";
+import { AdminStudentTimetable } from "./_components/student-timetable";
 import { ClassMoveManager } from "./_components/class-move-manager";
 import { CurriculumAccessManager } from "./_components/curriculum-access-manager";
 import { ProfileSection } from "./_components/profile-section";
@@ -117,9 +124,10 @@ export default async function UserDetailPage({
 
   const today = melbourneDate(new Date());
   const { year: calendarYear, month: calendarMonth } = parseMonthParam(month);
-  const { fromIso } = monthBounds(calendarYear, calendarMonth);
-  const calendarEnd = new Date(calendarYear, calendarMonth + 1, 0);
-  const toIso = `${calendarEnd.getFullYear()}-${String(calendarEnd.getMonth() + 1).padStart(2, "0")}-${String(calendarEnd.getDate()).padStart(2, "0")}`;
+  // The same window the student's timetable loads around the shown month;
+  // moving the calendar moves ?month and the server re-centres it.
+  const calendarFrom = new Date(calendarYear, calendarMonth - 1, 1);
+  const calendarTo = new Date(calendarYear, calendarMonth + 3, 1);
 
   const [
     creditActivity,
@@ -129,6 +137,7 @@ export default async function UserDetailPage({
     reportTerms,
     trial,
     calendarLessons,
+    calendarHomework,
     classMoveData,
     curriculumAccess,
   ] = isStudent
@@ -144,14 +153,20 @@ export default async function UserDetailPage({
         activeTab === "reports" ? getReportTerms() : Promise.resolve([]),
         getStudentTrial(id),
         activeTab === "lessons"
-          ? getStudentLessonsInRange(id, fromIso, toIso)
+          ? buildTimetableChips(id, calendarFrom, calendarTo)
           : Promise.resolve([]),
+        activeTab === "lessons" ? getStudentHomework(id) : Promise.resolve([]),
         activeTab === "lessons" ? getClassMoveData(id) : Promise.resolve(null),
         activeTab === "curriculum"
           ? getStudentCurriculumAccessOverview(id)
           : Promise.resolve([]),
       ])
-    : [null, null, null, null, [], null, [], null, []];
+    : [null, null, null, null, [], null, [], [], null, []];
+
+  const [history, reportIssues] = await Promise.all([
+    isStudent && activeTab === "history" ? getStudentHistory(id) : null,
+    isStudent && activeTab === "reports" ? getStudentReportIssues(id) : null,
+  ]);
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
@@ -167,7 +182,7 @@ export default async function UserDetailPage({
       isStudent || isTutor
         ? getUserSchedulePeriod(id, user.role)
         : Promise.resolve(null),
-      getProfileFacts(id, user.role),
+      getProfileFacts(id, user.role, user.email),
       isStudent
         ? db
             .select({
@@ -321,15 +336,26 @@ export default async function UserDetailPage({
     <ClassMoveManager studentId={user.id} studentName={name} data={classMoveData} />
   );
 
+  const calendarFromIso = melbourneDate(calendarFrom);
+  const calendarToIso = melbourneDate(calendarTo);
   const calendarSection = isStudent && (
     <section className="px-4 py-5 sm:px-5">
-      <AdminLessonCalendar
+      <AdminStudentTimetable
         studentId={id}
-        year={calendarYear}
-        month={calendarMonth}
+        initialYear={calendarYear}
+        initialMonth={calendarMonth}
         lessons={calendarLessons}
+        // Homework due chips, with the shared rule for handed in.
+        homework={calendarHomework
+          .map((h) => ({
+            id: h.homeworkId,
+            dueDate: melbourneDate(h.dueDate),
+            title: h.title,
+            done: isHandedIn(h.status),
+            href: `${basePath}?tab=history#homework`,
+          }))
+          .filter((h) => h.dueDate >= calendarFromIso && h.dueDate < calendarToIso)}
         leavePeriods={leavePeriods ?? []}
-        basePath={basePath}
       />
     </section>
   );
@@ -365,10 +391,16 @@ export default async function UserDetailPage({
   );
 
   const reportsSection = isStudent && (
-    <ProfileSection title="Term reports" note="PDF + notify family">
+    <ProfileSection title="Term reports">
       <StudentReportControls
         studentId={user.id}
         terms={(reportTerms ?? []).map((t) => ({ id: t.id, label: t.label }))}
+        sentOn={Object.fromEntries(
+          [...(reportIssues ?? new Map<string, Date>())].map(([termId, at]) => [
+            termId,
+            formatDateShort(melbourneDate(at)),
+          ]),
+        )}
       />
     </ProfileSection>
   );
@@ -382,7 +414,7 @@ export default async function UserDetailPage({
           {tutorRecord.classes.map((c) => (
             <li key={c.id}>
               <Link
-                href={`/admin/classes/${c.id}`}
+                href={classEditHref(c.subjectId, c.id)}
                 className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2 sm:px-5"
               >
                 <span className="min-w-0 truncate text-[14px] font-bold text-ink">
@@ -417,9 +449,35 @@ export default async function UserDetailPage({
     </ProfileSection>
   );
 
+  const historySections = isStudent && history && [
+    <ProfileSection
+      key="attendance"
+      id="attendance"
+      title="Attendance"
+      note={
+        history.summary.percent === null
+          ? undefined
+          : `${history.summary.percent}% · ${history.summary.attended} of ${history.summary.total} attended`
+      }
+      flush
+    >
+      <AttendanceHistoryList
+        rows={history.attendance}
+        lessonHref={(lessonId) => `/admin/attendance/${lessonId}`}
+      />
+    </ProfileSection>,
+    <ProfileSection key="homework" id="homework" title="Homework" flush>
+      <HomeworkHistoryList rows={history.homework} />
+    </ProfileSection>,
+    <ProfileSection key="notes" id="staff-notes" title="Staff notes" flush>
+      <StaffNotesTimeline accountNote={history.accountNote} notes={history.notes} />
+    </ProfileSection>,
+  ];
+
   const panels: Record<UserTab, ReactNode[]> = {
     profile: [noteSection, familySection, profileSection, trialSection],
     lessons: [classMoveSection, calendarSection, leaveSection],
+    history: historySections || [],
     credits: [creditsSection],
     curriculum: [curriculumSection],
     reports: [reportsSection],
@@ -544,6 +602,7 @@ export default async function UserDetailPage({
               value={fact.value}
               sub={fact.sub}
               tone={fact.tone}
+              href={fact.href}
             />
           ))}
         </div>

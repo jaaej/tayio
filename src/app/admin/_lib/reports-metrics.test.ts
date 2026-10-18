@@ -10,6 +10,7 @@ import {
 function row(over: Partial<ClassMetricRow> = {}): ClassMetricRow {
   return {
     classId: "c",
+    subjectId: "s",
     className: "Class",
     subjectName: "Maths",
     subjectColor: null,

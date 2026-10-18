@@ -16,6 +16,8 @@ import {
   subjects,
   terms,
 } from "@/db/schema";
+import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { attendanceSummary } from "@/lib/attendance-rules";
 import { average, combineGrade, type ReportGrade } from "@/lib/report-grade";
 
 export type SubjectReport = {
@@ -93,8 +95,10 @@ export async function getStudentTermReport(
     .where(eq(enrollments.studentId, studentId));
 
   // Attendance across the term.
+  // The shared rule: late and left early count as attended, and a moved
+  // lesson (approved reschedule or credit) is left out.
   const attnRows = await db
-    .select({ status: attendance.status })
+    .select({ status: attendance.status, moved: attendanceMovedSql })
     .from(attendance)
     .innerJoin(lessons, eq(lessons.id, attendance.lessonId))
     .where(
@@ -103,13 +107,7 @@ export async function getStudentTermReport(
         between(lessons.date, start, end),
       ),
     );
-  const attnTotal = attnRows.length;
-  const attnPresent = attnRows.filter(
-    (r) =>
-      r.status === "present" ||
-      r.status === "late" ||
-      r.status === "makeup_attended",
-  ).length;
+  const attn = attendanceSummary(attnRows);
 
   // Quiz attempts in the term, joined to each quiz's subject. Keep the LATEST
   // attempt per quiz, then average per subject.
@@ -209,9 +207,9 @@ export async function getStudentTermReport(
     student,
     term,
     attendance: {
-      present: attnPresent,
-      total: attnTotal,
-      percent: attnTotal > 0 ? Math.round((attnPresent / attnTotal) * 100) : null,
+      present: attn.attended,
+      total: attn.total,
+      percent: attn.percent,
     },
     overall,
     subjects: subjectReports,

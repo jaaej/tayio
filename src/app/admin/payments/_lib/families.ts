@@ -1,7 +1,15 @@
+import {
+  OPEN_INVOICE_STATUSES,
+  invoiceDisplayStatus,
+  isInvoiceOverdue,
+} from "@/lib/invoice-rules";
+
 /*
  * Pure helpers for the admin Payments page: status filter parsing, money
  * totals, and grouping invoices into families (one billed parent account and
  * the children it pays for). No DB access, so every rule here is unit tested.
+ * Overdue is the shared invoice rule (`@/lib/invoice-rules`): open and past
+ * its due date, whatever status is stored.
  */
 
 export const INVOICE_STATUSES = [
@@ -16,11 +24,7 @@ export const INVOICE_STATUSES = [
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /** Statuses that still have money owing. */
-export const OPEN_STATUSES: readonly InvoiceStatus[] = [
-  "unpaid",
-  "overdue",
-  "partially_paid",
-];
+export const OPEN_STATUSES: readonly InvoiceStatus[] = OPEN_INVOICE_STATUSES;
 
 export const STATUS_LABEL: Record<InvoiceStatus, string> = {
   unpaid: "Unpaid",
@@ -110,13 +114,22 @@ export type Family<T extends FamilyInvoiceInput> = {
   overdueCount: number;
 };
 
+/** The status an invoice shows and files under: open and past due reads overdue. */
+export function displayStatus(
+  invoice: { status: InvoiceStatus; dueDate: string },
+  today: string,
+): InvoiceStatus {
+  return invoiceDisplayStatus(invoice, today) as InvoiceStatus;
+}
+
 /**
  * Group invoices by the billed parent account. Every invoice has a parent
  * (`invoices.parent_id` is NOT NULL), so the parent is the family key.
  *
- * - `status` keeps only invoices with that status; families left with none
- *   are dropped. Owing is always the family's full open balance, because a
- *   reminder covers every open invoice, not just the filtered ones.
+ * - `status` keeps only invoices showing that status (`displayStatus`, so
+ *   "overdue" means past due); families left with none are dropped. Owing is
+ *   always the family's full open balance, because a reminder covers every
+ *   open invoice, not just the filtered ones.
  * - `query` matches parent name or email, a linked child, or a child named on
  *   an invoice (case-insensitive).
  * - Families with overdue invoices come first, then the largest balance, then
@@ -126,6 +139,8 @@ export function groupInvoicesByFamily<T extends FamilyInvoiceInput>(
   invoices: T[],
   opts: {
     status: InvoiceStatus | null;
+    /** Melbourne date (YYYY-MM-DD) that decides overdue. */
+    today: string;
     query?: string;
     childrenByParent?: Map<string, string[]>;
   },
@@ -154,7 +169,9 @@ export function groupInvoicesByFamily<T extends FamilyInvoiceInput>(
       if (!haystack.some((s) => s.includes(needle))) continue;
     }
 
-    const shown = (opts.status ? all.filter((i) => i.status === opts.status) : [...all]).sort(
+    const shown = (
+      opts.status ? all.filter((i) => displayStatus(i, opts.today) === opts.status) : [...all]
+    ).sort(
       (a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id),
     );
     if (shown.length === 0) continue;
@@ -168,7 +185,7 @@ export function groupInvoicesByFamily<T extends FamilyInvoiceInput>(
       invoices: shown,
       owing: sumByCurrency(open),
       openCount: open.length,
-      overdueCount: all.filter((invoice) => invoice.status === "overdue").length,
+      overdueCount: all.filter((invoice) => isInvoiceOverdue(invoice, opts.today)).length,
     });
   }
 
@@ -182,13 +199,14 @@ export function groupInvoicesByFamily<T extends FamilyInvoiceInput>(
   );
 }
 
-/** Per-status count and money totals for the filter tiles. */
+/** Per-status count and money totals for the filter tiles, by shown status. */
 export function summariseByStatus(
-  invoices: { amount: string; currency: string; status: InvoiceStatus }[],
+  invoices: { amount: string; currency: string; status: InvoiceStatus; dueDate: string }[],
+  today: string,
 ): Record<InvoiceStatus, { count: number; totals: MoneyTotal[] }> {
   const result = {} as Record<InvoiceStatus, { count: number; totals: MoneyTotal[] }>;
   for (const status of INVOICE_STATUSES) {
-    const rows = invoices.filter((invoice) => invoice.status === status);
+    const rows = invoices.filter((invoice) => displayStatus(invoice, today) === status);
     result[status] = { count: rows.length, totals: sumByCurrency(rows) };
   }
   return result;
@@ -217,10 +235,11 @@ export function paymentReminderDedupeKey(parentId: string, melbourneIsoDate: str
 
 /** Notification body sent to the parent for their open invoices. */
 export function buildPaymentReminderBody(
-  open: { amount: string; currency: string; status: InvoiceStatus }[],
+  open: { amount: string; currency: string; status: InvoiceStatus; dueDate: string }[],
+  today: string,
 ): string {
   const count = open.length;
-  const overdue = open.filter((invoice) => invoice.status === "overdue").length;
+  const overdue = open.filter((invoice) => isInvoiceOverdue(invoice, today)).length;
   const total = formatTotals(sumByCurrency(open));
   const noun = count === 1 ? "invoice" : "invoices";
   const verb = count === 1 ? "is" : "are";

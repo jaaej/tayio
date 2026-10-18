@@ -9,6 +9,7 @@ import { coarseRole } from "./roles";
 export type UserTab =
   | "profile"
   | "lessons"
+  | "history"
   | "credits"
   | "curriculum"
   | "reports"
@@ -22,6 +23,7 @@ const PROFILE: Tab = { key: "profile", label: "Profile" };
 const STUDENT_TABS: ReadonlyArray<Tab> = [
   PROFILE,
   { key: "lessons", label: "Lessons & leave" },
+  { key: "history", label: "History" },
   { key: "credits", label: "Credits & activity" },
   { key: "curriculum", label: "Curriculum access" },
   { key: "reports", label: "Term reports" },

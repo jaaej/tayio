@@ -148,11 +148,7 @@ export default async function RevenuePage() {
           meta="PDF"
           className="min-w-0 flex-[1_1_320px]"
         >
-          <div className="flex flex-col gap-3 p-4">
-            <p className="text-[13px] leading-relaxed text-muted">
-              Revenue collected and overdue invoices for a month, term, or
-              custom range.
-            </p>
+          <div className="p-4">
             <RevenueReportDownload terms={reportTerms} />
           </div>
         </GlassPanel>

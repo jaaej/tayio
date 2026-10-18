@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildQueue,
   dateParam,
+  groupByTutor,
   lessonQueueState,
   nextLessonId,
   parseQueueView,
@@ -34,23 +34,32 @@ describe("lessonQueueState", () => {
   });
 });
 
-describe("buildQueue", () => {
-  const lessons = [
-    { id: "a", date: "2026-10-09", startTime: "16:00:00", state: "to_mark" as const },
-    { id: "b", date: "2026-10-11", startTime: "09:00:00", state: "to_mark" as const },
-    { id: "c", date: "2026-10-10", startTime: "16:00:00", state: "cancelled" as const },
-    { id: "d", date: "2026-10-12", startTime: "16:00:00", state: "upcoming" as const },
-    { id: "e", date: "2026-10-11", startTime: "18:00:00", state: "upcoming" as const },
-    { id: "f", date: "2026-10-10", startTime: "17:00:00", state: "marked" as const },
-  ];
-
-  it("orders finished work most recent first", () => {
-    expect(buildQueue(lessons, "to_mark").map((l) => l.id)).toEqual(["b", "a"]);
-    expect(buildQueue(lessons, "marked").map((l) => l.id)).toEqual(["f", "c"]);
+describe("groupByTutor", () => {
+  const item = (id: string, tutorId: string, tutorName: string, date: string, startTime = "16:00:00") => ({
+    id,
+    tutorId,
+    tutorName,
+    date,
+    startTime,
   });
 
-  it("orders upcoming lessons soonest first", () => {
-    expect(buildQueue(lessons, "upcoming").map((l) => l.id)).toEqual(["e", "d"]);
+  it("groups lessons by tutor, tutors by name, latest lesson first", () => {
+    const groups = groupByTutor([
+      item("a", "t2", "Wei Chen", "2026-10-09"),
+      item("b", "t1", "Hana Park", "2026-10-01"),
+      item("c", "t2", "Wei Chen", "2026-10-11", "09:00:00"),
+      item("d", "t2", "Wei Chen", "2026-10-11", "17:00:00"),
+    ]);
+    expect(groups.map((g) => g.tutorName)).toEqual(["Hana Park", "Wei Chen"]);
+    expect(groups[1].items.map((i) => i.id)).toEqual(["d", "c", "a"]);
+  });
+
+  it("keeps two tutors with the same name apart", () => {
+    const groups = groupByTutor([
+      item("a", "t1", "Sam Lee", "2026-10-09"),
+      item("b", "t2", "Sam Lee", "2026-10-09"),
+    ]);
+    expect(groups).toHaveLength(2);
   });
 });
 
@@ -74,6 +83,7 @@ describe("URL params", () => {
     expect(parseQueueView(undefined)).toBe("to_mark");
     expect(parseQueueView("bogus")).toBe("to_mark");
     expect(parseQueueView("upcoming")).toBe("upcoming");
+    expect(parseQueueView("notes")).toBe("notes");
   });
 
   it("rejects impossible dates", () => {

@@ -192,7 +192,6 @@ export async function setTutorBankDetails(input: z.infer<typeof schema>) {
     return { openEntriesUpdated, reopenedWeeks };
   });
 
-  revalidatePath("/admin/tutors");
   revalidatePath("/admin/tutor-checkins");
   revalidatePath(`/admin/users/${data.tutorId}`);
   revalidatePath("/tutor/checkin");

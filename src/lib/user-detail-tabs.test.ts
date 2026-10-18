@@ -6,6 +6,7 @@ describe("tabsForRole", () => {
     expect(tabsForRole("student_unrestricted").map((t) => t.key)).toEqual([
       "profile",
       "lessons",
+      "history",
       "credits",
       "curriculum",
       "reports",

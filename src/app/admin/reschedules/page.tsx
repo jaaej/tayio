@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Avatar,
   Empty,
@@ -11,6 +12,8 @@ import {
 import { CoverBoardColumn, CoverCard } from "@/components/cover/cover-board";
 import { RescheduleRequestList } from "@/components/reschedule/request-list";
 import { getCreditsOverview } from "@/app/admin/_lib/queries";
+import { ClassMoveRequestCard } from "@/app/admin/_components/class-move-request-card";
+import { getPendingClassMoves } from "@/lib/class-moves";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatDateShort } from "@/lib/format";
 import { type CreditStatus } from "@/lib/reschedule-credits";
@@ -41,12 +44,13 @@ import { getRecentLeaveDecisions } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["cover", "leave", "credits", "usage"] as const;
+const TABS = ["cover", "leave", "moves", "credits", "usage"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABEL: Record<Tab, string> = {
   cover: "Cover board",
   leave: "Leave requests",
+  moves: "Class moves",
   credits: "Class credits",
   usage: "Term usage",
 };
@@ -121,36 +125,40 @@ export default async function AdminReschedulesPage({
 
   await runTutorCoverReminders();
   const now = new Date();
-  const [coverData, pendingRequests, creditData, recentLeave] = await Promise.all([
+  const [coverData, pendingRequests, pendingMoves, creditData, recentLeave] = await Promise.all([
     getAdminCoverOverview(now),
-    // The student self-serve approval queue was retired on 2026-08-01, but any
-    // request still pending counts toward the sidebar badge, so it must be
-    // decidable here rather than silently inflating the count.
+    // Family reschedules have moved lessons directly since 2026-08-01, so
+    // nothing creates a pending request any more (`createRescheduleRequest`
+    // has no caller) and none is counted. One left over from before still
+    // shows here so it can be decided rather than stranded.
     listPendingRequests({}),
+    getPendingClassMoves(),
     tab === "credits" || tab === "usage" ? getCreditsOverview() : null,
     tab === "leave" ? getRecentLeaveDecisions() : null,
   ]);
   const { pendingLeaves, board, tutors } = coverData;
-  const affected = await getLeaveAffectedLessonCounts(pendingLeaves, now);
+  const affected = tab === "leave"
+    ? await getLeaveAffectedLessonCounts(pendingLeaves, now)
+    : new Map<string, number>();
   const columns = bucketCoverBoard(board, now);
   const openCount = columns.urgent.length + columns.open.length;
 
+  const tabCount: Partial<Record<Tab, number>> = {
+    cover: openCount,
+    leave: pendingLeaves.length,
+    moves: pendingMoves.length,
+  };
   const tabs = TABS.map((key) => ({
     label: TAB_LABEL[key],
     href: key === "cover" ? "/admin/reschedules" : `/admin/reschedules?tab=${key}`,
     active: tab === key,
-    count:
-      key === "cover" && openCount > 0
-        ? openCount
-        : key === "leave" && pendingLeaves.length > 0
-          ? pendingLeaves.length
-          : undefined,
+    count: tabCount[key] || undefined,
   }));
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Reschedules & cover"
+        title="Cover & leave"
         actions={
           // Wraps to two rows on a phone rather than hiding a tab off-screen.
           <SegmentedLinks label="Section" items={tabs} className="flex-wrap" />
@@ -179,29 +187,6 @@ export default async function AdminReschedulesPage({
 
       {tab === "cover" && (
         <div id="tutor-cover" className="flex scroll-mt-5 flex-col gap-5">
-          {pendingLeaves.map((leave) => {
-            const name = `${leave.tutorFirst} ${leave.tutorLast}`.trim();
-            const count = affected.get(leave.id) ?? 0;
-            return (
-              <div key={leave.id} className="glass rounded-[20px] p-1.5">
-                <div className="panel flex flex-wrap items-center gap-3 px-4 py-3">
-                  <Avatar name={name} size={34} className="bg-good-bg text-good" />
-                  <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-0.5">
-                    <p className="text-[14px] text-ink">
-                      <strong className="font-extrabold">{name}</strong> requested leave{" "}
-                      <strong className="font-extrabold">
-                        {leaveRange(leave.startDate, leave.endDate)}
-                      </strong>
-                      {count > 0 && <> · {classCount(count)} affected</>}
-                    </p>
-                    <p className="text-[12px] text-muted">{leave.reason}</p>
-                  </div>
-                  <LeaveDecisionButtons leaveRequestId={leave.id} />
-                </div>
-              </div>
-            );
-          })}
-
           {board.length === 0 ? (
             <GlassPanel title="Cover board" titleId="cover-board-heading">
               <Empty>No upcoming cover requests.</Empty>
@@ -303,6 +288,25 @@ export default async function AdminReschedulesPage({
         </>
       )}
 
+      {tab === "moves" && (
+        <GlassPanel
+          title="Permanent class moves"
+          titleId="class-moves-heading"
+          meta={pendingMoves.length > 0 ? pendingMoves.length : undefined}
+          bodyClassName={pendingMoves.length > 0 ? "p-3" : undefined}
+        >
+          {pendingMoves.length === 0 ? (
+            <Empty>No class move requests waiting.</Empty>
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-3">
+              {pendingMoves.map((request) => (
+                <ClassMoveRequestCard key={request.id} request={request} showStudent />
+              ))}
+            </div>
+          )}
+        </GlassPanel>
+      )}
+
       {tab === "credits" && creditData && (
         <GlassPanel
           title="Class credits"
@@ -338,7 +342,9 @@ export default async function AdminReschedulesPage({
                   {creditData.credits.map((c) => (
                     <tr key={c.id} className="transition-colors hover:bg-surface-2">
                       <td className="whitespace-nowrap px-5 py-3 font-bold text-ink">
-                        {c.studentFirst} {c.studentLast}
+                        <StudentCreditsLink studentId={c.studentId}>
+                          {c.studentFirst} {c.studentLast}
+                        </StudentCreditsLink>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
                         <span className="inline-flex items-center gap-2">
@@ -392,7 +398,9 @@ export default async function AdminReschedulesPage({
                   {creditData.usage.map((u) => (
                     <tr key={u.studentId} className="transition-colors hover:bg-surface-2">
                       <td className="whitespace-nowrap px-5 py-3 font-bold text-ink">
-                        {u.studentFirst} {u.studentLast}
+                        <StudentCreditsLink studentId={u.studentId}>
+                          {u.studentFirst} {u.studentLast}
+                        </StudentCreditsLink>
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums text-ink-soft">
                         {u.cancellationsUsed} of {u.cancellationCap}
@@ -409,6 +417,24 @@ export default async function AdminReschedulesPage({
         </GlassPanel>
       )}
     </div>
+  );
+}
+
+/** The student's Credits tab, where a credit is granted or a lesson moved. */
+function StudentCreditsLink({
+  studentId,
+  children,
+}: {
+  studentId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={`/admin/users/${studentId}?tab=credits`}
+      className="text-ink hover:text-brand-700 hover:underline"
+    >
+      {children}
+    </Link>
   );
 }
 

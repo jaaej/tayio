@@ -1,7 +1,5 @@
 import "server-only";
 
-import { sql } from "drizzle-orm";
-import { db } from "@/db/client";
 import {
   directoryStatus,
   getUserDirectory,
@@ -15,55 +13,18 @@ import {
 } from "@/lib/account-schedule-status";
 import { getSubjectSearchAliases } from "@/lib/subject-search-aliases";
 import type { SubjectAlias } from "@/lib/directory-search";
+import { getWatchSignals } from "@/app/admin/_lib/watch-signals";
+import type { WatchSignals } from "@/app/admin/_lib/watch-rules";
 import type { DirectoryListItem, RowFlag } from "./directory-list";
-
-/**
- * Students showing the same warning signs as the dashboard's "Students to
- * watch": 2+ absences across their last four marked lessons, or 2+ homework
- * tasks past due and not handed in. Two aggregate queries for the whole
- * centre, so the list can flag rows without a query per person.
- */
-async function getWatchSignals(): Promise<{
-  absences: Map<string, number>;
-  overdueHomework: Map<string, number>;
-}> {
-  const [absenceRows, homeworkRows] = await Promise.all([
-    db.execute<{ student_id: string; absent: number }>(sql`
-      select student_id,
-             count(*) filter (where status = 'absent')::int as absent
-      from (
-        select a.student_id, a.status,
-               row_number() over (partition by a.student_id order by l.date desc, l.start_time desc) as rn
-        from attendance a
-        join lessons l on l.id = a.lesson_id
-      ) recent
-      where rn <= 4
-      group by student_id
-      having count(*) filter (where status = 'absent') >= 2
-    `),
-    db.execute<{ student_id: string; pending: number }>(sql`
-      select ha.student_id, count(*)::int as pending
-      from homework_assignments ha
-      join homework h on h.id = ha.homework_id
-      where ha.status in ('not_started','viewed','late','resubmission_requested')
-        and h.due_date < now()
-      group by ha.student_id
-      having count(*) >= 2
-    `),
-  ]);
-  return {
-    absences: new Map(absenceRows.map((r) => [r.student_id, r.absent])),
-    overdueHomework: new Map(homeworkRows.map((r) => [r.student_id, r.pending])),
-  };
-}
 
 function rowFlag(
   u: DirectoryUser,
   today: string,
-  signals: Awaited<ReturnType<typeof getWatchSignals>>,
+  signals: WatchSignals,
 ): RowFlag | null {
+  // The same signals as the dashboard's "Students to watch".
   const absent = signals.absences.get(u.id);
-  if (absent) return { label: `${absent} absent`, tone: "bad" };
+  if (absent) return { label: `${absent.absent} absent`, tone: "bad" };
   if (signals.overdueHomework.has(u.id)) return { label: "HW due", tone: "warn" };
   if (u.schedulePeriod) {
     const label = accountScheduleStatusLabel(u.schedulePeriod, today);

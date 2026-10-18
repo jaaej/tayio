@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
+import { quizNotes } from "@/lib/quiz-notes";
 import { ReviewControls } from "./_components/review-controls";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function AdminQuizDetailPage({
           <ReviewControls quizId={quiz.id} />
         ) : undefined
       }
-      note={quiz.note ? { label: "Note", text: quiz.note } : null}
+      notes={quizNotes(quiz)}
     />
   );
 }

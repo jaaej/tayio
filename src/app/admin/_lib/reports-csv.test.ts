@@ -5,6 +5,7 @@ import type { ClassReportRow } from "./reports-metrics";
 function r(over: Partial<ClassReportRow> = {}): ClassReportRow {
   return {
     classId: "c",
+    subjectId: "s",
     className: "Maths",
     subjectName: "Maths",
     subjectColor: null,

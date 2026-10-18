@@ -459,8 +459,14 @@ export async function deleteSubject(
       for (const studentId of families.studentIds) {
         rows.push({ userId: studentId, channel: "in_app", title: "Class removed", body, href: "/student/timetable" });
       }
-      for (const parentId of families.parentChild.keys()) {
-        rows.push({ userId: parentId, channel: "in_app", title: "Class removed", body, href: "/parent" });
+      for (const [parentId, childId] of families.parentChild) {
+        rows.push({
+          userId: parentId,
+          channel: "in_app",
+          title: "Class removed",
+          body,
+          href: `/parent?child=${childId}`,
+        });
       }
     }
     if (rows.length > 0) await tx.insert(notifications).values(rows);

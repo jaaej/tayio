@@ -1,5 +1,6 @@
 export type ClassMetricRow = {
   classId: string;
+  subjectId: string;
   className: string;
   subjectName: string;
   subjectColor: string | null;
@@ -16,6 +17,7 @@ export type ClassMetricRow = {
 
 export type ClassReportRow = {
   classId: string;
+  subjectId: string;
   className: string;
   subjectName: string;
   subjectColor: string | null;
@@ -48,6 +50,7 @@ export function avgScore(sum: number, count: number): number | null {
 export function toClassReportRow(r: ClassMetricRow): ClassReportRow {
   return {
     classId: r.classId,
+    subjectId: r.subjectId,
     className: r.className,
     subjectName: r.subjectName,
     subjectColor: r.subjectColor,

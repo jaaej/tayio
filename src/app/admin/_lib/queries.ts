@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { ADMIN_TIERS, STUDENT_TIERS, coarseRole } from "@/lib/roles";
+import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
@@ -36,14 +36,12 @@ import {
 } from "@/lib/reschedule-credits";
 import {
   announcements,
-  attendance,
   classCredits,
   classes,
   enrollments,
   familyLinks,
   invoices,
   lessonCancellations,
-  lessonNotes,
   lessons,
   profiles,
   rescheduleRequests,
@@ -57,6 +55,10 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { distinctSubjects } from "@/lib/subject-label";
+import { classEditHref } from "./class-links";
+import { audienceLabelMaps, describeAudience } from "./announcement-audience";
+import { getOverdueInvoices } from "./admin-queues";
+import { OPEN_INVOICE_STATUSES, isInvoiceOverdue } from "@/lib/invoice-rules";
 
 function isoDate(d: Date) {
   // Local calendar date, not UTC - matches local dates in lesson/date columns.
@@ -64,134 +66,16 @@ function isoDate(d: Date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export type OpsStats = {
-  activeStudents: number;
-  activeTutors: number;
-  lessonsThisWeek: number;
-  lessonsCompletedThisWeek: number;
-  overdueCount: number;
-  overdueTotal: number;
-  notesPending: number;
-  revenueMonth: number;
-  revenueLastMonth: number;
-};
-
-export async function getOpsStats(opts: {
-  weekStart: Date;
-  weekEnd: Date;
-  monthStart: Date;
-  prevMonthStart: Date;
-  today: Date;
-}): Promise<OpsStats> {
-  const { weekStart, weekEnd, monthStart, prevMonthStart, today } = opts;
-  const todayIso = isoDate(today);
-
-  const [students] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(profiles)
-    .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)));
-
-  const [tutors] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(profiles)
-    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)));
-
-  const [weekLessons] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      completed: sql<number>`count(*) filter (where ${lessons.status} = 'completed')::int`,
-    })
-    .from(lessons)
-    .where(
-      and(
-        gte(lessons.date, isoDate(weekStart)),
-        lt(lessons.date, isoDate(weekEnd)),
-      ),
-    );
-
-  const [overdue] = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, todayIso),
-      ),
-    );
-
-  const [notes] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(lessons)
-    .leftJoin(lessonNotes, eq(lessonNotes.lessonId, lessons.id))
-    .where(
-      and(
-        eq(lessons.status, "completed"),
-        lt(lessons.date, todayIso),
-        isNull(lessonNotes.id),
-      ),
-    );
-
-  const [revMonth] = await db
-    .select({
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(and(eq(invoices.status, "paid"), gte(invoices.issuedAt, monthStart)));
-
-  const [revPrev] = await db
-    .select({
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.status, "paid"),
-        gte(invoices.issuedAt, prevMonthStart),
-        lt(invoices.issuedAt, monthStart),
-      ),
-    );
-
-  return {
-    activeStudents: students?.count ?? 0,
-    activeTutors: tutors?.count ?? 0,
-    lessonsThisWeek: weekLessons?.total ?? 0,
-    lessonsCompletedThisWeek: weekLessons?.completed ?? 0,
-    overdueCount: overdue?.count ?? 0,
-    overdueTotal: Number(overdue?.total ?? 0),
-    notesPending: notes?.count ?? 0,
-    revenueMonth: Number(revMonth?.total ?? 0),
-    revenueLastMonth: Number(revPrev?.total ?? 0),
-  };
-}
-
 export type OverdueSummary = {
   overdueTotal: number;
   overdueCount: number;
 };
 
-/** Open invoices past their due date (Melbourne today), for the PIN-gated
- *  revenue page. Collected-per-month figures come from getMonthlyRevenue. */
+/** Overdue invoices (the shared invoice rule), for the PIN-gated revenue
+ *  page. Collected-per-month figures come from getMonthlyRevenue. */
 export async function getOverdueSummary(now: Date): Promise<OverdueSummary> {
-  const [overdue] = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${invoices.amount}), 0)::text`,
-    })
-    .from(invoices)
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, melbourneDate(now)),
-      ),
-    );
-
-  return {
-    overdueTotal: Number(overdue?.total ?? 0),
-    overdueCount: overdue?.count ?? 0,
-  };
+  const overdue = await getOverdueInvoices(now);
+  return { overdueTotal: overdue.total, overdueCount: overdue.count };
 }
 
 export type RecentPayment = {
@@ -238,6 +122,23 @@ export type ActivityEvent = {
   href: string;
 };
 
+async function getAudienceLabels() {
+  const [subjectRows, classRows, tutorRows] = await Promise.all([
+    db
+      .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })
+      .from(subjects),
+    db
+      .select({ id: classes.id, name: classes.name, subjectName: subjects.name })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId)),
+    db
+      .select({ id: profiles.id, firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.role, "tutor")),
+  ]);
+  return audienceLabelMaps({ subjects: subjectRows, classes: classRows, tutors: tutorRows });
+}
+
 export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
   const student = alias(profiles, "student");
   const enrolRows = await db
@@ -247,6 +148,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       studentLast: student.lastName,
       className: classes.name,
       classId: classes.id,
+      subjectId: classes.subjectId,
     })
     .from(enrollments)
     .innerJoin(student, eq(student.id, enrollments.studentId))
@@ -276,13 +178,25 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       at: announcements.publishedAt,
       title: announcements.title,
       audienceRole: announcements.audienceRole,
+      audienceClassId: announcements.audienceClassId,
       className: classes.name,
+      targetRoles: announcements.targetRoles,
+      targetSubjectIds: announcements.targetSubjectIds,
+      targetYearLevels: announcements.targetYearLevels,
+      targetClassIds: announcements.targetClassIds,
+      targetTutorIds: announcements.targetTutorIds,
+      includeLinkedParents: announcements.includeLinkedParents,
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
     .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
+  // Names for targeted announcements, read the same way as the
+  // Announcements page so both describe the audience alike.
+  const audienceLabels = annRows.some((r) => r.targetRoles.length > 0)
+    ? await getAudienceLabels()
+    : audienceLabelMaps({ subjects: [], classes: [], tutors: [] });
 
   const events: ActivityEvent[] = [];
   for (const r of enrolRows) {
@@ -291,7 +205,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       at: r.at,
       title: `${r.studentFirst} ${r.studentLast} enrolled`,
       meta: r.className,
-      href: `/admin/classes/${r.classId}`,
+      href: classEditHref(r.subjectId, r.classId),
     });
   }
   for (const r of paymentRows) {
@@ -310,16 +224,11 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
     });
   }
   for (const r of annRows) {
-    const audience = r.className
-      ? `Class · ${r.className}`
-      : r.audienceRole
-        ? `All ${r.audienceRole}s`
-        : "Everyone";
     events.push({
       kind: "announcement",
       at: r.at,
       title: r.title,
-      meta: audience,
+      meta: describeAudience(r, audienceLabels),
       href: "/admin/announcements",
     });
   }
@@ -416,126 +325,6 @@ export type StudentLesson = {
   /** rescheduledFrom uuid (null on normal lessons). Surfaced for context. */
   rescheduledFrom: string | null;
 };
-
-/**
- * Upcoming lessons for a student (from today, within `days` ahead), only
- * for classes they're still actively enrolled in. Used by admin reschedule UI.
- */
-export async function getStudentUpcomingLessons(
-  studentId: string,
-  days = 21,
-): Promise<StudentLesson[]> {
-  const now = new Date();
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const horizon = new Date(today);
-  horizon.setDate(today.getDate() + days);
-  // Local calendar date (isoDate is UTC-based, which shifts the day boundary
-  // and lets yesterday's lessons through in UTC+ timezones).
-  const localIso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      classId: classes.id,
-      className: classes.name,
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      tutorId: profiles.id,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-      rescheduledFrom: lessons.rescheduledFrom,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, localIso(today)),
-        lt(lessons.date, localIso(horizon)),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  // Exclude lessons the student has been rescheduled or cancelled OUT of (they
-  // hold an `absent` attendance on them), and any lesson that has already
-  // started - neither is genuinely "upcoming" for this student.
-  const absentRows = await db
-    .select({ lessonId: attendance.lessonId })
-    .from(attendance)
-    .where(
-      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
-    );
-  const absentIds = new Set(absentRows.map((a) => a.lessonId));
-
-  return rows.filter(
-    (l) =>
-      !absentIds.has(l.id) &&
-      new Date(`${l.date}T${l.startTime}`).getTime() > now.getTime(),
-  );
-}
-
-/**
- * Lessons for one student between two local calendar dates, inclusive.
- * Sibling of getStudentUpcomingLessons, which only looks forward from today
- * and so cannot fill a calendar the admin can page backwards through.
- */
-export async function getStudentLessonsInRange(
-  studentId: string,
-  fromIso: string,
-  toIso: string,
-): Promise<StudentLesson[]> {
-  const rows = await db
-    .select({
-      id: lessons.id,
-      date: lessons.date,
-      startTime: lessons.startTime,
-      endTime: lessons.endTime,
-      status: lessons.status,
-      classId: classes.id,
-      className: classes.name,
-      subjectId: subjects.id,
-      subjectName: subjects.name,
-      tutorId: profiles.id,
-      tutorFirstName: profiles.firstName,
-      tutorLastName: profiles.lastName,
-      rescheduledFrom: lessons.rescheduledFrom,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-    .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        isNull(enrollments.withdrawnAt),
-        gte(lessons.date, fromIso),
-        lte(lessons.date, toIso),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  // A rescheduled or cancelled-out lesson remains in the class timetable for
-  // other students. Hide it from this student's calendar only.
-  const absentRows = await db
-    .select({ lessonId: attendance.lessonId })
-    .from(attendance)
-    .where(
-      and(eq(attendance.studentId, studentId), eq(attendance.status, "absent")),
-    );
-  const absentIds = new Set(absentRows.map((attendanceRow) => attendanceRow.lessonId));
-  return rows.filter((lesson) => !absentIds.has(lesson.id));
-}
 
 /**
  * Single lesson with subject/class/tutor context. Used by the reschedule
@@ -1127,9 +916,8 @@ export type TutorWeeklyAvailability = {
  * in the roster are visible rather than silently dropped.
  *
  * Each slot carries the subject it is scoped to (null = any subject), and each
- * tutor carries the subjects they teach - derived from their assigned classes,
- * the same source getTutorDirectory() uses - so the editor can offer one scope
- * per subject the tutor actually teaches.
+ * tutor carries the subjects they teach - derived from their assigned classes -
+ * so the editor can offer one scope per subject the tutor actually teaches.
  */
 export async function getTutorWeeklyAvailabilityBoard(): Promise<
   TutorWeeklyAvailability[]
@@ -1238,116 +1026,11 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
   return Array.from(byTutor.values());
 }
 
-export type TutorDirectoryEntry = {
-  tutorId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string | null;
-  subjects: string[];
-  classes: Array<{
-    classId: string;
-    className: string;
-    subjectName: string;
-    weekday: number | null;
-    startTime: string | null;
-    endTime: string | null;
-  }>;
-  bank: {
-    accountName: string | null;
-    bsb: string | null;
-    accountNumber: string | null;
-    hourlyRate: string | null;
-    note: string | null;
-  } | null;
-};
-
-/**
- * Owner-only tutor directory: every active tutor with the subjects they teach
- * (derived from their assigned classes), their class schedule, and their
- * payroll bank details (migration 0035). PII - the page that calls this is
- * gated by requireUnrestrictedAdmin().
- */
-export async function getTutorDirectory(): Promise<TutorDirectoryEntry[]> {
-  const tutors = await db
-    .select({
-      tutorId: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-    })
-    .from(profiles)
-    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
-    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
-  if (tutors.length === 0) return [];
-
-  const tutorIds = tutors.map((t) => t.tutorId);
-
-  const classRows = await db
-    .select({
-      tutorId: classes.tutorId,
-      classId: classes.id,
-      className: classes.name,
-      subjectName: subjects.name,
-      weekday: classes.weekday,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-    })
-    .from(classes)
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(inArray(classes.tutorId, tutorIds))
-    .orderBy(asc(classes.weekday), asc(classes.startTime));
-
-  const bankRows = await db
-    .select()
-    .from(tutorBankDetails)
-    .where(inArray(tutorBankDetails.tutorId, tutorIds));
-  const bankByTutor = new Map(bankRows.map((b) => [b.tutorId, b]));
-
-  const classesByTutor = new Map<string, TutorDirectoryEntry["classes"]>();
-  const subjectsByTutor = new Map<string, Set<string>>();
-  for (const c of classRows) {
-    if (!classesByTutor.has(c.tutorId)) classesByTutor.set(c.tutorId, []);
-    classesByTutor.get(c.tutorId)!.push({
-      classId: c.classId,
-      className: c.className,
-      subjectName: c.subjectName,
-      weekday: c.weekday,
-      startTime: c.startTime,
-      endTime: c.endTime,
-    });
-    if (!subjectsByTutor.has(c.tutorId)) subjectsByTutor.set(c.tutorId, new Set());
-    subjectsByTutor.get(c.tutorId)!.add(c.subjectName);
-  }
-
-  return tutors.map((t) => {
-    const bank = bankByTutor.get(t.tutorId);
-    return {
-      tutorId: t.tutorId,
-      firstName: t.firstName,
-      lastName: t.lastName,
-      email: t.email,
-      phone: t.phone,
-      subjects: Array.from(subjectsByTutor.get(t.tutorId) ?? []).sort(),
-      classes: classesByTutor.get(t.tutorId) ?? [],
-      bank: bank
-        ? {
-            accountName: bank.accountName,
-            bsb: bank.bsb,
-            accountNumber: bank.accountNumber,
-            hourlyRate: bank.hourlyRate,
-            note: bank.note,
-          }
-        : null,
-    };
-  });
-}
-
 export type TutorRecord = {
   classes: Array<{
     id: string;
     name: string;
+    subjectId: string;
     subjectName: string;
     studentCount: number;
   }>;
@@ -1361,8 +1044,8 @@ export type TutorRecord = {
 };
 
 /**
- * One tutor's teaching record: the classes they take and their bank details.
- * Sibling of getTutorDirectory(), which returns the whole board.
+ * One tutor's teaching record for their profile's Tutor tab: the classes
+ * they take and their bank details.
  *
  * `bank` is only populated when includeBank is true. The caller passes the
  * result of isUnrestrictedAdmin, because tutor_bank_details is payroll PII
@@ -1379,6 +1062,7 @@ export async function getTutorRecord(
     .select({
       id: classes.id,
       name: classes.name,
+      subjectId: classes.subjectId,
       subjectName: subjects.name,
       studentCount: sql<number>`count(${enrollments.studentId})::int`,
     })
@@ -1389,7 +1073,7 @@ export async function getTutorRecord(
       and(eq(enrollments.classId, classes.id), isNull(enrollments.withdrawnAt)),
     )
     .where(eq(classes.tutorId, tutorId))
-    .groupBy(classes.id, classes.name, subjects.name)
+    .groupBy(classes.id, classes.name, classes.subjectId, subjects.name)
     .orderBy(asc(subjects.name), asc(classes.name));
 
   if (!includeBank) return { classes: classRows, bank: null };
@@ -1564,13 +1248,12 @@ export async function getFinancialReport(
     })
     .from(invoices)
     .innerJoin(parent, eq(parent.id, invoices.parentId))
-    .where(
-      and(
-        sql`${invoices.status} in ('unpaid','overdue','partially_paid')`,
-        lt(invoices.dueDate, toExclusiveIso),
-      ),
-    )
-    .orderBy(asc(invoices.dueDate));
+    .where(inArray(invoices.status, [...OPEN_INVOICE_STATUSES]))
+    .orderBy(asc(invoices.dueDate))
+    // Overdue as of the end of the range, by the shared invoice rule.
+    .then((rows) =>
+      rows.filter((r) => isInvoiceOverdue({ status: r.status, dueDate: r.date }, toExclusiveIso)),
+    );
 
   const toLine = (r: {
     id: string;

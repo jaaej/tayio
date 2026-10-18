@@ -1,20 +1,24 @@
 import "server-only";
 
-import { and, asc, desc, eq, gt, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, not, notInArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, lessons, profiles, subjects } from "@/db/schema";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { classDisplayName } from "@/lib/class-display";
-import { unmarkedOnRollSql } from "@/lib/lesson-progress-sql";
+import {
+  LESSON_OFF_STATUSES,
+  lessonRanSql,
+  notesMissingSql,
+  unmarkedOnRollSql,
+} from "@/lib/lesson-progress-sql";
 import {
   QUEUE_VIEWS,
-  buildQueue,
   classParam,
   dateParam,
+  groupByTutor,
   lessonQueueState,
   parseQueueView,
-  viewForState,
   type LessonQueueState,
   type QueueView,
 } from "./queue-logic";
@@ -37,9 +41,12 @@ export type QueueItem = {
   className: string;
   subjectName: string;
   subjectColor: string | null;
+  tutorId: string;
   tutorName: string;
   state: LessonQueueState;
   unmarkedCount: number;
+  /** Students marked as attending with no lesson note yet. */
+  notesMissing: number;
 };
 
 export type AttendanceQueue = {
@@ -65,14 +72,54 @@ export function parseQueueFilters(params: {
   };
 }
 
-/** How far back the default range reaches when no `from` is given. */
+/** How far back the Marked tab reaches when no `from` is given. */
 const DEFAULT_LOOKBACK_DAYS = 30;
-const PAST_LIMIT = 300;
-const FUTURE_LIMIT = 100;
-const CLASS_LIMIT = 500;
 
-function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: number) {
-  const dir = order === "asc" ? asc : desc;
+/** The most lessons one tab lists; the backlogs are bounded by what is outstanding. */
+const VIEW_LIMIT: Record<QueueView, number> = {
+  to_mark: 1000,
+  notes: 1000,
+  marked: 300,
+  upcoming: 100,
+};
+
+/** Which lessons belong to each tab (one place, so counts and lists agree). */
+function viewWhere(view: QueueView, now: Date): SQL {
+  const ran = lessonRanSql(now);
+  const off = inArray(lessons.status, [...LESSON_OFF_STATUSES]);
+  switch (view) {
+    case "to_mark":
+      return sql`(${ran} and ${unmarkedOnRollSql} > 0)`;
+    case "notes":
+      return sql`(${ran} and ${notesMissingSql} > 0)`;
+    case "marked":
+      // Cancelled and rescheduled lessons need no roll: filed with the done ones.
+      return sql`(${off} or (${ran} and ${unmarkedOnRollSql} = 0))`;
+    case "upcoming":
+      return and(notInArray(lessons.status, [...LESSON_OFF_STATUSES]), not(ran)) as SQL;
+  }
+}
+
+/**
+ * The dates a tab covers: one class (every date), one picked day, or the
+ * default range. Backlog tabs reach back to the oldest outstanding lesson
+ * unless `from` narrows them; Marked starts 30 days back.
+ */
+function scopeWhere(filters: QueueFilters, view: QueueView, today: string): SQL | undefined {
+  if (filters.classId) {
+    return and(
+      eq(lessons.classId, filters.classId),
+      filters.date ? eq(lessons.date, filters.date) : undefined,
+    );
+  }
+  if (filters.date) return eq(lessons.date, filters.date);
+  if (filters.from) return gte(lessons.date, filters.from);
+  if (view === "marked") return gte(lessons.date, addIsoDays(today, -DEFAULT_LOOKBACK_DAYS));
+  return undefined;
+}
+
+function selectLessons(view: QueueView, where: SQL | undefined) {
+  const dir = view === "upcoming" ? asc : desc;
   return db
     .select({
       id: lessons.id,
@@ -83,11 +130,12 @@ function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: num
       className: classes.name,
       subjectName: subjects.name,
       subjectColor: subjects.color,
+      tutorId: lessons.tutorId,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
-      // Students on the roll who have no attendance row yet (shared with the
-      // admin dashboard's count, so the two always agree).
+      // Shared with the admin dashboard's counts, so the two always agree.
       unmarkedCount: unmarkedOnRollSql,
+      notesMissing: notesMissingSql,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
@@ -95,57 +143,28 @@ function selectLessons(where: SQL | undefined, order: "asc" | "desc", limit: num
     .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
     .where(where)
     .orderBy(dir(lessons.date), dir(lessons.startTime))
-    .limit(limit);
+    .limit(VIEW_LIMIT[view]);
 }
 
 /**
- * The lesson queue shared by /admin/attendance and its lesson pages. Past and
- * future lessons are fetched separately so a long run of generated future
- * lessons can never push the unmarked past ones out of the result.
+ * The lesson queue shared by /admin/attendance and its lesson pages. Each
+ * tab is its own query with an exact count, so a long run of past or future
+ * lessons can never push outstanding ones out of the list or the count.
  */
 export async function getAttendanceQueue(
   filters: QueueFilters,
   now = new Date(),
 ): Promise<AttendanceQueue> {
   const today = melbourneDate(now);
+  const view = filters.view;
 
-  let rows: Awaited<ReturnType<typeof selectLessons>>;
-  let classLabel: string | null = null;
-  if (filters.classId) {
-    rows = await selectLessons(
-      and(
-        eq(lessons.classId, filters.classId),
-        filters.date ? eq(lessons.date, filters.date) : undefined,
-      ),
-      "desc",
-      CLASS_LIMIT,
-    );
-    const [cls] = await db
-      .select({ name: classes.name, subjectName: subjects.name })
-      .from(classes)
-      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-      .where(eq(classes.id, filters.classId));
-    classLabel = cls ? classDisplayName(cls.subjectName, cls.name) : null;
-  } else if (filters.date) {
-    rows = await selectLessons(eq(lessons.date, filters.date), "asc", 200);
-  } else {
-    const from = filters.from ?? addIsoDays(today, -DEFAULT_LOOKBACK_DAYS);
-    const [past, future] = await Promise.all([
-      selectLessons(
-        and(gte(lessons.date, from), lte(lessons.date, today)),
-        "desc",
-        PAST_LIMIT,
-      ),
-      selectLessons(
-        and(gte(lessons.date, from), gt(lessons.date, today)),
-        "asc",
-        FUTURE_LIMIT,
-      ),
-    ]);
-    rows = [...past, ...future];
-  }
+  const [rows, countRows, classLabel] = await Promise.all([
+    selectLessons(view, and(scopeWhere(filters, view, today), viewWhere(view, now))),
+    db.select(countSelection(filters, today, now)).from(lessons),
+    filters.classId ? getClassLabel(filters.classId) : Promise.resolve(null),
+  ]);
 
-  const all: QueueItem[] = rows.map((row) => ({
+  const items: QueueItem[] = rows.map((row) => ({
     id: row.id,
     date: row.date,
     startTime: row.startTime,
@@ -153,8 +172,10 @@ export async function getAttendanceQueue(
     className: row.className,
     subjectName: row.subjectName,
     subjectColor: row.subjectColor,
+    tutorId: row.tutorId,
     tutorName: `${row.tutorFirst} ${row.tutorLast}`.trim(),
     unmarkedCount: Number(row.unmarkedCount),
+    notesMissing: Number(row.notesMissing),
     state: lessonQueueState(
       {
         date: row.date,
@@ -166,11 +187,67 @@ export async function getAttendanceQueue(
     ),
   }));
 
-  const counts = Object.fromEntries(QUEUE_VIEWS.map((view) => [view, 0])) as Record<
-    QueueView,
-    number
-  >;
-  for (const item of all) counts[viewForState(item.state)] += 1;
+  const counts = Object.fromEntries(
+    QUEUE_VIEWS.map((v) => [v, Number(countRows[0]?.[v] ?? 0)]),
+  ) as Record<QueueView, number>;
 
-  return { filters, classLabel, items: buildQueue(all, filters.view), counts, today };
+  return {
+    filters,
+    classLabel,
+    // Notes missing reads tutor by tutor; "Save & next lesson" follows it.
+    items: view === "notes" ? groupByTutor(items).flatMap((g) => g.items) : items,
+    counts,
+    today,
+  };
+}
+
+/** One `count(*) filter (...)` per tab, each with its own date scope. */
+function countSelection(filters: QueueFilters, today: string, now: Date) {
+  const selection = {} as Record<QueueView, SQL<number>>;
+  for (const v of QUEUE_VIEWS) {
+    const where = and(scopeWhere(filters, v, today), viewWhere(v, now));
+    selection[v] = sql<number>`count(*) filter (where ${where})::int`;
+  }
+  return selection;
+}
+
+async function getClassLabel(classId: string): Promise<string | null> {
+  const [cls] = await db
+    .select({ name: classes.name, subjectName: subjects.name })
+    .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(eq(classes.id, classId));
+  return cls ? classDisplayName(cls.subjectName, cls.name) : null;
+}
+
+export type QueueBacklog = {
+  toMark: { count: number; oldest: string | null };
+  notes: { count: number; oldest: string | null; tutors: number };
+};
+
+/**
+ * The two backlog tabs counted with the same predicates as the queue, so the
+ * admin dashboard's To do and the queue can never disagree.
+ */
+export async function getQueueBacklog(now = new Date()): Promise<QueueBacklog> {
+  const toMark = viewWhere("to_mark", now);
+  const notes = viewWhere("notes", now);
+  const [row] = await db
+    .select({
+      toMark: sql<number>`count(*) filter (where ${toMark})::int`,
+      toMarkOldest: sql<string | null>`(min(${lessons.date}) filter (where ${toMark}))::text`,
+      notes: sql<number>`count(*) filter (where ${notes})::int`,
+      notesOldest: sql<string | null>`(min(${lessons.date}) filter (where ${notes}))::text`,
+      notesTutors: sql<number>`count(distinct ${lessons.tutorId}) filter (where ${notes})::int`,
+    })
+    .from(lessons)
+    .where(lessonRanSql(now));
+  return {
+    toMark: { count: Number(row?.toMark ?? 0), oldest: row?.toMarkOldest ?? null },
+    notes: {
+      count: Number(row?.notes ?? 0),
+      oldest: row?.notesOldest ?? null,
+      tutors: Number(row?.notesTutors ?? 0),
+    },
+  };
 }

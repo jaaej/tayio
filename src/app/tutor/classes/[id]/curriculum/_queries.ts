@@ -47,6 +47,8 @@ export type TutorWeekQuiz = {
   title: string;
   status: string;
   note: string | null;
+  reviewNote: string | null;
+  reviewNoteAt: Date | null;
   questionCount: number;
   /** This tutor was asked to write it (vs. a live quiz in their subject). */
   assignedToMe: boolean;
@@ -163,6 +165,8 @@ export async function getTutorCurriculum(
             title: quizzes.title,
             status: quizzes.status,
             note: quizzes.note,
+            reviewNote: quizzes.reviewNote,
+            reviewNoteAt: quizzes.reviewNoteAt,
             subjectWeekId: quizzes.subjectWeekId,
             assignedTutorId: quizzes.assignedTutorId,
             // Table names spelled out: in a single-table select Drizzle drops
@@ -237,6 +241,8 @@ export async function getTutorCurriculum(
       title: q.title,
       status: q.status,
       note: q.note,
+      reviewNote: q.reviewNote,
+      reviewNoteAt: q.reviewNoteAt,
       questionCount: q.questionCount,
       assignedToMe: q.assignedTutorId === tutorId,
     });

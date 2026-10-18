@@ -851,9 +851,11 @@ export async function requestChanges(input: { quizId: string; note: string }): P
     return { ok: false, error: "Only quizzes pending review can be sent back for changes." };
   }
 
+  // The change request is the review note; the admin's brief stays as it was.
+  const now = new Date();
   await db
     .update(quizzes)
-    .set({ status: "changes_requested", note, updatedAt: new Date() })
+    .set({ status: "changes_requested", reviewNote: note, reviewNoteAt: now, updatedAt: now })
     .where(eq(quizzes.id, quizId));
 
   if (row.assignedTutorId) {

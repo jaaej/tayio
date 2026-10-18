@@ -1,18 +1,9 @@
-import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import {
-  Avatar,
-  Empty,
-  GlassPanel,
-  PageHeader,
-  buttonVariants,
-} from "@/components/admin/ui";
+import { Avatar, Empty, GlassPanel, PageHeader } from "@/components/admin/ui";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { getTutorWeeklyAvailabilityBoard } from "@/app/admin/_lib/queries";
-import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatTimeRange } from "@/lib/format";
-import { isUnrestrictedAdmin } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { boardSubjects, freeTutorCount, slotsForSubject } from "./_lib/board";
 import { TutorAvailabilityEditor } from "./_components/availability-editor";
@@ -36,11 +27,7 @@ export default async function AdminTutorAvailabilityPage({
 }: {
   searchParams: Promise<{ subject?: string }>;
 }) {
-  const user = await requireRole("admin");
-  // The tutor directory holds payroll details, so only owners get the link.
-  const isOwner = isUnrestrictedAdmin(
-    user.app_metadata?.role as UserRole | undefined,
-  );
+  await requireRole("admin");
   const [tutors, params] = await Promise.all([
     getTutorWeeklyAvailabilityBoard(),
     searchParams,
@@ -59,19 +46,7 @@ export default async function AdminTutorAvailabilityPage({
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Tutor availability"
-        actions={
-          isOwner && (
-            <Link
-              href="/admin/tutors"
-              className={buttonVariants({ variant: "glass", size: "lg" })}
-            >
-              All tutors
-            </Link>
-          )
-        }
-      />
+      <PageHeader title="Tutor availability" />
 
       <GlassPanel
         title="Weekly availability"

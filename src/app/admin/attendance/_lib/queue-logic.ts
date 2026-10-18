@@ -6,11 +6,12 @@ import { lessonStartInstant } from "@/lib/tutor-cover-rules";
  * No database or framework imports so they can be unit tested directly.
  */
 
-export const QUEUE_VIEWS = ["to_mark", "marked", "upcoming"] as const;
+export const QUEUE_VIEWS = ["to_mark", "notes", "marked", "upcoming"] as const;
 export type QueueView = (typeof QUEUE_VIEWS)[number];
 
 export const QUEUE_VIEW_LABEL: Record<QueueView, string> = {
   to_mark: "To mark",
+  notes: "Notes",
   marked: "Marked",
   upcoming: "Upcoming",
 };
@@ -59,30 +60,26 @@ export function lessonQueueState(
   return lesson.unmarkedCount > 0 ? "to_mark" : "marked";
 }
 
-export function viewForState(state: LessonQueueState): QueueView {
-  return state === "cancelled" ? "marked" : state;
-}
-
-type Orderable = { date: string; startTime: string };
-
-function compareStart(a: Orderable, b: Orderable): number {
-  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-  if (a.startTime !== b.startTime) return a.startTime < b.startTime ? -1 : 1;
-  return 0;
-}
+export type TutorGroup<T> = { tutorId: string; tutorName: string; items: T[] };
 
 /**
- * Lessons for one tab, in queue order: most recent first for finished work
- * (today's roll is the one the office is chasing), soonest first for upcoming.
+ * The "Notes missing" view, one group per tutor (so the admin can chase each
+ * tutor once), tutors by name, each tutor's lessons most recent first.
  */
-export function buildQueue<T extends Orderable & { state: LessonQueueState }>(
-  lessons: T[],
-  view: QueueView,
-): T[] {
-  const inView = lessons.filter((lesson) => viewForState(lesson.state) === view);
-  return view === "upcoming"
-    ? inView.sort(compareStart)
-    : inView.sort((a, b) => compareStart(b, a));
+export function groupByTutor<
+  T extends { tutorId: string; tutorName: string; date: string; startTime: string },
+>(items: readonly T[]): TutorGroup<T>[] {
+  const groups = new Map<string, TutorGroup<T>>();
+  for (const item of items) {
+    const group = groups.get(item.tutorId);
+    if (group) group.items.push(item);
+    else groups.set(item.tutorId, { tutorId: item.tutorId, tutorName: item.tutorName, items: [item] });
+  }
+  const latestFirst = (a: T, b: T) =>
+    a.date === b.date ? b.startTime.localeCompare(a.startTime) : b.date.localeCompare(a.date);
+  return [...groups.values()]
+    .map((group) => ({ ...group, items: [...group.items].sort(latestFirst) }))
+    .sort((a, b) => a.tutorName.localeCompare(b.tutorName) || a.tutorId.localeCompare(b.tutorId));
 }
 
 /**

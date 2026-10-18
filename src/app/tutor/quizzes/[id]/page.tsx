@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { canTutorViewQuiz, getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
+import { quizNotes } from "@/lib/quiz-notes";
 import { quizWeekPlanHrefs } from "@/app/tutor/_lib/quiz-week";
 
 export const dynamic = "force-dynamic";
@@ -32,18 +33,7 @@ export default async function TutorQuizDetailPage({
       canApprove={false}
       hrefBack={weekHref}
       backLabel="Back to week plan"
-      note={
-        quiz.note
-          ? {
-              label:
-                quiz.status === "changes_requested"
-                  ? "Changes requested"
-                  : "Instructions from admin",
-              text: quiz.note,
-              tone: quiz.status === "changes_requested" ? "bad" : undefined,
-            }
-          : null
-      }
+      notes={quizNotes(quiz)}
     />
   );
 }

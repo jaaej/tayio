@@ -45,6 +45,7 @@ import type {
 } from "@/lib/quiz-queries";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz-status";
 import { cn } from "@/lib/utils";
+import type { QuizNote } from "@/lib/quiz-notes";
 
 type Question = QuizWithContent["questions"][number];
 type Option = Question["options"][number];
@@ -221,7 +222,7 @@ export function QuizMaker({
   hrefBack,
   backLabel = "Back",
   headerActions,
-  note,
+  notes = [],
 }: QuizWithContent & {
   editable: boolean;
   canEditTitle: boolean;
@@ -232,8 +233,8 @@ export function QuizMaker({
   backLabel?: string;
   /** Secondary actions shown before the primary action in the header. */
   headerActions?: ReactNode;
-  /** Instructions or review feedback from the admin. */
-  note?: { label: string; text: string; tone?: "bad" } | null;
+  /** The admin's brief and the latest change request (`quizNotes`). */
+  notes?: QuizNote[];
 }) {
   const { error: actionError, pending: actionPending, run } = useActionRunner();
 
@@ -362,16 +363,20 @@ export function QuizMaker({
         )}
       </header>
 
-      {note && note.text.trim().length > 0 && (
-        <div className="rounded-[16px] bg-white/75 px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
+      {notes.map((note) => (
+        <div
+          key={note.key}
+          className="rounded-[16px] bg-white/75 px-4 py-3 text-[13px] leading-relaxed text-ink-soft"
+        >
           <strong
             className={cn("font-extrabold", note.tone === "bad" ? "text-bad" : "text-ink")}
           >
-            {note.label}:
+            {note.label}
+            {note.date && <span className="font-semibold text-muted"> · {note.date}</span>}:
           </strong>{" "}
           <span className="whitespace-pre-wrap">{note.text}</span>
         </div>
-      )}
+      ))}
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <QuestionOutline
