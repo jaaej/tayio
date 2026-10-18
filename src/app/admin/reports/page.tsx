@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
-import { isoDate, formatScore } from "@/lib/format";
+import { formatScore } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
   Empty,
   GlassPanel,
   MetricTile,
   PageHeader,
+  SegmentedLinks,
   SubjectDot,
   buttonVariants,
 } from "@/components/admin/ui";
@@ -17,7 +19,9 @@ import {
 } from "@/app/admin/_lib/reports-queries";
 import { toClassReportRow, rollupOrgWide } from "@/app/admin/_lib/reports-metrics";
 import { classEditHref } from "@/app/admin/_lib/class-links";
+import { getTermReportClasses, getTermReportRoster } from "@/app/admin/_lib/term-reports";
 import { TermSelect } from "./_components/term-select";
+import { TermReportsPanel } from "./_components/term-reports-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -67,16 +71,17 @@ function RateCell({ value }: { value: number | null }) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ term?: string }>;
+  searchParams: Promise<{ term?: string; view?: string; class?: string }>;
 }) {
   await requireAdmin();
-  const { term: termParam } = await searchParams;
+  const { term: termParam, view: viewParam, class: classParam } = await searchParams;
+  const view = viewParam === "term-reports" ? "term-reports" : "classes";
 
   const terms = await listTerms();
   if (terms.length === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <PageHeader title="Operational reports" />
+        <PageHeader title="Reports" />
         <GlassPanel>
           <Empty>
             <p>No terms defined yet. Create a term to see reports.</p>
@@ -92,12 +97,57 @@ export default async function ReportsPage({
     );
   }
 
-  const todayIso = isoDate(new Date());
+  const todayIso = melbourneDate(new Date());
   const currentTermId = await getCurrentTermId(todayIso);
   const selected =
     terms.find((t) => t.id === termParam) ??
     terms.find((t) => t.id === currentTermId) ??
     terms[0];
+
+  const viewLinks = (
+    <SegmentedLinks
+      label="Report"
+      size="md"
+      items={[
+        {
+          label: "Classes",
+          href: `/admin/reports?term=${selected.id}`,
+          active: view === "classes",
+        },
+        {
+          label: "Term reports",
+          href: `/admin/reports?term=${selected.id}&view=term-reports`,
+          active: view === "term-reports",
+        },
+      ]}
+    />
+  );
+
+  if (view === "term-reports") {
+    const reportClasses = await getTermReportClasses(selected);
+    const classId =
+      reportClasses.find((c) => c.id === classParam)?.id ?? reportClasses[0]?.id ?? null;
+    const roster = classId ? await getTermReportRoster(selected, classId) : [];
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader
+          title="Reports"
+          actions={
+            <>
+              {viewLinks}
+              <TermSelect terms={terms} selectedId={selected.id} />
+            </>
+          }
+        />
+        <TermReportsPanel
+          termId={selected.id}
+          classes={reportClasses}
+          classId={classId}
+          roster={roster}
+        />
+      </div>
+    );
+  }
 
   const metricRows = await getClassMetricRows(selected);
   const rows = metricRows.map(toClassReportRow);
@@ -126,9 +176,10 @@ export default async function ReportsPage({
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Operational reports"
+        title="Reports"
         actions={
           <>
+            {viewLinks}
             <TermSelect terms={terms} selectedId={selected.id} />
             <Link
               href={`/admin/reports/export?term=${selected.id}`}

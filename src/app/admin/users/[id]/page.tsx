@@ -16,7 +16,7 @@ import {
 } from "@/lib/roles";
 import { getCurrentUser } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, formatDateShort } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
   accountScheduleStatusLabel,
@@ -61,6 +61,7 @@ import { ListLink, ProfileTabLinks } from "../_components/list-link";
 import { getProfileFacts } from "../_lib/profile-facts";
 import { classEditHref } from "@/app/admin/_lib/class-links";
 import { getStudentHistory } from "../_lib/student-history";
+import { getStudentReportIssues } from "@/app/admin/_lib/term-reports";
 import {
   AttendanceHistoryList,
   HomeworkHistoryList,
@@ -160,8 +161,10 @@ export default async function UserDetailPage({
       ])
     : [null, null, null, null, [], null, [], null, []];
 
-  const history =
-    isStudent && activeTab === "history" ? await getStudentHistory(id) : null;
+  const [history, reportIssues] = await Promise.all([
+    isStudent && activeTab === "history" ? getStudentHistory(id) : null,
+    isStudent && activeTab === "reports" ? getStudentReportIssues(id) : null,
+  ]);
 
   // canManageRoles is isUnrestrictedAdmin: it decides whether the bank row is
   // fetched at all, so a reception admin never receives payroll PII.
@@ -375,10 +378,16 @@ export default async function UserDetailPage({
   );
 
   const reportsSection = isStudent && (
-    <ProfileSection title="Term reports" note="PDF + notify family">
+    <ProfileSection title="Term reports">
       <StudentReportControls
         studentId={user.id}
         terms={(reportTerms ?? []).map((t) => ({ id: t.id, label: t.label }))}
+        sentOn={Object.fromEntries(
+          [...(reportIssues ?? new Map<string, Date>())].map(([termId, at]) => [
+            termId,
+            formatDateShort(melbourneDate(at)),
+          ]),
+        )}
       />
     </ProfileSection>
   );

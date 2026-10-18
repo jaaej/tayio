@@ -2,11 +2,11 @@
 
 import { z } from "zod";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { familyLinks, notifications, profiles, terms } from "@/db/schema";
-import type { UserRole } from "@/db/schema";
+import { terms } from "@/db/schema";
 import { requireAdmin } from "./guard";
-import { isUnrestrictedStudent } from "@/lib/roles";
+import { getTermReportRoster, issueTermReport } from "./term-reports";
 
 const schema = z.object({
   studentId: z.string().uuid(),
@@ -14,59 +14,62 @@ const schema = z.object({
 });
 
 /**
- * Issue a student's term report to their family: sends an in-app notification
- * with a link to the (role-aware) report PDF to the student - only if
- * unrestricted, matching the visibility gate - and to every linked parent.
- * Admin-only. Returns how many recipients were notified.
+ * Issue a student's term report to their family: an in-app notification
+ * with a link to the (role-aware) report PDF goes to every linked parent,
+ * and to the student only if unrestricted, matching the visibility gate.
+ * Recorded as sent. Admin-only. Returns how many recipients were notified.
  */
 export async function issueStudentReport(input: z.infer<typeof schema>) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { studentId, termId } = schema.parse(input);
+  const { notified } = await issueTermReport(studentId, termId, admin.id);
+  revalidatePath("/admin/reports");
+  revalidatePath(`/admin/users/${studentId}`);
+  return { ok: true as const, notified };
+}
 
-  const [student] = await db
-    .select({
-      id: profiles.id,
-      role: profiles.role,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, studentId))
-    .limit(1);
-  if (!student) throw new Error("Student not found");
+const classSchema = z.object({
+  termId: z.string().uuid(),
+  classId: z.string().uuid(),
+});
+
+/**
+ * Issue the term report to every student in a class who has not had theirs
+ * and has someone to send it to. Each student is issued on its own, so one
+ * failure leaves the others sent; the counts say what happened.
+ */
+export async function issueClassTermReports(input: z.infer<typeof classSchema>) {
+  const admin = await requireAdmin();
+  const parsed = classSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "Choose a term and a class." };
+  const { termId, classId } = parsed.data;
 
   const [term] = await db
-    .select({ year: terms.year, termNumber: terms.termNumber })
+    .select({
+      id: terms.id,
+      year: terms.year,
+      termNumber: terms.termNumber,
+      startDate: terms.startDate,
+      endDate: terms.endDate,
+    })
     .from(terms)
     .where(eq(terms.id, termId))
     .limit(1);
-  if (!term) throw new Error("Term not found");
+  if (!term) return { ok: false as const, error: "That term no longer exists." };
 
-  const parents = await db
-    .select({ parentId: familyLinks.parentId })
-    .from(familyLinks)
-    .where(eq(familyLinks.studentId, studentId));
-
-  const recipientIds = new Set<string>(parents.map((p) => p.parentId));
-  // Restricted students can't view their own report - don't notify them.
-  if (isUnrestrictedStudent(student.role as UserRole)) {
-    recipientIds.add(studentId);
+  const roster = await getTermReportRoster(term, classId);
+  const toIssue = roster.filter((s) => s.issuedAt === null && s.recipients > 0);
+  let issued = 0;
+  let failed = 0;
+  for (const student of toIssue) {
+    try {
+      const { notified } = await issueTermReport(student.id, termId, admin.id);
+      if (notified > 0) issued += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("[term-reports] issue failed", student.id, error);
+    }
   }
-  if (recipientIds.size === 0) {
-    return { ok: true as const, notified: 0 };
-  }
-
-  const href = `/reports/${studentId}/${termId}`;
-  const label = `${term.year} Term ${term.termNumber}`;
-  await db.insert(notifications).values(
-    Array.from(recipientIds).map((userId) => ({
-      userId,
-      channel: "in_app" as const,
-      title: "Term report ready",
-      body: `${label} progress report for ${student.firstName} ${student.lastName}`.trim(),
-      href,
-    })),
-  );
-
-  return { ok: true as const, notified: recipientIds.size };
+  revalidatePath("/admin/reports");
+  return { ok: true as const, issued, failed };
 }

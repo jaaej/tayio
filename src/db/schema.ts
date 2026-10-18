@@ -1099,6 +1099,26 @@ export const terms = pgTable(
   (t) => [uniqueIndex("terms_year_term_idx").on(t.year, t.termNumber)],
 );
 
+/** When a student's term report was last issued to their family (migration 0068). */
+export const termReportIssues = pgTable(
+  "term_report_issues",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    issuedById: uuid("issued_by_id").references(() => profiles.id, { onDelete: "set null" }),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    recipientCount: integer("recipient_count").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.studentId, t.termId] }),
+    index("term_report_issues_term_idx").on(t.termId),
+  ],
+);
+
 export const subjectTopics = pgTable(
   "subject_topics",
   {

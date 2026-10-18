@@ -1,0 +1,97 @@
+import Link from "next/link";
+import { Download } from "lucide-react";
+import { Empty, GlassPanel, Pill, buttonVariants } from "@/components/admin/ui";
+import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
+import { formatDateShort } from "@/lib/format";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { cn } from "@/lib/utils";
+import type { TermReportClass, TermReportStudent } from "@/app/admin/_lib/term-reports";
+import { IssueClassButton, IssueStudentButton } from "./issue-report-buttons";
+
+/**
+ * Reports > Term reports: one class at a time, every student with whether
+ * their term report has gone to the family, a PDF preview, and sending for
+ * one student or everyone not yet sent.
+ */
+export function TermReportsPanel({
+  termId,
+  classes,
+  classId,
+  roster,
+}: {
+  termId: string;
+  classes: TermReportClass[];
+  classId: string | null;
+  roster: TermReportStudent[];
+}) {
+  const notSent = roster.filter((s) => s.issuedAt === null && s.recipients > 0).length;
+  return (
+    <GlassPanel
+      title="Term reports"
+      titleId="term-reports-heading"
+      action={
+        classes.length > 0 && (
+          <span className="flex flex-wrap items-center gap-2">
+            <UrlLabelledSelect
+              label="Class"
+              param="class"
+              options={classes.map((c) => ({ value: c.id, label: c.label }))}
+            />
+            {classId && <IssueClassButton termId={termId} classId={classId} count={notSent} />}
+          </span>
+        )
+      }
+    >
+      {classes.length === 0 || !classId ? (
+        <Empty>No classes had students this term.</Empty>
+      ) : roster.length === 0 ? (
+        <Empty>No students in this class this term.</Empty>
+      ) : (
+        <ul className="divide-y divide-line">
+          {roster.map((s) => (
+            <li
+              key={s.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5"
+            >
+              <Link
+                href={`/admin/users/${s.id}?tab=reports`}
+                className="min-w-0 flex-[1_1_160px] truncate text-[14px] font-bold text-ink hover:text-brand-700 hover:underline"
+              >
+                {s.name}
+              </Link>
+              <span className="shrink-0">
+                {s.recipients === 0 ? (
+                  <Pill tone="default">No family linked</Pill>
+                ) : s.issuedAt ? (
+                  <Pill tone="good">Sent {formatDateShort(melbourneDate(s.issuedAt))}</Pill>
+                ) : (
+                  <Pill tone="warn">Not sent</Pill>
+                )}
+              </span>
+              <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                <a
+                  href={`/reports/${s.id}/${termId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden />
+                  PDF
+                  <span className="sr-only"> for {s.name}</span>
+                </a>
+                {s.recipients > 0 && (
+                  <IssueStudentButton
+                    studentId={s.id}
+                    termId={termId}
+                    sent={s.issuedAt !== null}
+                    studentName={s.name}
+                  />
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </GlassPanel>
+  );
+}
