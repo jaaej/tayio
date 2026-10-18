@@ -5,8 +5,7 @@
  * No database or React here so it can be unit tested.
  */
 
-/** Homework the student has handed in ("late" is a late submission). */
-const HANDED_IN = new Set(["submitted", "late", "marked", "returned"]);
+import { isAwaitingMarking, isHomeworkOverdue, isMarked } from "@/lib/homework-rules";
 
 export type ChecklistWeek = {
   videoUrl: string | null;
@@ -107,10 +106,6 @@ export function unlockLabel(unlocksOn: string): string {
   return `Unlocks ${shortDay(new Date(`${unlocksOn}T12:00:00Z`))}`;
 }
 
-export function isHandedIn(status: string): boolean {
-  return HANDED_IN.has(status);
-}
-
 function homeworkTask(
   hw: ChecklistWeek["homework"][number],
   now: Date,
@@ -121,14 +116,14 @@ function homeworkTask(
     title: hw.title,
     href: `/student/homework/${hw.homeworkId}`,
   };
-  if (hw.status === "marked" || hw.status === "returned") {
+  if (isMarked(hw.status)) {
     const score = hw.score === null ? null : `${Math.round(Number(hw.score) * 10) / 10}%`;
     return { ...base, state: "done", meta: score ? `Marked · ${score}` : "Marked" };
   }
-  if (hw.status === "submitted" || hw.status === "late") {
+  if (isAwaitingMarking(hw.status)) {
     return { ...base, state: "done", meta: "Submitted · waiting for marking" };
   }
-  const pastDue = melbourneKey(hw.dueDate) < melbourneKey(now);
+  const pastDue = isHomeworkOverdue(hw.status, melbourneKey(hw.dueDate), melbourneKey(now));
   if (hw.status === "resubmission_requested") {
     return {
       ...base,

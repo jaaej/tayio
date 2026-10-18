@@ -5,6 +5,7 @@ import { Card } from "@/components/parent/ui";
 import { requireRole } from "@/lib/auth";
 import { resolveSelectedChild } from "@/app/parent/_data";
 import { currentWeekNumber } from "@/lib/curriculum";
+import { isHandedIn } from "@/lib/homework-rules";
 import { getParentCurriculum } from "./_queries";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
@@ -63,12 +64,7 @@ export default async function ParentSubjectPage({
 
   const railWeeks: RailWeek[] = data.weeks.map((w) => {
     const homeworkTotal = w.homework.length;
-    const homeworkDone = w.homework.filter(
-      (h) =>
-        h.status === "marked" ||
-        h.status === "submitted" ||
-        h.status === "returned",
-    ).length;
+    const homeworkDone = w.homework.filter((h) => isHandedIn(h.status)).length;
     const tasksTotal = 2 + (homeworkTotal > 0 ? 1 : 0);
     const tasksDone =
       (w.videoWatchedAt ? 1 : 0) +

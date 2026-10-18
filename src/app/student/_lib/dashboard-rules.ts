@@ -4,6 +4,7 @@
  * Melbourne calendar days (YYYY-MM-DD); "now" is a real instant.
  */
 import { formatScore } from "@/lib/format";
+import { isHandedIn, isMarked } from "@/lib/homework-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
@@ -69,7 +70,6 @@ export type StudentTodo = {
   dueDay?: string;
 };
 
-const OPEN_HOMEWORK = new Set(["not_started", "viewed", "resubmission_requested"]);
 const DROPPED_LESSON = new Set(["cancelled", "rescheduled"]);
 const KIND_ORDER: StudentTodoKind[] = [
   "overdue",
@@ -219,7 +219,7 @@ export function buildStudentTodo(input: {
   for (const hw of input.homework) {
     const subject = hw.subjectName ? shortSubject(hw.subjectName) : null;
     const href = `/student/homework/${hw.homeworkId}`;
-    if (OPEN_HOMEWORK.has(hw.status)) {
+    if (!isHandedIn(hw.status)) {
       const diff = daysBetween(todayIso, hw.dueDay);
       const resubmit = hw.status === "resubmission_requested";
       const kind: StudentTodoKind = resubmit
@@ -249,7 +249,7 @@ export function buildStudentTodo(input: {
       });
       continue;
     }
-    if (hw.status === "marked" && hw.markedAt) {
+    if (isMarked(hw.status) && hw.markedAt) {
       const ageDays = (now.getTime() - hw.markedAt.getTime()) / 86_400_000;
       if (ageDays < 0 || ageDays > MARKED_DAYS) continue;
       rows.push({
@@ -386,7 +386,7 @@ export function buildWeekDays(input: {
         };
       });
     const due = input.homework
-      .filter((hw) => hw.dueDay === iso && OPEN_HOMEWORK.has(hw.status))
+      .filter((hw) => hw.dueDay === iso && !isHandedIn(hw.status))
       .map((hw) => ({ homeworkId: hw.homeworkId, title: hw.title, subjectName: hw.subjectName }));
     return {
       iso,

@@ -1,7 +1,7 @@
 import { CalendarDays, ClipboardCheck, UserX } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { InteractiveTimetable } from "@/app/student/_components/interactive-timetable";
-import { buildTimetableChips } from "@/app/_lib/timetable-chips";
+import { buildTimetableChips, buildTimetableHomework } from "@/app/_lib/timetable-chips";
 import { getStudentHomework } from "@/app/student/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime } from "@/lib/format";
@@ -64,17 +64,11 @@ export default async function ParentClassesPage({
     getClassMoveData(selected.id),
   ]);
 
-  const fromIso = isoLocal(from);
-  const toIso = isoLocal(to);
-  const hw = homeworkRows
-    .map((h) => ({
-      id: h.homeworkId,
-      dueDate: isoLocal(h.dueDate),
-      title: h.title,
-      done: h.status === "submitted" || h.status === "marked",
-      href: `/parent/homework?child=${selected.id}`,
-    }))
-    .filter((h) => h.dueDate >= fromIso && h.dueDate < toIso);
+  const hw = buildTimetableHomework(
+    homeworkRows,
+    { fromIso: isoLocal(from), toIso: isoLocal(to) },
+    (id) => `/parent/homework/${id}?child=${selected.id}`,
+  );
 
   // Attendance summary (folded in from the retired /parent/attendance page).
   // A moved or credited lesson is not an absence and is left out of the rate.

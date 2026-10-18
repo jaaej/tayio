@@ -11,15 +11,16 @@ import { Card, StatTile, Hero, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
 import {
-  formatDueDate,
   formatMoney,
   melbourneDayKey,
   relativeTime,
 } from "@/lib/format";
 import { formatInvoiceDay } from "@/lib/invoice-dates";
+import { formatHomeworkDate } from "@/app/student/homework/_lib/homework-list";
+import { homeworkStatusLabel } from "@/components/homework/homework-detail";
+import { isHomeworkOverdue } from "@/lib/homework-rules";
 import { invoiceDisplayStatus } from "@/lib/invoice-rules";
 import {
-  HOMEWORK_STATUS_LABEL,
   HOMEWORK_STATUS_STYLE,
   INVOICE_STATUS_LABEL,
   INVOICE_STATUS_STYLE,
@@ -176,7 +177,7 @@ export default async function ParentDashboard({
           icon={<ClipboardList className="h-5 w-5" />}
           tone="sky"
           accent
-          delta="Completed this term"
+          delta="Handed in"
           deltaTone={
             data.homeworkTotal > 0 &&
             data.homeworkCompleted / data.homeworkTotal >= 0.9
@@ -245,7 +246,14 @@ export default async function ParentDashboard({
                 <tbody>
                   {recentHomework.map((h) => (
                     <Tr key={h.homeworkId}>
-                      <Td className="font-bold text-ink">{h.title}</Td>
+                      <Td>
+                        <Link
+                          href={`/parent/homework/${h.homeworkId}${childQs}`}
+                          className="font-bold text-ink hover:text-brand-700 hover:underline"
+                        >
+                          {h.title}
+                        </Link>
+                      </Td>
                       <Td>
                         <SubjectPill
                           name={h.subjectName ?? h.className ?? "Other"}
@@ -253,12 +261,20 @@ export default async function ParentDashboard({
                         />
                       </Td>
                       <Td className="text-muted whitespace-nowrap">
-                        {formatDueDate(h.dueDate)}
+                        {formatHomeworkDate(h.dueDate)}
                       </Td>
                       <Td>
                         <StatusPill
-                          label={HOMEWORK_STATUS_LABEL[h.status] ?? h.status}
-                          className={HOMEWORK_STATUS_STYLE[h.status]}
+                          label={
+                            isHomeworkOverdue(h.status, melbourneDayKey(h.dueDate), today)
+                              ? "Overdue"
+                              : homeworkStatusLabel(h.status)
+                          }
+                          className={
+                            isHomeworkOverdue(h.status, melbourneDayKey(h.dueDate), today)
+                              ? "bg-rose-100 text-rose-800"
+                              : HOMEWORK_STATUS_STYLE[h.status]
+                          }
                         />
                       </Td>
                     </Tr>

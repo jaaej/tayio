@@ -17,7 +17,30 @@ import {
   type TermRow,
 } from "@/lib/reschedule-credits";
 import { getStudentTimetableLessons } from "@/app/student/_lib/queries";
-import type { TimetableChip } from "@/app/student/_components/interactive-timetable";
+import type { TimetableChip, TimetableHw } from "@/app/student/_components/interactive-timetable";
+import { melbourneDayKey } from "@/lib/format";
+import { isHandedIn } from "@/lib/homework-rules";
+
+/**
+ * Homework due chips for the same timetable, on their Melbourne due day. A
+ * late hand-in is done, like any other (`homework-rules`). `from`/`to` are
+ * the YYYY-MM-DD window the page loaded lessons for (to exclusive).
+ */
+export function buildTimetableHomework(
+  rows: ReadonlyArray<{ homeworkId: string; title: string; dueDate: Date; status: string }>,
+  window: { fromIso: string; toIso: string },
+  href: (homeworkId: string) => string,
+): TimetableHw[] {
+  return rows
+    .map((h) => ({
+      id: h.homeworkId,
+      dueDate: melbourneDayKey(h.dueDate),
+      title: h.title,
+      done: isHandedIn(h.status),
+      href: href(h.homeworkId),
+    }))
+    .filter((h) => h.dueDate >= window.fromIso && h.dueDate < window.toIso);
+}
 
 /**
  * Builds the interactive-timetable chips for one student - shared by the

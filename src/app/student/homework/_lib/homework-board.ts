@@ -90,8 +90,8 @@ function filtered<T extends HomeworkListItem>(items: T[], params: BoardParams): 
 }
 
 /**
- * Open work split by when it is due. Past the due time on the due day counts
- * as overdue, matching `dueStatus`.
+ * Open work split by when it is due. Work is overdue from the day after its
+ * Melbourne due day, matching `dueStatus` and `isHomeworkOverdue`.
  */
 export function buildTodoBoard<T extends HomeworkListItem>(
   items: T[],
@@ -102,9 +102,9 @@ export function buildTodoBoard<T extends HomeworkListItem>(
   const board: TodoBoard<T> = { dueThisWeek: [], overdue: [], comingUp: [] };
   for (const item of filtered(items, params)) {
     if (groupOf(item.status) !== "todo") continue;
-    const due = new Date(item.dueDate);
-    if (due.getTime() < now.getTime()) board.overdue.push(item);
-    else if (daysUntil(due, now) <= weekLeft) board.dueThisWeek.push(item);
+    const days = daysUntil(new Date(item.dueDate), now);
+    if (days < 0) board.overdue.push(item);
+    else if (days <= weekLeft) board.dueThisWeek.push(item);
     else board.comingUp.push(item);
   }
   board.dueThisWeek.sort((a, b) => time(a.dueDate) - time(b.dueDate));

@@ -94,8 +94,10 @@ describe("buildTodoBoard", () => {
     // Monday 19 Oct: next week.
     item({ id: "mon", dueDate: "2026-10-19T02:00:00.000Z" }),
     item({ id: "thu-next", dueDate: "2026-10-22T02:00:00.000Z" }),
-    // Earlier today: past the due time, so overdue.
+    // Due today (its time this morning has passed): due, not overdue yet.
     item({ id: "this-morning", dueDate: "2026-10-12T22:00:00.000Z" }),
+    // Due yesterday: overdue.
+    item({ id: "yesterday", dueDate: "2026-10-12T02:00:00.000Z" }),
     item({ id: "old", dueDate: "2026-08-01T02:00:00.000Z" }),
     item({ id: "handed-in", status: "submitted", dueDate: "2026-10-16T12:00:00.000Z" }),
     item({ id: "resubmit", status: "resubmission_requested", dueDate: "2026-10-15T12:00:00.000Z" }),
@@ -103,9 +105,9 @@ describe("buildTodoBoard", () => {
 
   it("splits open work by the Melbourne week and orders each part", () => {
     const board = buildTodoBoard(items, params, NOW);
-    expect(board.dueThisWeek.map((i) => i.id)).toEqual(["resubmit", "fri", "sat", "sun"]);
+    expect(board.dueThisWeek.map((i) => i.id)).toEqual(["this-morning", "resubmit", "fri", "sat", "sun"]);
     expect(board.comingUp.map((i) => i.id)).toEqual(["mon", "thu-next"]);
-    expect(board.overdue.map((i) => i.id)).toEqual(["this-morning", "old"]);
+    expect(board.overdue.map((i) => i.id)).toEqual(["yesterday", "old"]);
   });
 
   it("on a Sunday, this week is only the rest of today", () => {

@@ -21,6 +21,7 @@ import {
 } from "@/db/schema";
 import { getOfficeContact, type OfficeContact } from "@/lib/office-contact";
 import { isInvoiceOpen } from "@/lib/invoice-rules";
+import { isHandedIn } from "@/lib/homework-rules";
 import { attendanceSummary } from "@/lib/attendance-rules";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 
@@ -103,9 +104,8 @@ export async function getDashboardData(studentId: string): Promise<DashboardData
     .from(homeworkAssignments)
     .where(eq(homeworkAssignments.studentId, studentId));
   const homeworkTotal = homeworkRows.length;
-  const homeworkCompleted = homeworkRows.filter(
-    (r) => r.status === "submitted" || r.status === "marked" || r.status === "returned",
-  ).length;
+  // A late hand-in is handed in (homework-rules).
+  const homeworkCompleted = homeworkRows.filter((r) => isHandedIn(r.status)).length;
 
   const tutorProfile = profiles;
   const today = isoDate(new Date());

@@ -7,7 +7,9 @@ import {
   Link2 as LinkIcon,
 } from "lucide-react";
 import { signCurriculumUrl } from "@/lib/curriculum-storage";
-import { formatDueDate, relativeTime, formatScore } from "@/lib/format";
+import { melbourneDayKey, relativeTime, formatScore } from "@/lib/format";
+import { isHandedIn, isHomeworkOverdue } from "@/lib/homework-rules";
+import { formatHomeworkDate } from "@/app/student/homework/_lib/homework-list";
 import { httpHref } from "@/lib/safe-url";
 import { subjectTone } from "@/lib/subject-tone";
 import { ProgressRing } from "@/components/student/progress-ring";
@@ -34,12 +36,8 @@ export async function WeekContentParent({
   // Subject colour drives the hero head block and the Overview beneath it.
   const tone = subjectTone(subjectName, subjectColor);
 
-  const homeworkDone = week.homework.filter(
-    (h) =>
-      h.status === "marked" ||
-      h.status === "submitted" ||
-      h.status === "returned",
-  ).length;
+  const homeworkDone = week.homework.filter((h) => isHandedIn(h.status)).length;
+  const today = melbourneDayKey(new Date());
   const videoDone = Boolean(week.videoWatchedAt);
   const bookletDone = Boolean(week.bookletOpenedAt);
 
@@ -310,12 +308,8 @@ export async function WeekContentParent({
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {week.homework.map((h) => {
-                const done =
-                  h.status === "submitted" ||
-                  h.status === "marked" ||
-                  h.status === "returned";
-                const overdue =
-                  !done && (h.status === "late" || h.dueDate < new Date());
+                const done = isHandedIn(h.status);
+                const overdue = isHomeworkOverdue(h.status, melbourneDayKey(h.dueDate), today);
                 return (
                   <div
                     key={h.homeworkId}
@@ -356,7 +350,7 @@ export async function WeekContentParent({
                       {h.title}
                     </div>
                     <div className="mt-2 text-[12px] text-muted pl-1">
-                      Due {formatDueDate(h.dueDate)}
+                      Due {formatHomeworkDate(h.dueDate)}
                     </div>
                   </div>
                 );

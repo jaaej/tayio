@@ -2,8 +2,12 @@ import { ClipboardList, Clock, AlertTriangle } from "lucide-react";
 import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
 import { SubjectPill } from "@/components/data/subject-pill";
 import { requireRole } from "@/lib/auth";
-import { formatDueDate, formatScore } from "@/lib/format";
-import { HOMEWORK_STATUS_LABEL, HOMEWORK_STATUS_STYLE } from "@/lib/status";
+import Link from "next/link";
+import { homeworkStatusLabel } from "@/components/homework/homework-detail";
+import { formatScore, melbourneDayKey } from "@/lib/format";
+import { formatHomeworkDate } from "@/app/student/homework/_lib/homework-list";
+import { isHandedIn, isHomeworkOverdue } from "@/lib/homework-rules";
+import { HOMEWORK_STATUS_STYLE } from "@/lib/status";
 import { getHomework, resolveSelectedChild } from "../_data";
 import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
 import { StatusPill } from "../_components/status-pill";
@@ -56,18 +60,15 @@ export default async function ParentHomeworkPage({
     ? allRows.filter((r) => (r.subjectId ?? OTHER) === activeTab.id)
     : allRows;
 
+  // One homework rule (homework-rules): a late hand-in is handed in, and
+  // overdue is work not handed in after its Melbourne due day.
+  const today = melbourneDayKey(new Date());
+  const isOverdue = (r: (typeof rows)[number]) =>
+    isHomeworkOverdue(r.status, melbourneDayKey(r.dueDate), today);
   const total = rows.length;
-  const completed = rows.filter(
-    (r) =>
-      r.status === "submitted" || r.status === "marked" || r.status === "returned",
-  ).length;
-  const outstanding = rows.filter(
-    (r) =>
-      r.status === "not_started" ||
-      r.status === "viewed" ||
-      r.status === "resubmission_requested",
-  ).length;
-  const late = rows.filter((r) => r.status === "late").length;
+  const completed = rows.filter((r) => isHandedIn(r.status)).length;
+  const outstanding = total - completed;
+  const overdue = rows.filter(isOverdue).length;
 
   const base = `/parent/homework?child=${selected.id}`;
   const tabs: TabItem[] = [
@@ -105,7 +106,7 @@ export default async function ParentHomeworkPage({
           icon={<ClipboardList className="h-5 w-5" />}
           tone="sky"
           accent
-          delta="Submitted or marked"
+          delta="Handed in"
           deltaTone={total > 0 && completed / total >= 0.9 ? "up" : "flat"}
         />
         <StatTile
@@ -114,17 +115,17 @@ export default async function ParentHomeworkPage({
           icon={<Clock className="h-5 w-5" />}
           tone={outstanding === 0 ? "good" : "warn"}
           accent
-          delta="Not yet submitted"
+          delta="Not handed in yet"
           deltaTone={outstanding === 0 ? "up" : "down"}
         />
         <StatTile
-          label="Late"
-          value={late.toString()}
+          label="Overdue"
+          value={overdue.toString()}
           icon={<AlertTriangle className="h-5 w-5" />}
-          tone={late === 0 ? "good" : "coral"}
+          tone={overdue === 0 ? "good" : "coral"}
           accent
-          delta="Past due date"
-          deltaTone={late === 0 ? "up" : "down"}
+          delta="Past the due date"
+          deltaTone={overdue === 0 ? "up" : "down"}
         />
       </section>
 
@@ -159,7 +160,12 @@ export default async function ParentHomeworkPage({
                 {rows.map((r) => (
                   <Tr key={r.homeworkId}>
                     <Td>
-                      <div className="font-bold text-ink">{r.title}</div>
+                      <Link
+                        href={`/parent/homework/${r.homeworkId}?child=${selected.id}`}
+                        className="font-bold text-ink hover:text-brand-700 hover:underline"
+                      >
+                        {r.title}
+                      </Link>
                       {r.feedback && (
                         <div className="mt-1 text-xs text-muted line-clamp-1 max-w-md">
                           <span className="font-bold text-ink-soft">Tutor:</span>{" "}
@@ -174,12 +180,16 @@ export default async function ParentHomeworkPage({
                       />
                     </Td>
                     <Td className="text-muted whitespace-nowrap">
-                      {formatDueDate(r.dueDate)}
+                      {formatHomeworkDate(r.dueDate)}
                     </Td>
                     <Td>
                       <StatusPill
-                        label={HOMEWORK_STATUS_LABEL[r.status] ?? r.status}
-                        className={HOMEWORK_STATUS_STYLE[r.status]}
+                        label={isOverdue(r) ? "Overdue" : homeworkStatusLabel(r.status)}
+                        className={
+                          isOverdue(r)
+                            ? "bg-rose-100 text-rose-800"
+                            : HOMEWORK_STATUS_STYLE[r.status]
+                        }
                       />
                     </Td>
                     <Td className="text-right tabular-nums font-extrabold text-ink">

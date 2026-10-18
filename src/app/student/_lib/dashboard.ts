@@ -11,6 +11,7 @@ import {
   getYearBlitzRank,
 } from "@/app/student/math-game/_queries";
 import { formatTime, yearLevelLabel } from "@/lib/format";
+import { isHandedIn } from "@/lib/homework-rules";
 import {
   getOutstandingBalanceForStudent,
   getStudentHomework,
@@ -66,8 +67,6 @@ const LOOKAHEAD_DAYS = 28;
  */
 type WeekProgress = { weekDone: number; weekTotal: number };
 
-const DONE_HOMEWORK = new Set(["submitted", "marked", "returned", "late"]);
-
 async function currentWeeks(
   studentId: string,
   subjects: Array<{ subjectId: string; subjectName: string; subjectColor: string | null }>,
@@ -106,7 +105,7 @@ async function currentWeeks(
       hasBooklet: Boolean(week.bookletUrl),
       bookletOpened: Boolean(week.bookletOpenedAt),
       homeworkTotal: week.homework.length,
-      homeworkDone: week.homework.filter((h) => DONE_HOMEWORK.has(h.status)).length,
+      homeworkDone: week.homework.filter((h) => isHandedIn(h.status)).length,
     });
   }
   const attempts = await getLatestQuizAttempts(
@@ -244,7 +243,7 @@ function statusLine(
   const weekEnd = addIsoDays(weekStartIso, 7);
   const due = homework.filter(
     (hw) =>
-      ["not_started", "viewed", "resubmission_requested"].includes(hw.status) &&
+      !isHandedIn(hw.status) &&
       hw.dueDay >= todayIso &&
       hw.dueDay < weekEnd,
   ).length;

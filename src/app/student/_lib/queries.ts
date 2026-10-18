@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isoDate } from "@/lib/format";
+import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
 import {
   attendance,
   classCredits,
@@ -187,11 +188,7 @@ export async function getStudentSubjects(studentId: string): Promise<SubjectSumm
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),
-        or(
-          eq(homeworkAssignments.status, "not_started"),
-          eq(homeworkAssignments.status, "viewed"),
-          eq(homeworkAssignments.status, "resubmission_requested"),
-        )!,
+        notInArray(homeworkAssignments.status, [...HANDED_IN_STATUSES]),
       ),
     )
     .groupBy(homework.classId);
@@ -800,11 +797,7 @@ export async function getDueHomeworkCount(studentId: string) {
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),
-        or(
-          eq(homeworkAssignments.status, "not_started"),
-          eq(homeworkAssignments.status, "viewed"),
-          eq(homeworkAssignments.status, "resubmission_requested"),
-        )!,
+        notInArray(homeworkAssignments.status, [...HANDED_IN_STATUSES]),
       ),
     );
   return rows[0]?.count ?? 0;
@@ -837,11 +830,7 @@ export async function getNextDueHomework(studentId: string): Promise<HomeworkRow
     .where(
       and(
         eq(homeworkAssignments.studentId, studentId),
-        or(
-          eq(homeworkAssignments.status, "not_started"),
-          eq(homeworkAssignments.status, "viewed"),
-          eq(homeworkAssignments.status, "resubmission_requested"),
-        )!,
+        notInArray(homeworkAssignments.status, [...HANDED_IN_STATUSES]),
       ),
     )
     .orderBy(asc(homework.dueDate))
