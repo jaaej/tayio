@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Empty } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
@@ -18,22 +19,12 @@ type OpenResourceAction = (
   id: string,
 ) => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
 
-/** Type tag colours from the StudentResourcesPage handoff. */
-const TYPE_TONE: Record<string, { bg: string; fg: string }> = {
-  worksheet: { bg: "#DDF3EE", fg: "#0B5C4E" },
-  notes: { bg: "#EEEBFD", fg: "#3A1AA8" },
-  video: { bg: "#E7EFFD", fg: "#1E4FB8" },
-  past_paper: { bg: "#FBE8F1", fg: "#9D2C61" },
-  writing_template: { bg: "#FDF1E0", fg: "#8A4A06" },
-  answer_sheet: { bg: "#E3F4EC", fg: "#15803D" },
-  formula_sheet: { bg: "#EEEFF6", fg: "#4A4660" },
-  exam_guide: { bg: "#FDE8E8", fg: "#B42318" },
-};
-
 /**
- * The student's resource library: type chips above one glass section per
- * subject. The title search lives in the page header and reaches this list
- * through `?q=`.
+ * The resource library, the same for a student (their subjects) and a
+ * parent (all their children's subjects): type chips above one glass section
+ * per subject. The title search lives in the page header and reaches this
+ * list through `?q=`. `openAction` signs the file after checking the
+ * viewer's own access.
  */
 export function ResourceLibrary({
   subjects,
@@ -182,7 +173,6 @@ function ResourceRow({
   openAction: OpenResourceAction;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
-  const tone = TYPE_TONE[resource.type] ?? TYPE_TONE.formula_sheet;
 
   async function open() {
     setState("loading");
@@ -205,12 +195,7 @@ function ResourceRow({
         className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-ink transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait sm:grid-cols-[100px_minmax(0,1fr)_auto] lg:grid-cols-[100px_minmax(0,1fr)_160px_auto]"
       >
         <span className="hidden sm:block">
-          <span
-            className="inline-flex h-[22px] max-w-full items-center truncate rounded-[11px] px-2 text-[11px] font-extrabold"
-            style={{ backgroundColor: tone.bg, color: tone.fg }}
-          >
-            {resourceTypeLabel(resource.type)}
-          </span>
+          <ResourceTypeChip type={resource.type} className="max-w-full truncate" />
         </span>
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-bold">{resource.title}</span>

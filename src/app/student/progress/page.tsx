@@ -20,7 +20,10 @@ export default async function StudentProgressPage({
   const user = await requireRole("student");
   const [{ term }, { subjects }] = await Promise.all([
     searchParams,
-    getProgressPane(user.id, isUnrestrictedStudent(user.app_metadata?.role as UserRole | undefined)),
+    getProgressPane(
+      user.id,
+      isUnrestrictedStudent(user.app_metadata?.role as UserRole | undefined) ? user.id : null,
+    ),
   ]);
   const first = subjects[0];
   if (!first) return <ProgressRestingPane />;

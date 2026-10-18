@@ -1,45 +1,31 @@
-import { Card } from "@/components/ui/card";
+import { Empty, GlassPanel } from "@/components/admin/ui";
+import { ResourceLibrary } from "@/components/resources/resource-library";
 import { childSubjectIds } from "@/lib/resources";
 import { loadResourceLibrary } from "@/lib/resource-library";
-import { subjectTone } from "@/lib/subject-tone";
 import { openResourceForParent } from "@/app/_actions/resources";
-import {
-  LibraryBrowserClient,
-  type LibrarySubjectGroup,
-} from "@/components/resources/library-browser-client";
 
 /**
- * Server-loaded resource library for the logged-in parent, scoped to the
- * union of all their children's actively-enrolled subjects (via
- * `childSubjectIds`). Loads through the same `loadResourceLibrary` as the
- * student Resources page, but resources aggregate across every child at once
- * rather than a single student, since resources are subject-scoped (not
- * per-child) and the subject grouping already makes the origin clear without
- * a child switcher.
+ * The parent's resource library: the student's library over the union of
+ * all their children's enrolled subjects (resources belong to a subject,
+ * not a child, so there is no child switch here). Files open through
+ * `openResourceForParent`, which re-checks that subject set.
  */
 export async function ParentLibraryBrowser({ parentId }: { parentId: string }) {
   const subjectIds = await childSubjectIds(parentId);
 
   if (subjectIds.length === 0) {
     return (
-      <Card>
-        <div className="py-6 text-sm text-ink-soft">
-          No resources yet - your children aren&apos;t enrolled in any subjects.
-        </div>
-      </Card>
+      <GlassPanel>
+        <Empty>Your children aren&apos;t enrolled in any subjects yet.</Empty>
+      </GlassPanel>
     );
   }
 
   const library = await loadResourceLibrary(subjectIds);
-  const groups: LibrarySubjectGroup[] = library.subjects.map((s) => ({
-    ...s,
-    tone: subjectTone(s.subjectName, s.subjectColor),
-  }));
-
   return (
-    <LibraryBrowserClient
-      groups={groups}
-      topicOptions={library.topics}
+    <ResourceLibrary
+      subjects={library.subjects}
+      topics={library.topics}
       openAction={openResourceForParent}
     />
   );

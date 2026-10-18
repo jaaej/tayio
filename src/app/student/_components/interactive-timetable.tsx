@@ -122,7 +122,7 @@ function monthParam(year: number, month: number) {
 
 /**
  * The month timetable shared by the student's own Timetable page and the
- * parent's per-child Classes page: the shared month grid on the left, and a
+ * parent's per-child Timetable: the shared month grid on the left, and a
  * side rail with the selected lesson, class credits and any extra panels the
  * page passes in. Clicking a lesson selects it; reschedule and cancel act on
  * the selected lesson. `canSelfServe` is false for a student without billing
@@ -172,7 +172,7 @@ export function InteractiveTimetable({
    *  actions enforce the same rule. */
   canSelfServe?: boolean;
   /** Render the calendar and rail in glass frames (portals on the glass
-   *  shell). The parent portal, not yet on the glass shell, uses plain cards. */
+   *  shell); without it they are plain cards. */
   glass?: boolean;
   /** Extra rail panels below the selected lesson and credits. */
   aside?: ReactNode;

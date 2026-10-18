@@ -14,6 +14,10 @@ import type { ProgressPaneData, ProgressPaneSubject } from "../_lib/progress-dat
  * /student/progress wide screens show the first subject, so its item reads
  * as selected there. The term lives in the URL (`?term=`, left out for the
  * term running today) and every subject link carries it.
+ *
+ * A parent sees the same pane for their child (`basePath` under
+ * /parent/progress, `child` kept in every link), with the reports the
+ * office issued to them.
  */
 export function ProgressListPane({
   overall,
@@ -21,15 +25,35 @@ export function ProgressListPane({
   terms,
   defaultTermId,
   reports,
-}: ProgressPaneData) {
+  basePath = "/student/progress",
+  child,
+  noReports = "Your term reports go to your parent.",
+  emptySubjects = "Your progress appears here once you're enrolled in a class.",
+}: ProgressPaneData & {
+  basePath?: string;
+  /** The child a parent is looking at, kept in every link. */
+  child?: string;
+  /** Shown when the viewer may not open the reports (`reports` is null). */
+  noReports?: string;
+  emptySubjects?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedId = /^\/student\/progress\/([^/]+)/.exec(pathname)?.[1] ?? null;
+  const selectedId = pathname.startsWith(`${basePath}/`)
+    ? (pathname.slice(basePath.length + 1).split("/")[0] ?? null)
+    : null;
   const defaultId = selectedId ? null : (subjects[0]?.subjectId ?? null);
   const requested = searchParams.get("term");
   const termId = terms.some((t) => t.id === requested) ? requested : defaultTermId;
-  const query = termId && termId !== defaultTermId ? `?term=${termId}` : "";
+  const queryFor = (term: string | null) => {
+    const params = new URLSearchParams();
+    if (child) params.set("child", child);
+    if (term && term !== defaultTermId) params.set("term", term);
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  };
+  const query = queryFor(termId);
   const pct = overall ?? 0;
 
   return (
@@ -50,10 +74,7 @@ export function ProgressListPane({
             <span className="sr-only">Term</span>
             <select
               value={termId}
-              onChange={(e) => {
-                const next = e.target.value;
-                router.push(next === defaultTermId ? pathname : `${pathname}?term=${next}`);
-              }}
+              onChange={(e) => router.push(`${pathname}${queryFor(e.target.value)}`)}
               className="h-10 appearance-none rounded-[12px] border border-white/95 bg-white/80 pl-3.5 pr-9 text-[14px] font-extrabold text-[#17152B] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               {terms.map((t) => (
@@ -84,15 +105,13 @@ export function ProgressListPane({
 
       <div className="panel flex flex-col gap-0.5 p-1.5">
         {subjects.length === 0 ? (
-          <p className="px-6 py-10 text-center text-[13px] text-[#5E5A73]">
-            Your progress appears here once you&apos;re enrolled in a class.
-          </p>
+          <p className="px-6 py-10 text-center text-[13px] text-[#5E5A73]">{emptySubjects}</p>
         ) : (
           subjects.map((s) => (
             <SubjectItem
               key={s.subjectId}
               subject={s}
-              href={`/student/progress/${s.subjectId}${query}`}
+              href={`${basePath}/${s.subjectId}${query}`}
               selected={s.subjectId === selectedId}
               selectedOnDesktop={s.subjectId === defaultId}
             />
@@ -105,9 +124,7 @@ export function ProgressListPane({
           Reports
         </h2>
         {reports === null ? (
-          <p className="px-2.5 pb-2.5 text-[13px] text-[#5E5A73]">
-            Your term reports go to your parent.
-          </p>
+          <p className="px-2.5 pb-2.5 text-[13px] text-[#5E5A73]">{noReports}</p>
         ) : reports.length === 0 ? (
           <p className="px-2.5 pb-2.5 text-[13px] text-[#5E5A73]">No reports yet.</p>
         ) : (

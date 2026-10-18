@@ -77,9 +77,14 @@ const getStudentTerms = cache(async (studentId: string) => {
   return { termRows, today, offered: progressTerms(termRows, firstEnrolledOn, today) };
 });
 
-/** Reports issued to this student ("Term report ready" notifications). */
+/**
+ * The student's term reports issued to `recipientId` ("Term report ready"
+ * notifications): to the student themselves, or to a parent, who is the
+ * one notified for a student without billing access.
+ */
 async function getIssuedReports(
   studentId: string,
+  recipientId: string,
   termRows: Array<{ id: string; year: number; termNumber: number; startDate: string }>,
 ): Promise<ProgressReport[]> {
   const rows = await db
@@ -87,7 +92,7 @@ async function getIssuedReports(
     .from(notifications)
     .where(
       and(
-        eq(notifications.userId, studentId),
+        eq(notifications.userId, recipientId),
         like(notifications.href, `/reports/${studentId}/%`),
       ),
     )
@@ -109,11 +114,12 @@ async function getIssuedReports(
 
 /**
  * The list pane: overall mastery, one row per enrolled subject, the term
- * picker's options and the student's reports. Cached per request, since the
- * layout and the index page both need it.
+ * picker's options and the student's reports as issued to `reportsFor` (the
+ * student, or their parent; null when the viewer may not open them).
+ * Cached per request, since the layout and the index page both need it.
  */
 export const getProgressPane = cache(
-  async (studentId: string, canOpenReports: boolean): Promise<ProgressPaneData> => {
+  async (studentId: string, reportsFor: string | null): Promise<ProgressPaneData> => {
     const [subjects, { termRows, today, offered }] = await Promise.all([
       getStudentProgressBySubject(studentId),
       getStudentTerms(studentId),
@@ -133,7 +139,7 @@ export const getProgressPane = cache(
       subjects: paneSubjects,
       terms: offered,
       defaultTermId: pickTerm(offered, null, today)?.id ?? null,
-      reports: canOpenReports ? await getIssuedReports(studentId, termRows) : null,
+      reports: reportsFor ? await getIssuedReports(studentId, reportsFor, termRows) : null,
     };
   },
 );

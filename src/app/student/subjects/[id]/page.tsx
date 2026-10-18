@@ -3,13 +3,9 @@ import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import { CurriculumRail } from "@/components/subjects/curriculum-rail";
 import { requireRole } from "@/lib/auth";
 import { getStudentSubjectPage } from "../_lib/subject-page";
-import type { ChecklistTask } from "../_lib/week-checklist";
-import type { StudentCurriculumWeek } from "./_queries";
 import { subjectTone } from "@/lib/subject-tone";
 import { SubjectHeader } from "./_components/subject-header";
-import { LessonMaterials } from "./_components/lesson-materials";
-import { TutorNote, WeekHomework, WeeklyQuiz } from "./_components/week-panels";
-import { WeekOverview } from "@/components/subjects/week-overview";
+import { SubjectNotice, SubjectWeekBody } from "./_components/week-body";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +43,7 @@ export default async function StudentSubjectPage({
           subjectColor={page.subjectColor}
           title={page.subjectName}
         />
-        <Notice>Your tutor is preparing this term&apos;s lessons. They appear here once they&apos;re ready.</Notice>
+        <SubjectNotice>Your tutor is preparing this term&apos;s lessons. They appear here once they&apos;re ready.</SubjectNotice>
       </div>
     );
   }
@@ -90,7 +86,7 @@ export default async function StudentSubjectPage({
         }
       >
         {week ? (
-          <WeekBody
+          <SubjectWeekBody
             week={week}
             tasks={tasks}
             subjectName={data.subjectName}
@@ -100,74 +96,13 @@ export default async function StudentSubjectPage({
             now={now}
           />
         ) : (
-          <Notice>
+          <SubjectNotice>
             {page.firstUnlock
               ? `Week 1 is locked. ${page.firstUnlock}.`
               : "This term's lessons are locked."}
-          </Notice>
+          </SubjectNotice>
         )}
       </CurriculumLayout>
-    </div>
-  );
-}
-
-function WeekBody({
-  week,
-  tasks,
-  subjectName,
-  subjectColor,
-  videoSrc,
-  tutorFirstName,
-  now,
-}: {
-  week: StudentCurriculumWeek;
-  tasks: ChecklistTask[];
-  subjectName: string;
-  subjectColor: string | null;
-  videoSrc: string | null;
-  tutorFirstName: string | null;
-  now: Date;
-}) {
-  const video = tasks.find((t) => t.kind === "video");
-  const booklet = tasks.find((t) => t.kind === "booklet");
-  const quiz = tasks.find((t) => t.kind === "quiz");
-  const showQuiz = Boolean(quiz) || week.quizInProgress;
-  return (
-    <div className="flex flex-col gap-5">
-      <WeekOverview
-        subjectName={subjectName}
-        subjectColor={subjectColor}
-        description={week.description}
-        objectives={week.objectives}
-      />
-      {video && booklet && (
-        <LessonMaterials
-          video={video}
-          booklet={booklet}
-          videoSrc={videoSrc}
-          subjectWeekId={week.subjectWeekId}
-          accent={subjectTone(subjectName, subjectColor).flat}
-        />
-      )}
-      <div className={showQuiz ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" : undefined}>
-        <WeekHomework tasks={tasks.filter((t) => t.kind === "homework")} />
-        <WeeklyQuiz task={quiz} inProgress={week.quizInProgress} tutorFirstName={tutorFirstName} />
-      </div>
-      <TutorNote
-        week={week}
-        subjectName={subjectName}
-        subjectColor={subjectColor}
-        tutorFirstName={tutorFirstName}
-        now={now}
-      />
-    </div>
-  );
-}
-
-function Notice({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="glass rounded-[24px] p-1.5">
-      <p className="panel px-5 py-10 text-center text-[14px] text-[#5E5A73]">{children}</p>
     </div>
   );
 }

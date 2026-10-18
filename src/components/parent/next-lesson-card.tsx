@@ -37,7 +37,7 @@ export function NextLessonCard({
     >
       {lesson ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          <div className="flex min-w-0 flex-[1_1_240px] items-center gap-3.5">
             <span className="flex w-[46px] shrink-0 flex-col items-center leading-[1.1]">
               <span className="text-[11px] font-extrabold uppercase text-muted">
                 {weekdayFmt.format(new Date(`${lesson.date}T00:00:00Z`))}

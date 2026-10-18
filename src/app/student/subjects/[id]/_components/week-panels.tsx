@@ -11,8 +11,18 @@ const POP =
 
 const PILL = "flex h-9 shrink-0 items-center rounded-[11px] px-3.5 text-[13px] font-extrabold";
 
-/** "Homework": the week's homework as rows, with Start or Done on the right. */
-export function WeekHomework({ tasks }: { tasks: ChecklistTask[] }) {
+/**
+ * "Homework": the week's homework as rows, with Start or Done on the right.
+ * A parent (`hrefFor`) opens their child's read-only copy and sees Done or
+ * To do instead of Start.
+ */
+export function WeekHomework({
+  tasks,
+  hrefFor,
+}: {
+  tasks: ChecklistTask[];
+  hrefFor?: (task: ChecklistTask) => string;
+}) {
   const done = tasks.filter((t) => t.state === "done").length;
   return (
     <section aria-labelledby="hw-h" className="glass flex min-w-0 flex-col gap-1.5 rounded-[24px] p-1.5">
@@ -34,7 +44,7 @@ export function WeekHomework({ tasks }: { tasks: ChecklistTask[] }) {
             {tasks.map((task) => (
               <li key={task.key}>
                 <Link
-                  href={task.href ?? "#"}
+                  href={hrefFor ? hrefFor(task) : (task.href ?? "#")}
                   className="flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[#F7F8FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
                 >
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -50,6 +60,10 @@ export function WeekHomework({ tasks }: { tasks: ChecklistTask[] }) {
                   </span>
                   {task.state === "done" ? (
                     <span className={cn(PILL, "bg-[#E3F4EC] text-[#15803D]")}>Done</span>
+                  ) : hrefFor ? (
+                    <span className={cn(PILL, "bg-[#F1F2F7] text-[#2E2944]")}>
+                      {task.resubmit ? "Resubmit" : "To do"}
+                    </span>
                   ) : (
                     <span className={cn(PILL, "bg-[#FF5A6E] text-white")}>
                       {task.resubmit ? "Resubmit" : "Start"}
@@ -68,15 +82,19 @@ export function WeekHomework({ tasks }: { tasks: ChecklistTask[] }) {
 /**
  * "Weekly quiz": the approved quiz, or "Not ready yet" while a requested
  * quiz is still being written. Weeks with no quiz requested show nothing.
+ * A parent (`readOnly`) sees whether their child did it; only the student
+ * can open the quiz.
  */
 export function WeeklyQuiz({
   task,
   inProgress,
   tutorFirstName,
+  readOnly = false,
 }: {
   task: ChecklistTask | undefined;
   inProgress: boolean;
   tutorFirstName: string | null;
+  readOnly?: boolean;
 }) {
   if (!task && !inProgress) return null;
   return (
@@ -84,7 +102,19 @@ export function WeeklyQuiz({
       <h2 id="qz-h" className="m-0 px-3 pb-1 pt-2 text-[16px] font-extrabold">
         Weekly quiz
       </h2>
-      {task ? (
+      {task && readOnly ? (
+        <div className="panel flex items-center gap-3 px-4 py-3.5">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate text-[15px] font-extrabold">{task.title}</span>
+            <span className="truncate text-[13px] font-medium text-[#5E5A73]">{task.meta}</span>
+          </span>
+          {task.state === "done" ? (
+            <span className={cn(PILL, "bg-[#E3F4EC] text-[#15803D]")}>Done</span>
+          ) : (
+            <span className={cn(PILL, "bg-[#F1F2F7] text-[#2E2944]")}>To do</span>
+          )}
+        </div>
+      ) : task ? (
         <Link
           href={task.href ?? "#"}
           className="panel flex items-center gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-[#F7F8FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"

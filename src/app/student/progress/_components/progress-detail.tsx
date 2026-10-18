@@ -26,12 +26,16 @@ export function ProgressDetailPane({
   detail,
   backHref = "/student/progress",
   desktopOnly = false,
+  markLinks = STUDENT_MARK_LINKS,
 }: {
   detail: ProgressDetail;
   /** The list on phones, keeping the chosen term. */
   backHref?: string;
   /** The index page's default subject: phones show the list instead. */
   desktopOnly?: boolean;
+  /** Where a mark opens; a parent opens homework only (quizzes are the
+   *  student's to take). */
+  markLinks?: MarkLinks;
 }) {
   const facts = [
     { k: "Mastery", v: detail.masteryPercent === null ? "-" : `${detail.masteryPercent}%` },
@@ -145,7 +149,7 @@ export function ProgressDetailPane({
             Nothing marked yet.
           </p>
         ) : (
-          detail.marks.map((m) => <MarkRow key={`${m.kind}-${m.id}`} mark={m} />)
+          detail.marks.map((m) => <MarkRow key={`${m.kind}-${m.id}`} mark={m} links={markLinks} />)
         )}
       </div>
     </section>
@@ -171,14 +175,20 @@ function markMeta(mark: RecentMark): string {
     .join(" · ");
 }
 
-function MarkRow({ mark }: { mark: RecentMark }) {
-  const href =
-    mark.kind === "quiz" ? `/student/quizzes/${mark.id}` : `/student/homework/${mark.id}`;
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 border-t border-[#EFF0F5] px-4 py-2.5 text-[#17152B] transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
-    >
+export type MarkLinks = { homework: string; quiz: string | null; query: string };
+
+const STUDENT_MARK_LINKS: MarkLinks = {
+  homework: "/student/homework",
+  quiz: "/student/quizzes",
+  query: "",
+};
+
+function MarkRow({ mark, links }: { mark: RecentMark; links: MarkLinks }) {
+  const base = mark.kind === "quiz" ? links.quiz : links.homework;
+  const className =
+    "flex items-center gap-3 border-t border-[#EFF0F5] px-4 py-2.5 text-[#17152B] transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400";
+  const body = (
+    <>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[14px] font-bold">{mark.title}</span>
         <span className="line-clamp-2 text-[12px] text-[#5E5A73]">{markMeta(mark)}</span>
@@ -186,7 +196,14 @@ function MarkRow({ mark }: { mark: RecentMark }) {
       <span className="shrink-0 text-[15px] font-extrabold tabular-nums">
         {mark.kind === "quiz" ? `${mark.correctCount} / ${mark.total}` : formatScore(mark.percent)}
       </span>
+    </>
+  );
+  return base ? (
+    <Link href={`${base}/${mark.id}${links.query}`} className={className}>
+      {body}
     </Link>
+  ) : (
+    <div className={cn(className, "hover:bg-transparent")}>{body}</div>
   );
 }
 
