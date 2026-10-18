@@ -183,7 +183,7 @@ export function CreateClassForm({
               rooms={rooms}
               slot={when}
               others={roomSlots}
-              inputClassName={FIELD}
+              fieldClassName={FIELD}
             />
           </Field>
         </Section>

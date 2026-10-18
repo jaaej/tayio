@@ -21,7 +21,7 @@ const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)
 
 /**
  * True when another class uses `name` at a time overlapping `slot`'s day and
- * time. "Online" is never taken. A warning only: it can still be chosen.
+ * time. "Online" is never taken. The Room list disables a taken room.
  */
 export function roomTaken(
   name: string,

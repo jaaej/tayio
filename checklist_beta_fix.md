@@ -13,13 +13,19 @@ Last updated: 18 October 2026
 
 ## Manual QA required
 
+- [ ] Subject edit page restyle (18 October 2026, handoff `taiyo-admin-classes-edit-2.zip`): sign in as admin at 1440px, 390px and on a touch device.
+  Open a subject's pencil: the subject is one row (name, level, colour swatches, Open curriculum); one class is open and the rest are one-line rows (name, day and time, tutor, room, "n of capacity"); clicking a row opens it and closes the other; a link to a class (`#class-<id>`) opens that class.
+  In the open class: rename it in the title; set the time in the one Time field; pick a room, confirm a taken one reads "· taken" and is disabled, pick "Other…", type a room, then × to get the old room back; switch Type; search and pick a student (it joins on save); hover a student to see Withdraw (always visible on a phone or iPad).
+  Add class opens a new class marked "Not saved"; Save with an error (no tutor) and confirm that class opens with the message.
+  Delete subject is the red link under the classes.
+
 - [ ] One lesson roll, one-on-one classes and one Room picker (18 October 2026): apply migration `0066_one_on_one_capacity.sql` to Production after the code is deployed (it goes with 0065; the previous build can save a one-on-one class with more than one place, which the new constraint refuses).
   Roll: open the same lesson as its tutor and in admin Attendance; both rolls list the same students with year levels and the same On leave / Free trial / Make-up pills.
   Open a make-up lesson as its tutor and confirm only the booked student is listed.
   One-on-one: on a class card pick One-on-one; Capacity reads "1 student", Save is refused while more than one student stays, and with one student the Add picker becomes "Withdraw to change student".
   Back to Group restores the saved size.
   New class with One-on-one shows "1 student".
-  Room: in New class pick a day and time another class uses and confirm that room's chip is crossed out, as on the class card.
+  Room: in New class pick a day and time another class uses and confirm that room reads "· taken" and cannot be picked, as on the class card.
 
 - [ ] Class card cleanup and staff-only attendance notes (18 October 2026): first apply migration `0065_class_card_cleanup.sql` to Production, after the code is deployed (the previous build reads the dropped columns).
   As admin at 1440px and 390px, open a subject's pencil: each class card has Day, Starts, Ends, Tutor, Room, Class name, Type and Capacity (no Online link or Subject), and student rows have only Withdraw (no Delivery or private note).
@@ -649,6 +655,15 @@ Small items: tutor destination named "Schedule & availability", "Open calendar" 
 
 ## Recently implemented
 
+- [x] Subject edit page restyled to the owner's second handoff (18 October 2026, `taiyo-admin-classes-edit-2.zip`; only the edit page design changed, the dialogs and Classes page designs are identical to the first handoff, already built).
+  `/admin/subjects/[id]/edit`: the subject in one row with 24px swatches (`ColourSwatches size="sm"`) and Open curriculum; classes as an accordion (`_components/class-editor.tsx`: `OpenClass`, `ClosedClass`), one open at a time, the `#class-<id>` target opened on arrival, and the first class with an error opened after a refused save.
+  The open class: name as an inline title, "22 lessons run", a quiet Delete class; Day, Time as one field (`time-range-field.tsx`, two native time inputs in one border), Tutor with the amber border and note when not free, Room; a light Type segmented control and a plain Capacity input (disabled at 1 for one-on-one); Students · n of capacity with an Add a student search (`student-search.tsx`, an ARIA combobox: arrows, Enter, Escape) and one line per student (name · school); the blue change notice last.
+  Room is now a list everywhere (`RoomPicker`, also New class): rooms in use, Online, "Other…" for a typed room (× puts the previous room back); a taken room reads "· taken" and is disabled, as the handoff asks (it was a warning before).
+  Deviation from the handoff, on the UI rules (`hover-vs-tap`): Withdraw shows on hover or focus with a mouse, and always on touch screens, where hover does not exist (`pointer-coarse:`).
+  Not applied from the handoff README: "subject names are unique", since names may repeat since 17 October 2026.
+  Still different: New class keeps its own Type control (dark selected) and capacity stepper; the edit page uses the handoff's light Type control and plain number.
+  Verified against dev: typecheck, lint, 561 tests, a production build, and browser runs at 1440px and 390px (no horizontal overflow) and with touch emulation: opening rows, Other… then ×, Add class, the student search, Withdraw visibility, New class's room list, and a capacity save through the new layout (8 to 9 to 8, checked in the database).
+
 - [x] One lesson roll for admin and tutor; one-on-one means one student; one Room picker (18 October 2026, owner request).
   Roll: `getLessonRoll` / `lessonRollIds` (`src/lib/lesson-roll.ts`, rule in `lesson-roll-rules.ts`, tested) build the roll for `/admin/attendance/[lessonId]` and `/tutor/lessons/[id]`, and both save actions (`adminSaveAttendance`, the tutor's `saveAttendance` and `saveLessonNote`) accept exactly those students.
   The admin roll gained year level, On leave, the free-trial note and profile links.
@@ -659,7 +674,8 @@ Small items: tutor destination named "Schedule & availability", "Open calendar" 
   A one-on-one class always has capacity 1 (`insertClass`, `applyClassEdit`, both forms show "1 student"); `saveSubjectPage` refuses a save that leaves one with more than one current student; the card hides Add once its student is in.
   Make-ups and class moves already refuse a full class, so capacity 1 covers them.
   Migration `0066_one_on_one_capacity.sql` adds `classes_one_on_one_capacity` and turned dev's 4-student one-on-one "Year 10 Maths · Wednesday PM" into a group (Production had no one-on-one classes).
-  Room: `RoomPicker` (`src/app/admin/classes/_components/room-picker.tsx`) is the Room field in New class and on the class card: type a room or pick a chip (rooms in use, then Online), crossed out when another weekly class uses it at that time (`roomTaken`, moved to `classes/_lib/rooms.ts` with its tests).
+  Room: `RoomPicker` (`src/app/admin/classes/_components/room-picker.tsx`) is the Room field in New class and on the class card, with taken rooms marked from `roomTaken` (moved to `classes/_lib/rooms.ts` with its tests).
+  Since the second handoff the same day it is a list, not chips (entry above).
   `RoomField` (the plain suggestion box) is gone.
   Verified against dev: typecheck, lint, 561 tests, a production build (isolated copy), migration 0066 applied and its constraint refusing a one-on-one class with 8 places, `db:check-rls`, and browser runs: the tutor and admin rolls of a regular lesson and two make-ups, a refused one-on-one save, an unsaved one-on-one card with one student, and New class on Monday 4-5:30 pm with Rooms 1 and 2 crossed out.
   Production: migration 0066 not applied yet (see Manual QA).

@@ -11,7 +11,7 @@ import {
   tutorAvailability,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { classDisplayName, classNameDetail } from "@/lib/class-display";
+import { classDisplayName } from "@/lib/class-display";
 import { formatDateShort } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
@@ -164,7 +164,7 @@ export default async function EditSubjectPage({
     list.push({
       id: r.studentId,
       name: `${r.firstName} ${r.lastName}`.trim(),
-      detail: studentDetail(r),
+      detail: r.school || r.email,
       saved: true,
       leaving: false,
     });
@@ -203,20 +203,15 @@ export default async function EditSubjectPage({
     const enrolled = roster.length;
     const ran = lessonsBy.get(c.id)?.ran ?? 0;
     const firstLesson = lessonsBy.get(c.id)?.first ?? null;
-    const meta = [
-      `${enrolled} ${enrolled === 1 ? "student" : "students"}`,
+    const history =
       ran > 0
         ? `${ran} ${ran === 1 ? "lesson" : "lessons"} run`
         : firstLesson
           ? `starts ${formatDateShort(firstLesson)}`
-          : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+          : null;
     return {
       id: c.id,
-      title: classNameDetail(subject.name, c.name) || c.name,
-      meta,
+      history,
       enrolled,
       parents: parentsBy.get(c.id) ?? 0,
       students: roster,
@@ -285,6 +280,7 @@ export default async function EditSubjectPage({
         id: r.id,
         name: `${r.firstName} ${r.lastName}`.trim(),
         detail: studentDetail(r),
+        short: r.school || r.email,
       }))}
     />
   );

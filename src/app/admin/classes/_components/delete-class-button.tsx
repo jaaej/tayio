@@ -83,7 +83,7 @@ export function DeleteClassButton({
     }
   }
 
-  const label = busy === "checking" ? "Checking…" : busy === "deleting" ? "Deleting…" : "Delete";
+  const label = busy === "checking" ? "Checking…" : busy === "deleting" ? "Deleting…" : "Delete class";
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -91,7 +91,7 @@ export function DeleteClassButton({
         type="button"
         onClick={onDelete}
         disabled={busy !== null}
-        className="flex h-[34px] items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-bold text-ink-soft transition-colors hover:bg-[#FDE8E8] hover:text-[#B42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-60"
+        className="flex h-8 items-center gap-1.5 rounded-[9px] px-2.5 text-[13px] font-bold text-[#5E5A73] transition-colors hover:bg-[#FDE8E8] hover:text-[#B42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-60 pointer-coarse:h-10"
       >
         <Trash2 className="h-[15px] w-[15px]" strokeWidth={1.9} aria-hidden />
         {label}

@@ -1,31 +1,36 @@
 "use client";
 
 import { useId } from "react";
+import { cn } from "@/lib/utils";
 import { SUBJECT_COLORS, subjectTone, type SubjectColor } from "@/lib/subject-tone";
 import { yearLevelOptions } from "../_lib/year-levels";
 import { SelectField } from "./class-fields";
 
 /**
- * The ten subject colours as swatches (radio group): 28px squares, a ring on
- * the chosen one. Shared by New subject and the subject edit page.
+ * The ten subject colours as swatches (radio group), a ring on the chosen
+ * one: 28px in New subject, 24px in the edit page's subject row.
  */
 export function ColourSwatches({
   value,
   onChange,
   labelledBy,
+  size = "md",
 }: {
   value: SubjectColor;
   onChange: (color: SubjectColor) => void;
   labelledBy: string;
+  /** `sm` (24px) where the swatches share a row with other fields. */
+  size?: "sm" | "md";
 }) {
   const name = useId();
+  const sm = size === "sm";
   return (
-    <div role="radiogroup" aria-labelledby={labelledBy} className="-m-[5px] flex flex-wrap">
+    <div role="radiogroup" aria-labelledby={labelledBy} className={cn("flex flex-wrap", sm ? "-m-1" : "-m-[5px]")}>
       {SUBJECT_COLORS.map((key) => {
         const tone = subjectTone("", key);
         const on = key === value;
         return (
-          <label key={key} title={tone.label} className="cursor-pointer rounded-[12px] p-[5px]">
+          <label key={key} title={tone.label} className={cn("cursor-pointer rounded-[12px]", sm ? "p-1" : "p-[5px]")}>
             <input
               type="radio"
               name={name}
@@ -37,7 +42,10 @@ export function ColourSwatches({
             />
             <span
               aria-hidden
-              className="block h-7 w-7 rounded-[9px] transition-shadow duration-150 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[6px] peer-focus-visible:outline-brand-400"
+              className={cn(
+                "block transition-shadow duration-150 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[6px] peer-focus-visible:outline-brand-400",
+                sm ? "h-6 w-6 rounded-[8px]" : "h-7 w-7 rounded-[9px]",
+              )}
               style={{
                 backgroundColor: tone.dot,
                 boxShadow: `0 0 0 2px #FFFFFF, 0 0 0 4px ${on ? "#17152B" : "transparent"}`,
