@@ -140,6 +140,8 @@ export function InteractiveTimetable({
   canSelfServe = true,
   glass = false,
   aside,
+  staffActions,
+  shadedDates,
 }: {
   initialYear: number;
   initialMonth: number;
@@ -170,6 +172,12 @@ export function InteractiveTimetable({
   glass?: boolean;
   /** Extra rail panels below the selected lesson and credits. */
   aside?: ReactNode;
+  /** Staff viewing a student's timetable (admin): the selected lesson shows
+   *  these actions instead of the family's self-serve ones, and the class
+   *  credits card is left out. */
+  staffActions?: (lesson: TimetableChip) => ReactNode;
+  /** Days to shade on the month grid, e.g. the student's leave. */
+  shadedDates?: Set<string>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -539,7 +547,7 @@ export function InteractiveTimetable({
               </h2>
               {monthNav}
             </div>
-            <MonthGrid year={view.year} month={view.month} chips={chips} onChipClick={onChipClick} />
+            <MonthGrid year={view.year} month={view.month} chips={chips} shadedDates={shadedDates} onChipClick={onChipClick} />
             {legend}
           </section>
         ) : (
@@ -550,7 +558,7 @@ export function InteractiveTimetable({
               </h2>
               {monthNav}
             </div>
-            <MonthGrid year={view.year} month={view.month} chips={chips} onChipClick={onChipClick} />
+            <MonthGrid year={view.year} month={view.month} chips={chips} shadedDates={shadedDates} onChipClick={onChipClick} />
             {legend}
           </section>
         )}
@@ -576,6 +584,7 @@ export function InteractiveTimetable({
                   onCancel={() => setMode({ kind: "cancel-confirm", lessonId: selected.id })}
                   onAbortCancel={() => setMode({ kind: "idle" })}
                   onConfirmCancel={confirmCancel}
+                  staffActions={staffActions}
                 />
               ) : (
                 <p className="p-4 text-[13px] text-muted">
@@ -585,7 +594,7 @@ export function InteractiveTimetable({
             </div>
           </RailCard>
 
-          {canSelfServe && credits.length > 0 && (
+          {canSelfServe && !staffActions && credits.length > 0 && (
             <RailCard glass={glass} title="Class credits" titleId="timetable-credits">
               <ul className="p-1.5">
                 {credits.map((c) => {
@@ -709,6 +718,7 @@ function SelectedLesson({
   onCancel,
   onAbortCancel,
   onConfirmCancel,
+  staffActions,
 }: {
   lesson: TimetableChip;
   canSelfServe: boolean;
@@ -724,6 +734,7 @@ function SelectedLesson({
   onCancel: () => void;
   onAbortCancel: () => void;
   onConfirmCancel: () => void;
+  staffActions?: (lesson: TimetableChip) => ReactNode;
 }) {
   const date = new Date(`${lesson.date}T00:00:00`);
   const weekday = date.toLocaleDateString("en-AU", { weekday: "short" });
@@ -763,7 +774,9 @@ function SelectedLesson({
 
       {status && <p className="text-[13px] font-semibold text-ink-soft">{status}</p>}
 
-      {!canSelfServe ? (
+      {staffActions ? (
+        staffActions(lesson)
+      ) : !canSelfServe ? (
         <p className="flex gap-2.5 rounded-[12px] bg-[#F4F5F9] px-3 py-2.5 text-[13px] leading-[1.45] text-[#2E2944]">
           <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden />
           Can’t make it? Ask a parent to reschedule or cancel from their portal.
@@ -831,7 +844,7 @@ function SelectedLesson({
         </div>
       )}
 
-      {(subjectHref || showOffice) && (
+      {!staffActions && (subjectHref || showOffice) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {subjectHref && (
             <Link
