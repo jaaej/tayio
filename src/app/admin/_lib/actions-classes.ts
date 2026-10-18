@@ -171,12 +171,12 @@ export async function deleteClass(id: string) {
           body,
           href: "/student/timetable",
         })),
-        ...[...families.parentChild.keys()].map((parentId) => ({
+        ...[...families.parentChild].map(([parentId, childId]) => ({
           userId: parentId,
           channel: "in_app" as const,
           title: "Class removed",
           body,
-          href: "/parent",
+          href: `/parent?child=${childId}`,
         })),
       ]);
     }
