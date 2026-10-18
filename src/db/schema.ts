@@ -308,7 +308,10 @@ export const lessonNotes = pgTable("lesson_notes", {
   parentVisibleComment: text("parent_visible_comment"),
   internalNote: text("internal_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // Lesson counts look a lesson's notes up by lesson (migration 0072).
+  index("lesson_notes_lesson_student_idx").on(t.lessonId, t.studentId),
+]);
 
 export const attendance = pgTable(
   "attendance",
