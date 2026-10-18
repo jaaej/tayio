@@ -6,6 +6,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button, Empty } from "@/components/admin/ui";
 import { ActionSpinner } from "@/components/ui/loading-button";
 import { saveLessonNote } from "@/app/tutor/_actions";
+import { LESSON_NOTE_SHARED_FIELDS, NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
 import { cn } from "@/lib/utils";
 
 export const NOTE_FIELDS = [
@@ -25,6 +26,8 @@ export type NoteStudent = {
   id: string;
   name: string;
   isMakeup: boolean;
+  /** Marked absent (or moved out of this lesson): no note is needed. */
+  absent: boolean;
   /** The saved note, or null when none has been written yet. */
   note: NoteValues | null;
   savedAt: string | null;
@@ -49,6 +52,10 @@ const savedFmt = new Intl.DateTimeFormat("en-AU", {
   minute: "2-digit",
 });
 
+const LABEL = Object.fromEntries(
+  LESSON_NOTE_SHARED_FIELDS.map((field) => [field.key, field.label]),
+) as Record<(typeof LESSON_NOTE_SHARED_FIELDS)[number]["key"], string>;
+
 const FIELD_CLS =
   "w-full rounded-[10px] border border-line-strong bg-surface px-2.5 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10";
 
@@ -69,7 +76,12 @@ export function LessonNotesEditor({
   const formId = useId();
   const [pending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState(
-    () => (students.find((s) => !s.note) ?? students[0])?.id ?? null,
+    () =>
+      (
+        students.find((s) => !s.absent && !s.note) ??
+        students.find((s) => !s.absent) ??
+        students[0]
+      )?.id ?? null,
   );
   const [saved, setSaved] = useState<Record<string, { note: NoteValues | null; savedAt: string | null }>>(
     () => Object.fromEntries(students.map((s) => [s.id, { note: s.note, savedAt: s.savedAt }])),
@@ -79,7 +91,9 @@ export function LessonNotesEditor({
   );
   const [result, setResult] = useState<"saved" | "error" | null>(null);
 
-  const writtenCount = students.filter((s) => saved[s.id]?.note).length;
+  // Absent students need no note, so the count leaves them out.
+  const needed = students.filter((s) => !s.absent);
+  const writtenCount = needed.filter((s) => saved[s.id]?.note).length;
 
   if (students.length === 0 || !selectedId) {
     return (
@@ -145,14 +159,23 @@ export function LessonNotesEditor({
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 py-1.5 pl-3 pr-1.5">
         <h2 id={headingId} className="text-[16px] font-extrabold text-ink">
           Lesson notes{" "}
-          <span className="text-[13px] font-semibold tabular-nums text-ink-soft">
-            · {writtenCount} of {students.length} written
-          </span>
+          {needed.length > 0 && (
+            <span className="text-[13px] font-semibold tabular-nums text-ink-soft">
+              · {writtenCount} of {needed.length} written
+            </span>
+          )}
         </h2>
         <div role="tablist" aria-label="Student" className="flex flex-wrap gap-1">
           {students.map((s) => {
             const on = s.id === student.id;
             const written = Boolean(saved[s.id]?.note);
+            const state = s.absent
+              ? written
+                ? "absent, note written"
+                : "absent, no note needed"
+              : written
+                ? "note written"
+                : "no note yet";
             return (
               <button
                 key={s.id}
@@ -162,7 +185,7 @@ export function LessonNotesEditor({
                 aria-selected={on}
                 aria-controls={`${formId}-panel`}
                 onClick={() => select(s.id)}
-                title={`${s.name}${s.isMakeup ? " (make-up)" : ""} - ${written ? "note written" : "no note yet"}`}
+                title={`${s.name}${s.isMakeup ? " (make-up)" : ""} - ${state}`}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold transition-colors duration-150",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
@@ -173,10 +196,16 @@ export function LessonNotesEditor({
               >
                 <span
                   aria-hidden
-                  className={cn("h-[7px] w-[7px] rounded-full", written ? "bg-[#16A34A]" : "bg-[#E8890C]")}
+                  className={cn(
+                    "h-[7px] w-[7px] rounded-full",
+                    written ? "bg-[#16A34A]" : s.absent ? "bg-[#B4B2C2]" : "bg-[#E8890C]",
+                  )}
                 />
                 {firstName(s.name)}
-                <span className="sr-only">{written ? ", note written" : ", no note yet"}</span>
+                {s.absent && (
+                  <span className={cn("font-semibold", on ? "text-white/75" : "text-muted")}>Absent</span>
+                )}
+                <span className="sr-only">, {state}</span>
               </button>
             );
           })}
@@ -200,22 +229,23 @@ export function LessonNotesEditor({
         >
           <div className="flex items-center justify-between gap-2">
             <span id={`${formId}-shared`} className="text-[13px] font-extrabold text-good">
-              Parent and student will see this
+              {NOTE_VISIBILITY.shared}
             </span>
             <span className="truncate text-[12px] text-muted">
               {student.name}
               {student.isMakeup ? " · Make-up attendee" : ""}
+              {student.absent ? " · Absent" : ""}
             </span>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
-            <Field label="Topic covered" value={draft.topicCovered} onChange={(v) => update("topicCovered", v)} placeholder="e.g. Quadratic equations" />
-            <Field label="Performance" value={draft.performance} onChange={(v) => update("performance", v)} placeholder="e.g. Engaged, on track" />
-            <Field label="Strengths" value={draft.strengths} onChange={(v) => update("strengths", v)} />
-            <Field label="Struggled with" value={draft.struggles} onChange={(v) => update("struggles", v)} />
+            <Field label={LABEL.topicCovered} value={draft.topicCovered} onChange={(v) => update("topicCovered", v)} placeholder="e.g. Quadratic equations" />
+            <Field label={LABEL.performance} value={draft.performance} onChange={(v) => update("performance", v)} placeholder="e.g. Engaged, on track" />
+            <Field label={LABEL.strengths} value={draft.strengths} onChange={(v) => update("strengths", v)} />
+            <Field label={LABEL.struggles} value={draft.struggles} onChange={(v) => update("struggles", v)} />
           </div>
-          <Field label="Next lesson focus" value={draft.nextLessonFocus} onChange={(v) => update("nextLessonFocus", v)} />
+          <Field label={LABEL.nextLessonFocus} value={draft.nextLessonFocus} onChange={(v) => update("nextLessonFocus", v)} />
           <Field
-            label="Comment"
+            label={LABEL.parentVisibleComment}
             multiline
             value={draft.parentVisibleComment}
             onChange={(v) => update("parentVisibleComment", v)}
@@ -225,7 +255,7 @@ export function LessonNotesEditor({
 
         <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2.5 rounded-[14px] bg-[#FFF8EC] p-3.5">
           <label htmlFor={`${formId}-internal`} className="text-[13px] font-extrabold text-[#8A4A06]">
-            Only you and admin see this
+            {NOTE_VISIBILITY.internal}
           </label>
           <textarea
             id={`${formId}-internal`}

@@ -1,12 +1,11 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, min, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, min, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
   enrollments,
   homework,
   homeworkAssignments,
-  lessonNotes,
   lessons,
   profiles,
   quizzes,
@@ -15,8 +14,9 @@ import {
 } from "@/db/schema";
 import { getLessonWeek } from "@/lib/week-plans";
 import { getCoverBoardRows } from "@/lib/tutor-cover";
+import type { LessonCounts } from "@/lib/lesson-progress";
+import { lessonCountFields } from "@/lib/lesson-progress-sql";
 import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
-import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { TUTOR_QUIZ_TODO_STATUSES } from "./nav-badges";
 import { quizWeekPlanHrefs } from "./quiz-week";
 import { tutorHomeworkFilter } from "./homework-access";
@@ -40,6 +40,8 @@ export type DayLesson = {
   place: string | null;
   recordingUrl: string | null;
   studentCount: number;
+  /** Roll and note counts, for `describeLesson`. */
+  counts: LessonCounts;
 };
 
 function lessonSelect() {
@@ -56,11 +58,13 @@ function lessonSelect() {
       lessonLocation: lessons.location,
       classLocation: classes.location,
       recordingUrl: lessons.recordingUrl,
+      status: lessons.status,
       studentCount: sql<number>`(
         select count(*)::int from ${enrollments}
         where ${enrollments.classId} = ${lessons.classId}
           and ${enrollments.withdrawnAt} is null
       )`,
+      ...lessonCountFields,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
@@ -83,6 +87,17 @@ function toDayLesson(r: LessonRow): DayLesson {
     place: location,
     recordingUrl: r.recordingUrl,
     studentCount: r.studentCount,
+    counts: {
+      id: r.id,
+      date: r.date,
+      startTime: r.startTime,
+      endTime: r.endTime,
+      status: r.status,
+      roster: r.roster,
+      marked: r.marked,
+      absent: r.absent,
+      notesWritten: r.notesWritten,
+    },
   };
 }
 
@@ -192,67 +207,6 @@ export async function getMarkingSummary(tutorId: string): Promise<MarkingSummary
       ? { firstName: first.firstName, lastName: first.lastName, title: first.title }
       : null,
   };
-}
-
-export type MissingNotesByClass = {
-  classId: string;
-  className: string;
-  subjectName: string;
-  dates: string[];
-  /** The class's oldest lesson still missing a note. */
-  oldestLessonId: string;
-};
-
-/**
- * Lessons from the last 7 days that have finished and have no note from this
- * tutor yet, grouped by class, oldest class first.
- */
-export async function getMissingNotesByClass(
-  tutorId: string,
-  now: Date,
-): Promise<MissingNotesByClass[]> {
-  const today = melbourneDate(now);
-  const rows = await db
-    .select({
-      lessonId: lessons.id,
-      classId: lessons.classId,
-      className: classes.name,
-      subjectName: subjects.name,
-      date: lessons.date,
-      endTime: lessons.endTime,
-    })
-    .from(lessons)
-    .innerJoin(classes, eq(classes.id, lessons.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .leftJoin(
-      lessonNotes,
-      and(eq(lessonNotes.lessonId, lessons.id), eq(lessonNotes.tutorId, tutorId)),
-    )
-    .where(
-      and(
-        eq(lessons.tutorId, tutorId),
-        gte(lessons.date, addIsoDays(today, -7)),
-        lte(lessons.date, today),
-        notInArray(lessons.status, [...NOT_RUN]),
-        isNull(lessonNotes.id),
-      ),
-    )
-    .orderBy(asc(lessons.date), asc(lessons.startTime));
-
-  const byClass = new Map<string, MissingNotesByClass>();
-  for (const r of rows) {
-    if (lessonStartInstant(r.date, r.endTime).getTime() > now.getTime()) continue;
-    const entry = byClass.get(r.classId) ?? {
-      classId: r.classId,
-      className: r.className,
-      subjectName: r.subjectName,
-      dates: [],
-      oldestLessonId: r.lessonId,
-    };
-    entry.dates.push(r.date);
-    byClass.set(r.classId, entry);
-  }
-  return [...byClass.values()];
 }
 
 export type QuizRequest = {

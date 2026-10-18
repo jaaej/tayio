@@ -23,7 +23,7 @@ export default async function LessonDetailPage({
 }) {
   const { id } = await params;
   const { from } = await searchParams;
-  const cameFromSchedule = from === "schedule";
+  const cameFrom = from === "schedule" || from === "class" ? from : null;
   const tutor = await requireTutor();
   // Scoped to lessons this tutor teaches; 404s otherwise.
   const { lesson, notes } = await getLessonForTutor(tutor.id, id);
@@ -52,6 +52,7 @@ export default async function LessonDetailPage({
       id: s.id,
       name: s.name,
       isMakeup: Boolean(s.makeupFrom),
+      absent: s.status === "absent",
       savedAt: n ? n.createdAt.toISOString() : null,
       note: n
         ? {
@@ -84,9 +85,11 @@ export default async function LessonDetailPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         back={
-          cameFromSchedule
+          cameFrom === "schedule"
             ? { href: "/tutor/timetable", label: "Back to Schedule & availability" }
-            : { href: "/tutor", label: "Back to Today" }
+            : cameFrom === "class" && ownsClass
+              ? { href: `/tutor/classes/${lesson.classId}/lessons`, label: "Back to class" }
+              : { href: "/tutor", label: "Back to Today" }
         }
         eyebrow={
           <>

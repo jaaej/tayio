@@ -16,18 +16,13 @@ import {
   termWeekLabel,
   type LessonView,
 } from "@/lib/lesson-progress";
+import { LESSON_ACTION_LABEL } from "@/app/tutor/_lib/lessons-to-finish";
 
 const DONE_PAGE = 10;
 
 const dow = new Intl.DateTimeFormat("en-AU", { weekday: "short" });
 const month = new Intl.DateTimeFormat("en-AU", { month: "short" });
 
-const ACTION_LABEL: Record<LessonView["action"], string> = {
-  open: "Open lesson",
-  attendance: "Mark attendance",
-  notes: "Finish notes",
-  view: "View",
-};
 
 export default async function TutorClassLessonsPage({
   params,
@@ -195,14 +190,14 @@ function WeekBlock({ lesson: l, week }: RowProps) {
 function ActionLink({ lesson: l, className }: { lesson: LessonView; className?: string }) {
   return (
     <Link
-      href={`/tutor/lessons/${l.id}`}
+      href={`/tutor/lessons/${l.id}?from=class`}
       className={buttonVariants({
         variant: l.action !== "view" ? "primary" : "outline",
         size: "sm",
         className,
       })}
     >
-      {ACTION_LABEL[l.action]}
+      {LESSON_ACTION_LABEL[l.action]}
     </Link>
   );
 }

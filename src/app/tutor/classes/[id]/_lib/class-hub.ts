@@ -13,6 +13,7 @@ import {
 import { COVER_TIME_ZONE, melbourneDate } from "@/lib/tutor-cover-rules";
 import { weekNumberOn } from "@/lib/week-plan-rules";
 import { addDays, mondayOf, type LessonCounts } from "@/lib/lesson-progress";
+import { lessonCountFields } from "@/lib/lesson-progress-sql";
 
 // Data behind the class page (shared header + tabs). Wrapped in React
 // `cache` so the layout and the tab page share one query per request.
@@ -114,25 +115,7 @@ export const getClassLessonCounts = cache(
         startTime: lessons.startTime,
         endTime: lessons.endTime,
         status: lessons.status,
-        // Spelled out with table names: Drizzle drops the table prefix from
-        // columns in a single-table select, which would turn these
-        // correlated subqueries into self-comparisons.
-        roster: sql<number>`(
-          select count(*)::int from enrollments e
-          where e.class_id = lessons.class_id and e.withdrawn_at is null
-        )`,
-        marked: sql<number>`(
-          select count(*)::int from attendance a
-          where a.lesson_id = lessons.id
-        )`,
-        absent: sql<number>`(
-          select count(*)::int from attendance a
-          where a.lesson_id = lessons.id and a.status = 'absent'
-        )`,
-        notesWritten: sql<number>`(
-          select count(distinct n.student_id)::int from lesson_notes n
-          where n.lesson_id = lessons.id and n.tutor_id = lessons.tutor_id
-        )`,
+        ...lessonCountFields,
       })
       .from(lessons)
       .where(

@@ -68,14 +68,24 @@ export function AttendanceRow({
             )}
           </span>
           {hasTags && (
-            <span className="flex flex-wrap gap-1.5">
+            <span className="flex min-w-0 flex-wrap gap-1.5">
               {student.onLeave && <Pill tone="warn">On leave</Pill>}
               {student.onTrial && <Pill tone="info">Free trial</Pill>}
+              {/* A lesson label can be long: the pill stays one line and
+                  shortens, with the whole label on hover. */}
               {student.movedOutTo && (
-                <Pill tone="warn">Rescheduled → {student.movedOutTo}</Pill>
+                <span title={`Rescheduled → ${student.movedOutTo}`} className="flex min-w-0 max-w-full">
+                  <Pill tone="warn" className="min-w-0 max-w-full">
+                    <span className="truncate">Rescheduled → {student.movedOutTo}</span>
+                  </Pill>
+                </span>
               )}
               {student.makeupFrom && (
-                <Pill tone="mint">Make-up ← {student.makeupFrom}</Pill>
+                <span title={`Make-up ← ${student.makeupFrom}`} className="flex min-w-0 max-w-full">
+                  <Pill tone="mint" className="min-w-0 max-w-full">
+                    <span className="truncate">Make-up ← {student.makeupFrom}</span>
+                  </Pill>
+                </span>
               )}
             </span>
           )}

@@ -35,9 +35,6 @@ function isoDateLocal(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
-function todayDateString() {
-  return isoDateLocal(new Date());
-}
 
 export async function getTutorClasses(tutorId: string) {
   const rows = await db
@@ -348,6 +345,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
       note: attendance.note,
       markedAt: attendance.markedAt,
       lessonDate: lessons.date,
+      lessonTutorId: lessons.tutorId,
       className: classes.name,
     })
     .from(attendance)
@@ -447,7 +445,8 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       startTime: lessons.startTime,
       endTime: lessons.endTime,
       status: lessons.status,
-      location: lessons.location,
+      // A make-up lesson has no room of its own: it is taught in the class's.
+      location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
       recordingUrl: lessons.recordingUrl,
       classId: classes.id,
       className: classes.name,
@@ -510,29 +509,6 @@ export async function getPendingMarkCount(tutorId: string) {
       and(
         tutorHomeworkFilter(tutorId),
         inArray(homeworkAssignments.status, ["submitted", "late"]),
-      ),
-    );
-  return count ?? 0;
-}
-
-export async function getPendingNotesCount(tutorId: string) {
-  // Lessons in the past where this tutor has not yet written any note.
-  const today = todayDateString();
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(lessons)
-    .leftJoin(
-      lessonNotes,
-      and(
-        eq(lessonNotes.lessonId, lessons.id),
-        eq(lessonNotes.tutorId, tutorId),
-      ),
-    )
-    .where(
-      and(
-        eq(lessons.tutorId, tutorId),
-        sql`${lessons.date} <= ${today}`,
-        sql`${lessonNotes.id} is null`,
       ),
     );
   return count ?? 0;

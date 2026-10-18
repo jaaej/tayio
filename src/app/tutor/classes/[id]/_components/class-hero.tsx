@@ -62,7 +62,7 @@ export async function ClassHero({
       actions={
         todays && (
           <Link
-            href={`/tutor/lessons/${todays.id}`}
+            href={`/tutor/lessons/${todays.id}?from=class`}
             className={`${HERO_ACTION} gap-1.5`}
             style={{ color: fg }}
           >

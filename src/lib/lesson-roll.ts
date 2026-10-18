@@ -28,14 +28,16 @@ export type RollLesson = {
 
 /**
  * Who is on a lesson's roll (`rollMemberIds`): a credit make-up and a student
- * who has since left the class are on it through their attendance. The admin
- * and tutor rolls and both save actions use this one rule.
+ * who has since left the class are on it through their attendance, and a
+ * student who joined the class after the lesson is not on it. The admin and
+ * tutor rolls, both save actions and the lesson counts
+ * (`lessonCountFields`) use this one rule.
  */
 export async function lessonRollIds(
   lesson: Pick<RollLesson, "id" | "classId" | "status">,
 ): Promise<Set<string>> {
   const [regular, movedIn, marked] = await Promise.all([
-    lesson.status === "makeup" ? Promise.resolve([]) : classRosterIds(lesson.classId),
+    lesson.status === "makeup" ? Promise.resolve([]) : classRosterOnDate(lesson),
     db
       .select({ studentId: rescheduleRequests.studentId })
       .from(rescheduleRequests)
@@ -62,6 +64,22 @@ function classRosterIds(classId: string) {
     .select({ studentId: enrollments.studentId })
     .from(enrollments)
     .where(and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)));
+}
+
+/** The class's current students who had enrolled by the lesson date (Melbourne). */
+function classRosterOnDate(lesson: Pick<RollLesson, "id" | "classId">) {
+  return db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.classId, lesson.classId),
+        isNull(enrollments.withdrawnAt),
+        sql`(${enrollments.enrolledAt} at time zone 'Australia/Melbourne')::date <= (
+          select l.date from lessons l where l.id = ${lesson.id}
+        )`,
+      ),
+    );
 }
 
 /**

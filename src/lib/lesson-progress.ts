@@ -13,12 +13,12 @@ export type LessonCounts = {
   startTime: string;
   endTime: string;
   status: string;
-  /** Active enrolments in the class. */
+  /** Students on the lesson's roll (`lessonCountFields` in lesson-progress-sql). */
   roster: number;
   /** Students with any attendance row for the lesson. */
   marked: number;
   absent: number;
-  /** Distinct students with a lesson note from the lesson's tutor. */
+  /** Distinct students who were not absent with a lesson note. */
   notesWritten: number;
 };
 
