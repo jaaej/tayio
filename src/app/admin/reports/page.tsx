@@ -16,6 +16,7 @@ import {
   getClassMetricRows,
 } from "@/app/admin/_lib/reports-queries";
 import { toClassReportRow, rollupOrgWide } from "@/app/admin/_lib/reports-metrics";
+import { classEditHref } from "@/app/admin/_lib/class-links";
 import { TermSelect } from "./_components/term-select";
 
 export const dynamic = "force-dynamic";
@@ -184,7 +185,7 @@ export default async function ReportsPage({
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/admin/classes/${r.classId}`}
+                        href={classEditHref(r.subjectId, r.classId)}
                         className="flex items-center gap-2 font-bold text-ink hover:text-brand-600"
                       >
                         <SubjectDot subject={r.subjectName} color={r.subjectColor} />

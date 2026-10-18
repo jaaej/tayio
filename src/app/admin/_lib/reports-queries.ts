@@ -76,6 +76,7 @@ export async function getClassMetricRows(term: {
   const classRows = await db
     .select({
       classId: classes.id,
+      subjectId: classes.subjectId,
       className: classes.name,
       subjectName: subjects.name,
       subjectColor: subjects.color,
@@ -154,6 +155,7 @@ export async function getClassMetricRows(term: {
 
   return classRows.map((c) => ({
     classId: c.classId,
+    subjectId: c.subjectId,
     className: c.className,
     subjectName: c.subjectName,
     subjectColor: c.subjectColor,

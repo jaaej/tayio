@@ -19,6 +19,7 @@ import {
   type ClassSlot,
 } from "@/lib/class-schedule-change";
 import { applyScheduleChangePlan, classFamilies, loadSlotLessons } from "./class-lessons";
+import { classEditHref } from "./class-links";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -144,7 +145,7 @@ export async function insertClass(
       channel: "in_app" as const,
       title: "Class created",
       body: `${details} · Assigned to ${assignedTo}`,
-      href: `/admin/classes/${row.id}`,
+      href: classEditHref(data.subjectId, row.id),
       dedupeKey: `class-created:${row.id}:admin`,
     })),
   ]);

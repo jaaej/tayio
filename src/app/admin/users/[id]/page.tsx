@@ -59,6 +59,7 @@ import { ROLE_AVATAR } from "../_components/role-style";
 import { normaliseYearLevel } from "../_lib/directory-list";
 import { ListLink, ProfileTabLinks } from "../_components/list-link";
 import { getProfileFacts } from "../_lib/profile-facts";
+import { classEditHref } from "@/app/admin/_lib/class-links";
 import { getStudentHistory } from "../_lib/student-history";
 import {
   AttendanceHistoryList,
@@ -391,7 +392,7 @@ export default async function UserDetailPage({
           {tutorRecord.classes.map((c) => (
             <li key={c.id}>
               <Link
-                href={`/admin/classes/${c.id}`}
+                href={classEditHref(c.subjectId, c.id)}
                 className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2 sm:px-5"
               >
                 <span className="min-w-0 truncate text-[14px] font-bold text-ink">

@@ -57,6 +57,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { distinctSubjects } from "@/lib/subject-label";
+import { classEditHref } from "./class-links";
 
 function isoDate(d: Date) {
   // Local calendar date, not UTC - matches local dates in lesson/date columns.
@@ -247,6 +248,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       studentLast: student.lastName,
       className: classes.name,
       classId: classes.id,
+      subjectId: classes.subjectId,
     })
     .from(enrollments)
     .innerJoin(student, eq(student.id, enrollments.studentId))
@@ -291,7 +293,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       at: r.at,
       title: `${r.studentFirst} ${r.studentLast} enrolled`,
       meta: r.className,
-      href: `/admin/classes/${r.classId}`,
+      href: classEditHref(r.subjectId, r.classId),
     });
   }
   for (const r of paymentRows) {
@@ -1127,9 +1129,8 @@ export type TutorWeeklyAvailability = {
  * in the roster are visible rather than silently dropped.
  *
  * Each slot carries the subject it is scoped to (null = any subject), and each
- * tutor carries the subjects they teach - derived from their assigned classes,
- * the same source getTutorDirectory() uses - so the editor can offer one scope
- * per subject the tutor actually teaches.
+ * tutor carries the subjects they teach - derived from their assigned classes -
+ * so the editor can offer one scope per subject the tutor actually teaches.
  */
 export async function getTutorWeeklyAvailabilityBoard(): Promise<
   TutorWeeklyAvailability[]
@@ -1238,116 +1239,11 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
   return Array.from(byTutor.values());
 }
 
-export type TutorDirectoryEntry = {
-  tutorId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string | null;
-  subjects: string[];
-  classes: Array<{
-    classId: string;
-    className: string;
-    subjectName: string;
-    weekday: number | null;
-    startTime: string | null;
-    endTime: string | null;
-  }>;
-  bank: {
-    accountName: string | null;
-    bsb: string | null;
-    accountNumber: string | null;
-    hourlyRate: string | null;
-    note: string | null;
-  } | null;
-};
-
-/**
- * Owner-only tutor directory: every active tutor with the subjects they teach
- * (derived from their assigned classes), their class schedule, and their
- * payroll bank details (migration 0035). PII - the page that calls this is
- * gated by requireUnrestrictedAdmin().
- */
-export async function getTutorDirectory(): Promise<TutorDirectoryEntry[]> {
-  const tutors = await db
-    .select({
-      tutorId: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-    })
-    .from(profiles)
-    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
-    .orderBy(asc(profiles.firstName), asc(profiles.lastName));
-  if (tutors.length === 0) return [];
-
-  const tutorIds = tutors.map((t) => t.tutorId);
-
-  const classRows = await db
-    .select({
-      tutorId: classes.tutorId,
-      classId: classes.id,
-      className: classes.name,
-      subjectName: subjects.name,
-      weekday: classes.weekday,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-    })
-    .from(classes)
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(inArray(classes.tutorId, tutorIds))
-    .orderBy(asc(classes.weekday), asc(classes.startTime));
-
-  const bankRows = await db
-    .select()
-    .from(tutorBankDetails)
-    .where(inArray(tutorBankDetails.tutorId, tutorIds));
-  const bankByTutor = new Map(bankRows.map((b) => [b.tutorId, b]));
-
-  const classesByTutor = new Map<string, TutorDirectoryEntry["classes"]>();
-  const subjectsByTutor = new Map<string, Set<string>>();
-  for (const c of classRows) {
-    if (!classesByTutor.has(c.tutorId)) classesByTutor.set(c.tutorId, []);
-    classesByTutor.get(c.tutorId)!.push({
-      classId: c.classId,
-      className: c.className,
-      subjectName: c.subjectName,
-      weekday: c.weekday,
-      startTime: c.startTime,
-      endTime: c.endTime,
-    });
-    if (!subjectsByTutor.has(c.tutorId)) subjectsByTutor.set(c.tutorId, new Set());
-    subjectsByTutor.get(c.tutorId)!.add(c.subjectName);
-  }
-
-  return tutors.map((t) => {
-    const bank = bankByTutor.get(t.tutorId);
-    return {
-      tutorId: t.tutorId,
-      firstName: t.firstName,
-      lastName: t.lastName,
-      email: t.email,
-      phone: t.phone,
-      subjects: Array.from(subjectsByTutor.get(t.tutorId) ?? []).sort(),
-      classes: classesByTutor.get(t.tutorId) ?? [],
-      bank: bank
-        ? {
-            accountName: bank.accountName,
-            bsb: bank.bsb,
-            accountNumber: bank.accountNumber,
-            hourlyRate: bank.hourlyRate,
-            note: bank.note,
-          }
-        : null,
-    };
-  });
-}
-
 export type TutorRecord = {
   classes: Array<{
     id: string;
     name: string;
+    subjectId: string;
     subjectName: string;
     studentCount: number;
   }>;
@@ -1361,8 +1257,8 @@ export type TutorRecord = {
 };
 
 /**
- * One tutor's teaching record: the classes they take and their bank details.
- * Sibling of getTutorDirectory(), which returns the whole board.
+ * One tutor's teaching record for their profile's Tutor tab: the classes
+ * they take and their bank details.
  *
  * `bank` is only populated when includeBank is true. The caller passes the
  * result of isUnrestrictedAdmin, because tutor_bank_details is payroll PII
@@ -1379,6 +1275,7 @@ export async function getTutorRecord(
     .select({
       id: classes.id,
       name: classes.name,
+      subjectId: classes.subjectId,
       subjectName: subjects.name,
       studentCount: sql<number>`count(${enrollments.studentId})::int`,
     })
@@ -1389,7 +1286,7 @@ export async function getTutorRecord(
       and(eq(enrollments.classId, classes.id), isNull(enrollments.withdrawnAt)),
     )
     .where(eq(classes.tutorId, tutorId))
-    .groupBy(classes.id, classes.name, subjects.name)
+    .groupBy(classes.id, classes.name, classes.subjectId, subjects.name)
     .orderBy(asc(subjects.name), asc(classes.name));
 
   if (!includeBank) return { classes: classRows, bank: null };

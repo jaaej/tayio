@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { and, eq, gte, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -23,19 +23,21 @@ import {
 } from "@/components/admin/ui";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { WeekTimeGrid, type TimeGridEvent } from "@/components/data/week-time-grid";
+import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
+import { LESSON_OFF_STATUSES } from "@/lib/lesson-progress-sql";
 import { formatTime, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
-import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { SubjectPanel } from "./_components/subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
 import { roomChoices, type RoomUse } from "./_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "./_lib/tutor-fit";
 import { SubjectBlock } from "../_components/subject-block";
+import { classEditHref } from "../_lib/class-links";
 
 export const dynamic = "force-dynamic";
 
@@ -202,60 +204,6 @@ export default async function ClassesPage({
       /* invalid date: stay on this week */
     }
   }
-  const weekLessons = isMonth
-    ? []
-    : await db
-        .select({
-          id: lessons.id,
-          classId: lessons.classId,
-          date: lessons.date,
-          startTime: lessons.startTime,
-          endTime: lessons.endTime,
-          className: classes.name,
-          subjectId: subjects.id,
-          subjectName: subjects.name,
-          subjectYearLevel: subjects.yearLevel,
-          subjectColor: subjects.color,
-          capacity: classes.capacity,
-          room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
-          tutorFirst: profiles.firstName,
-          tutorLast: profiles.lastName,
-          enrolled: sql<number>`(
-            select count(*)::int from ${enrollments}
-            where ${enrollments.classId} = ${lessons.classId}
-              and ${enrollments.withdrawnAt} is null
-          )`,
-        })
-        .from(lessons)
-        .innerJoin(classes, eq(classes.id, lessons.classId))
-        .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-        .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
-        .where(
-          and(
-            gte(lessons.date, weekStart),
-            lt(lessons.date, addIsoDays(weekStart, 7)),
-            ne(lessons.status, "cancelled"),
-            tutorFilter ? eq(lessons.tutorId, tutorFilter) : undefined,
-          ),
-        );
-
-  const events: TimeGridEvent[] = weekLessons.map((l) => ({
-    id: l.id,
-    date: l.date,
-    startTime: l.startTime,
-    endTime: l.endTime,
-    label: l.subjectName,
-    title: classDisplayName(l.subjectName, l.className),
-    subject: l.subjectName,
-    subjectColor: l.subjectColor,
-    meta: [`${l.tutorFirst} ${l.tutorLast}`.trim(), l.room].filter(Boolean).join(" · "),
-    badge: `${l.enrolled}/${l.capacity}`,
-    href: `/admin/classes/${l.classId}`,
-  }));
-  const unscheduled = rows.filter(
-    (c) => !c.isRecurring || c.weekday === null || !c.startTime || !c.endTime,
-  );
-
   // Month navigation keys. The default month is Melbourne's, not the
   // server's (UTC) - early on the 1st they differ.
   let year = Number(todayIso.slice(0, 4));
@@ -267,6 +215,85 @@ export default async function ClassesPage({
       month = mm - 1;
     }
   }
+
+  // Both views draw real lessons, so term dates, holidays, cancellations,
+  // make-ups and moved lessons show as they will actually happen. The month
+  // grid starts on the Monday on or before the 1st and runs six weeks.
+  const firstOfMonth = isoFromParts(year, month, 1);
+  const rangeStart = isMonth ? weekStartForIsoDate(firstOfMonth) : weekStart;
+  const rangeEnd = addIsoDays(rangeStart, isMonth ? 42 : 7);
+  const scheduleLessons = await db
+    .select({
+      id: lessons.id,
+      classId: lessons.classId,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      subjectYearLevel: subjects.yearLevel,
+      subjectColor: subjects.color,
+      capacity: classes.capacity,
+      room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
+      tutorFirst: profiles.firstName,
+      tutorLast: profiles.lastName,
+      enrolled: sql<number>`(
+        select count(*)::int from ${enrollments}
+        where ${enrollments.classId} = ${lessons.classId}
+          and ${enrollments.withdrawnAt} is null
+      )`,
+    })
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .innerJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .where(
+      and(
+        gte(lessons.date, rangeStart),
+        lt(lessons.date, rangeEnd),
+        notInArray(lessons.status, [...LESSON_OFF_STATUSES]),
+        tutorFilter ? eq(lessons.tutorId, tutorFilter) : undefined,
+      ),
+    )
+    .orderBy(lessons.date, lessons.startTime);
+
+  // A lesson opens its roll, as on the dashboard's schedule.
+  const events: TimeGridEvent[] = scheduleLessons.map((l) => ({
+    id: l.id,
+    date: l.date,
+    startTime: l.startTime,
+    endTime: l.endTime,
+    label: l.subjectName,
+    title: classDisplayName(l.subjectName, l.className),
+    subject: l.subjectName,
+    subjectColor: l.subjectColor,
+    meta: [`${l.tutorFirst} ${l.tutorLast}`.trim(), l.room].filter(Boolean).join(" · "),
+    badge: `${l.enrolled}/${l.capacity}`,
+    href: `/admin/attendance/${l.id}`,
+  }));
+  const monthChips: MonthChip[] = scheduleLessons.map((l) => {
+    const tone = subjectTone(l.subjectName, l.subjectColor);
+    const tutorName = `${l.tutorFirst} ${l.tutorLast}`.trim();
+    return {
+      id: l.id,
+      date: l.date,
+      label: formatTime(l.startTime),
+      sublabel: l.subjectName,
+      sortKey: l.startTime,
+      tone: "rounded-[8px]",
+      style: { backgroundColor: tone.bg, color: tone.fg },
+      href: `/admin/attendance/${l.id}`,
+      title: [classDisplayName(l.subjectName, l.className), formatTimeRange(l.startTime, l.endTime), tutorName, l.room]
+        .filter(Boolean)
+        .join(" · "),
+      ariaLabel: `${classDisplayName(l.subjectName, l.className)}, ${formatTime(l.startTime)}, ${tutorName}`,
+    };
+  });
+  const unscheduled = rows.filter(
+    (c) => !c.isRecurring || c.weekday === null || !c.startTime || !c.endTime,
+  );
+
   const mKey = (y: number, monthIndex: number) =>
     isoFromParts(y, monthIndex, 1).slice(0, 7);
 
@@ -295,22 +322,14 @@ export default async function ClassesPage({
   const roomSlots: RoomUse[] = allRows
     .filter((r) => r.isRecurring && r.weekday !== null)
     .map((r) => ({ weekday: r.weekday, startTime: r.startTime, endTime: r.endTime, room: r.location }));
-  const shownSubjects = isMonth
-    ? rows
-        .filter((r) => r.isRecurring && r.weekday !== null)
-        .map((r) => ({
-          id: r.subjectId,
-          name: r.subject,
-          yearLevel: r.subjectYearLevel,
-          color: r.subjectColor,
-        }))
-    : weekLessons.map((l) => ({
-        id: l.subjectId,
-        name: l.subjectName,
-        yearLevel: l.subjectYearLevel,
-        color: l.subjectColor,
-      }));
-  const legend = distinctSubjects(shownSubjects);
+  const legend = distinctSubjects(
+    scheduleLessons.map((l) => ({
+      id: l.subjectId,
+      name: l.subjectName,
+      yearLevel: l.subjectYearLevel,
+      color: l.subjectColor,
+    })),
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -461,7 +480,9 @@ export default async function ClassesPage({
         ) : (
           <>
             {isMonth ? (
-              <MonthView rows={rows} year={year} month={month} todayIso={todayIso} />
+              <div className="p-3">
+                <MonthGrid year={year} month={month} chips={monthChips} />
+              </div>
             ) : (
               <WeekTimeGrid
                 events={events}
@@ -498,7 +519,7 @@ export default async function ClassesPage({
                   {unscheduled.map((c) => (
                     <li key={c.id} className="min-w-0">
                       <Link
-                        href={`/admin/classes/${c.id}`}
+                        href={classEditHref(c.subjectId, c.id)}
                         className="flex min-h-11 items-center gap-3 rounded-[12px] border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
                       >
                         <SubjectDot subject={c.subject} color={c.subjectColor} className="h-2.5 w-2.5" />
@@ -519,167 +540,6 @@ export default async function ClassesPage({
           </>
         )}
       </GlassPanel>
-    </div>
-  );
-}
-
-type ClassRow = {
-  id: string;
-  name: string;
-  capacity: number;
-  location: string | null;
-  weekday: number | null;
-  startTime: string | null;
-  endTime: string | null;
-  isRecurring: boolean;
-  tutorId: string;
-  subject: string;
-  subjectColor: string | null;
-  tutorFirst: string;
-  tutorLast: string;
-  enrolled: number;
-};
-
-function MonthView({
-  rows,
-  year,
-  month,
-  todayIso,
-}: {
-  rows: ClassRow[];
-  year: number;
-  /** 0-based */
-  month: number;
-  /** Melbourne date */
-  todayIso: string;
-}) {
-  // JS weekday of the 1st (0 = Sun), on a UTC date so the server zone
-  // never shifts it.
-  const firstDow = new Date(Date.UTC(year, month, 1)).getUTCDay();
-  const mondayOffset = (firstDow + 6) % 7;
-
-  // Index classes by weekday (0=Sun..6=Sat)
-  const classesByWeekday = new Map<number, ClassRow[]>();
-  for (const c of rows) {
-    if (!c.isRecurring || c.weekday === null) continue;
-    if (!classesByWeekday.has(c.weekday)) classesByWeekday.set(c.weekday, []);
-    classesByWeekday.get(c.weekday)!.push(c);
-  }
-  for (const list of classesByWeekday.values()) {
-    list.sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
-  }
-
-  const days: Array<{
-    iso: string;
-    dayNum: number;
-    weekday: number;
-    inMonth: boolean;
-    isToday: boolean;
-  }> = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(Date.UTC(year, month, 1 - mondayOffset + i));
-    const iso = d.toISOString().slice(0, 10);
-    days.push({
-      iso,
-      dayNum: d.getUTCDate(),
-      weekday: d.getUTCDay(),
-      inMonth: d.getUTCMonth() === month,
-      isToday: iso === todayIso,
-    });
-  }
-  let usedRows = 6;
-  while (
-    usedRows > 4 &&
-    days.slice((usedRows - 1) * 7, usedRows * 7).every((d) => !d.inMonth)
-  )
-    usedRows--;
-  const visibleDays = days.slice(0, usedRows * 7);
-
-  return (
-    <div className="overflow-x-auto overscroll-x-contain">
-      <div className="min-w-[760px] p-3">
-        <div className="mb-1 grid grid-cols-7 gap-1.5">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div
-              key={d}
-              className="py-2 text-center text-[12px] font-extrabold tracking-[0.04em] text-muted"
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {visibleDays.map((d) => {
-            const dayClasses = classesByWeekday.get(d.weekday) ?? [];
-            return (
-              <div
-                key={d.iso}
-                className={cn(
-                  "flex min-h-[132px] flex-col gap-1.5 rounded-[12px] border p-2",
-                  d.isToday
-                    ? "border-brand-300 bg-brand-50"
-                    : d.inMonth
-                      ? "border-line bg-surface"
-                      : "border-line/60 bg-surface-2/60",
-                )}
-              >
-                <div className="px-0.5">
-                  {d.isToday ? (
-                    <span
-                      aria-current="date"
-                      className="inline-grid h-[26px] min-w-[26px] place-items-center rounded-full bg-ink px-1 text-[13px] font-extrabold tabular-nums text-white"
-                    >
-                      {d.dayNum}
-                    </span>
-                  ) : (
-                    <span
-                      className={cn(
-                        "inline-grid h-[26px] items-center text-[14px] font-extrabold tabular-nums",
-                        d.inMonth ? "text-ink" : "text-muted-2",
-                      )}
-                    >
-                      {d.dayNum}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1 overflow-hidden">
-                  {dayClasses.slice(0, 3).map((c) => {
-                    const tone = subjectTone(c.subject, c.subjectColor);
-                    return (
-                      <Link
-                        key={c.id}
-                        href={`/admin/classes/${c.id}`}
-                        className="block rounded-[8px] px-1.5 py-1 text-[11px] leading-tight transition-[filter] hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                        style={{ backgroundColor: tone.bg, color: tone.fg }}
-                        title={`${classDisplayName(c.subject, c.name)} · ${c.tutorFirst} ${c.tutorLast}${
-                          c.startTime && c.endTime
-                            ? ` · ${formatTimeRange(c.startTime, c.endTime)}`
-                            : ""
-                        }`}
-                      >
-                        <div className="truncate font-extrabold">{c.subject}</div>
-                        {c.startTime && (
-                          <div className="font-semibold tabular-nums">
-                            {formatTime(c.startTime)}
-                          </div>
-                        )}
-                        <div className="truncate opacity-90">
-                          {c.tutorFirst} {c.tutorLast}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                  {dayClasses.length > 3 && (
-                    <div className="px-1 text-[11px] font-semibold text-muted">
-                      +{dayClasses.length - 3} more
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
