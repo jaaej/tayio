@@ -1,19 +1,22 @@
 "use client";
 
+import { TimeSelect } from "@/components/ui/time-select";
+import { endTimeAfterStartChange } from "@/app/admin/classes/_lib/class-time";
 import { cn } from "@/lib/utils";
 
-const TIME =
-  "h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] tabular-nums text-ink outline-none [&::-webkit-calendar-picker-indicator]:hidden";
+const PART =
+  "h-full min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-[14px] tabular-nums text-ink outline-none";
 
 /**
- * A class's start and end as one field: "5:00 pm to 6:30 pm". Two native time
- * inputs share one border, so typing and the phone time wheel still work.
+ * A class's start and end as one field: "5:00 pm to 6:30 pm". Two dropdowns
+ * share one border. Moving the start keeps the lesson's length.
  */
 export function TimeRangeField({
   labelledBy,
   start,
   end,
   onChange,
+  lessonMinutes,
   className,
 }: {
   /** The visible "Time" label. */
@@ -21,6 +24,8 @@ export function TimeRangeField({
   start: string;
   end: string;
   onChange: (times: { startTime: string; endTime: string }) => void;
+  /** The usual lesson length, for an end time when there is none yet. */
+  lessonMinutes: number;
   /** Border, height and radius of the field, from the form. */
   className?: string;
 }) {
@@ -33,22 +38,27 @@ export function TimeRangeField({
         className,
       )}
     >
-      <input
-        type="time"
+      <TimeSelect
         aria-label="Starts"
+        placeholder="Start"
         value={start}
-        onChange={(e) => onChange({ startTime: e.target.value, endTime: end })}
-        className={TIME}
+        onChange={(next) =>
+          onChange({
+            startTime: next,
+            endTime: endTimeAfterStartChange({ previousStart: start, previousEnd: end, nextStart: next, lessonMinutes }),
+          })
+        }
+        className={PART}
       />
       <span aria-hidden className="text-[14px] text-[#9A9AAD]">
         to
       </span>
-      <input
-        type="time"
+      <TimeSelect
         aria-label="Ends"
+        placeholder="End"
         value={end}
-        onChange={(e) => onChange({ startTime: start, endTime: e.target.value })}
-        className={TIME}
+        onChange={(next) => onChange({ startTime: start, endTime: next })}
+        className={PART}
       />
     </div>
   );

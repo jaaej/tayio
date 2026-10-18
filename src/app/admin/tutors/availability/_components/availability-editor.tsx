@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import { TimeSelect } from "@/components/ui/time-select";
 import { X } from "lucide-react";
 import {
   addTutorAvailabilityRule,
@@ -223,21 +224,11 @@ export function TutorAvailabilityEditor({
         </label>
         <label className={LABEL}>
           From
-          <input
-            type="time"
-            className={INPUT}
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-          />
+          <TimeSelect placeholder="From" className={INPUT} value={start} onChange={setStart} />
         </label>
         <label className={LABEL}>
           To
-          <input
-            type="time"
-            className={INPUT}
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-          />
+          <TimeSelect placeholder="To" className={INPUT} value={end} onChange={setEnd} />
         </label>
         <Button type="button" onClick={add} disabled={pending} className="h-[38px]">
           Add slot

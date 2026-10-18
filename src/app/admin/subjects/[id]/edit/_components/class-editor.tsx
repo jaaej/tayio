@@ -139,6 +139,7 @@ export function OpenClass({
   tutorWindows,
   classSlots,
   rooms,
+  lessonMinutes,
   others,
   candidates,
   notice,
@@ -159,6 +160,7 @@ export function OpenClass({
   tutorWindows: TutorWeeklyWindow[];
   classSlots: (TutorClassSlot & { classId: string })[];
   rooms: string[];
+  lessonMinutes: number;
   others: RoomUse[];
   candidates: (StudentOption & { short: string })[];
   notice: string | null;
@@ -267,6 +269,7 @@ export function OpenClass({
               start={card.current.startTime}
               end={card.current.endTime}
               onChange={onSlot}
+              lessonMinutes={lessonMinutes}
               className="h-10 rounded-[11px] border border-[#DCDEE9] bg-white px-3"
             />
           </div>

@@ -83,6 +83,7 @@ export function SubjectEditForm({
   classes,
   tutors,
   rooms,
+  lessonMinutes,
   otherSlots,
   tutorWindows,
   classSlots,
@@ -94,6 +95,8 @@ export function SubjectEditForm({
   tutors: { id: string; name: string; firstName: string; lastName: string }[];
   /** The Room list: rooms any class uses, then "Online". */
   rooms: string[];
+  /** The usual lesson length, for a new class's end time. */
+  lessonMinutes: number;
   /** Every weekly class's saved slot and room, to mark a room taken. */
   otherSlots: OtherSlot[];
   /** Tutors' weekly availability, to rank them for each class's slot. */
@@ -424,6 +427,7 @@ export function SubjectEditForm({
                 tutorWindows={tutorWindows}
                 classSlots={classSlots}
                 rooms={rooms}
+                lessonMinutes={lessonMinutes}
                 others={others}
                 candidates={students}
                 notice={notice}

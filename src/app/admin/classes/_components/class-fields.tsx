@@ -5,6 +5,7 @@ import { ChevronDown, Clock } from "lucide-react";
 import { formatTimeRange } from "@/lib/format";
 import { classTimeRangeError } from "@/lib/recurring-lesson-rules";
 import { cn } from "@/lib/utils";
+import { TimeSelect } from "@/components/ui/time-select";
 import { durationLabel, endTimeAfterStartChange } from "../_lib/class-time";
 
 /*
@@ -52,6 +53,25 @@ export function Field({
       </label>
       {children}
     </div>
+  );
+}
+
+/** A time dropdown in the field style (see `TimeSelect`), with a chevron. */
+function TimeField({
+  invalid,
+  ...props
+}: React.ComponentProps<typeof TimeSelect> & { invalid?: boolean }) {
+  return (
+    <span className="relative block min-w-0">
+      <TimeSelect
+        {...props}
+        className={cn(FIELD, "appearance-none pr-9 text-[14px]", invalid && "border-bad focus:border-bad")}
+      />
+      <ChevronDown
+        aria-hidden
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+      />
+    </span>
   );
 }
 
@@ -284,13 +304,12 @@ export function WhenFields({
 
       <div className="grid grid-cols-2 gap-3">
         <Field id={startId} label="Starts">
-          <input
+          <TimeField
             id={startId}
             name="startTime"
-            type="time"
+            placeholder="Start"
             value={start}
-            onChange={(e) => {
-              const next = e.target.value;
+            onChange={(next) => {
               setEnd((prevEnd) =>
                 endTimeAfterStartChange({
                   previousStart: start,
@@ -302,19 +321,18 @@ export function WhenFields({
               setStart(next);
             }}
             aria-describedby={`${idPrefix}-summary`}
-            className={FIELD}
           />
         </Field>
         <Field id={endId} label="Ends">
-          <input
+          <TimeField
             id={endId}
             name="endTime"
-            type="time"
+            placeholder="End"
             value={end}
-            onChange={(e) => setEnd(e.target.value)}
+            onChange={setEnd}
             aria-invalid={rangeError ? true : undefined}
             aria-describedby={`${idPrefix}-summary`}
-            className={cn(FIELD, rangeError && "border-bad focus:border-bad")}
+            invalid={Boolean(rangeError)}
           />
         </Field>
       </div>

@@ -17,6 +17,7 @@ import { subjectTone } from "@/lib/subject-tone";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { STUDENT_TIERS } from "@/lib/roles";
 import { roomChoices } from "@/app/admin/classes/_lib/rooms";
+import { usualLessonMinutes } from "@/app/admin/classes/_lib/class-time";
 import type { TutorClassSlot, TutorWeeklyWindow } from "@/app/admin/classes/_lib/tutor-fit";
 import { SubjectEditForm, type EditClass } from "./_components/subject-edit-form";
 import type { CardStudent } from "./_lib/class-card";
@@ -250,6 +251,7 @@ export default async function EditSubjectPage({
       classes={editClasses}
       tutors={tutors}
       rooms={roomChoices(allSlots.map((s) => s.room))}
+      lessonMinutes={usualLessonMinutes(allSlots)}
       otherSlots={allSlots.map((s) => ({
         classId: s.id,
         weekday: s.weekday,
