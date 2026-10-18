@@ -233,10 +233,6 @@ export async function getOneOnOneSlots(
 
 // --- Execution primitives ---------------------------------------------------
 
-function rescheduleNote(reason: string): string {
-  return reason ? `Rescheduled: ${reason}` : "Rescheduled";
-}
-
 type ExecResult = { ok: true } | { ok: false; error: string };
 
 type MakeupResult = { ok: true; lessonId: string } | { ok: false; error: string };
@@ -373,12 +369,13 @@ export async function executeMakeupReschedule(p: {
       status: "makeup",
       rescheduledFrom: original.id,
     }).returning({ id: lessons.id });
-    await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId, tx);
+    await markStudentAbsent(original.id, p.studentId, p.actorId, tx);
+    // The roll shows where the student came from (getLessonRoll); the reason
+    // stays on the reschedule request, not in the staff roll note.
     await tx.insert(attendance).values({
       lessonId: newLesson.id,
       studentId: p.studentId,
       status: "makeup_attended",
-      note: rescheduleNote(p.reason),
       markedBy: p.actorId,
     });
     if (p.pendingRequestId) {
@@ -466,21 +463,19 @@ export async function executeSessionSwitch(p: {
     return { ok: false, error: "That session just filled up - pick another." };
   }
 
-  await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
+  await markStudentAbsent(original.id, p.studentId, p.actorId);
   await db
     .insert(attendance)
     .values({
       lessonId: target.id,
       studentId: p.studentId,
       status: "makeup_attended",
-      note: rescheduleNote(p.reason),
       markedBy: p.actorId,
     })
     .onConflictDoUpdate({
       target: [attendance.lessonId, attendance.studentId],
       set: {
         status: "makeup_attended",
-        note: rescheduleNote(p.reason),
         markedBy: p.actorId,
         markedAt: new Date(),
       },
@@ -520,10 +515,16 @@ export async function hasPriorReschedule(
   return rows.length > 0;
 }
 
+/**
+ * Mark the student absent from a lesson they moved or cancelled. The reason
+ * stays where the move or cancellation keeps it (the reschedule request, the
+ * cancellation, the credit), and the roll shows the move from there
+ * (getLessonRoll), so nothing is written into the staff roll note and a note
+ * the tutor wrote is left as it is.
+ */
 export async function markStudentAbsent(
   lessonId: string,
   studentId: string,
-  reason: string,
   actorId: string,
   executor: DbExecutor = db,
 ) {
@@ -533,14 +534,12 @@ export async function markStudentAbsent(
       lessonId,
       studentId,
       status: "absent",
-      note: rescheduleNote(reason),
       markedBy: actorId,
     })
     .onConflictDoUpdate({
       target: [attendance.lessonId, attendance.studentId],
       set: {
         status: "absent",
-        note: rescheduleNote(reason),
         markedBy: actorId,
         markedAt: new Date(),
       },

@@ -215,17 +215,17 @@ export async function rescheduleStudentLesson(
       rescheduledFrom: original.id,
     }).returning({ id: lessons.id });
 
+    // The rolls show the move from the reschedule request below, which keeps
+    // the reason; a roll note the tutor wrote is left as it is.
     await tx.insert(attendance).values({
       lessonId: original.id,
       studentId,
       status: "absent",
-      note: reason ? `Rescheduled by admin: ${reason}` : "Rescheduled by admin",
       markedBy: admin.id,
     }).onConflictDoUpdate({
       target: [attendance.lessonId, attendance.studentId],
       set: {
         status: "absent",
-        note: reason ? `Rescheduled by admin: ${reason}` : "Rescheduled by admin",
         markedBy: admin.id,
         markedAt: new Date(),
       },
@@ -234,7 +234,6 @@ export async function rescheduleStudentLesson(
       lessonId: newLesson.id,
       studentId,
       status: "makeup_attended",
-      note: reason ? `Make-up: ${reason}` : "Make-up scheduled by admin",
       markedBy: admin.id,
     });
     await tx.insert(rescheduleRequests).values({

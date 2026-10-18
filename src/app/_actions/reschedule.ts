@@ -351,7 +351,7 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
     };
   }
 
-  await markStudentAbsent(lessonId, studentId, reason, user.id);
+  await markStudentAbsent(lessonId, studentId, user.id);
   await grantCredit({
     studentId,
     subjectId: original.subjectId,
@@ -360,6 +360,7 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
     fromLessonId: lessonId,
     grantedById: user.id,
     expiresAt: term.endDate,
+    requestReason: reason,
   });
 
   const recipients = new Set<string>([original.tutorId]);

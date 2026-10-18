@@ -94,7 +94,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
   if (ids.size === 0) return [];
   const studentIds = [...ids];
 
-  const [people, marks, { movedOut, movedIn }, regular, leave, trials, credits] =
+  const [people, marks, { movedOut, movedIn }, regular, leave, trials, credits, creditedOut] =
     await Promise.all([
       db
         .select({
@@ -127,6 +127,11 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
         .select({ studentId: classCredits.studentId, fromLessonId: classCredits.grantedFromLessonId })
         .from(classCredits)
         .where(eq(classCredits.redeemedOnLessonId, lesson.id)),
+      // Students who took a class credit instead of this lesson.
+      db
+        .select({ studentId: classCredits.studentId })
+        .from(classCredits)
+        .where(eq(classCredits.grantedFromLessonId, lesson.id)),
     ]);
 
   const markBy = new Map(marks.map((m) => [m.studentId, m]));
@@ -135,6 +140,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
   const onLeave = new Set(leave.map((r) => r.studentId));
   const trialBy = new Map(trials.map((t) => [t.studentId, t]));
   const makeupFrom = new Map(movedIn.map((m) => [m.studentId, m.fromLabel]));
+  const tookCredit = new Set(creditedOut.map((c) => c.studentId));
   for (const c of credits) {
     if (makeupFrom.has(c.studentId)) continue;
     makeupFrom.set(c.studentId, c.fromLessonId ? await lessonFromLabel(c.fromLessonId) : "Credit");
@@ -155,6 +161,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
       trialNote: trial?.note?.trim() || null,
       inClass: inClass.has(p.id),
       ...(inClass.has(p.id) && movedOutTo.has(p.id) && { movedOutTo: movedOutTo.get(p.id) }),
+      ...(!movedOutTo.has(p.id) && tookCredit.has(p.id) && { tookCredit: true }),
       ...(joined && { makeupFrom: joined }),
     };
   });

@@ -148,6 +148,8 @@ export async function grantCredit(
     fromLessonId: string | null;
     grantedById: string;
     expiresAt: string;
+    /** The family's own words, for a credit they asked for (no reschedule slot). */
+    requestReason?: string | null;
   },
   executor: DbExecutor = db,
 ): Promise<string> {
@@ -161,6 +163,7 @@ export async function grantCredit(
       grantedFromLessonId: p.fromLessonId,
       grantedById: p.grantedById,
       expiresAt: p.expiresAt,
+      requestReason: p.requestReason?.trim() || null,
     })
     .returning({ id: classCredits.id });
   return row.id;
@@ -286,7 +289,7 @@ export async function cancelLesson(p: {
   // benefit. The notification goes out only after the transaction commits -
   // a failed notification must never roll back a real cancellation.
   const creditId = await db.transaction(async (tx) => {
-    await markStudentAbsent(p.lessonId, p.studentId, p.reason, p.actorId, tx);
+    await markStudentAbsent(p.lessonId, p.studentId, p.actorId, tx);
     const creditId = await grantCredit(
       {
         studentId: p.studentId,
@@ -696,11 +699,11 @@ export async function redeemCreditIntoSlot(p: {
         })
         .returning({ id: lessons.id });
 
+      // The roll labels a credit make-up from the credit (getLessonRoll).
       await tx.insert(attendance).values({
         lessonId: inserted.id,
         studentId: credit.studentId,
         status: "makeup_attended",
-        note: "Credit redeemed",
         markedBy: p.actorId,
       });
 

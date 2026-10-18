@@ -15,6 +15,8 @@ export type RollStudent = {
   onTrial: boolean;
   /** Set when the student moved out of this lesson: where they went. */
   movedOutTo?: string;
+  /** The student cancelled this lesson for a class credit. */
+  tookCredit?: boolean;
   /** Set when the student is here as a make-up: where they came from. */
   makeupFrom?: string;
   /** Profile link for the name, when the viewer may open it. */
@@ -45,7 +47,8 @@ export function AttendanceRow({
   const [note, setNote] = useState(student.note);
   const noteId = useId();
   const hasNote = note.trim().length > 0;
-  const hasTags = student.onLeave || student.onTrial || student.movedOutTo || student.makeupFrom;
+  const hasTags =
+    student.onLeave || student.onTrial || student.movedOutTo || student.tookCredit || student.makeupFrom;
 
   return (
     <li className="border-b border-line px-3 py-3 sm:px-4">
@@ -80,6 +83,7 @@ export function AttendanceRow({
                   </Pill>
                 </span>
               )}
+              {student.tookCredit && <Pill tone="warn">Cancelled for a credit</Pill>}
               {student.makeupFrom && (
                 <span title={`Make-up ← ${student.makeupFrom}`} className="flex min-w-0 max-w-full">
                   <Pill tone="mint" className="min-w-0 max-w-full">
