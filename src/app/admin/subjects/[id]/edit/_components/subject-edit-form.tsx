@@ -14,9 +14,11 @@ import { subjectDeletionItems } from "@/app/admin/_lib/deletion-copy";
 import { richText } from "@/app/admin/_components/rich-text";
 import { DeleteClassButton } from "@/app/admin/classes/_components/delete-class-button";
 import { SelectField } from "@/app/admin/classes/_components/class-fields";
+import { RoomPicker } from "@/app/admin/classes/_components/room-picker";
 import { ColourSwatches, LevelSelect } from "@/app/admin/classes/_components/subject-fields";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { subjectTone, type SubjectColor } from "@/lib/subject-tone";
+import { DEFAULT_GROUP_CAPACITY, oneOnOneError } from "@/lib/class-capacity";
 import { cn } from "@/lib/utils";
 import {
   rankTutorsForSlot,
@@ -27,7 +29,6 @@ import {
   changeNotice,
   detailsPatch,
   hasStudentChanges,
-  roomTaken,
   studentChanges,
   type CardDetails,
   type CardSlot,
@@ -166,6 +167,15 @@ export function SubjectEditForm({
     setClassErrors(({ [key]: _gone, ...rest }) => rest);
   }
 
+  /** One-on-one has one place; back to Group restores the saved size or the default. */
+  function setClassType(card: Card, classType: CardDetails["classType"]) {
+    const savedGroup = card.savedDetails?.classType === "group" ? card.savedDetails.capacity : null;
+    updateDetails(card.key, {
+      classType,
+      capacity: classType === "one_on_one" ? 1 : (savedGroup ?? DEFAULT_GROUP_CAPACITY),
+    });
+  }
+
   function updateStudents(key: string, list: CardStudent[]) {
     setCards((cs) => cs.map((c) => (c.key === key ? { ...c, students: list } : c)));
   }
@@ -183,7 +193,7 @@ export function SubjectEditForm({
         saved: null,
         current: { ...EMPTY_SLOT, tutorId: tutors.length === 1 ? tutors[0].id : "" },
         savedDetails: null,
-        details: { name: "", classType: "group", capacity: 8 },
+        details: { name: "", classType: "group", capacity: DEFAULT_GROUP_CAPACITY },
         students: [],
       },
     ]);
@@ -201,6 +211,9 @@ export function SubjectEditForm({
         errors[c.key] = "Choose a start and end time.";
       } else if (!Number.isInteger(capacity) || capacity < 1 || capacity > 200) {
         errors[c.key] = "Capacity must be a whole number from 1 to 200.";
+      } else {
+        const oneOnOne = oneOnOneError(c.details.classType, c.students.filter((s) => !s.leaving).length);
+        if (oneOnOne) errors[c.key] = oneOnOne;
       }
     }
     setClassErrors(errors);
@@ -560,42 +573,15 @@ export function SubjectEditForm({
                     <label htmlFor={ids.room} className={LBL}>
                       Room
                     </label>
-                    <input
+                    <RoomPicker
                       id={ids.room}
                       value={card.current.room}
-                      onChange={(e) => update(card.key, { room: e.target.value })}
-                      placeholder="Type a room"
-                      maxLength={200}
-                      autoComplete="off"
-                      className={cn(INPUT, roomChanged && "border-ink")}
+                      onChange={(room) => update(card.key, { room })}
+                      rooms={rooms}
+                      slot={card.current}
+                      others={others}
+                      inputClassName={cn(INPUT, roomChanged && "border-ink")}
                     />
-                    <div className="flex flex-wrap gap-1">
-                      {rooms.map((room) => {
-                        const selected =
-                          card.current.room.trim().toLowerCase() === room.toLowerCase();
-                        const taken = !selected && roomTaken(room, card.current, others);
-                        return (
-                          <button
-                            key={room}
-                            type="button"
-                            onClick={() => update(card.key, { room })}
-                            aria-pressed={selected}
-                            aria-label={taken ? `${room}, taken at this time` : room}
-                            title={taken ? "Taken at this time" : selected ? "Selected" : "Free at this time"}
-                            className={cn(
-                              "h-[26px] rounded-[13px] border px-[9px] text-[12px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                              selected
-                                ? "border-ink bg-ink text-white"
-                                : taken
-                                  ? "border-[#DCDEE9] bg-white text-[#9A9AAD] line-through"
-                                  : "border-[#DCDEE9] bg-white text-ink hover:bg-[#F6F7FA]",
-                            )}
-                          >
-                            {room}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
 
@@ -638,7 +624,7 @@ export function SubjectEditForm({
                               name={`${formId}-${card.key}-type`}
                               value={value}
                               checked={on}
-                              onChange={() => updateDetails(card.key, { classType: value })}
+                              onChange={() => setClassType(card, value)}
                               className="sr-only"
                             />
                             {label}
@@ -647,45 +633,54 @@ export function SubjectEditForm({
                       })}
                     </div>
                   </div>
-                  <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
-                    <label htmlFor={ids.capacity} className={LBL}>
-                      Capacity
-                    </label>
-                    <div className="flex h-10 items-center overflow-hidden rounded-[11px] border border-[#DCDEE9] bg-white focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10">
-                      <button
-                        type="button"
-                        aria-label="Decrease capacity"
-                        disabled={card.details.capacity <= 1}
-                        onClick={() =>
-                          updateDetails(card.key, { capacity: Math.max(1, card.details.capacity - 1) })
-                        }
-                        className={STEP}
-                      >
-                        −
-                      </button>
-                      <input
-                        id={ids.capacity}
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={200}
-                        value={Number.isNaN(card.details.capacity) ? "" : card.details.capacity}
-                        onChange={(e) => updateDetails(card.key, { capacity: e.target.valueAsNumber })}
-                        className="h-full min-w-0 flex-1 border-0 bg-transparent text-center text-[14px] font-bold tabular-nums text-ink outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <button
-                        type="button"
-                        aria-label="Increase capacity"
-                        disabled={card.details.capacity >= 200}
-                        onClick={() =>
-                          updateDetails(card.key, { capacity: Math.min(200, (card.details.capacity || 0) + 1) })
-                        }
-                        className={STEP}
-                      >
-                        +
-                      </button>
+                  {card.details.classType === "one_on_one" ? (
+                    <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+                      <span className={LBL}>Capacity</span>
+                      <span className="flex h-10 items-center rounded-[11px] bg-[#F1F2F7] px-3 text-[14px] font-bold text-ink-soft">
+                        1 student
+                      </span>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+                      <label htmlFor={ids.capacity} className={LBL}>
+                        Capacity
+                      </label>
+                      <div className="flex h-10 items-center overflow-hidden rounded-[11px] border border-[#DCDEE9] bg-white focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10">
+                        <button
+                          type="button"
+                          aria-label="Decrease capacity"
+                          disabled={card.details.capacity <= 1}
+                          onClick={() =>
+                            updateDetails(card.key, { capacity: Math.max(1, card.details.capacity - 1) })
+                          }
+                          className={STEP}
+                        >
+                          −
+                        </button>
+                        <input
+                          id={ids.capacity}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={200}
+                          value={Number.isNaN(card.details.capacity) ? "" : card.details.capacity}
+                          onChange={(e) => updateDetails(card.key, { capacity: e.target.valueAsNumber })}
+                          className="h-full min-w-0 flex-1 border-0 bg-transparent text-center text-[14px] font-bold tabular-nums text-ink outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <button
+                          type="button"
+                          aria-label="Increase capacity"
+                          disabled={card.details.capacity >= 200}
+                          onClick={() =>
+                            updateDetails(card.key, { capacity: Math.min(200, (card.details.capacity || 0) + 1) })
+                          }
+                          className={STEP}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {classErrors[card.key] && (
@@ -706,6 +701,7 @@ export function SubjectEditForm({
                 <ClassStudents
                   students={card.students}
                   capacity={card.details.capacity || 1}
+                  oneOnOne={card.details.classType === "one_on_one"}
                   candidates={students}
                   onChange={(list) => updateStudents(card.key, list)}
                 />

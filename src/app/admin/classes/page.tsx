@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { CreateClassPanel } from "./_components/create-class-panel";
 import { SubjectPanel } from "./_components/subject-panel";
 import { usualLessonMinutes } from "./_lib/class-time";
-import { roomChoices } from "./_lib/rooms";
+import { roomChoices, type RoomUse } from "./_lib/rooms";
 import type { TutorClassSlot, TutorWeeklyWindow } from "./_lib/tutor-fit";
 import { SubjectBlock } from "../_components/subject-block";
 
@@ -292,6 +292,9 @@ export default async function ClassesPage({
 
   const lessonMinutes = usualLessonMinutes(allRows);
   const rooms = roomChoices(allRows.map((r) => r.location));
+  const roomSlots: RoomUse[] = allRows
+    .filter((r) => r.isRecurring && r.weekday !== null)
+    .map((r) => ({ weekday: r.weekday, startTime: r.startTime, endTime: r.endTime, room: r.location }));
   const shownSubjects = isMonth
     ? rows
         .filter((r) => r.isRecurring && r.weekday !== null)
@@ -343,6 +346,7 @@ export default async function ClassesPage({
               classSlots={classSlots}
               subjects={subjectList}
               rooms={rooms}
+              roomSlots={roomSlots}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"
               defaultOpen={openCreate === "1"}
@@ -449,6 +453,7 @@ export default async function ClassesPage({
               classSlots={classSlots}
               subjects={subjectList}
               rooms={rooms}
+              roomSlots={roomSlots}
               lessonMinutes={lessonMinutes}
               triggerSize="lg"
             />

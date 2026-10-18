@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { PageHeader, SubjectDot, buttonVariants } from "@/components/admin/ui";
-import type { RollStudent } from "@/components/attendance/attendance-row";
 import { db } from "@/db/client";
 import { classes } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateShort, formatTimeRange, formatWeekday, yearLevelLabel } from "@/lib/format";
-import { getLessonReschedules } from "@/lib/reschedule";
+import { formatDateShort, formatTimeRange, formatWeekday } from "@/lib/format";
+import { getLessonRoll } from "@/lib/lesson-roll";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
-import { getLessonForTutor, getStudentTrialsOnDate, requireTutor } from "../../_data";
+import { getLessonForTutor, requireTutor } from "../../_data";
 import { LessonAttendance } from "./_components/lesson-attendance";
 import { LessonNotesEditor, type NoteStudent } from "./_components/lesson-notes-editor";
 import { RecordingCard } from "./_components/recording-card";
@@ -27,10 +26,10 @@ export default async function LessonDetailPage({
   const cameFromSchedule = from === "schedule";
   const tutor = await requireTutor();
   // Scoped to lessons this tutor teaches; 404s otherwise.
-  const { lesson, roster, notes } = await getLessonForTutor(tutor.id, id);
+  const { lesson, notes } = await getLessonForTutor(tutor.id, id);
 
-  const [{ movedOut, movedIn }, week, [cls]] = await Promise.all([
-    getLessonReschedules(id),
+  const [roll, week, [cls]] = await Promise.all([
+    getLessonRoll(lesson),
     getLessonWeek(lesson.classId, lesson.date),
     db
       .select({ tutorId: classes.tutorId })
@@ -42,41 +41,9 @@ export default async function LessonDetailPage({
   // would 404 for them, so those links only show for the class's own tutor.
   const ownsClass = cls?.tutorId === tutor.id;
 
-  const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
-  const rosterIds = new Set(roster.map((s) => s.id));
-  const makeups = movedIn.filter((m) => !rosterIds.has(m.studentId));
-  const makeupTrials = new Map(
-    (await getStudentTrialsOnDate(makeups.map((m) => m.studentId), lesson.date)).map(
-      (trial) => [trial.studentId, trial],
-    ),
-  );
-
-  const rollStudents: RollStudent[] = [
-    ...roster.map((s) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`.trim(),
-      status: s.attendanceStatus,
-      note: s.attendanceNote ?? "",
-      onTrial: s.onTrial,
-      trialNote: s.trialNote,
-      onLeave: s.onLeave,
-      detail: s.yearLevel ? yearLevelLabel(s.yearLevel) : null,
-      href: `/tutor/students/${s.id}`,
-      movedOutTo: movedOutById.get(s.id),
-    })),
-    ...makeups.map((m) => {
-      const trial = makeupTrials.get(m.studentId);
-      return {
-        id: m.studentId,
-        name: m.studentName,
-        status: m.attendanceStatus ?? "makeup_attended",
-        note: m.attendanceNote ?? "",
-        onTrial: Boolean(trial),
-        trialNote: trial?.note?.trim() || null,
-        makeupFrom: m.fromLabel,
-      };
-    }),
-  ];
+  // The class's own students link to their profile; anyone else on the roll
+  // (a make-up attendee) is not one of this tutor's students.
+  const rollStudents = roll.map((s) => (s.inClass ? { ...s, href: `/tutor/students/${s.id}` } : s));
 
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
   const noteStudents: NoteStudent[] = rollStudents.map((s) => {
@@ -144,8 +111,8 @@ export default async function LessonDetailPage({
         <LessonAttendance
           lessonId={lesson.id}
           students={rollStudents}
-          enrolledCount={roster.length}
-          makeupCount={makeups.length}
+          enrolledCount={roll.filter((s) => s.inClass).length}
+          makeupCount={roll.filter((s) => s.makeupFrom).length}
         />
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-5 lg:max-w-[420px]">
           <WeekPlanCard week={week} editHref={weekPlanHref} />

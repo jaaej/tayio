@@ -20,11 +20,14 @@ const ROW_BUTTON =
 export function ClassStudents({
   students,
   capacity,
+  oneOnOne,
   candidates,
   onChange,
 }: {
   students: CardStudent[];
   capacity: number;
+  /** A one-on-one class takes no second student; a group's capacity is a warning. */
+  oneOnOne: boolean;
   /** Every student account, to add from (those on the card are left out). */
   candidates: { id: string; name: string; detail: string }[];
   onChange: (students: CardStudent[]) => void;
@@ -60,7 +63,9 @@ export function ClassStudents({
             </span>
           )}
         </span>
-        {available.length > 0 ? (
+        {oneOnOne && full ? (
+          <span className="text-[13px] font-semibold text-[#5E5A73]">Withdraw to change student</span>
+        ) : available.length > 0 ? (
           <span className="flex min-w-0 items-center gap-1.5">
             <label htmlFor={pickerId} className="sr-only">
               Student to add

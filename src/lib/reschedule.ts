@@ -88,6 +88,12 @@ export async function getReschedulableLesson(
   return { ...rest, tutorName: `${tutorFirst} ${tutorLast}`.trim() };
 }
 
+/** A lesson as a make-up or move label: "<class> · <date> <time>". */
+export async function lessonFromLabel(lessonId: string): Promise<string> {
+  const t = await getReschedulableLesson(lessonId);
+  return t ? `${t.className} · ${formatDateLong(t.date)} ${formatTime(t.startTime)}` : "another session";
+}
+
 /** Is the student the owner of this lesson (enrolled in its class)? */
 export async function studentOwnsLesson(
   studentId: string,
@@ -731,10 +737,7 @@ export async function getLessonReschedules(
   for (const r of outRows) {
     let toLabel = "-";
     if (r.targetLessonId) {
-      const t = await getReschedulableLesson(r.targetLessonId);
-      toLabel = t
-        ? `${t.className} · ${formatDateLong(t.date)} ${formatTime(t.startTime)}`
-        : "another session";
+      toLabel = await lessonFromLabel(r.targetLessonId);
     } else if (r.targetDate && r.targetStart) {
       toLabel = `${formatDateLong(r.targetDate)} ${formatTime(r.targetStart)}`;
     }
@@ -771,15 +774,12 @@ export async function getLessonReschedules(
     );
   const movedIn: LessonRescheduleInfo["movedIn"] = [];
   for (const r of inRows) {
-    const o = await getReschedulableLesson(r.originalLessonId);
     movedIn.push({
       studentId: r.studentId,
       studentName: `${r.sf} ${r.sl}`.trim(),
       firstName: r.sf,
       lastName: r.sl,
-      fromLabel: o
-        ? `${o.className} · ${formatDateLong(o.date)} ${formatTime(o.startTime)}`
-        : "another session",
+      fromLabel: await lessonFromLabel(r.originalLessonId),
       attendanceStatus: r.attendanceStatus,
       attendanceNote: r.attendanceNote,
     });

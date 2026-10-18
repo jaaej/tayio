@@ -72,33 +72,6 @@ export function changeNotice(
   return `Tutor changed from ${people.oldTutorName}. ${tells}`;
 }
 
-const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-
-/**
- * True when another class uses `name` at a time overlapping this card's day
- * and time. "Online" is never taken. A warning only: it can still be chosen.
- */
-export function roomTaken(
-  name: string,
-  slot: Pick<CardSlot, "weekday" | "startTime" | "endTime">,
-  others: { weekday: number | null; startTime: string | null; endTime: string | null; room: string | null }[],
-): boolean {
-  const key = name.trim().toLowerCase();
-  if (!key || key === "online") return false;
-  if (slot.weekday === null || !slot.startTime || !slot.endTime) return false;
-  const start = minutes(slot.startTime);
-  const end = minutes(slot.endTime);
-  return others.some(
-    (o) =>
-      o.weekday === slot.weekday &&
-      o.startTime &&
-      o.endTime &&
-      o.room?.trim().toLowerCase() === key &&
-      minutes(o.startTime) < end &&
-      start < minutes(o.endTime),
-  );
-}
-
 /** A class card's fields beyond its slot (the old class page's details). */
 export type CardDetails = {
   name: string;

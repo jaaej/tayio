@@ -19,7 +19,6 @@ import {
   lessons,
   notifications,
   profiles,
-  rescheduleRequests,
   resources,
   subjects,
   subjectWeeks,
@@ -28,6 +27,7 @@ import {
   classWeekPlans,
 } from "@/db/schema";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
+import { lessonRollIds } from "@/lib/lesson-roll";
 import { BUCKET, removeCurriculumObject } from "@/lib/curriculum-storage";
 import {
   discardDirectUpload,
@@ -120,51 +120,18 @@ async function assertTeachesStudent(tutorId: string, studentId: string) {
 }
 
 /**
- * Lesson-scoped permission for attendance and notes. A temporary make-up
- * attendee may not be enrolled in any class normally taught by this tutor,
- * but an approved reschedule into this exact lesson still puts them on this
- * tutor's roll for this lesson only.
+ * Who the tutor may mark or write a lesson note for on a lesson they teach:
+ * its roll (`lessonRollIds`), the same rule admin uses. A make-up attendee is
+ * on this lesson's roll only; a make-up lesson's roll is only its bookings.
  */
-async function assertCanManageLessonStudent(
-  tutorId: string,
-  lessonId: string,
-  studentId: string,
-) {
-  const [regular, makeup] = await Promise.all([
-    db
-      .select({ id: enrollments.studentId })
-      .from(lessons)
-      .innerJoin(
-        enrollments,
-        and(
-          eq(enrollments.classId, lessons.classId),
-          isNull(enrollments.withdrawnAt),
-        ),
-      )
-      .where(
-        and(
-          eq(lessons.id, lessonId),
-          eq(lessons.tutorId, tutorId),
-          eq(enrollments.studentId, studentId),
-        ),
-      )
-      .limit(1),
-    db
-      .select({ id: rescheduleRequests.id })
-      .from(rescheduleRequests)
-      .innerJoin(lessons, eq(lessons.id, rescheduleRequests.targetLessonId))
-      .where(
-        and(
-          eq(lessons.id, lessonId),
-          eq(lessons.tutorId, tutorId),
-          eq(rescheduleRequests.studentId, studentId),
-          eq(rescheduleRequests.status, "approved"),
-        ),
-      )
-      .limit(1),
-  ]);
-
-  if (!regular[0] && !makeup[0]) throw new Error("Not authorised");
+async function ownedLessonRoll(tutorId: string, lessonId: string) {
+  const [lesson] = await db
+    .select({ id: lessons.id, classId: lessons.classId, status: lessons.status })
+    .from(lessons)
+    .where(and(eq(lessons.id, lessonId), eq(lessons.tutorId, tutorId)))
+    .limit(1);
+  if (!lesson) throw new Error("Lesson not found");
+  return lessonRollIds(lesson);
 }
 
 /** Send a task-specific reminder from the dashboard's Students to bump card.
@@ -288,7 +255,7 @@ export async function saveAttendance(formData: FormData) {
   const tutor = await requireTutor();
   const lessonId = String(formData.get("lessonId") ?? "");
   if (!lessonId) throw new Error("Missing lessonId");
-  await assertOwnsLesson(tutor.id, lessonId);
+  const roll = await ownedLessonRoll(tutor.id, lessonId);
 
   // Iterate each "status[<studentId>]" pair
   const entries: { studentId: string; status: string; note: string | null }[] = [];
@@ -305,7 +272,7 @@ export async function saveAttendance(formData: FormData) {
   for (const entry of entries) {
     const parsed = attendanceStatusSchema.safeParse(entry.status);
     if (!parsed.success) continue;
-    await assertCanManageLessonStudent(tutor.id, lessonId, entry.studentId);
+    if (!roll.has(entry.studentId)) throw new Error("Not authorised");
     await db
       .insert(attendance)
       .values({
@@ -335,8 +302,7 @@ export async function saveLessonNote(formData: FormData) {
   const lessonId = String(formData.get("lessonId") ?? "");
   const studentId = String(formData.get("studentId") ?? "");
   if (!lessonId || !studentId) throw new Error("Missing lessonId or studentId");
-  await assertOwnsLesson(tutor.id, lessonId);
-  await assertCanManageLessonStudent(tutor.id, lessonId, studentId);
+  if (!(await ownedLessonRoll(tutor.id, lessonId)).has(studentId)) throw new Error("Not authorised");
 
   const data = {
     topicCovered: optionalText(formData.get("topicCovered"), 5000),

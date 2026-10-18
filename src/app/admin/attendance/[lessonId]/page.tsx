@@ -1,23 +1,14 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { Empty, Pill } from "@/components/admin/ui";
 import { db } from "@/db/client";
-import {
-  attendance,
-  classes,
-  enrollments,
-  lessonNotes,
-  lessons,
-  profiles,
-  studentTrials,
-  subjects,
-} from "@/db/schema";
+import { classes, lessonNotes, lessons, profiles, subjects } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
 import { classDisplayName, classNameDetail } from "@/lib/class-display";
 import { subjectTone } from "@/lib/subject-tone";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
-import { getLessonReschedules } from "@/lib/reschedule";
+import { getLessonRoll } from "@/lib/lesson-roll";
 import { AttendanceQueue } from "../_components/attendance-queue";
 import { DeleteLessonButton } from "../_components/delete-lesson-button";
 import { LessonNotesButton } from "../_components/lesson-notes-button";
@@ -65,37 +56,9 @@ export default async function AdminLessonAttendancePage({
   const classDetail = classNameDetail(lesson.subjectName, lesson.className);
   const lessonTitle = classDetail || lesson.subjectName;
 
-  const [queue, roster, reschedules, noteRows] = await Promise.all([
+  const [queue, roll, noteRows] = await Promise.all([
     getAttendanceQueue(filters),
-    // A make-up lesson's roll is only the students moved into it (the save
-    // action rejects anyone else), so the class roster is not listed there.
-    lesson.status === "makeup"
-      ? Promise.resolve([])
-      : db
-          .select({
-            id: profiles.id,
-            firstName: profiles.firstName,
-            lastName: profiles.lastName,
-            attendanceStatus: attendance.status,
-            attendanceNote: attendance.note,
-          })
-          .from(enrollments)
-          .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-          .leftJoin(
-            attendance,
-            and(
-              eq(attendance.studentId, enrollments.studentId),
-              eq(attendance.lessonId, lessonId),
-            ),
-          )
-          .where(
-            and(
-              eq(enrollments.classId, lesson.classId),
-              isNull(enrollments.withdrawnAt),
-            ),
-          )
-          .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
-    getLessonReschedules(lessonId),
+    getLessonRoll(lesson),
     db
       .select({
         id: lessonNotes.id,
@@ -117,51 +80,14 @@ export default async function AdminLessonAttendancePage({
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
   ]);
 
-  // Reschedules - who left this lesson (and where to) and who's here as a make-up.
-  const { movedOut, movedIn } = reschedules;
-  const movedOutById = new Map(movedOut.map((m) => [m.studentId, m.toLabel]));
-  const rosterIds = new Set(roster.map((s) => s.id));
-  const makeups = movedIn.filter((m) => !rosterIds.has(m.studentId));
-  const studentIds = [...rosterIds, ...makeups.map((m) => m.studentId)];
-  const trialRows = studentIds.length
-    ? await db
-        .select({ studentId: studentTrials.studentId })
-        .from(studentTrials)
-        .where(
-          and(
-            inArray(studentTrials.studentId, studentIds),
-            sql`${studentTrials.startDate} <= ${lesson.date}`,
-            sql`${studentTrials.endDate} >= ${lesson.date}`,
-          ),
-        )
-    : [];
-  const onTrialIds = new Set(trialRows.map((row) => row.studentId));
-
-  const students: MarkingStudent[] = [
-    ...roster.map((s) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`.trim(),
-      status: s.attendanceStatus,
-      note: s.attendanceNote ?? "",
-      onTrial: onTrialIds.has(s.id),
-      movedOutTo: movedOutById.get(s.id),
-    })),
-    ...makeups.map((m) => ({
-      id: m.studentId,
-      name: m.studentName,
-      status: m.attendanceStatus ?? "makeup_attended",
-      note: m.attendanceNote ?? "",
-      onTrial: onTrialIds.has(m.studentId),
-      makeupFrom: m.fromLabel,
-    })),
-  ];
+  const students: MarkingStudent[] = roll.map((s) => ({ ...s, href: `/admin/users/${s.id}` }));
 
   const query = queueQueryString(filters);
   const nextId = nextLessonId(
     queue.items.map((item) => item.id),
     lesson.id,
   );
-  const makeupIds = new Set(movedIn.map((m) => m.studentId));
+  const makeupIds = new Set(roll.filter((s) => s.makeupFrom).map((s) => s.id));
 
   const sub = [
     formatDateLong(lesson.date),

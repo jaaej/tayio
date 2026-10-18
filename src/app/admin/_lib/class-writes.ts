@@ -6,6 +6,7 @@ import type { db } from "@/db/client";
 import { classes, lessons, notifications, profiles, subjects } from "@/db/schema";
 import { ADMIN_TIERS } from "@/lib/roles";
 import { classDisplayName } from "@/lib/class-display";
+import { DEFAULT_GROUP_CAPACITY, classCapacity } from "@/lib/class-capacity";
 import { classTimeRangeError } from "@/lib/recurring-lesson-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
@@ -114,7 +115,7 @@ export async function insertClass(
       subjectId: data.subjectId,
       tutorId: data.tutorId,
       classType: data.classType ?? "group",
-      capacity: data.capacity ?? 8,
+      capacity: classCapacity(data.classType ?? "group", data.capacity ?? DEFAULT_GROUP_CAPACITY),
       location: slot.location,
       isRecurring: slot.isRecurring,
       weekday: slot.weekday,
@@ -189,7 +190,7 @@ export async function applyClassEdit(
       name: nextName,
       tutorId: after.tutorId,
       classType: patch.classType ?? current.classType,
-      capacity: patch.capacity ?? current.capacity,
+      capacity: classCapacity(patch.classType ?? current.classType, patch.capacity ?? current.capacity),
       location: after.location,
       isRecurring: after.isRecurring,
       weekday: after.weekday,

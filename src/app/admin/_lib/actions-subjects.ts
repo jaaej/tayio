@@ -30,6 +30,7 @@ import { classDisplayName } from "@/lib/class-display";
 import { slotClassName, weeklySlotLabel } from "@/lib/class-schedule-change";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { SUBJECT_COLORS, defaultSubjectColor } from "@/lib/subject-tone";
+import { oneOnOneError } from "@/lib/class-capacity";
 import { classFamilies } from "./class-lessons";
 import { applyClassEdit, insertClass, patchTimeError } from "./class-writes";
 
@@ -166,6 +167,26 @@ async function applyStudentChanges(tx: DbTx, classId: string, changes: StudentCh
 
 class NotAStudent extends Error {}
 
+/** A one-on-one card would end the save with more than one student. */
+class OneOnOneFull extends Error {
+  constructor(readonly key: string, message: string) {
+    super(message);
+  }
+}
+
+/** Refuse the save when a one-on-one class would hold more than one student. */
+async function assertOneOnOne(tx: DbTx, classId: string, key: string) {
+  const [row] = await tx
+    .select({
+      classType: classes.classType,
+      students: sql<number>`(select count(*) from ${enrollments} where ${enrollments.classId} = ${classes.id} and ${enrollments.withdrawnAt} is null)::int`,
+    })
+    .from(classes)
+    .where(eq(classes.id, classId));
+  const error = row && oneOnOneError(row.classType, row.students);
+  if (error) throw new OneOnOneFull(key, error);
+}
+
 /**
  * The edit page's one Save: the subject and every class card together, in
  * one transaction, so a refused card leaves nothing half saved. Class edits
@@ -235,12 +256,14 @@ export async function saveSubjectPage(
           });
         }
         if (card.students) await applyStudentChanges(tx, classId, card.students);
+        await assertOneOnOne(tx, classId, card.key);
         ids.push(classId);
       }
       return ids;
     });
   } catch (error) {
     if (error instanceof SubjectGone) return { ok: false, error: "This subject no longer exists." };
+    if (error instanceof OneOnOneFull) return { ok: false, classErrors: { [error.key]: error.message } };
     if (error instanceof NotAStudent) {
       return { ok: false, error: "One of the students to add no longer has a student account." };
     }

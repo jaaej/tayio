@@ -6,6 +6,7 @@ import { Button, SidePanel } from "@/components/admin/ui";
 import { createClass } from "@/app/admin/_lib/actions-classes";
 import type { TutorClassSlot, TutorWeeklyWindow } from "../_lib/tutor-fit";
 import { CreateClassForm, type CreateClassValues } from "./create-class-form";
+import type { RoomUse } from "../_lib/rooms";
 
 export function CreateClassPanel({
   tutors,
@@ -13,6 +14,7 @@ export function CreateClassPanel({
   classSlots,
   subjects,
   rooms,
+  roomSlots,
   lessonMinutes,
   triggerSize = "md",
   defaultOpen = false,
@@ -23,8 +25,10 @@ export function CreateClassPanel({
   /** Existing classes, so the picker can flag a tutor teaching then. */
   classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
-  /** Rooms other classes use, suggested in the Room field. */
+  /** Room chips: rooms in use, then "Online". */
   rooms: string[];
+  /** Every weekly class's slot and room, so a taken room is crossed out. */
+  roomSlots: RoomUse[];
   /** Usual lesson length in minutes; the end time defaults this far after the start. */
   lessonMinutes: number;
   /** `lg` for the empty-state trigger, where the button is the whole surface. */
@@ -137,6 +141,7 @@ export function CreateClassPanel({
             classSlots={classSlots}
             subjects={subjects}
             rooms={rooms}
+            roomSlots={roomSlots}
             lessonMinutes={lessonMinutes}
             disabled={pending}
             error={error}

@@ -233,7 +233,7 @@ Conventions referenced throughout:
 
 ### Attendance marking
 1. **What it is** - Mark per-lesson presence/late/absent/left-early with a staff-only note.
-2. **How it works** - `/tutor/lessons/[id]`. Table: `attendance` (`attendanceStatusEnum`, `markedBy`). Guard: `requireRole("tutor")` + lesson ownership. `attendance.note` is read only for tutors and admins; migration 0065 also withholds the column from the `authenticated` role, so a student or parent cannot read it through the public API.
+2. **How it works** - `/tutor/lessons/[id]`. Table: `attendance` (`attendanceStatusEnum`, `markedBy`). Guard: `requireRole("tutor")` + lesson ownership; the roll and the students a save may touch come from `getLessonRoll` / `lessonRollIds`, as for admin. `attendance.note` is read only for tutors and admins; migration 0065 also withholds the column from the `authenticated` role, so a student or parent cannot read it through the public API.
 3. **Rationale:** `Rationale: not documented.`
 
 ### Student profile
@@ -306,7 +306,7 @@ Conventions referenced throughout:
 
 ### Class management
 1. **What it is** - Create, edit, and delete class slots (subject, tutor, capacity, type, room, recurrence).
-2. **How it works** - New class on `/admin/classes`; editing on each subject's edit page `/admin/subjects/[id]/edit` (`/admin/classes/[id]` redirects to the class's card there). Table: `classes` (`classTypeEnum` group/one_on_one); the room is `classes.location`, and an online class is one whose room is "Online" (offered after the rooms in use, `roomChoices` in `src/app/admin/classes/_lib/rooms.ts`). A class stays in the subject it was created in. Guard: `requireAdmin()`.
+2. **How it works** - New class on `/admin/classes`; editing on each subject's edit page `/admin/subjects/[id]/edit` (`/admin/classes/[id]` redirects to the class's card there). Table: `classes` (`classTypeEnum` group/one_on_one); the room is `classes.location`, and an online class is one whose room is "Online". Both forms pick the room with `RoomPicker` (chips for the rooms in use, then "Online", crossed out when another weekly class uses that room at the time; `roomChoices` and `roomTaken` in `src/app/admin/classes/_lib/rooms.ts`). A class stays in the subject it was created in. A one-on-one class has exactly one place and one student (`src/lib/class-capacity.ts`, constraint `classes_one_on_one_capacity` from migration 0066); a group's capacity is a warning on the card and a hard limit for make-ups and class moves. Guard: `requireAdmin()`.
    Every class edit goes through `applyClassEdit` (`src/app/admin/_lib/class-writes.ts`) and carries the change to the upcoming lessons (`planClassScheduleChange` in `src/lib/class-schedule-change.ts`, tested), under the same advisory lock as the lesson sweep.
    Each lesson moves to the new day in its own Monday-first week at the new time; one that would land in the past is removed unless something points at it. A week holding two weekly lessons keeps one, so lessons doubled by an edit before 16 October 2026 clean up on the next save. Tutor and room follow the class unless a lesson has its own (a cover tutor).
    A class named "<Subject> · <Day> AM|PM" is renamed when its day or time moves; custom names are kept.
@@ -329,7 +329,7 @@ Conventions referenced throughout:
 
 ### Attendance (admin)
 1. **What it is** - Admin view to mark/inspect per-lesson attendance.
-2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`. The roll row is the shared `src/components/attendance/attendance-row.tsx`, as on the tutor lesson page.
+2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`. The roll is built by `getLessonRoll` (`src/lib/lesson-roll.ts`) and drawn by `src/components/attendance/attendance-row.tsx`, both shared with the tutor lesson page. Who is on a roll, and who either save action accepts, is `lessonRollIds`: the class's current students (never on a make-up lesson, which is a private booking), anyone rescheduled into the lesson, and anyone with attendance on it (a credit make-up, or a student who has since left).
 3. **Rationale:** `Rationale: not documented.` The attendance note is staff-only (owner decision, 18 October 2026): parents see each lesson's status, not the note.
 
 ### Payment management

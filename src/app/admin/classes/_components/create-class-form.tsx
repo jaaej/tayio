@@ -8,13 +8,15 @@ import {
   ClassTypeSegment,
   FIELD,
   Field,
-  RoomField,
   SelectField,
   WhenFields,
   type ClassTypeValue,
 } from "./class-fields";
 import { subjectOptionLabel } from "@/lib/subject-label";
+import { DEFAULT_GROUP_CAPACITY, classCapacity } from "@/lib/class-capacity";
 import { TutorPicker } from "./tutor-picker";
+import { RoomPicker } from "./room-picker";
+import type { RoomUse } from "../_lib/rooms";
 
 export type CreateClassValues = {
   name: string;
@@ -41,6 +43,7 @@ export function CreateClassForm({
   classSlots,
   subjects,
   rooms,
+  roomSlots,
   lessonMinutes,
   disabled,
   error,
@@ -53,8 +56,10 @@ export function CreateClassForm({
   /** Existing classes, to spot a tutor already teaching at that time. */
   classSlots: TutorClassSlot[];
   subjects: { id: string; name: string; yearLevel: string | null }[];
-  /** Rooms other classes use, suggested in the Room field. */
+  /** Room chips: rooms in use, then "Online". */
   rooms: string[];
+  /** Every weekly class's slot and room, so a taken room is crossed out. */
+  roomSlots: RoomUse[];
   /** Usual lesson length, used to default the end time after the start. */
   lessonMinutes: number;
   disabled: boolean;
@@ -68,6 +73,7 @@ export function CreateClassForm({
   const [classType, setClassType] = useState<ClassTypeValue>("group");
   const [times] = useState(() => defaultClassTimes(lessonMinutes));
   const [subjectId, setSubjectId] = useState("");
+  const [room, setRoom] = useState("");
   const [when, setWhen] = useState<{ weekday: number | null; startTime: string; endTime: string }>({
     weekday: null,
     startTime: times.startTime,
@@ -97,7 +103,7 @@ export function CreateClassForm({
           subjectId: text("subjectId"),
           tutorId: text("tutorId"),
           classType: fd.get("classType") === "one_on_one" ? "one_on_one" : "group",
-          capacity: Number(fd.get("capacity") || 8),
+          capacity: classCapacity(classType, Number(fd.get("capacity") || DEFAULT_GROUP_CAPACITY)),
           location: text("location") || null,
           isRecurring: fd.get("isRecurring") === "on",
           weekday: text("weekday") === "" ? null : Number(text("weekday")),
@@ -140,7 +146,18 @@ export function CreateClassForm({
 
           <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
             <ClassTypeSegment value={classType} onChange={setClassType} />
-            <CapacityStepper id={fid("capacity")} defaultValue={8} />
+            {classType === "one_on_one" ? (
+              <Field id={fid("capacity")} label="Capacity">
+                <span
+                  id={fid("capacity")}
+                  className="flex h-11 items-center rounded-[12px] bg-surface-2 px-3.5 text-[14px] font-bold text-ink-soft"
+                >
+                  1 student
+                </span>
+              </Field>
+            ) : (
+              <CapacityStepper id={fid("capacity")} defaultValue={DEFAULT_GROUP_CAPACITY} />
+            )}
           </div>
         </Section>
 
@@ -157,7 +174,18 @@ export function CreateClassForm({
         </Section>
 
         <Section id={fid("s-where")} title="Where">
-          <RoomField id={fid("location")} rooms={rooms} />
+          <Field id={fid("location")} label="Room" optional>
+            <RoomPicker
+              id={fid("location")}
+              name="location"
+              value={room}
+              onChange={setRoom}
+              rooms={rooms}
+              slot={when}
+              others={roomSlots}
+              inputClassName={FIELD}
+            />
+          </Field>
         </Section>
 
         <Section id={fid("s-tutor")} title="Tutor">

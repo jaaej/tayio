@@ -14,8 +14,6 @@ import {
   familyLinks,
   profiles,
   subjects,
-  studentLeave,
-  studentTrials,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { getLatestQuizAttempts } from "@/lib/quiz-scores";
@@ -445,32 +443,6 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
     .limit(1);
   if (!lesson) notFound();
 
-  const roster = await db
-    .select({
-      id: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      yearLevel: profiles.yearLevel,
-      attendanceStatus: attendance.status,
-      attendanceNote: attendance.note,
-    })
-    .from(enrollments)
-    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-    .leftJoin(
-      attendance,
-      and(
-        eq(attendance.lessonId, lesson.id),
-        eq(attendance.studentId, profiles.id),
-      ),
-    )
-    .where(
-      and(
-        eq(enrollments.classId, lesson.classId),
-        isNull(enrollments.withdrawnAt),
-      ),
-    )
-    .orderBy(asc(profiles.lastName));
-
   const existingNotes = await db
     .select()
     .from(lessonNotes)
@@ -478,59 +450,7 @@ export async function getLessonForTutor(tutorId: string, lessonId: string) {
       and(eq(lessonNotes.lessonId, lessonId), eq(lessonNotes.tutorId, tutorId)),
     );
 
-  // Flag students on a known leave/holiday spanning this lesson's date, so the
-  // tutor doesn't mark them absent. Leave is per-student (all classes).
-  const rosterIds = roster.map((r) => r.id);
-  const leaveRows = rosterIds.length
-    ? await db
-        .select({ studentId: studentLeave.studentId })
-        .from(studentLeave)
-        .where(
-          and(
-            inArray(studentLeave.studentId, rosterIds),
-            sql`${studentLeave.startDate} <= ${lesson.date}`,
-            sql`${studentLeave.endDate} >= ${lesson.date}`,
-          ),
-        )
-    : [];
-  const onLeaveIds = new Set(leaveRows.map((r) => r.studentId));
-
-  // Flag students on a free trial spanning this lesson's date.
-  const trialRows = await getStudentTrialsOnDate(rosterIds, lesson.date);
-  const trialsByStudent = new Map(trialRows.map((r) => [r.studentId, r]));
-
-  const rosterWithFlags = roster.map((r) => ({
-    ...r,
-    onLeave: onLeaveIds.has(r.id),
-    onTrial: trialsByStudent.has(r.id),
-    trialNote: trialsByStudent.get(r.id)?.note?.trim() || null,
-  }));
-
-  return { lesson, roster: rosterWithFlags, notes: existingNotes };
-}
-
-/** Free-trial context that is safe for the assigned tutor to see in a lesson
- * roll. Keeping the date condition here ensures notes never appear outside the
- * configured trial period, including for temporary make-up attendees. */
-export async function getStudentTrialsOnDate(
-  studentIds: string[],
-  lessonDate: string,
-) {
-  if (studentIds.length === 0) return [];
-
-  return db
-    .select({
-      studentId: studentTrials.studentId,
-      note: studentTrials.note,
-    })
-    .from(studentTrials)
-    .where(
-      and(
-        inArray(studentTrials.studentId, studentIds),
-        sql`${studentTrials.startDate} <= ${lessonDate}`,
-        sql`${studentTrials.endDate} >= ${lessonDate}`,
-      ),
-    );
+  return { lesson, notes: existingNotes };
 }
 
 export async function getHomeworkDetail(tutorId: string, homeworkId: string) {
