@@ -27,7 +27,7 @@ import {
   melbourneGreeting,
   weekRangeLabel,
 } from "@/lib/format";
-import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { getTutorCheckinWeek } from "@/lib/tutor-checkins";
 import { NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
 import { describeLesson } from "@/lib/lesson-progress";
@@ -43,7 +43,6 @@ import { weekStartFromParam } from "@/lib/week-nav";
 import { cn } from "@/lib/utils";
 import { getRecentLessonNotes, getTutorWeekLessons } from "./_data";
 import {
-  getClaimableCovers,
   getLessonWeekSummary,
   getMarkingSummary,
   getOverdueHomework,
@@ -52,6 +51,9 @@ import {
   getTutorUpcomingLesson,
   type DayLesson,
 } from "./_lib/today-data";
+import { TIME_AWAY_ACTION } from "./cover/_lib/labels";
+import { getPendingCheckinWeeks } from "./checkin/_lib/queries";
+import { getClaimableCovers } from "./cover/_lib/queries";
 import { getLessonsToFinish } from "./_lib/lesson-finishing";
 import { LESSON_ACTION_LABEL, finishingTodo } from "./_lib/lessons-to-finish";
 import { BumpMessageButton } from "./_components/bump-message-button";
@@ -80,12 +82,14 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Last week's check-in when it still waits on the tutor; null otherwise. */
-async function getCheckinTodo(tutorId: string, thisWeek: string) {
-  const week = addIsoDays(thisWeek, -7);
+/** The oldest week still waiting on the tutor to confirm, and how many wait. */
+async function getCheckinTodo(tutorId: string) {
+  const pending = await getPendingCheckinWeeks(tutorId);
+  const week = pending[0];
+  if (!week) return null;
   const view = await getTutorCheckinWeek(tutorId, week);
   if (view.status !== "pending" || view.totalMinutes === 0) return null;
-  return { week, view };
+  return { week, view, count: pending.length };
 }
 
 export default async function TutorToday({
@@ -98,7 +102,6 @@ export default async function TutorToday({
   const { week } = await searchParams;
   const now = new Date();
   const todayIso = melbourneDate(now);
-  const thisWeek = weekStartForIsoDate(todayIso);
   const weekStart = weekStartFromParam(week, todayIso);
 
   const [
@@ -123,7 +126,7 @@ export default async function TutorToday({
     getMarkingSummary(tutorId),
     getLessonsToFinish(tutorId, now),
     getQuizRequests(tutorId),
-    getCheckinTodo(tutorId, thisWeek),
+    getCheckinTodo(tutorId),
     getClaimableCovers(tutorId, now),
     getOverdueHomework(tutorId, now),
     getRecentLessonNotes(tutorId, 4),
@@ -185,14 +188,14 @@ export default async function TutorToday({
       key: "checkin",
       icon: <CircleCheck className={ICON} aria-hidden />,
       tone: "bg-good-bg text-good",
-      title: "Confirm last week's hours",
-      detail: [
+      title: checkin.count === 1 ? "Confirm your hours" : `Confirm hours for ${checkin.count} weeks`,
+      detail: `${checkin.count > 1 ? "Oldest: " : ""}${[
+        weekRangeLabel(checkin.week),
         hoursLabel(view.totalMinutes),
         view.hasMissingRate ? null : money(view.totalPay),
-        weekRangeLabel(checkin.week),
       ]
         .filter(Boolean)
-        .join(" · "),
+        .join(" · ")}`,
       href: `/tutor/checkin?week=${checkin.week}`,
       action: "Review",
     });
@@ -254,7 +257,7 @@ export default async function TutorToday({
               href="/tutor/timetable?panel=leave"
               className={buttonVariants({ variant: "glass", size: "lg" })}
             >
-              Report absence
+              {TIME_AWAY_ACTION}
             </Link>
             {headlineLesson && (
               <Link
@@ -316,7 +319,7 @@ export default async function TutorToday({
         events={events}
         noun="lesson"
         calendarHref="/tutor/timetable"
-        calendarLabel="Open calendar"
+        calendarLabel="Schedule & availability"
       />
 
       <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
