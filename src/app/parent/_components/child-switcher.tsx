@@ -1,7 +1,16 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
+import { rememberSelectedChild } from "@/lib/parent-child";
 import { cn } from "@/lib/utils";
 import type { ParentChild } from "../_data";
 
+/**
+ * One pill per child. The child shown is remembered (a cookie), so the menu
+ * and links without `?child=` open the same child next time; arriving on a
+ * child from a notification link remembers that child too.
+ */
 export function ChildSwitcher({
   students,
   selectedId,
@@ -11,6 +20,10 @@ export function ChildSwitcher({
   selectedId: string | null;
   basePath: string;
 }) {
+  useEffect(() => {
+    if (selectedId) rememberSelectedChild(selectedId);
+  }, [selectedId]);
+
   if (students.length <= 1) return null;
   return (
     <div className="inline-flex flex-wrap items-center gap-1 rounded-[16px] border border-line bg-card p-1.5 shadow-[0_1px_2px_rgba(15,17,30,0.04)]">
@@ -21,6 +34,7 @@ export function ChildSwitcher({
           <Link
             key={c.id}
             href={href}
+            onClick={() => rememberSelectedChild(c.id)}
             aria-current={active ? "true" : undefined}
             className={cn(
               "flex items-center gap-2.5 rounded-[11px] px-3 py-2 transition-colors",

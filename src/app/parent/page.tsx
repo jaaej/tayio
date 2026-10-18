@@ -126,7 +126,7 @@ export default async function ParentDashboard({
         right={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Link
-              href={`/parent/classes${childQs}`}
+              href={`/parent/timetable${childQs}`}
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-bold rounded-full bg-white/[0.14] border border-white/30 text-white hover:bg-white/[0.22] transition-colors"
             >
               View timetable
@@ -170,7 +170,7 @@ export default async function ParentDashboard({
                 ? "down"
                 : "flat"
           }
-          href={`/parent/classes${childQs}#attendance`}
+          href={`/parent/timetable${childQs}#attendance`}
         />
         <StatTile
           label="Homework"
@@ -222,10 +222,10 @@ export default async function ParentDashboard({
         <div className="space-y-5 min-w-0 rise" style={{ animationDelay: "80ms" }}>
           <NextLessonCard
             lesson={nextLesson}
-            timetableHref={`/parent/classes${childQs}`}
+            timetableHref={`/parent/timetable${childQs}`}
             cantMakeItHref={
               nextLesson
-                ? `/parent/classes${childQs}&month=${nextLesson.date.slice(0, 7)}&lesson=${nextLesson.id}`
+                ? `/parent/timetable${childQs}&month=${nextLesson.date.slice(0, 7)}&lesson=${nextLesson.id}`
                 : null
             }
           />

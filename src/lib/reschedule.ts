@@ -417,7 +417,7 @@ export async function executeMakeupReschedule(p: {
       [p.studentId, "/student/timetable"],
       [original.tutorId, `/tutor/lessons/${newLesson.id}`],
     ]);
-    for (const parent of parentIds) recipients.set(parent.id, "/parent/classes");
+    for (const parent of parentIds) recipients.set(parent.id, `/parent/timetable?child=${p.studentId}`);
     for (const admin of adminIds) recipients.set(admin.id, `/admin/users/${p.studentId}`);
     const studentName = student
       ? `${student.firstName} ${student.lastName}`.trim()

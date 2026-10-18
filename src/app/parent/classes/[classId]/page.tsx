@@ -58,7 +58,7 @@ export default async function ParentClassDetailPage({
   return (
     <div className="space-y-6">
       <Link
-        href={`/parent/classes${childQs}`}
+        href={`/parent/timetable${childQs}`}
         className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-bold text-ink hover:bg-brand-50 hover:border-brand-300 transition-colors"
       >
         ← All classes

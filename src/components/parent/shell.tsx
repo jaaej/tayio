@@ -27,7 +27,7 @@ const SECTIONS: NavSection[] = [
     heading: "Family",
     items: [
       { label: "Overview",   href: "/parent",            icon: <LayoutDashboard className={IC} /> },
-      { label: "Classes",    href: "/parent/classes",    icon: <CalendarDays className={IC} /> },
+      { label: "Timetable",  href: "/parent/timetable",  icon: <CalendarDays className={IC} /> },
       { label: "Homework",   href: "/parent/homework",   icon: <ClipboardList className={IC} /> },
       { label: "Feedback",   href: "/parent/feedback",   icon: <MessageSquareText className={IC} /> },
       { label: "Progress",   href: "/parent/progress",   icon: <TrendingUp className={IC} /> },

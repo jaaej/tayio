@@ -1,0 +1,230 @@
+import { CalendarDays, ClipboardCheck, UserX } from "lucide-react";
+import { Card, StatTile, PageHeader, Empty } from "@/components/parent/ui";
+import { InteractiveTimetable } from "@/app/student/_components/interactive-timetable";
+import { buildTimetableChips, buildTimetableHomework } from "@/app/_lib/timetable-chips";
+import { getStudentHomework } from "@/app/student/_lib/queries";
+import { requireRole } from "@/lib/auth";
+import { formatDateLong, formatTime } from "@/lib/format";
+import { listRedeemableCredits } from "@/lib/credits";
+import { ATTENDANCE_STATUS_STYLE } from "@/lib/status";
+import { attendanceLabel, attendanceSummary } from "@/lib/attendance-rules";
+import { getAdminContact, getAttendance, resolveSelectedChild } from "../_data";
+import { ChildSwitcher, EmptyChildrenNotice } from "../_components/child-switcher";
+import { parseMonthParam } from "../_components/month-param";
+import { SectionHeader } from "../_components/section-header";
+import { StatusPill } from "../_components/status-pill";
+import { getClassMoveData } from "@/lib/class-moves";
+import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
+
+type SearchParams = Promise<{
+  child?: string;
+  month?: string;
+  /** Opens with this lesson selected (the Overview's "Can't make it?"). */
+  lesson?: string;
+}>;
+
+function isoLocal(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export default async function ParentClassesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const user = await requireRole("parent");
+  const params = await searchParams;
+  const { children, selected } = await resolveSelectedChild(user.id, params.child);
+
+  if (!selected) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Classes"
+        />
+        <EmptyChildrenNotice />
+      </div>
+    );
+  }
+
+  const { year, month } = parseMonthParam(params.month);
+  // The interactive timetable manages the month client-side, so load a wide
+  // window of data - same window as the student's own timetable.
+  const from = new Date(year, month - 1, 1);
+  const to = new Date(year, month + 3, 1);
+
+  const [chips, homeworkRows, attendanceRows, credits, admin, classMoves] = await Promise.all([
+    buildTimetableChips(selected.id, from, to),
+    getStudentHomework(selected.id),
+    getAttendance(selected.id),
+    listRedeemableCredits(selected.id),
+    getAdminContact(),
+    getClassMoveData(selected.id),
+  ]);
+
+  const hw = buildTimetableHomework(
+    homeworkRows,
+    { fromIso: isoLocal(from), toIso: isoLocal(to) },
+    (id) => `/parent/homework/${id}?child=${selected.id}`,
+  );
+
+  // Attendance summary (folded in from the retired /parent/attendance page).
+  // A moved or credited lesson is not an absence and is left out of the rate.
+  const {
+    total: attTotal,
+    absent: attAbsent,
+    percent: attRate,
+  } = attendanceSummary(attendanceRows);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={`${selected.firstName}'s classes`}
+      />
+
+      {children.length > 1 && (
+        <div className="rise" style={{ animationDelay: "20ms" }}>
+          <ChildSwitcher
+            students={children}
+            selectedId={selected.id}
+            basePath="/parent/timetable"
+          />
+        </div>
+      )}
+
+      <div className="rise" style={{ animationDelay: "30ms" }}>
+        <Card className="calendar-glass-panel overflow-visible">
+          <SectionHeader title={`${selected.firstName}'s schedule`} />
+          <div className="p-4 lg:p-5">
+            <InteractiveTimetable
+              key={selected.id}
+              initialYear={year}
+              initialMonth={month}
+              lessons={chips}
+              homework={hw}
+              credits={credits}
+              adminId={admin?.id ?? null}
+              studentId={selected.id}
+              subjectBase="/parent/subjects"
+              subjectQuery={`?child=${selected.id}`}
+              messageBase="/parent/messages/with"
+              recapBase="/parent/feedback"
+              initialLessonId={params.lesson}
+            />
+          </div>
+          <ClassMoveRequestPanel
+            studentId={selected.id}
+            studentName={selected.firstName}
+            classes={classMoves.classes}
+            requests={classMoves.requests}
+            embedded
+          />
+        </Card>
+      </div>
+
+      <div id="attendance" className="rise scroll-mt-[104px] lg:scroll-mt-20" style={{ animationDelay: "60ms" }}>
+        <Card>
+          <SectionHeader
+            title="Attendance"
+            link={{ href: "/parent/feedback", label: "Tutor feedback" }}
+          />
+          {attendanceRows.length === 0 ? (
+            <Empty>
+              No attendance has been recorded yet for {selected.firstName}.
+            </Empty>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 lg:p-5">
+                <StatTile
+                  label="Attendance rate"
+                  value={attRate !== null ? `${attRate}%` : "-"}
+                  icon={<ClipboardCheck className="h-5 w-5" />}
+                  tone="mint"
+                  accent
+                  delta="All logged lessons"
+                  deltaTone={
+                    attRate === null
+                      ? "flat"
+                      : attRate >= 90
+                        ? "up"
+                        : attRate < 75
+                          ? "down"
+                          : "flat"
+                  }
+                />
+                <StatTile
+                  label="Absences"
+                  value={attAbsent.toString()}
+                  icon={<UserX className="h-5 w-5" />}
+                  tone={attAbsent === 0 ? "good" : "coral"}
+                  accent
+                  delta="Marked absent"
+                  deltaTone={attAbsent === 0 ? "up" : "down"}
+                />
+                <StatTile
+                  label="Lessons logged"
+                  value={attTotal.toString()}
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  tone="sky"
+                  accent
+                  delta="All logged lessons"
+                />
+              </div>
+              <div className="divide-y divide-line/70 border-t border-line">
+              {attendanceRows.map((r) => {
+                const meta = [r.subjectName, r.tutorName]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <div
+                    key={r.lessonId}
+                    className="flex items-start gap-3 px-5 py-3.5"
+                  >
+                    <CalendarDays
+                      className="h-[18px] w-[18px] text-muted shrink-0 mt-[3px]"
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-ink truncate">
+                            {formatDateLong(r.date)}
+                          </div>
+                          <div className="text-[11px] font-semibold text-muted tabular-nums mt-0.5">
+                            {formatTime(r.startTime)}
+                          </div>
+                        </div>
+                        <span className="shrink-0">
+                          <StatusPill
+                            label={attendanceLabel(r)}
+                            className={
+                              r.moved
+                                ? "bg-surface-2 text-ink-soft"
+                                : ATTENDANCE_STATUS_STYLE[r.status]
+                            }
+                          />
+                        </span>
+                      </div>
+                      <div
+                        className="mt-1.5 text-[13px] text-ink-soft truncate"
+                        title={meta || undefined}
+                      >
+                        {meta || "-"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
+
+    </div>
+  );
+}

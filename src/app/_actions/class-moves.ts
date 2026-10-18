@@ -112,7 +112,7 @@ type MoveSummary = {
 function notificationHref(role: UserRole, studentId: string): string {
   const family = coarseRole(role);
   if (family === "student") return "/student/timetable";
-  if (family === "parent") return "/parent/classes";
+  if (family === "parent") return `/parent/timetable?child=${studentId}`;
   if (family === "tutor") return "/tutor/classes";
   return `/admin/users/${studentId}?tab=lessons#class-moves`;
 }
@@ -615,7 +615,7 @@ export async function rejectPermanentClassMove(
             href:
               userId === request.studentId
                 ? "/student/timetable"
-                : "/parent/classes",
+                : `/parent/timetable?child=${request.studentId}`,
           })),
         );
       }

@@ -1,4 +1,6 @@
 import "server-only";
+import { cookies } from "next/headers";
+import { SELECTED_CHILD_COOKIE, pickSelectedChild } from "@/lib/parent-child";
 import { and, asc, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -50,16 +52,17 @@ export async function getParentChildren(parentId: string): Promise<ParentChild[]
   return rows;
 }
 
+/**
+ * The parent's children and the one to show: `?child=` if it is theirs,
+ * else the child they chose last (`SELECTED_CHILD_COOKIE`), else the first.
+ */
 export async function resolveSelectedChild(
   parentId: string,
   requested: string | undefined,
 ): Promise<{ children: ParentChild[]; selected: ParentChild | null }> {
-  const children = await getParentChildren(parentId);
-  if (children.length === 0) return { children, selected: null };
-  const match = requested
-    ? children.find((c) => c.id === requested) ?? children[0]
-    : children[0];
-  return { children, selected: match };
+  const [children, jar] = await Promise.all([getParentChildren(parentId), cookies()]);
+  const remembered = jar.get(SELECTED_CHILD_COOKIE)?.value;
+  return { children, selected: pickSelectedChild(children, requested, remembered) };
 }
 
 export type DashboardData = {
