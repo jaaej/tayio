@@ -6,6 +6,15 @@ import {
 
 /* Wording shared by the tutor Cover board and the schedule's Time away list. */
 
+/** The one label for opening the time-away panel, wherever it is offered. */
+export const TIME_AWAY_ACTION = "Request time away";
+
+/** "From Daniel Lee: Worksheets are in the blue folder", or just the name. */
+export function handoverLine(who: string, handoverNote: string | null): string {
+  const note = handoverNote?.trim();
+  return note ? `${who}: ${note}` : who;
+}
+
 export const LEAVE_STATUS: Record<
   "pending" | "approved" | "rejected" | "cancelled",
   { label: string; tone: PillTone }

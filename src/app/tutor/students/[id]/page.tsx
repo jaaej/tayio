@@ -9,9 +9,10 @@ import {
   buttonVariants,
   type PillTone,
 } from "@/components/admin/ui";
+import { attendanceLabel, isMovedAbsence } from "@/lib/attendance-rules";
 import { formatDateLong, formatDateShort, formatWeekday, formatScore } from "@/lib/format";
+import { NOTE_VISIBILITY, sharedNoteFields } from "@/lib/lesson-note-fields";
 import { averageScore, scoreAverageBasis } from "@/lib/score-average";
-import { ATTENDANCE_STATUS_LABEL } from "@/lib/status";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { getStudentProfile, requireTutor } from "../../_data";
@@ -21,7 +22,9 @@ import {
   RECENT_LESSONS,
   attendanceSummary,
   homeworkState,
+  lessonTimeline,
   withListQuery,
+  type LessonTimelineEntry,
 } from "../_lib/student-list";
 import { StudentAvatar } from "../_components/student-avatar";
 
@@ -29,11 +32,21 @@ export const dynamic = "force-dynamic";
 
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "attendance", label: "Attendance" },
+  { key: "lessons", label: "Lessons" },
   { key: "homework", label: "Homework" },
-  { key: "notes", label: "Lesson notes" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
+
+/** The Attendance and Lesson notes tabs became the one Lessons timeline. */
+const TAB_ALIASES: Record<string, Tab> = { attendance: "lessons", notes: "lessons" };
+
+function parseTab(value: string | undefined): Tab {
+  if (!value) return "overview";
+  if (TAB_ALIASES[value]) return TAB_ALIASES[value];
+  return TABS.some((t) => t.key === value) ? (value as Tab) : "overview";
+}
+
+const MOVED_TONE = "bg-surface-3 text-ink-soft";
 
 const ATTENDANCE_TONE: Record<string, string> = {
   present: "bg-good-bg text-good",
@@ -71,7 +84,7 @@ export default async function TutorStudentProfilePage({
   searchParams: Promise<{ tab?: string; class?: string }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "overview";
+  const tab = parseTab(sp.tab);
 
   const tutor = await requireTutor();
   const profile = await getStudentProfile(tutor.id, id);
@@ -80,6 +93,12 @@ export default async function TutorStudentProfilePage({
   const { today } = context;
 
   const name = `${student.firstName} ${student.lastName}`.trim();
+  const timeline = lessonTimeline(
+    attendance,
+    notes.map((n) => ({ ...n, note: { ...n, mine: n.authorId === tutor.id } })),
+    tutor.id,
+  );
+  const latestWithNote = timeline.find((entry) => entry.notes.length > 0) ?? null;
   const recent = attendance.slice(0, RECENT_LESSONS);
   const att = attendanceSummary(recent);
 
@@ -120,37 +139,25 @@ export default async function TutorStudentProfilePage({
           <RecentLessons rows={recent} />
         </Section>
         <Section title="Homework">
-          <HomeworkList rows={homeworkRows.slice(0, 3)} />
+          <HomeworkList rows={homeworkRows.slice(0, 3)} studentId={student.id} />
         </Section>
-        <Section
-          title={
-            <>
-              Latest lesson note
-              {notes[0] && (
-                <span className="font-semibold text-muted">
-                  {" "}
-                  · {formatWeekday(notes[0].lessonDate, "short")}{" "}
-                  {formatDateShort(notes[0].lessonDate)}
-                </span>
-              )}
-            </>
-          }
-        >
-          {notes[0] ? (
-            <NoteBlocks note={notes[0]} />
+        <Section title="Latest lesson note">
+          {latestWithNote ? (
+            <div className="-mx-4">
+              <TimelineEntry entry={latestWithNote} studentId={student.id} />
+            </div>
           ) : (
             <p className="text-[13px] text-muted">No lesson notes yet.</p>
           )}
         </Section>
       </div>
     ),
-    attendance: <AttendanceList rows={attendance} />,
+    lessons: <LessonsTimeline entries={timeline} studentId={student.id} />,
     homework: (
       <div className="p-4">
-        <HomeworkList rows={homeworkRows} />
+        <HomeworkList rows={homeworkRows} studentId={student.id} />
       </div>
     ),
-    notes: <NotesList notes={notes} />,
   };
 
   return (
@@ -289,14 +296,14 @@ function RecentLessons({ rows }: { rows: Profile["attendance"] }) {
   return (
     <ol className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
       {[...rows].reverse().map((a) => {
-        const label = ATTENDANCE_STATUS_LABEL[a.status] ?? a.status;
+        const label = attendanceLabel(a);
         return (
           <li
             key={a.lessonId}
             title={`${formatDateShort(a.lessonDate)} · ${a.className} · ${label}`}
             className={cn(
               "flex flex-col items-center gap-0.5 rounded-[10px] px-1 py-2 text-center",
-              ATTENDANCE_TONE[a.status] ?? "bg-surface-3 text-ink",
+              isMovedAbsence(a) ? MOVED_TONE : (ATTENDANCE_TONE[a.status] ?? "bg-surface-3 text-ink"),
             )}
           >
             <span className="text-[11px] font-extrabold tabular-nums">
@@ -315,7 +322,7 @@ type HomeworkRow = Omit<Profile["homework"][number], "dueDate"> & {
   state: keyof typeof HOMEWORK_STATE;
 };
 
-function HomeworkList({ rows }: { rows: HomeworkRow[] }) {
+function HomeworkList({ rows, studentId }: { rows: HomeworkRow[]; studentId: string }) {
   if (rows.length === 0) {
     return <p className="text-[13px] text-muted">No homework assigned yet.</p>;
   }
@@ -326,7 +333,7 @@ function HomeworkList({ rows }: { rows: HomeworkRow[] }) {
         return (
           <li key={h.homeworkId}>
             <Link
-              href={`/tutor/homework/${h.homeworkId}`}
+              href={`/tutor/homework/${h.homeworkId}?student=${studentId}`}
               className="flex min-h-12 items-center gap-2.5 rounded-[12px] bg-surface-2 px-3 py-2.5 text-ink transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               <span className="flex min-w-0 flex-1 flex-col">
@@ -352,72 +359,120 @@ function HomeworkList({ rows }: { rows: HomeworkRow[] }) {
   );
 }
 
-function AttendanceList({ rows }: { rows: Profile["attendance"] }) {
-  if (rows.length === 0) return <Empty>No attendance recorded yet.</Empty>;
-  return (
-    <ul className="divide-y divide-line">
-      {rows.map((a) => (
-        <li key={a.lessonId} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
-          <span className="w-24 shrink-0 text-[12px] font-semibold tabular-nums text-muted">
-            {formatWeekday(a.lessonDate, "short")} {formatDateShort(a.lessonDate)}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-ink">
-            {a.className}
-          </span>
-          <Pill tone={ATTENDANCE_PILL[a.status] ?? "default"}>
-            {ATTENDANCE_STATUS_LABEL[a.status] ?? a.status}
-          </Pill>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function NotesList({ notes }: { notes: Profile["notes"] }) {
-  if (notes.length === 0) return <Empty>No lesson notes yet.</Empty>;
+function LessonsTimeline({
+  entries,
+  studentId,
+}: {
+  entries: LessonTimelineEntry<Note>[];
+  studentId: string;
+}) {
+  if (entries.length === 0) return <Empty>No lessons recorded yet.</Empty>;
   return (
     <div className="divide-y divide-line">
-      {notes.map((n) => (
-        <article key={n.id} className="flex flex-col gap-2.5 px-4 py-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="min-w-0 truncate text-[13px] font-bold text-ink">
-              {n.className}
-              {n.topicCovered && <span className="text-muted"> · {n.topicCovered}</span>}
-            </p>
-            <span className="shrink-0 text-[12px] font-semibold tabular-nums text-muted">
-              {formatWeekday(n.lessonDate, "short")} {formatDateShort(n.lessonDate)}
-            </span>
-          </div>
-          <NoteBlocks note={n} />
-        </article>
+      {entries.map((entry) => (
+        <TimelineEntry key={entry.lessonId} entry={entry} studentId={studentId} />
       ))}
     </div>
   );
 }
 
-/** The parent-visible comment and the internal note, side by side. */
-function NoteBlocks({ note }: { note: Profile["notes"][number] }) {
-  if (!note.parentVisibleComment && !note.internalNote) {
-    return <p className="text-[13px] text-muted">No comment written for this lesson.</p>;
-  }
+type Note = Profile["notes"][number] & { mine: boolean };
+
+/**
+ * One lesson: when, which class, how the student was marked (with the roll
+ * note), every note written on it under the editor's two visibility labels
+ * and its author, and a link to the lesson when this tutor teaches it.
+ */
+function TimelineEntry({
+  entry,
+  studentId,
+}: {
+  entry: LessonTimelineEntry<Note>;
+  studentId: string;
+}) {
+  const mark = entry.mark;
+  const absent = mark?.status === "absent";
+  const action = entry.canEdit
+    ? entry.hasOwnNote
+      ? "Edit note"
+      : absent
+        ? null
+        : "Add note"
+    : null;
   return (
-    <div className="flex flex-wrap gap-2">
-      {note.parentVisibleComment && (
-        <div className="min-w-0 flex-[999_1_300px] rounded-[12px] bg-good-bg/60 p-3 text-[13px] leading-normal text-ink">
-          <strong className="mb-1 block text-[12px] font-extrabold text-good">
-            Parent and student see this
-          </strong>
-          <p className="whitespace-pre-wrap">{note.parentVisibleComment}</p>
-        </div>
+    <article className="flex flex-col gap-2.5 px-4 py-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="w-[84px] shrink-0 text-[12px] font-semibold tabular-nums text-muted">
+          {formatWeekday(entry.date, "short")} {formatDateShort(entry.date)}
+        </span>
+        <span className="min-w-0 flex-1 basis-[160px] text-[13px] font-bold text-ink">
+          {entry.className}
+        </span>
+        {mark && (
+          <Pill tone={isMovedAbsence(mark) ? "default" : (ATTENDANCE_PILL[mark.status] ?? "default")}>
+            {attendanceLabel(mark)}
+          </Pill>
+        )}
+        {action && (
+          <Link
+            href={`/tutor/lessons/${entry.lessonId}?from=student&student=${studentId}`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9 rounded-[10px]")}
+          >
+            {action}
+          </Link>
+        )}
+      </div>
+      {mark?.note?.trim() && (
+        <p className="text-[13px] leading-normal text-ink-soft sm:pl-[96px]">
+          <span className="font-bold text-ink">Attendance note:</span> {mark.note}
+        </p>
       )}
-      {note.internalNote && (
-        <div className="min-w-0 flex-[1_1_200px] rounded-[12px] bg-warn-bg/60 p-3 text-[13px] leading-normal text-ink">
-          <strong className="mb-1 block text-[12px] font-extrabold text-warn">
-            Only you and admin
-          </strong>
-          <p className="whitespace-pre-wrap">{note.internalNote}</p>
-        </div>
+      {entry.notes.map((note) => (
+        <NoteCard key={note.id} note={note} />
+      ))}
+      {entry.notes.length === 0 && mark && !absent && (
+        <p className="text-[13px] text-muted sm:pl-[96px]">No note written.</p>
       )}
+    </article>
+  );
+}
+
+/** A note's fields under the same two labels the editor uses, then its author. */
+function NoteCard({ note }: { note: Note }) {
+  const shared = sharedNoteFields(note);
+  const internal = note.internalNote?.trim() ?? "";
+  const author = note.mine ? "you" : `${note.authorFirstName} ${note.authorLastName}`.trim();
+  return (
+    <div className="flex flex-col gap-2 sm:pl-[96px]">
+      <div className="flex flex-wrap gap-2">
+        {shared.length > 0 && (
+          <div className="min-w-0 flex-[999_1_300px] rounded-[12px] bg-good-bg/60 p-3 text-[13px] leading-normal text-ink">
+            <strong className="mb-1.5 block text-[12px] font-extrabold text-good">
+              {NOTE_VISIBILITY.shared}
+            </strong>
+            <dl className="flex flex-col gap-1.5">
+              {shared.map((field) => (
+                <div key={field.key}>
+                  <dt className="text-[12px] font-bold text-ink-soft">{field.label}</dt>
+                  <dd className="whitespace-pre-wrap [overflow-wrap:anywhere]">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+        {internal && (
+          <div className="min-w-0 flex-[1_1_200px] rounded-[12px] bg-warn-bg/60 p-3 text-[13px] leading-normal text-ink">
+            <strong className="mb-1.5 block text-[12px] font-extrabold text-warn">
+              {NOTE_VISIBILITY.internal}
+            </strong>
+            <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{internal}</p>
+          </div>
+        )}
+        {shared.length === 0 && !internal && (
+          <p className="text-[13px] text-muted">The note is empty.</p>
+        )}
+      </div>
+      <p className="text-[12px] text-muted">Written by {author}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  groupToMark,
+  groupToMarkByClass,
   listHref,
   matchesQuery,
   nextToMark,
@@ -34,10 +34,31 @@ describe("sortToMark", () => {
   });
 });
 
-describe("groupToMark", () => {
-  it("drops empty groups", () => {
-    expect(groupToMark([item("a", "submitted", null)]).map((g) => g.key)).toEqual(["submitted"]);
-    expect(groupToMark([])).toEqual([]);
+describe("groupToMarkByClass", () => {
+  const inClass = (studentId: string, status: string, classId: string | null) => ({
+    ...item(studentId, status, null),
+    classId,
+    classLabel: classId ? `Class ${classId}` : null,
+  });
+
+  it("keeps the queue order, the class with the most urgent work first", () => {
+    const groups = groupToMarkByClass(
+      sortToMark([
+        { ...inClass("a", "submitted", "c1"), submittedAt: "2026-10-01T00:00:00Z" },
+        { ...inClass("b", "late", "c2"), submittedAt: "2026-10-05T00:00:00Z" },
+        { ...inClass("c", "late", "c1"), submittedAt: "2026-10-06T00:00:00Z" },
+        { ...inClass("d", "submitted", null), submittedAt: "2026-10-02T00:00:00Z" },
+      ]),
+    );
+    expect(groups.map((g) => [g.key, g.label, g.items.map((i) => i.studentId)])).toEqual([
+      ["c2", "Class c2", ["b"]],
+      ["c1", "Class c1", ["c", "a"]],
+      ["none", "Other homework", ["d"]],
+    ]);
+  });
+
+  it("is empty with nothing to mark", () => {
+    expect(groupToMarkByClass([])).toEqual([]);
   });
 });
 

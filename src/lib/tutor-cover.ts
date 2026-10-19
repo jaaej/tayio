@@ -9,6 +9,7 @@ import {
   inArray,
   isNull,
   lt,
+  ne,
   notInArray,
   or,
   sql,
@@ -38,6 +39,7 @@ const ADMIN_ROLES = ["admin", ...ADMIN_TIERS] as UserRole[];
 const originalTutor = alias(profiles, "cover_original_tutor");
 const replacementTutor = alias(profiles, "cover_replacement_tutor");
 const leaveTutor = alias(profiles, "leave_tutor");
+const coverLeave = alias(tutorLeaveRequests, "cover_leave");
 
 export async function getAdminRecipientIds(): Promise<string[]> {
   const rows = await db
@@ -74,7 +76,10 @@ function coverRows() {
       leaveRequestId: tutorCoverRequests.leaveRequestId,
       originalTutorId: tutorCoverRequests.originalTutorId,
       replacementTutorId: tutorCoverRequests.replacementTutorId,
+      /** Private to the posting tutor and admins: never shown to other tutors. */
       reason: tutorCoverRequests.reason,
+      /** The note for the covering tutor: the class's own, else its leave's. */
+      handoverNote: sql<string | null>`coalesce(${tutorCoverRequests.handoverNote}, ${coverLeave.handoverNote})`,
       status: tutorCoverRequests.status,
       claimedAt: tutorCoverRequests.claimedAt,
       alert48SentAt: tutorCoverRequests.alert48SentAt,
@@ -87,7 +92,8 @@ function coverRows() {
       className: classes.name,
       subjectName: subjects.name,
       subjectColor: subjects.color,
-      location: lessons.location,
+      // A make-up has no room of its own: it is taught in the class's room.
+      location: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
       originalTutorFirst: originalTutor.firstName,
       originalTutorLast: originalTutor.lastName,
       replacementTutorFirst: replacementTutor.firstName,
@@ -101,8 +107,32 @@ function coverRows() {
     .leftJoin(
       replacementTutor,
       eq(replacementTutor.id, tutorCoverRequests.replacementTutorId),
-    );
+    )
+    .leftJoin(coverLeave, eq(coverLeave.id, tutorCoverRequests.leaveRequestId));
 }
+
+/**
+ * A lesson has at most one cover request row (unique on lesson_id). Posting
+ * it again after its request was cancelled reuses that row as a fresh open
+ * request; an open, claimed or expired request still blocks a second one.
+ */
+export const reopenCancelledCover = {
+  target: tutorCoverRequests.lessonId,
+  set: {
+    leaveRequestId: sql`excluded.leave_request_id`,
+    originalTutorId: sql`excluded.original_tutor_id`,
+    replacementTutorId: null,
+    reason: sql`excluded.reason`,
+    handoverNote: sql`excluded.handover_note`,
+    status: "open" as const,
+    claimedAt: null,
+    alert48SentAt: null,
+    alert24SentAt: null,
+    createdAt: sql`now()`,
+    updatedAt: sql`now()`,
+  },
+  setWhere: eq(tutorCoverRequests.status, "cancelled"),
+};
 
 export type CoverBoardRow = Awaited<ReturnType<typeof getCoverBoardRows>>[number];
 
@@ -166,7 +196,10 @@ export async function getTutorAbsenceLessonOptions(
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .leftJoin(
       tutorCoverRequests,
-      eq(tutorCoverRequests.lessonId, lessons.id),
+      and(
+        eq(tutorCoverRequests.lessonId, lessons.id),
+        ne(tutorCoverRequests.status, "cancelled"),
+      ),
     )
     .where(
       and(
@@ -306,7 +339,7 @@ async function materializeApprovedLeaveCovers(now: Date): Promise<number> {
           status: "open" as const,
         })),
       )
-      .onConflictDoNothing({ target: tutorCoverRequests.lessonId })
+      .onConflictDoUpdate(reopenCancelledCover)
       .returning({ id: tutorCoverRequests.id });
     materialized += created.length;
   }
@@ -499,4 +532,30 @@ export async function runTutorCoverReminders(now = new Date()) {
   }
 
   return { sent, expired, materialized };
+}
+
+/**
+ * For the tutor covering a lesson: whose class it is and their handover note
+ * (the class's own, else its leave's). Null when the tutor is not covering it.
+ * The original tutor's reason is never part of it.
+ */
+export async function getCoverHandover(lessonId: string, tutorId: string) {
+  const [row] = await db
+    .select({
+      originalTutorFirst: originalTutor.firstName,
+      originalTutorLast: originalTutor.lastName,
+      handoverNote: sql<string | null>`coalesce(${tutorCoverRequests.handoverNote}, ${coverLeave.handoverNote})`,
+    })
+    .from(tutorCoverRequests)
+    .innerJoin(originalTutor, eq(originalTutor.id, tutorCoverRequests.originalTutorId))
+    .leftJoin(coverLeave, eq(coverLeave.id, tutorCoverRequests.leaveRequestId))
+    .where(
+      and(
+        eq(tutorCoverRequests.lessonId, lessonId),
+        eq(tutorCoverRequests.status, "claimed"),
+        eq(tutorCoverRequests.replacementTutorId, tutorId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }

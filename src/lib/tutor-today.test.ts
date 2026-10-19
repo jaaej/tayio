@@ -122,7 +122,7 @@ describe("weekStatusLine", () => {
         homeworkDueIso: "2026-10-15",
         todayIso: today,
       }),
-    ).toBe("Recording uploaded · quiz needs changes · homework due Thu");
+    ).toBe("Class recording added · quiz needs changes · homework due Thu");
   });
 
   it("says nothing about a recording before the lesson ends", () => {
@@ -146,6 +146,6 @@ describe("weekStatusLine", () => {
         homeworkDueIso: "2026-10-13",
         todayIso: today,
       }),
-    ).toBe("No recording yet · homework due tomorrow");
+    ).toBe("No class recording yet · homework due tomorrow");
   });
 });

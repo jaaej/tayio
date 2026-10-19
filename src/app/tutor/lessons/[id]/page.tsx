@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
-import { PageHeader, SubjectDot, buttonVariants } from "@/components/admin/ui";
+import { GlassPanel, PageHeader, SubjectDot, buttonVariants } from "@/components/admin/ui";
 import { db } from "@/db/client";
 import { classes } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateShort, formatTimeRange, formatWeekday } from "@/lib/format";
 import { getLessonRoll } from "@/lib/lesson-roll";
+import { getCoverHandover } from "@/lib/tutor-cover";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
 import { getLessonForTutor, requireTutor } from "../../_data";
@@ -19,16 +20,16 @@ export default async function LessonDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; student?: string }>;
 }) {
   const { id } = await params;
-  const { from } = await searchParams;
-  const cameFromSchedule = from === "schedule";
+  const { from, student: fromStudent } = await searchParams;
+  const cameFrom = from === "schedule" || from === "class" || from === "student" ? from : null;
   const tutor = await requireTutor();
   // Scoped to lessons this tutor teaches; 404s otherwise.
   const { lesson, notes } = await getLessonForTutor(tutor.id, id);
 
-  const [roll, week, [cls]] = await Promise.all([
+  const [roll, week, [cls], handover] = await Promise.all([
     getLessonRoll(lesson),
     getLessonWeek(lesson.classId, lesson.date),
     db
@@ -36,6 +37,7 @@ export default async function LessonDetailPage({
       .from(classes)
       .where(eq(classes.id, lesson.classId))
       .limit(1),
+    getCoverHandover(lesson.id, tutor.id),
   ]);
   // A covering tutor teaches the lesson but not the class: the class tabs
   // would 404 for them, so those links only show for the class's own tutor.
@@ -52,6 +54,7 @@ export default async function LessonDetailPage({
       id: s.id,
       name: s.name,
       isMakeup: Boolean(s.makeupFrom),
+      absent: s.status === "absent",
       savedAt: n ? n.createdAt.toISOString() : null,
       note: n
         ? {
@@ -84,9 +87,13 @@ export default async function LessonDetailPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         back={
-          cameFromSchedule
+          cameFrom === "schedule"
             ? { href: "/tutor/timetable", label: "Back to Schedule & availability" }
-            : { href: "/tutor", label: "Back to Today" }
+            : cameFrom === "class" && ownsClass
+              ? { href: `/tutor/classes/${lesson.classId}/lessons`, label: "Back to class" }
+              : cameFrom === "student" && fromStudent && roll.some((s) => s.id === fromStudent)
+                ? { href: `/tutor/students/${fromStudent}?tab=lessons`, label: "Back to student" }
+                : { href: "/tutor", label: "Back to Today" }
         }
         eyebrow={
           <>
@@ -115,6 +122,18 @@ export default async function LessonDetailPage({
           makeupCount={roll.filter((s) => s.makeupFrom).length}
         />
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-5 lg:max-w-[420px]">
+          {handover && (
+            <GlassPanel
+              title={`Covering for ${handover.originalTutorFirst} ${handover.originalTutorLast}`.trim()}
+              titleId="handover-heading"
+            >
+              <p className="whitespace-pre-wrap p-3.5 text-[14px] leading-[1.55] text-ink [overflow-wrap:anywhere]">
+                {handover.handoverNote?.trim() || (
+                  <span className="text-[13px] text-muted">No handover note was left.</span>
+                )}
+              </p>
+            </GlassPanel>
+          )}
           <WeekPlanCard week={week} editHref={weekPlanHref} />
           <RecordingCard
             lessonId={lesson.id}

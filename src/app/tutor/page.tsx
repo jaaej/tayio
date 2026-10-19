@@ -27,11 +27,12 @@ import {
   melbourneGreeting,
   weekRangeLabel,
 } from "@/lib/format";
-import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { getTutorCheckinWeek } from "@/lib/tutor-checkins";
-import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
+import { NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
+import { describeLesson } from "@/lib/lesson-progress";
+import { lessonStartInstant, melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
 import {
-  lessonDatesLabel,
   lessonTiming,
   nearDayLabel,
   pickTodaysLesson,
@@ -42,16 +43,19 @@ import { weekStartFromParam } from "@/lib/week-nav";
 import { cn } from "@/lib/utils";
 import { getRecentLessonNotes, getTutorWeekLessons } from "./_data";
 import {
-  getClaimableCovers,
   getLessonWeekSummary,
   getMarkingSummary,
-  getMissingNotesByClass,
   getOverdueHomework,
   getQuizRequests,
   getTutorDayLessons,
   getTutorUpcomingLesson,
   type DayLesson,
 } from "./_lib/today-data";
+import { TIME_AWAY_ACTION } from "./cover/_lib/labels";
+import { getPendingCheckinWeeks } from "./checkin/_lib/queries";
+import { getClaimableCovers } from "./cover/_lib/queries";
+import { getLessonsToFinish } from "./_lib/lesson-finishing";
+import { LESSON_ACTION_LABEL, finishingTodo } from "./_lib/lessons-to-finish";
 import { BumpMessageButton } from "./_components/bump-message-button";
 
 export const dynamic = "force-dynamic";
@@ -78,12 +82,14 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Last week's check-in when it still waits on the tutor; null otherwise. */
-async function getCheckinTodo(tutorId: string, thisWeek: string) {
-  const week = addIsoDays(thisWeek, -7);
+/** The oldest week still waiting on the tutor to confirm, and how many wait. */
+async function getCheckinTodo(tutorId: string) {
+  const pending = await getPendingCheckinWeeks(tutorId);
+  const week = pending[0];
+  if (!week) return null;
   const view = await getTutorCheckinWeek(tutorId, week);
   if (view.status !== "pending" || view.totalMinutes === 0) return null;
-  return { week, view };
+  return { week, view, count: pending.length };
 }
 
 export default async function TutorToday({
@@ -96,7 +102,6 @@ export default async function TutorToday({
   const { week } = await searchParams;
   const now = new Date();
   const todayIso = melbourneDate(now);
-  const thisWeek = weekStartForIsoDate(todayIso);
   const weekStart = weekStartFromParam(week, todayIso);
 
   const [
@@ -104,7 +109,7 @@ export default async function TutorToday({
     dayLessons,
     weekLessons,
     marking,
-    missingNotes,
+    toFinish,
     quizRequests,
     checkin,
     covers,
@@ -119,9 +124,9 @@ export default async function TutorToday({
       new Date(`${addIsoDays(weekStart, 7)}T00:00:00`),
     ),
     getMarkingSummary(tutorId),
-    getMissingNotesByClass(tutorId, now),
+    getLessonsToFinish(tutorId, now),
     getQuizRequests(tutorId),
-    getCheckinTodo(tutorId, thisWeek),
+    getCheckinTodo(tutorId),
     getClaimableCovers(tutorId, now),
     getOverdueHomework(tutorId, now),
     getRecentLessonNotes(tutorId, 4),
@@ -154,27 +159,15 @@ export default async function TutorToday({
       action: "Start marking",
     });
   }
-  // One row however many classes are behind: the button opens the oldest
-  // lesson without a note, where the note is written.
-  const missingCount = missingNotes.reduce((n, c) => n + c.dates.length, 0);
-  if (missingCount > 0) {
-    const first = missingNotes[0];
-    const firstLabel = classDisplayName(first.subjectName, first.className);
-    const others = missingNotes.length - 1;
+  // One row however many lessons are behind: the button opens the oldest,
+  // asking for what it still needs (attendance or notes).
+  const finishing = finishingTodo(toFinish);
+  if (finishing) {
     todo.push({
-      key: "notes",
+      key: "finishing",
       icon: <NotebookPen className={ICON} aria-hidden />,
       tone: "bg-warn-bg text-warn",
-      title:
-        missingCount === 1
-          ? "1 lesson is missing a note"
-          : `${missingCount} lessons are missing a note`,
-      detail:
-        others === 0
-          ? `${firstLabel} · ${lessonDatesLabel(first.dates)}`
-          : `${firstLabel} and ${plural(others, "other class", "other classes")}`,
-      href: `/tutor/lessons/${first.oldestLessonId}`,
-      action: "Write notes",
+      ...finishing,
     });
   }
   for (const q of quizRequests) {
@@ -196,14 +189,14 @@ export default async function TutorToday({
       key: "checkin",
       icon: <CircleCheck className={ICON} aria-hidden />,
       tone: "bg-good-bg text-good",
-      title: "Confirm last week's hours",
-      detail: [
+      title: checkin.count === 1 ? "Confirm your hours" : `Confirm hours for ${checkin.count} weeks`,
+      detail: `${checkin.count > 1 ? "Oldest: " : ""}${[
+        weekRangeLabel(checkin.week),
         hoursLabel(view.totalMinutes),
         view.hasMissingRate ? null : money(view.totalPay),
-        weekRangeLabel(checkin.week),
       ]
         .filter(Boolean)
-        .join(" · "),
+        .join(" · ")}`,
       href: `/tutor/checkin?week=${checkin.week}`,
       action: "Review",
     });
@@ -265,7 +258,7 @@ export default async function TutorToday({
               href="/tutor/timetable?panel=leave"
               className={buttonVariants({ variant: "glass", size: "lg" })}
             >
-              Report absence
+              {TIME_AWAY_ACTION}
             </Link>
             {headlineLesson && (
               <Link
@@ -327,7 +320,7 @@ export default async function TutorToday({
         events={events}
         noun="lesson"
         calendarHref="/tutor/timetable"
-        calendarLabel="Open calendar"
+        calendarLabel="Schedule & availability"
       />
 
       <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -357,11 +350,8 @@ export default async function TutorToday({
           ) : (
             <ul className="divide-y divide-line">
               {recentNotes.map((n) => {
-                const text =
-                  n.parentVisibleComment?.trim() ||
-                  n.topicCovered?.trim() ||
-                  n.internalNote?.trim() ||
-                  null;
+                const shared = n.parentVisibleComment?.trim() || n.topicCovered?.trim() || null;
+                const internal = n.internalNote?.trim() || null;
                 return (
                   <li key={n.id}>
                     <Link
@@ -377,9 +367,15 @@ export default async function TutorToday({
                           {nearDayLabel(n.lessonDate, todayIso)}
                         </span>
                       </span>
-                      {text && (
+                      {shared && (
                         <span className="mt-0.5 line-clamp-2 block text-[13px] leading-[1.45] text-ink-soft">
-                          {text}
+                          {shared}
+                        </span>
+                      )}
+                      {internal && (
+                        <span className="mt-0.5 line-clamp-2 block text-[13px] leading-[1.45] text-ink-soft">
+                          <span className="font-bold text-warn">{NOTE_VISIBILITY.internal}:</span>{" "}
+                          {internal}
                         </span>
                       )}
                     </Link>
@@ -408,6 +404,7 @@ function TodayLesson({
   todayIso: string;
 }) {
   const timing = lessonTiming(l.date, l.startTime, l.endTime, now);
+  const view = describeLesson(l.counts, todayIso, melbourneTime(now));
   const lessonDone =
     lessonStartInstant(l.date, l.endTime).getTime() <= now.getTime();
   const meta = [
@@ -464,8 +461,11 @@ function TodayLesson({
         <Link href={`/tutor/classes/${l.classId}/curriculum`} className={cn(LINE_BUTTON, "h-[38px]")}>
           Week plan
         </Link>
-        <Link href={`/tutor/lessons/${l.id}`} className={cn(INK_BUTTON, "h-[38px]")}>
-          Mark attendance
+        <Link
+          href={`/tutor/lessons/${l.id}`}
+          className={cn(view.action === "view" ? LINE_BUTTON : INK_BUTTON, "h-[38px]")}
+        >
+          {LESSON_ACTION_LABEL[view.action]}
         </Link>
       </div>
     </li>

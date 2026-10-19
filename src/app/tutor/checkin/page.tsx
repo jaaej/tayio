@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   buttonVariants,
@@ -30,6 +31,7 @@ import {
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { TutorCheckinActions } from "./_components/checkin-actions";
+import { getPendingCheckinWeeks } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +87,12 @@ export default async function TutorCheckinPage({
 }) {
   const tutor = await requireTutor();
   const { week: requestedWeek } = await searchParams;
+  const pending = await getPendingCheckinWeeks(tutor.id);
+  // Open on the oldest week still to confirm, with the week in the URL, so
+  // approving it stays on it instead of jumping to the next one.
+  if (!requestedWeek && pending[0]) redirect(`/tutor/checkin?week=${pending[0]}`);
   const week = safeWeek(requestedWeek);
+  const nextPending = pending.find((w) => w !== week) ?? null;
   const thisWeek = weekStartForIsoDate(melbourneDate());
   const view = await getTutorCheckinWeek(tutor.id, week);
   const activeEntries = view.entries.filter((entry) => !entry.isRemoved);
@@ -243,7 +250,18 @@ export default async function TutorCheckinPage({
         )}
       </GlassPanel>
 
-      <GlassPanel title="Confirm this week" titleId="checkin-confirm-heading" bodyClassName="p-4">
+      <GlassPanel
+        title="Confirm this week"
+        titleId="checkin-confirm-heading"
+        bodyClassName="p-4"
+        action={
+          nextPending ? (
+            <Link href={`/tutor/checkin?week=${nextPending}`} className={GLASS_MD}>
+              {nextPending < week ? "Earlier" : "Next"} week to confirm: {weekRangeLabel(nextPending)}
+            </Link>
+          ) : undefined
+        }
+      >
         <TutorCheckinActions
           weekStart={week}
           status={view.status}

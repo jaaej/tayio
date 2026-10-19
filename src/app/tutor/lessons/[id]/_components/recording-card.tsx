@@ -8,7 +8,8 @@ import { ActionSpinner } from "@/components/ui/loading-button";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
 import { saveLessonRecording } from "@/app/tutor/_actions";
 
-/** Optional hosted-video link for the lesson; students watch it from Recorded lessons. */
+/** Optional hosted-video link for this lesson (the class's own recording, not
+ *  the admin's week video); students watch it from Recorded lessons. */
 export function RecordingCard({
   lessonId,
   recordingUrl,
@@ -44,7 +45,8 @@ export function RecordingCard({
 
   return (
     <GlassPanel
-      title="Recording"
+      id="recording"
+      title="Class recording"
       titleId={headingId}
       action={
         <span className={recordingUrl ? "pr-1.5 text-[12px] font-bold text-good" : "pr-1.5 text-[12px] font-bold text-ink-soft"}>

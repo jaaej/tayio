@@ -254,6 +254,61 @@ function Note({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The private reason and the handover note, asked apart: the reason stays
+ * with admin, the note goes on the Cover board for whoever covers.
+ */
+function ReasonAndHandover({
+  disabled,
+  reasonPlaceholder,
+}: {
+  disabled: boolean;
+  reasonPlaceholder: string;
+}) {
+  const ids = useId();
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${ids}-reason`} className={LABEL}>
+          Reason
+        </label>
+        <textarea
+          id={`${ids}-reason`}
+          name="reason"
+          rows={3}
+          required
+          maxLength={2000}
+          disabled={disabled}
+          aria-describedby={`${ids}-reason-help`}
+          placeholder={reasonPlaceholder}
+          className={cn(FIELD, "resize-y py-2.5")}
+        />
+        <span id={`${ids}-reason-help`} className="text-[12px] text-muted">
+          Only you and admin see this.
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${ids}-handover`} className={LABEL}>
+          Handover note <span className="font-semibold text-muted">(optional)</span>
+        </label>
+        <textarea
+          id={`${ids}-handover`}
+          name="handoverNote"
+          rows={3}
+          maxLength={2000}
+          disabled={disabled}
+          aria-describedby={`${ids}-handover-help`}
+          placeholder="e.g. Week 5 worksheets are in the blue folder"
+          className={cn(FIELD, "resize-y py-2.5")}
+        />
+        <span id={`${ids}-handover-help`} className="text-[12px] text-muted">
+          The tutor who covers sees this on the cover board.
+        </span>
+      </div>
+    </>
+  );
+}
+
 /** Runs a server action for a panel form and reports pending to the footer. */
 function useSubmit(onPending: (pending: boolean) => void) {
   const router = useRouter();
@@ -413,7 +468,6 @@ function OneClassForm({
   const [selected, setSelected] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const reasonId = useId();
   const shown = showAll ? lessons : lessons.slice(0, LESSONS_SHOWN);
 
   return (
@@ -486,21 +540,10 @@ function OneClassForm({
             )}
           </fieldset>
         )}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={reasonId} className={LABEL}>
-            Reason
-          </label>
-          <textarea
-            id={reasonId}
-            name="reason"
-            rows={4}
-            required
-            maxLength={2000}
-            disabled={pending || lessons.length === 0}
-            placeholder="What admin and the covering tutor need to know"
-            className={cn(FIELD, "resize-y py-2.5")}
-          />
-        </div>
+        <ReasonAndHandover
+          disabled={pending || lessons.length === 0}
+          reasonPlaceholder="Why you can’t teach this class"
+        />
         <Note>
           Only classes at least 48 hours away can be posted. It goes straight onto
           the cover board for other tutors.
@@ -549,21 +592,7 @@ function ExtendedLeaveForm({
             <input id={`${ids}-end`} type="date" name="endDate" required disabled={pending} className={cn(FIELD, "h-11")} />
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${ids}-reason`} className={LABEL}>
-            Reason
-          </label>
-          <textarea
-            id={`${ids}-reason`}
-            name="reason"
-            rows={4}
-            required
-            maxLength={2000}
-            disabled={pending}
-            placeholder="Reason for leave and any handover notes"
-            className={cn(FIELD, "resize-y py-2.5")}
-          />
-        </div>
+        <ReasonAndHandover disabled={pending} reasonPlaceholder="Why you’ll be away" />
         <Note>
           Leave of 2 to 90 days needs admin approval. Once approved, every affected
           class is posted for cover. Submit at least 48 hours before your first

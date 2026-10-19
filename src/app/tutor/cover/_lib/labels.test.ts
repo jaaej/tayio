@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverUrgencyLabel, leaveDetail, leaveRangeLabel } from "./labels";
+import { coverUrgencyLabel, handoverLine, leaveDetail, leaveRangeLabel } from "./labels";
 
 describe("leaveRangeLabel", () => {
   it("writes one day with its month", () => {
@@ -44,5 +44,18 @@ describe("coverUrgencyLabel", () => {
     expect(coverUrgencyLabel(24)).toBe("Under 24h");
     expect(coverUrgencyLabel(30)).toBe("Under 48h");
     expect(coverUrgencyLabel(72)).toBeNull();
+  });
+});
+
+describe("handoverLine", () => {
+  it("adds the handover note after who posted the class", () => {
+    expect(handoverLine("From Daniel Lee", "Worksheets are in the blue folder")).toBe(
+      "From Daniel Lee: Worksheets are in the blue folder",
+    );
+  });
+
+  it("is just the name without a note, never the private reason", () => {
+    expect(handoverLine("From Daniel Lee", null)).toBe("From Daniel Lee");
+    expect(handoverLine("From Daniel Lee", "   ")).toBe("From Daniel Lee");
   });
 });

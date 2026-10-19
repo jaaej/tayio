@@ -1,22 +1,11 @@
 import Link from "next/link";
-import {
-  buttonVariants,
-  Empty,
-  GlassPanel,
-  PageHeader,
-  Pill,
-} from "@/components/admin/ui";
+import { buttonVariants, PageHeader } from "@/components/admin/ui";
 import { CoverBoardColumn, CoverCard } from "@/components/cover/cover-board";
 import { requireRole } from "@/lib/auth";
 import type { CoverBoardRow } from "@/lib/tutor-cover";
-import { CoverActionButton, WithdrawLeaveButton } from "./_components/cover-controls";
+import { CoverActionButton } from "./_components/cover-controls";
 import type { CoverFit } from "./_lib/fit";
-import {
-  LEAVE_STATUS,
-  coverUrgencyLabel,
-  leaveDetail,
-  leaveRangeLabel,
-} from "./_lib/labels";
+import { coverUrgencyLabel, handoverLine, TIME_AWAY_ACTION } from "./_lib/labels";
 import { getTutorCoverBoard } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +32,12 @@ function cardProps(row: CoverBoardRow) {
   };
 }
 
+/**
+ * Other tutors' classes that need cover and the ones you are covering. Your
+ * own posted classes and leave live under Time away on Schedule &
+ * availability. A tutor's reason for time away is private to them and
+ * admins: the cards show only the handover note written for the cover.
+ */
 export default async function TutorCoverPage() {
   const user = await requireRole("tutor");
   const board = await getTutorCoverBoard(user.id);
@@ -56,12 +51,12 @@ export default async function TutorCoverPage() {
             href="/tutor/timetable?panel=leave"
             className={buttonVariants({ variant: "primary", size: "lg" })}
           >
-            Report absence or leave
+            {TIME_AWAY_ACTION}
           </Link>
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] items-start gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] items-start gap-4">
         <CoverBoardColumn
           id="cover-needed"
           title="Needs cover"
@@ -75,7 +70,10 @@ export default async function TutorCoverPage() {
               <CoverCard
                 key={row.id}
                 {...cardProps(row)}
-                reason={`${tutorName(row.originalTutorFirst, row.originalTutorLast)}: ${row.reason}`}
+                reason={handoverLine(
+                  `From ${tutorName(row.originalTutorFirst, row.originalTutorLast)}`,
+                  row.handoverNote,
+                )}
                 urgency={coverUrgencyLabel(row.hoursRemaining)}
                 state={FIT_STATE[fit]}
                 // The claim is refused on a clash, so no button is offered.
@@ -100,73 +98,16 @@ export default async function TutorCoverPage() {
             <CoverCard
               key={row.id}
               {...cardProps(row)}
-              reason={`For ${tutorName(row.originalTutorFirst, row.originalTutorLast)}: ${row.reason}`}
-              state={{ text: "On your timetable", tone: "info" }}
+              reason={handoverLine(
+                `For ${tutorName(row.originalTutorFirst, row.originalTutorLast)}`,
+                row.handoverNote,
+              )}
+              state={{ text: "On your schedule", tone: "info" }}
               actions={<CoverActionButton coverRequestId={row.id} mode="release" />}
             />
           ))}
         </CoverBoardColumn>
-
-        <CoverBoardColumn
-          id="cover-requests"
-          title="Your requests"
-          dotClassName="bg-[#16A34A]"
-          count={board.requests.length}
-          empty="You haven’t posted any classes."
-        >
-          {board.requests.map((row) => (
-            <CoverCard
-              key={row.id}
-              {...cardProps(row)}
-              reason={row.reason}
-              urgency={
-                row.status === "open" ? coverUrgencyLabel(row.hoursRemaining) : null
-              }
-              state={
-                row.status === "claimed"
-                  ? {
-                      text: `Covered by ${tutorName(row.replacementTutorFirst, row.replacementTutorLast)}`,
-                      tone: "good",
-                    }
-                  : { text: "Waiting for a tutor", tone: "warn" }
-              }
-            />
-          ))}
-        </CoverBoardColumn>
       </div>
-
-      <GlassPanel
-        title="Your extended leave"
-        titleId="leave-heading"
-        meta="Once approved, every affected class is posted for cover"
-      >
-        {board.leave.length === 0 ? (
-          <Empty>No leave requests.</Empty>
-        ) : (
-          <ul className="divide-y divide-line">
-            {board.leave.map((leave) => {
-              const status = LEAVE_STATUS[leave.status];
-              return (
-                <li
-                  key={leave.id}
-                  className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5"
-                >
-                  <div className="flex min-w-0 flex-[1_1_260px] flex-col">
-                    <span className="text-[14px] font-bold text-ink">
-                      {leaveRangeLabel(leave.startDate, leave.endDate)}
-                    </span>
-                    <span className="text-[12px] text-muted">{leaveDetail(leave)}</span>
-                  </div>
-                  <Pill tone={status.tone}>{status.label}</Pill>
-                  {leave.status === "pending" && (
-                    <WithdrawLeaveButton leaveRequestId={leave.id} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </GlassPanel>
     </div>
   );
 }

@@ -22,7 +22,13 @@ import { melbourneDate, tutorCoverClassLabel } from "@/lib/tutor-cover-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { cn } from "@/lib/utils";
 import { getWeeklyRules } from "../_lib/availability";
-import { LEAVE_STATUS, leaveDetail, leaveRangeLabel } from "../cover/_lib/labels";
+import { CancelTimeAwayButton } from "../cover/_components/cover-controls";
+import {
+  LEAVE_STATUS,
+  TIME_AWAY_ACTION,
+  leaveDetail,
+  leaveRangeLabel,
+} from "../cover/_lib/labels";
 import { getTutorTimeAway } from "../cover/_lib/queries";
 import {
   LeavePanelProvider,
@@ -263,7 +269,17 @@ export default async function TutorTimetablePage({
     dateLabel: formatDateLong(lesson.date),
   }));
 
-  const awayItems = [
+  type AwayItem = {
+    key: string;
+    sort: string;
+    when: string;
+    status: { label: string; tone: PillTone };
+    detail: string;
+    handoverNote: string | null;
+    /** What can still be taken back from here; the rest goes through the office. */
+    cancel: { kind: "leave" | "cover"; id: string } | null;
+  };
+  const awayItems: AwayItem[] = [
     ...timeAway.absences.map((row) => ({
       key: `cover-${row.id}`,
       sort: row.date,
@@ -281,6 +297,8 @@ export default async function TutorTimetablePage({
       ]
         .filter(Boolean)
         .join(" · "),
+      handoverNote: row.handoverNote,
+      cancel: row.status === "open" ? { kind: "cover" as const, id: row.id } : null,
     })),
     ...timeAway.leave.map((row) => ({
       key: `leave-${row.id}`,
@@ -288,6 +306,8 @@ export default async function TutorTimetablePage({
       when: leaveRangeLabel(row.startDate, row.endDate),
       status: LEAVE_STATUS[row.status],
       detail: `Extended leave · ${leaveDetail(row)}`,
+      handoverNote: row.handoverNote,
+      cancel: row.status === "pending" ? { kind: "leave" as const, id: row.id } : null,
     })),
   ].sort((a, b) => a.sort.localeCompare(b.sort));
 
@@ -305,7 +325,7 @@ export default async function TutorTimetablePage({
             Schedule &amp; availability
           </h1>
           <LeavePanelTrigger tab="class" size="lg" variant="primary">
-            Absence or leave
+            {TIME_AWAY_ACTION}
           </LeavePanelTrigger>
         </header>
 
@@ -408,7 +428,11 @@ export default async function TutorTimetablePage({
               </ul>
             </section>
 
-            <section aria-labelledby="away-heading" className="glass flex flex-col rounded-[24px] p-1.5">
+            <section
+              id="time-away"
+              aria-labelledby="away-heading"
+              className="glass flex scroll-mt-6 flex-col rounded-[24px] p-1.5"
+            >
               <h2 id="away-heading" className="px-3 pb-2.5 pt-2 text-[16px] font-extrabold text-ink">
                 Time away
               </h2>
@@ -423,7 +447,17 @@ export default async function TutorTimetablePage({
                           <span className="min-w-0 pt-0.5 text-[14px] font-bold text-ink">{item.when}</span>
                           <Pill tone={item.status.tone} className="shrink-0">{item.status.label}</Pill>
                         </span>
-                        <span className="text-[12px] text-muted">{item.detail}</span>
+                        <span className="text-[12px] text-muted [overflow-wrap:anywhere]">{item.detail}</span>
+                        {item.handoverNote && (
+                          <span className="text-[12px] text-ink-soft [overflow-wrap:anywhere]">
+                            <span className="font-bold text-ink">Handover:</span> {item.handoverNote}
+                          </span>
+                        )}
+                        {item.cancel && (
+                          <span className="flex flex-wrap items-center justify-end gap-1.5">
+                            <CancelTimeAwayButton kind={item.cancel.kind} id={item.cancel.id} />
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

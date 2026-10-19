@@ -2,27 +2,28 @@ import Link from "next/link";
 import {
   Empty,
   PageHeader,
-  Pill,
   buttonVariants,
 } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
-import { formatTime, formatTimeRange } from "@/lib/format";
+import { formatTimeRange } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
-import { lessonTiming, nearDayLabel } from "@/lib/tutor-today";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
 import { getTutorClasses, requireTutor } from "../_data";
-import {
-  getLessonWeekSummary,
-  getTutorUpcomingLesson,
-} from "../_lib/today-data";
+import { getLessonsToFinish } from "../_lib/lesson-finishing";
+import { finishingByClass } from "../_lib/lessons-to-finish";
+import { getToMark } from "../homework/_lib/marking-data";
+import { groupToMarkByClass, submissionHref } from "../homework/_lib/marking-list";
 import { getNextLessonDateByClass } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const LINE_BUTTON = buttonVariants({ variant: "outline", size: "md" });
+/** A card's "needs you" link: a tinted pill, 40px tall so it is easy to tap. */
+const NEEDS_LINK =
+  "inline-flex min-h-10 items-center gap-1.5 rounded-full bg-warn-bg px-3 text-[13px] font-extrabold tabular-nums text-warn transition-colors hover:bg-[#FCE7C3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
 
 function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
@@ -33,17 +34,17 @@ export default async function TutorClassesPage() {
   const now = new Date();
   const todayIso = melbourneDate(now);
 
-  const [list, nextLesson, nextByClass] = await Promise.all([
+  const [list, nextByClass, toFinish, toMark] = await Promise.all([
     getTutorClasses(tutor.id),
-    getTutorUpcomingLesson(tutor.id, now),
     getNextLessonDateByClass(tutor.id, todayIso),
+    getLessonsToFinish(tutor.id, now),
+    getToMark(tutor.id),
   ]);
 
-  const [nextSummary, weeks] = await Promise.all([
-    nextLesson ? getLessonWeekSummary(nextLesson) : null,
-    Promise.all(list.map((c) => getLessonWeek(c.id, todayIso))),
-  ]);
+  const weeks = await Promise.all(list.map((c) => getLessonWeek(c.id, todayIso)));
   const weekByClass = new Map(list.map((c, i) => [c.id, weeks[i]]));
+  const finishing = finishingByClass(toFinish);
+  const marking = new Map(groupToMarkByClass(toMark).map((g) => [g.key, g.items]));
 
   // Classes with a lesson coming up first, soonest first; the rest by name.
   const sorted = [...list].sort((a, b) => {
@@ -55,14 +56,6 @@ export default async function TutorClassesPage() {
     return (a.startTime ?? "").localeCompare(b.startTime ?? "") || a.name.localeCompare(b.name);
   });
 
-  const isToday = nextLesson?.date === todayIso;
-  const timing = nextLesson
-    ? lessonTiming(nextLesson.date, nextLesson.startTime, nextLesson.endTime, now)
-    : null;
-  const [clock, meridiem] = nextLesson
-    ? formatTime(nextLesson.startTime).replace(/(am|pm)$/, " $1").split(" ")
-    : ["", ""];
-
   return (
     <div className="space-y-5">
       <PageHeader
@@ -72,63 +65,10 @@ export default async function TutorClassesPage() {
             href="/tutor/timetable"
             className={buttonVariants({ variant: "glass", size: "lg" })}
           >
-            Open timetable
+            Schedule &amp; availability
           </Link>
         }
       />
-
-      {nextLesson && (
-        <section aria-labelledby="next-class" className="glass rise rounded-[24px] p-1.5">
-          <div className="panel flex flex-wrap items-center gap-4 px-[18px] py-4">
-            <span className="flex w-[52px] shrink-0 flex-col items-center leading-[1.1]">
-              <span className="text-[11px] font-extrabold uppercase text-muted">
-                {isToday ? "Today" : nearDayLabel(nextLesson.date, todayIso)}
-              </span>
-              <span className="text-[22px] font-extrabold tabular-nums text-ink">{clock}</span>
-              <span className="text-[11px] font-extrabold uppercase text-muted">{meridiem}</span>
-            </span>
-            <span className="flex min-w-0 flex-[1_1_260px] flex-col gap-[3px]">
-              <span className="flex flex-wrap items-center gap-2">
-                <h2 id="next-class" className="text-[18px] font-extrabold text-ink">
-                  {classDisplayName(nextLesson.subjectName, nextLesson.className)}
-                </h2>
-                {isToday && timing && (
-                  <Pill
-                    tone={timing.tone === "neutral" ? "default" : timing.tone}
-                    className="h-[22px] px-2 text-[11px]"
-                  >
-                    {timing.label}
-                  </Pill>
-                )}
-              </span>
-              <span className="text-[13px] text-muted">
-                {[
-                  nextSummary ? `Week ${nextSummary.weekNumber} · ${nextSummary.title}` : null,
-                  isToday ? null : formatTimeRange(nextLesson.startTime, nextLesson.endTime),
-                  nextLesson.place,
-                  plural(nextLesson.studentCount, "student"),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/tutor/classes/${nextLesson.classId}/curriculum`}
-                className={cn(LINE_BUTTON, "h-10 rounded-[11px]")}
-              >
-                Week plan
-              </Link>
-              <Link
-                href={`/tutor/lessons/${nextLesson.id}`}
-                className={cn(buttonVariants({ variant: "primary", size: "md" }), "h-10 rounded-[11px] px-4")}
-              >
-                Open lesson
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Same frame as GlassPanel, but each class card is its own white
           panel on the glass instead of one shared body. */}
@@ -157,6 +97,8 @@ export default async function TutorClassesPage() {
                   ? `${WEEKDAY[c.weekday]} · ${formatTimeRange(c.startTime, c.endTime)}`
                   : "-";
               const where = c.location ?? "-";
+              const toFinishCount = finishing.get(c.id) ?? 0;
+              const waiting = marking.get(c.id) ?? [];
               return (
                 <article key={c.id} className="panel flex flex-col gap-3.5 p-4">
                   <div className="flex items-start gap-2.5">
@@ -176,6 +118,23 @@ export default async function TutorClassesPage() {
                       )}
                     </span>
                   </div>
+                  {(toFinishCount > 0 || waiting.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {toFinishCount > 0 && (
+                        <Link href={`/tutor/classes/${c.id}/lessons`} className={NEEDS_LINK}>
+                          {plural(toFinishCount, "lesson")} to finish
+                        </Link>
+                      )}
+                      {waiting.length > 0 && (
+                        <Link
+                          href={submissionHref(waiting[0].homeworkId, waiting[0].studentId, {})}
+                          className={NEEDS_LINK}
+                        >
+                          {waiting.length} to mark
+                        </Link>
+                      )}
+                    </div>
+                  )}
                   <dl className="grid grid-cols-[64px_1fr] gap-y-1.5 text-[13px]">
                     <dt className="font-semibold text-muted">When</dt>
                     <dd className="font-bold text-ink tabular-nums">{when}</dd>

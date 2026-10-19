@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
+import { tutorHomeworkFilter } from "@/app/tutor/_lib/homework-access";
 import { db } from "@/db/client";
 import { homework } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
@@ -32,7 +33,6 @@ async function requireSolutionManager(homeworkId: string) {
   const [row] = await db
     .select({
       id: homework.id,
-      tutorId: homework.tutorId,
       classId: homework.classId,
       solutionUrl: homework.solutionUrl,
     })
@@ -40,7 +40,7 @@ async function requireSolutionManager(homeworkId: string) {
     .where(
       role === "admin"
         ? eq(homework.id, homeworkId)
-        : and(eq(homework.id, homeworkId), eq(homework.tutorId, user.id)),
+        : and(eq(homework.id, homeworkId), tutorHomeworkFilter(user.id)),
     )
     .limit(1);
   if (!row) throw new Error("Homework not found");

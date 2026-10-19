@@ -6,6 +6,7 @@ import { lessons, tutorCoverRequests } from "@/db/schema";
 import { getDateOverrides, getWeeklyRules } from "@/app/tutor/_lib/availability";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import {
+  getCoverBoardRows,
   getLeaveAffectedLessonCounts,
   getTutorCoverPageData,
   type CoverBoardRow,
@@ -89,33 +90,39 @@ async function fitsFor(tutorId: string, rows: CoverBoardRow[]) {
 
 export async function getTutorCoverBoard(tutorId: string, now = new Date()) {
   const data = await getTutorCoverPageData(tutorId, now);
-  // Your own posted classes live under "Your requests", not "Needs cover".
+  // Your own posted classes and leave live under Time away on the schedule.
   const needsCover = data.open.filter((row) => row.originalTutorId !== tutorId);
-  const [fits, leave] = await Promise.all([
-    fitsFor(tutorId, needsCover),
-    withLeaveCounts(data.leaveRequests, now),
-  ]);
   return {
     needsCover,
-    fits,
+    fits: await fitsFor(tutorId, needsCover),
     covering: data.claimedByMe,
-    requests: data.requestedByMe,
-    leave,
   };
 }
 
 /**
- * Upcoming time away for the schedule page: single classes you posted for
- * cover, and leave that is waiting for approval or still running.
+ * Open covers this tutor can take, soonest first: not their own, and not at
+ * a time they already teach (the board offers no button then, and the claim
+ * is refused). The nav badge and Today count these.
+ */
+export async function getClaimableCovers(tutorId: string, now = new Date()) {
+  const rows = (await getCoverBoardRows(now)).filter(
+    (row) => row.status === "open" && row.originalTutorId !== tutorId,
+  );
+  const fits = await fitsFor(tutorId, rows);
+  return rows.filter((row) => fits.get(row.id) !== "clash");
+}
+
+/**
+ * The tutor's own time away for the schedule page: single classes they posted
+ * for cover (still waiting or covered), and leave that is waiting, approved
+ * or declined and not over yet. Withdrawn leave is left out.
  */
 export async function getTutorTimeAway(tutorId: string, now = new Date()) {
   const data = await getTutorCoverPageData(tutorId, now);
   const today = melbourneDate(now);
   const leave = await withLeaveCounts(
     data.leaveRequests.filter(
-      (row) =>
-        (row.status === "pending" || row.status === "approved") &&
-        row.endDate >= today,
+      (row) => row.status !== "cancelled" && row.endDate >= today,
     ),
     now,
   );

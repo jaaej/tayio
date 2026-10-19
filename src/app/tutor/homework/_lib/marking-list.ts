@@ -21,6 +21,7 @@ export type SubmissionItem = {
   studentName: string;
   subjectName: string | null;
   subjectColor: string | null;
+  classId: string | null;
   classLabel: string | null;
   status: string;
   /** ISO timestamps, so the list can cross the server/client boundary. */
@@ -55,15 +56,29 @@ export function sortToMark<T extends Pick<SubmissionItem, "status" | "submittedA
   });
 }
 
-export function groupToMark<T extends Pick<SubmissionItem, "status">>(
-  sorted: T[],
-): { key: "late" | "submitted"; items: T[] }[] {
-  const late = sorted.filter((i) => i.status === "late");
-  const submitted = sorted.filter((i) => i.status !== "late");
-  return [
-    ...(late.length ? [{ key: "late" as const, items: late }] : []),
-    ...(submitted.length ? [{ key: "submitted" as const, items: submitted }] : []),
-  ];
+export type ToMarkClassGroup<T> = {
+  /** The class id, or "none" for homework set outside a class. */
+  key: string;
+  label: string;
+  items: T[];
+};
+
+/**
+ * The queue as the list shows it and "Save & next" walks it: one group per
+ * class, the class holding the most urgent work first (`sorted` is
+ * `sortToMark` order), and that order kept inside each class.
+ */
+export function groupToMarkByClass<
+  T extends Pick<SubmissionItem, "classId" | "classLabel">,
+>(sorted: T[]): ToMarkClassGroup<T>[] {
+  const groups = new Map<string, ToMarkClassGroup<T>>();
+  for (const item of sorted) {
+    const key = item.classId ?? "none";
+    const group = groups.get(key) ?? { key, label: item.classLabel ?? "Other homework", items: [] };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
 }
 
 /** Case-insensitive match on student, homework, class or subject. */

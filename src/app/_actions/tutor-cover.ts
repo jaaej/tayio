@@ -28,6 +28,7 @@ import { formatDateLong } from "@/lib/format";
 import {
   adminNotificationValues,
   getAdminRecipientIds,
+  reopenCancelledCover,
   runTutorCoverReminders,
 } from "@/lib/tutor-cover";
 import {
@@ -42,6 +43,14 @@ import {
 type ActionResult = { ok: true; message: string } | { ok: false; error: string };
 
 const reasonSchema = z.string().trim().min(1, "Please add a reason").max(2000);
+/** Optional; an empty box is no note. */
+const handoverSchema = z
+  .string()
+  .trim()
+  .max(2000, "Keep the handover note under 2000 characters")
+  .transform((value) => value || null)
+  .nullable()
+  .optional();
 const isoCalendarDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -55,12 +64,17 @@ const isoCalendarDateSchema = z
 const singleRequestSchema = z.object({
   lessonId: z.string().uuid(),
   reason: reasonSchema,
+  handoverNote: handoverSchema,
 });
 const leaveSchema = z.object({
   startDate: isoCalendarDateSchema,
   endDate: isoCalendarDateSchema,
   reason: reasonSchema,
+  handoverNote: handoverSchema,
 });
+
+/** Where a tutor sees their own time away and cover requests. */
+const TIME_AWAY_HREF = "/tutor/timetable#time-away";
 
 export async function submitSingleCoverRequest(
   formData: FormData,
@@ -69,6 +83,7 @@ export async function submitSingleCoverRequest(
   const parsed = singleRequestSchema.safeParse({
     lessonId: formData.get("lessonId"),
     reason: formData.get("reason"),
+    handoverNote: formData.get("handoverNote"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request" };
@@ -116,9 +131,10 @@ export async function submitSingleCoverRequest(
         lessonId: lesson.id,
         originalTutorId: user.id,
         reason: parsed.data.reason,
+        handoverNote: parsed.data.handoverNote ?? null,
         status: "open",
       })
-      .onConflictDoNothing({ target: tutorCoverRequests.lessonId })
+      .onConflictDoUpdate(reopenCancelledCover)
       .returning({ id: tutorCoverRequests.id });
     if (rows.length === 0) return false;
     const adminNotifications = adminNotificationValues(adminIds, {
@@ -148,6 +164,7 @@ export async function submitSingleCoverRequest(
   }
 
   revalidatePath("/tutor/cover");
+  revalidatePath("/tutor/timetable");
   revalidatePath("/admin/reschedules");
   return { ok: true, message: "The class is now on the cover board." };
 }
@@ -160,11 +177,13 @@ export async function submitTutorLeaveRequest(
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
     reason: formData.get("reason"),
+    handoverNote: formData.get("handoverNote"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request" };
   }
   const { startDate, endDate, reason } = parsed.data;
+  const handoverNote = parsed.data.handoverNote ?? null;
   const days = inclusiveDayCount(startDate, endDate);
   if (days <= 0) {
     return { ok: false, error: "The last day must be on or after the first day." };
@@ -249,6 +268,7 @@ export async function submitTutorLeaveRequest(
       startDate,
       endDate,
       reason,
+      handoverNote,
     });
     const adminNotifications = adminNotificationValues(adminIds, {
       title: "URGENT: Extended tutor leave requires approval",
@@ -267,6 +287,7 @@ export async function submitTutorLeaveRequest(
   }
 
   revalidatePath("/tutor/cover");
+  revalidatePath("/tutor/timetable");
   revalidatePath("/admin/reschedules");
   revalidatePath("/admin/notifications");
   return { ok: true, message: "Leave sent to admin for approval." };
@@ -333,6 +354,103 @@ export async function withdrawTutorLeaveRequest(
   return { ok: true, message: "Leave request withdrawn." };
 }
 
+/**
+ * A tutor takes back one class they posted for cover while nobody has taken
+ * it yet: the class stays theirs and admins are told, as when leave is
+ * withdrawn. A claimed class, or one posted by approved leave, goes through
+ * the office instead.
+ */
+export async function cancelTutorCoverRequest(
+  coverRequestId: string,
+): Promise<ActionResult> {
+  const user = await requireRole("tutor");
+  const parsed = z.string().uuid().safeParse(coverRequestId);
+  if (!parsed.success) return { ok: false, error: "Cover request not found." };
+
+  const [cover] = await db
+    .select({
+      id: tutorCoverRequests.id,
+      leaveRequestId: tutorCoverRequests.leaveRequestId,
+      status: tutorCoverRequests.status,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(tutorCoverRequests)
+    .innerJoin(lessons, eq(lessons.id, tutorCoverRequests.lessonId))
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(
+      and(
+        eq(tutorCoverRequests.id, parsed.data),
+        eq(tutorCoverRequests.originalTutorId, user.id),
+      ),
+    )
+    .limit(1);
+  if (!cover) return { ok: false, error: "Cover request not found." };
+  if (cover.leaveRequestId) {
+    return {
+      ok: false,
+      error: "This class is part of your approved leave. Contact the office to change it.",
+    };
+  }
+  if (cover.status !== "open") {
+    return {
+      ok: false,
+      error: "Another tutor has already taken this class. Contact the office to change it.",
+    };
+  }
+  if (hoursUntilLesson(cover.date, cover.startTime) <= 0) {
+    return { ok: false, error: "This class has already started." };
+  }
+
+  const [[tutor], adminIds] = await Promise.all([
+    db
+      .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.id, user.id))
+      .limit(1),
+    getAdminRecipientIds(),
+  ]);
+  const cancelled = await db.transaction(async (tx) => {
+    const changed = await tx
+      .update(tutorCoverRequests)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(
+        and(
+          eq(tutorCoverRequests.id, cover.id),
+          eq(tutorCoverRequests.originalTutorId, user.id),
+          eq(tutorCoverRequests.status, "open"),
+        ),
+      )
+      .returning({ id: tutorCoverRequests.id });
+    if (changed.length === 0) return false;
+    const adminNotifications = adminNotificationValues(adminIds, {
+      title: "Tutor cover request cancelled",
+      body:
+        `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} will teach ` +
+        `${tutorCoverLessonDescription(cover)} after all.`,
+    });
+    if (adminNotifications.length) {
+      await tx.insert(notifications).values(adminNotifications);
+    }
+    return true;
+  });
+  if (!cancelled) {
+    return {
+      ok: false,
+      error: "Another tutor has already taken this class. Contact the office to change it.",
+    };
+  }
+
+  revalidatePath("/tutor/cover");
+  revalidatePath("/tutor/timetable");
+  revalidatePath("/admin/reschedules");
+  return { ok: true, message: "Cover request cancelled. The class is yours again." };
+}
+
 export async function decideTutorLeave(input: {
   leaveRequestId: string;
   decision: "approve" | "reject";
@@ -390,7 +508,7 @@ export async function decideTutorLeave(input: {
         channel: "in_app",
         title: "Extended leave request declined",
         body: `Your leave request for ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)} was not approved. Please contact the office.`,
-        href: "/tutor/cover",
+        href: TIME_AWAY_HREF,
       });
       return true;
     });
@@ -399,6 +517,7 @@ export async function decideTutorLeave(input: {
     }
     revalidatePath("/admin/reschedules");
     revalidatePath("/tutor/cover");
+    revalidatePath("/tutor/timetable");
     return { ok: true, message: "Leave request rejected." };
   }
 
@@ -451,7 +570,7 @@ export async function decideTutorLeave(input: {
             status: "open" as const,
           })),
         )
-        .onConflictDoNothing({ target: tutorCoverRequests.lessonId });
+        .onConflictDoUpdate(reopenCancelledCover);
     }
 
     await tx.insert(notifications).values({
@@ -461,7 +580,7 @@ export async function decideTutorLeave(input: {
       body:
         `Your leave for ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)} was approved. ` +
         `${futureLessons.length} ${futureLessons.length === 1 ? "class is" : "classes are"} now on the cover board.`,
-      href: "/tutor/cover",
+      href: TIME_AWAY_HREF,
     });
     const adminNotifications = adminNotificationValues(adminIds, {
       title: "URGENT: Extended leave approved — coverage needed",
@@ -488,6 +607,7 @@ export async function decideTutorLeave(input: {
   revalidatePath("/admin/reschedules");
   revalidatePath("/admin/notifications");
   revalidatePath("/tutor/cover");
+  revalidatePath("/tutor/timetable");
   return { ok: true, message: "Leave approved and classes posted for cover." };
 }
 
@@ -632,13 +752,13 @@ async function assignCover(input: {
         channel: "in_app" as const,
         title: "Your class has been covered",
         body: `${replacement.firstName} ${replacement.lastName} will teach ${detail}.`,
-        href: "/tutor/cover",
+        href: TIME_AWAY_HREF,
       },
       {
         userId: replacement.id,
         channel: "in_app" as const,
         title: "Cover confirmed",
-        body: `You are now teaching ${detail}. It has been added to your timetable.`,
+        body: `You are now teaching ${detail}. It has been added to your schedule.`,
         href: "/tutor/cover",
       },
     ];
@@ -792,7 +912,7 @@ export async function adminReopenTutorCover(
         channel: "in_app" as const,
         title: "Your class needs cover again",
         body: `${detail} was returned to the cover board by admin.`,
-        href: "/tutor/cover",
+        href: TIME_AWAY_HREF,
       },
       {
         userId: replacementTutorId,

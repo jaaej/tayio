@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  cancelTutorCoverRequest,
   claimTutorCover,
   releaseTutorCover,
   withdrawTutorLeaveRequest,
@@ -79,8 +80,17 @@ export function CoverActionButton({
   );
 }
 
-export function WithdrawLeaveButton({ leaveRequestId }: { leaveRequestId: string }) {
-  const action = useAction(() => withdrawTutorLeaveRequest(leaveRequestId));
+/** Take back your own leave request (pending) or posted class (open). */
+export function CancelTimeAwayButton({
+  kind,
+  id,
+}: {
+  kind: "leave" | "cover";
+  id: string;
+}) {
+  const action = useAction(() =>
+    kind === "leave" ? withdrawTutorLeaveRequest(id) : cancelTutorCoverRequest(id),
+  );
   return (
     <>
       <Button
@@ -88,7 +98,7 @@ export function WithdrawLeaveButton({ leaveRequestId }: { leaveRequestId: string
         variant="outline"
         disabled={action.pending}
         onClick={action.trigger}
-        className={CARD_BTN}
+        className={cn(CARD_BTN, "hover:border-bad hover:text-bad")}
       >
         <ActionButtonLabel pending={action.pending} pendingLabel="Cancelling…">
           Cancel request

@@ -37,6 +37,7 @@ import {
 } from "@/components/portal/global-search";
 import { getPendingMarkCount, getTutorStudentsByClass } from "@/app/tutor/_data";
 import { getClaimableCoverCount } from "@/app/tutor/_lib/nav-badges";
+import { getPendingCheckinWeeks } from "@/app/tutor/checkin/_lib/queries";
 import { studentSearchEntries } from "@/app/tutor/_lib/student-search";
 
 const IC = "h-[17px] w-[17px]";
@@ -99,15 +100,16 @@ export async function TutorShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  const badges = { marking: 0, cover: 0, messages: 0, notifications: 0 };
+  const badges = { marking: 0, cover: 0, checkin: 0, messages: 0, notifications: 0 };
   let people: PortalSearchDestination[] = [];
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [marking, cover, messages, notifications, avatarResult, roster] =
+    const [marking, cover, checkin, messages, notifications, avatarResult, roster] =
       await Promise.allSettled([
         getPendingMarkCount(user.id),
         getClaimableCoverCount(user.id),
+        getPendingCheckinWeeks(user.id).then((weeks) => weeks.length),
         getUnreadThreadCount(user.id),
         getUnreadCount(user.id),
         db
@@ -122,6 +124,7 @@ export async function TutorShell({
       ]);
     badges.marking = settled(marking, "marking");
     badges.cover = settled(cover, "cover");
+    badges.checkin = settled(checkin, "check-in");
     badges.messages = settled(messages, "message");
     badges.notifications = settled(notifications, "notification");
     if (avatarResult.status === "fulfilled") {
@@ -139,6 +142,7 @@ export async function TutorShell({
   const BADGE_BY_HREF: Record<string, number> = {
     "/tutor/homework": badges.marking,
     "/tutor/cover": badges.cover,
+    "/tutor/checkin": badges.checkin,
     "/tutor/messages": badges.messages,
   };
   const sections: NavSection[] = SECTIONS.map((s) => ({

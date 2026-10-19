@@ -47,3 +47,44 @@ export const notesMissingSql = sql<number>`(
       where n.lesson_id = ${lessons.id} and n.student_id = a.student_id
     )
 )`;
+
+/**
+ * The `LessonCounts` columns `describeLesson` reads, for a select over
+ * `lessons` (single-table or joined). The roll is `lessonRollIds`' rule: the
+ * class's current students who had enrolled by the lesson date (nobody on a
+ * make-up, a private booking) and anyone marked on the lesson. Notes count
+ * only students who were not absent: absent students need none. Columns are
+ * spelled `lessons.*`: Drizzle drops the table prefix from select-list
+ * columns in a single-table select, which would bind these correlated
+ * subqueries to the inner tables.
+ */
+export const lessonCountFields = {
+  roster: sql<number>`(
+    select count(*)::int from (
+      select e.student_id from enrollments e
+      where lessons.status <> 'makeup'
+        and e.class_id = lessons.class_id
+        and e.withdrawn_at is null
+        and (e.enrolled_at at time zone 'Australia/Melbourne')::date <= lessons.date
+      union
+      select a.student_id from attendance a where a.lesson_id = lessons.id
+    ) roll
+  )`,
+  marked: sql<number>`(
+    select count(*)::int from attendance a where a.lesson_id = lessons.id
+  )`,
+  absent: sql<number>`(
+    select count(*)::int from attendance a
+    where a.lesson_id = lessons.id and a.status = 'absent'
+  )`,
+  notesWritten: sql<number>`(
+    select count(distinct n.student_id)::int from lesson_notes n
+    where n.lesson_id = lessons.id
+      and not exists (
+        select 1 from attendance a
+        where a.lesson_id = lessons.id
+          and a.student_id = n.student_id
+          and a.status = 'absent'
+      )
+  )`,
+};

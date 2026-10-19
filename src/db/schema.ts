@@ -308,7 +308,10 @@ export const lessonNotes = pgTable("lesson_notes", {
   parentVisibleComment: text("parent_visible_comment"),
   internalNote: text("internal_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // Lesson counts look a lesson's notes up by lesson (migration 0072).
+  index("lesson_notes_lesson_student_idx").on(t.lessonId, t.studentId),
+]);
 
 export const attendance = pgTable(
   "attendance",
@@ -423,7 +426,10 @@ export const tutorLeaveRequests = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
+    /** Private to the tutor and admins. */
     reason: text("reason").notNull(),
+    /** For the covering tutors: shown on the Cover board (migration 0071). */
+    handoverNote: text("handover_note"),
     status: tutorLeaveStatusEnum("status").notNull().default("pending"),
     decidedById: uuid("decided_by_id").references(() => profiles.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -463,7 +469,11 @@ export const tutorCoverRequests = pgTable(
     replacementTutorId: uuid("replacement_tutor_id").references(
       () => profiles.id,
     ),
+    /** Private to the tutor and admins; leave copies its reason here. */
     reason: text("reason").notNull(),
+    /** A single class's note for the covering tutor. Leave covers read the
+     *  leave's note through leaveRequestId instead (migration 0071). */
+    handoverNote: text("handover_note"),
     status: tutorCoverStatusEnum("status").notNull().default("open"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     alert48SentAt: timestamp("alert_48_sent_at", { withTimezone: true }),
@@ -510,6 +520,9 @@ export const classCredits = pgTable(
     redeemedById: uuid("redeemed_by_id").references(() => profiles.id),
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
     expiresAt: date("expires_at").notNull(),
+    /** A family's reason for a credit they asked for (no reschedule slot),
+     *  kept here instead of in the roll note (migration 0072). */
+    requestReason: text("request_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

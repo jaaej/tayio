@@ -3,7 +3,13 @@ import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { classes, homework, homeworkAssignments, profiles, subjects } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
-import { sortToMark, type HomeworkItem, type SubmissionItem } from "./marking-list";
+import { tutorHomeworkFilter } from "@/app/tutor/_lib/homework-access";
+import {
+  groupToMarkByClass,
+  sortToMark,
+  type HomeworkItem,
+  type SubmissionItem,
+} from "./marking-list";
 
 /** How many recently marked submissions the Marked view lists. */
 const MARKED_LIMIT = 60;
@@ -18,6 +24,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
       lastName: profiles.lastName,
       subjectName: subjects.name,
       subjectColor: subjects.color,
+      classId: homework.classId,
       className: classes.name,
       status: homeworkAssignments.status,
       submittedAt: homeworkAssignments.submittedAt,
@@ -28,7 +35,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
     .leftJoin(classes, eq(classes.id, homework.classId))
     .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
-    .where(and(eq(homework.tutorId, tutorId), inArray(homeworkAssignments.status, statuses)))
+    .where(and(tutorHomeworkFilter(tutorId), inArray(homeworkAssignments.status, statuses)))
     .$dynamic();
 }
 
@@ -42,6 +49,7 @@ function toItem(r: Row): SubmissionItem {
     studentName: `${r.firstName} ${r.lastName}`.trim(),
     subjectName: r.subjectName,
     subjectColor: r.subjectColor,
+    classId: r.classId,
     classLabel: r.className
       ? classDisplayName(r.subjectName, r.className)
       : null,
@@ -51,10 +59,11 @@ function toItem(r: Row): SubmissionItem {
   };
 }
 
-/** Submissions waiting for this tutor, late first. */
+/** Submissions waiting for this tutor in queue order: class by class, late
+ *  work first then the oldest (`groupToMarkByClass`). */
 export async function getToMark(tutorId: string): Promise<SubmissionItem[]> {
   const rows = await submissionsQuery(tutorId, ["submitted", "late"]);
-  return sortToMark(rows.map(toItem));
+  return groupToMarkByClass(sortToMark(rows.map(toItem))).flatMap((group) => group.items);
 }
 
 /** Everything the Marking list pane shows, in one round of queries. */
@@ -64,7 +73,7 @@ export async function getMarkingPaneData(tutorId: string) {
     submissionsQuery(tutorId, ["marked", "returned", "resubmission_requested"])
       .where(
         and(
-          eq(homework.tutorId, tutorId),
+          tutorHomeworkFilter(tutorId),
           inArray(homeworkAssignments.status, ["marked", "returned", "resubmission_requested"]),
           isNotNull(homeworkAssignments.markedAt),
         ),
@@ -87,7 +96,7 @@ export async function getMarkingPaneData(tutorId: string) {
       .leftJoin(classes, eq(classes.id, homework.classId))
       .leftJoin(subjects, eq(subjects.id, classes.subjectId))
       .leftJoin(homeworkAssignments, eq(homeworkAssignments.homeworkId, homework.id))
-      .where(eq(homework.tutorId, tutorId))
+      .where(tutorHomeworkFilter(tutorId))
       .groupBy(homework.id, subjects.name, subjects.color, classes.name)
       .orderBy(desc(homework.dueDate)),
   ]);
