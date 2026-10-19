@@ -583,7 +583,7 @@ export async function decideTutorLeave(input: {
       href: TIME_AWAY_HREF,
     });
     const adminNotifications = adminNotificationValues(adminIds, {
-      title: "URGENT: Extended leave approved — coverage needed",
+      title: "URGENT: Extended leave approved - coverage needed",
       body:
         `${leave.tutorFirst} ${leave.tutorLast} is away ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)}. ` +
         `${futureLessons.length} ${futureLessons.length === 1 ? "class needs" : "classes need"} replacement cover.`,
