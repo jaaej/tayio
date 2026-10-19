@@ -1,10 +1,11 @@
 import "server-only";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   attendance,
   classCredits,
   enrollments,
+  lessonCancellations,
   lessons,
   profiles,
   rescheduleRequests,
@@ -14,7 +15,7 @@ import {
 import type { RollStudent } from "@/components/attendance/attendance-row";
 import { yearLevelLabel } from "@/lib/format";
 import { getLessonReschedules, lessonFromLabel } from "@/lib/reschedule";
-import { rollMemberIds } from "@/lib/lesson-roll-rules";
+import { moveReasons, rollMemberIds } from "@/lib/lesson-roll-rules";
 
 /** A roll row, and whether the student is in the class (not just this lesson). */
 export type LessonRollStudent = RollStudent & { inClass: boolean };
@@ -94,8 +95,18 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
   if (ids.size === 0) return [];
   const studentIds = [...ids];
 
-  const [people, marks, { movedOut, movedIn }, regular, leave, trials, credits, creditedOut] =
-    await Promise.all([
+  const [
+    people,
+    marks,
+    { movedOut, movedIn },
+    regular,
+    leave,
+    trials,
+    credits,
+    creditedOut,
+    moveRequests,
+    cancellations,
+  ] = await Promise.all([
       db
         .select({
           id: profiles.id,
@@ -129,9 +140,30 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
         .where(eq(classCredits.redeemedOnLessonId, lesson.id)),
       // Students who took a class credit instead of this lesson.
       db
-        .select({ studentId: classCredits.studentId })
+        .select({ studentId: classCredits.studentId, reason: classCredits.requestReason })
         .from(classCredits)
         .where(eq(classCredits.grantedFromLessonId, lesson.id)),
+      // Approved moves out of or into this lesson, for their reasons.
+      db
+        .select({
+          studentId: rescheduleRequests.studentId,
+          reason: rescheduleRequests.reason,
+          out: sql<boolean>`${rescheduleRequests.originalLessonId} = ${lesson.id}`,
+        })
+        .from(rescheduleRequests)
+        .where(
+          and(
+            eq(rescheduleRequests.status, "approved"),
+            or(
+              eq(rescheduleRequests.originalLessonId, lesson.id),
+              eq(rescheduleRequests.targetLessonId, lesson.id),
+            ),
+          ),
+        ),
+      db
+        .select({ studentId: lessonCancellations.studentId, reason: lessonCancellations.reason })
+        .from(lessonCancellations)
+        .where(eq(lessonCancellations.lessonId, lesson.id)),
     ]);
 
   const markBy = new Map(marks.map((m) => [m.studentId, m]));
@@ -141,6 +173,12 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
   const trialBy = new Map(trials.map((t) => [t.studentId, t]));
   const makeupFrom = new Map(movedIn.map((m) => [m.studentId, m.fromLabel]));
   const tookCredit = new Set(creditedOut.map((c) => c.studentId));
+  const reasonBy = moveReasons({
+    movedOut: moveRequests.filter((r) => r.out),
+    cancelled: cancellations,
+    credited: creditedOut,
+    movedIn: moveRequests.filter((r) => !r.out),
+  });
   for (const c of credits) {
     if (makeupFrom.has(c.studentId)) continue;
     makeupFrom.set(c.studentId, c.fromLessonId ? await lessonFromLabel(c.fromLessonId) : "Credit");
@@ -163,6 +201,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
       ...(inClass.has(p.id) && movedOutTo.has(p.id) && { movedOutTo: movedOutTo.get(p.id) }),
       ...(!movedOutTo.has(p.id) && tookCredit.has(p.id) && { tookCredit: true }),
       ...(joined && { makeupFrom: joined }),
+      ...(reasonBy.has(p.id) && { moveReason: reasonBy.get(p.id) }),
     };
   });
   // The class first, then the students joining it for this lesson.

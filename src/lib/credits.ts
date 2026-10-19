@@ -289,7 +289,7 @@ export async function cancelLesson(p: {
   // benefit. The notification goes out only after the transaction commits -
   // a failed notification must never roll back a real cancellation.
   const creditId = await db.transaction(async (tx) => {
-    await markStudentAbsent(p.lessonId, p.studentId, p.actorId, tx);
+    await markStudentAbsent(p.lessonId, p.studentId, p.reason, p.actorId, tx);
     const creditId = await grantCredit(
       {
         studentId: p.studentId,

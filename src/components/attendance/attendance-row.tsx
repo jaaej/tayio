@@ -17,6 +17,8 @@ export type RollStudent = {
   movedOutTo?: string;
   /** The student cancelled this lesson for a class credit. */
   tookCredit?: boolean;
+  /** Why the student moved or cancelled, from the move's own record. */
+  moveReason?: string;
   /** Set when the student is here as a make-up: where they came from. */
   makeupFrom?: string;
   /** Profile link for the name, when the viewer may open it. */
@@ -91,6 +93,11 @@ export function AttendanceRow({
                   </Pill>
                 </span>
               )}
+            </span>
+          )}
+          {student.moveReason && (
+            <span className="text-[12px] leading-snug text-ink-soft [overflow-wrap:anywhere]">
+              <span className="font-bold text-ink">Reason:</span> {student.moveReason}
             </span>
           )}
         </div>

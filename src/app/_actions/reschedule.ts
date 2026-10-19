@@ -351,7 +351,7 @@ export async function grantRescheduleCredit(formData: FormData): Promise<Result>
     };
   }
 
-  await markStudentAbsent(lessonId, studentId, user.id);
+  await markStudentAbsent(lessonId, studentId, reason, user.id);
   await grantCredit({
     studentId,
     subjectId: original.subjectId,
