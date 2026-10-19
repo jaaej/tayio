@@ -521,7 +521,7 @@ export const classCredits = pgTable(
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
     expiresAt: date("expires_at").notNull(),
     /** A family's reason for a credit they asked for (no reschedule slot),
-     *  kept here instead of in the roll note (migration 0072). */
+     *  kept here instead of in the roll note (migration 0076). */
     requestReason: text("request_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

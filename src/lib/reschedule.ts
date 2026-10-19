@@ -370,7 +370,7 @@ export async function executeMakeupReschedule(p: {
       status: "makeup",
       rescheduledFrom: original.id,
     }).returning({ id: lessons.id });
-    await markStudentAbsent(original.id, p.studentId, p.actorId, tx);
+    await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId, tx);
     // The roll shows where the student came from (getLessonRoll); the reason
     // stays on the reschedule request, not in the staff roll note.
     await tx.insert(attendance).values({
@@ -464,7 +464,7 @@ export async function executeSessionSwitch(p: {
     return { ok: false, error: "That session just filled up - pick another." };
   }
 
-  await markStudentAbsent(original.id, p.studentId, p.actorId);
+  await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
   await db
     .insert(attendance)
     .values({
@@ -517,15 +517,16 @@ export async function hasPriorReschedule(
 }
 
 /**
- * Mark the student absent from a lesson they moved or cancelled. The reason
- * stays where the move or cancellation keeps it (the reschedule request, the
- * cancellation, the credit), and the roll shows the move from there
- * (getLessonRoll), so nothing is written into the staff roll note and a note
- * the tutor wrote is left as it is.
+ * Mark the student absent from a lesson they moved or cancelled. `reason` is
+ * not written here: it stays where the move or cancellation keeps it (the
+ * reschedule request, the cancellation, the credit) and the roll shows it
+ * from there (getLessonRoll), so nothing goes into the staff roll note and a
+ * note the tutor wrote is left as it is.
  */
 export async function markStudentAbsent(
   lessonId: string,
   studentId: string,
+  reason: string,
   actorId: string,
   executor: DbExecutor = db,
 ) {
