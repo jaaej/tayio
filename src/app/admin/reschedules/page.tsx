@@ -355,8 +355,13 @@ export default async function AdminReschedulesPage({
                       <td className="px-5 py-3">
                         <Pill tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Pill>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
-                        {REASON_LABEL[c.grantReason]}
+                      <td className="px-5 py-3 text-ink-soft">
+                        <span className="whitespace-nowrap">{REASON_LABEL[c.grantReason]}</span>
+                        {c.requestReason && (
+                          <span className="mt-0.5 block max-w-[260px] text-[12px] text-muted">
+                            &ldquo;{c.requestReason}&rdquo;
+                          </span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
                         {c.grantedFromLabel ?? "-"}
@@ -457,7 +462,12 @@ function AdminCoverCard({
       startTime={row.startTime}
       endTime={row.endTime}
       location={row.location}
-      reason={`${row.originalTutorFirst} ${row.originalTutorLast}: ${row.reason}`}
+      reason={[
+        `${row.originalTutorFirst} ${row.originalTutorLast}: ${row.reason}`,
+        row.handoverNote?.trim() && `Handover: ${row.handoverNote.trim()}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
       urgency={isInsideNoticeWindow(row, now) ? "Under 48h" : null}
       state={
         covered

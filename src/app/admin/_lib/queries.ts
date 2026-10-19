@@ -694,6 +694,8 @@ export type CreditRow = {
    *  raw stored column. */
   status: CreditStatus;
   grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+  /** What the family wrote when they asked for the credit (no slot free). */
+  requestReason: string | null;
   grantedFromLabel: string | null;
   redeemedOnLabel: string | null;
   expiresAt: string;
@@ -746,6 +748,7 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
       subjectColor: subjects.color,
       status: classCredits.status,
       grantReason: classCredits.grantReason,
+      requestReason: classCredits.requestReason,
       expiresAt: classCredits.expiresAt,
       createdAt: classCredits.createdAt,
       fromDate: fromLesson.date,
@@ -775,6 +778,7 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
     subjectColor: r.subjectColor,
     status: deriveCreditStatus(r.status, r.expiresAt, todayIso),
     grantReason: r.grantReason,
+    requestReason: r.requestReason,
     grantedFromLabel: r.fromDate ? formatDateLong(r.fromDate) : null,
     redeemedOnLabel: r.redeemedDate ? formatDateLong(r.redeemedDate) : null,
     expiresAt: r.expiresAt,
