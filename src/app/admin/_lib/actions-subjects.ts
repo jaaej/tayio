@@ -464,7 +464,7 @@ export async function deleteSubject(
           userId: parentId,
           channel: "in_app",
           title: "Class removed",
-          body,
+          body: families.parentBody(parentId, body),
           href: `/parent?child=${childId}`,
         });
       }

@@ -12,10 +12,12 @@ import {
   lessonCancellations,
   lessonNotes,
   lessons,
+  profiles,
   rescheduleRequests,
   tutorCheckinEntries,
   tutorCoverRequests,
 } from "@/db/schema";
+import { forParent } from "@/lib/parent-child";
 import { lessonStartInstant, melbourneDate } from "@/lib/tutor-cover-rules";
 import type { ScheduleChangePlan, SlotLesson } from "@/lib/class-schedule-change";
 
@@ -88,13 +90,18 @@ export async function applyScheduleChangePlan(tx: DbTx, plan: ScheduleChangePlan
   }
 }
 
-/** Active students in the class and their linked parents. */
+/**
+ * Active students in the class and their linked parents. `parentBody` is a
+ * parent's copy of a notification body, led by their children in the class.
+ */
 export async function classFamilies(tx: DbTx, classId: string) {
   const students = await tx
-    .select({ id: enrollments.studentId })
+    .select({ id: enrollments.studentId, firstName: profiles.firstName })
     .from(enrollments)
+    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
     .where(and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)));
   const studentIds = students.map((s) => s.id);
+  const firstName = new Map(students.map((s) => [s.id, s.firstName]));
   const parents =
     studentIds.length === 0
       ? []
@@ -104,8 +111,14 @@ export async function classFamilies(tx: DbTx, classId: string) {
           .where(inArray(familyLinks.studentId, studentIds));
   // One notification per parent, opened on their first child in the class.
   const parentChild = new Map<string, string>();
-  for (const p of parents) if (!parentChild.has(p.parentId)) parentChild.set(p.parentId, p.studentId);
-  return { studentIds, parentChild };
+  const childNames = new Map<string, string[]>();
+  for (const p of parents) {
+    if (!parentChild.has(p.parentId)) parentChild.set(p.parentId, p.studentId);
+    childNames.set(p.parentId, [...(childNames.get(p.parentId) ?? []), firstName.get(p.studentId) ?? ""]);
+  }
+  const parentBody = (parentId: string, body: string) =>
+    forParent(childNames.get(parentId) ?? [], body);
+  return { studentIds, parentChild, parentBody };
 }
 
 /** A lesson something was recorded on: attendance, a note, or homework (marks). */

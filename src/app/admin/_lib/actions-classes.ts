@@ -175,7 +175,7 @@ export async function deleteClass(id: string) {
           userId: parentId,
           channel: "in_app" as const,
           title: "Class removed",
-          body,
+          body: families.parentBody(parentId, body),
           href: `/parent?child=${childId}`,
         })),
       ]);

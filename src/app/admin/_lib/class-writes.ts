@@ -272,7 +272,7 @@ export async function applyClassEdit(
         userId: parentId,
         channel: "in_app",
         title,
-        body: sentence,
+        body: families.parentBody(parentId, sentence),
         href: `/parent/classes/${id}?child=${studentId}`,
       });
     }

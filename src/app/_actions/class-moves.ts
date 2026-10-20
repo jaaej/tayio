@@ -579,7 +579,16 @@ export async function rejectPermanentClassMove(
   if (!request || request.status !== "pending") {
     return { ok: false, error: "This request has already been decided." };
   }
-  const recipients = await notificationRecipients(request.studentId);
+  const [recipients, [student]] = await Promise.all([
+    notificationRecipients(request.studentId),
+    db
+      .select({ firstName: profiles.firstName, lastName: profiles.lastName })
+      .from(profiles)
+      .where(eq(profiles.id, request.studentId))
+      .limit(1),
+  ]);
+  // Every family notification names the child it is about.
+  const forStudent = student ? ` for ${`${student.firstName} ${student.lastName}`.trim()}` : "";
   try {
     await withActor({ id: admin.id, role: "admin" }, async (tx) => {
       await tx.execute(
@@ -610,8 +619,8 @@ export async function rejectPermanentClassMove(
             channel: "in_app" as const,
             title: "Permanent class move declined",
             body: parsed.data.note
-              ? `The office declined the permanent class-move request: ${parsed.data.note}`
-              : "The office declined the permanent class-move request. Contact the office if you would like to discuss another time.",
+              ? `The office declined the permanent class-move request${forStudent}: ${parsed.data.note}`
+              : `The office declined the permanent class-move request${forStudent}. Contact the office if you would like to discuss another time.`,
             href:
               userId === request.studentId
                 ? "/student/timetable"

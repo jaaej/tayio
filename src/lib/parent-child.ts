@@ -36,3 +36,17 @@ export function pickSelectedChild<T extends { id: string }>(
 export function withChild(href: string, childId: string): string {
   return `${href}${href.includes("?") ? "&" : "?"}child=${childId}`;
 }
+
+/**
+ * A parent's copy of a family notification, led by the children it is about:
+ * "Sarah · Year 9 Maths · Thu 4:00pm", "Sarah and Leo · ...".
+ */
+export function forParent(childNames: readonly string[], body: string): string {
+  const names = childNames.filter(Boolean);
+  if (names.length === 0) return body;
+  const lead =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${lead} · ${body}`;
+}
