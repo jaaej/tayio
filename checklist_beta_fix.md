@@ -669,6 +669,13 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Weekly schedule keeps a busy slot readable (21 October 2026, owner request with a mock of `/admin/classes`).
+  The shared `WeekTimeGrid` (`src/components/data/week-time-grid.tsx`; rules in `week-time-grid-layout.ts`, tested) now: fits the hours to the week's lessons with an hour either side, and "Show full day" / "Fit to classes" widens to 8 am to 9 pm; narrows days without lessons to 74px; counts each day's lessons in its header; puts two lessons at once side by side and folds three or more at once into one card ("4:30 pm · 3 classes", a row per class with its enrolled count, a small time label above rows that start later, each row opening its roll), the card stopping above the day's next lessons.
+  The classes page draws it tall (104px an hour, class, time, tutor and room, and enrolled count on each block); side-by-side blocks wrap their lines instead of cutting them off.
+  The admin dashboard and tutor Today use the same grid compact, so they get the same layout; their day counts use the panel's noun (classes for admin, lessons for the tutor).
+  Deviation from the mock (microcopy rule): its footer line "3 pm to 10 pm · days without classes are narrowed" is left out, since the hour labels and the narrow columns already show it; the Show full day button stays.
+  Verified on dev in Chrome and WebKit with temporary lessons (four and five classes at once on two days, deleted afterwards): the classes page at 1440px, 1280px and 390px (the grid scrolls inside its panel), the tutor filter with Show full day and back, the admin dashboard and tutor Today.
+
 - [x] New class takes its students (21 October 2026, owner request: add and remove students when creating a class).
   `/admin/classes` → New class has a Students section: the subject page's Add a student search and list (`ClassStudents` with `newClass`, "2 of 8" under the heading), Remove before saving.
   `createClass` enrols them in the class's transaction through `applyStudentChanges`, now in `src/app/admin/_lib/class-enrolments.ts` (moved out of the `"use server"` subject actions, where an exported helper would have been a callable action) and shared with the subject page's Save.
