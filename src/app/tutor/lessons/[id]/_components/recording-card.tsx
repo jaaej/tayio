@@ -9,7 +9,7 @@ import { VideoViewerButton } from "@/components/ui/video-viewer";
 import { saveLessonRecording } from "@/app/tutor/_actions";
 
 /** Optional hosted-video link for this lesson (the class's own recording, not
- *  the admin's week video); students watch it from Recorded lessons. */
+ *  the admin's week video); students watch it from Class recordings. */
 export function RecordingCard({
   lessonId,
   recordingUrl,
@@ -89,7 +89,7 @@ export function RecordingCard({
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[12px] leading-[1.45] text-muted">
-            Students watch it from Recorded lessons. Clear the link and save to remove it.
+            Students watch it from Class recordings. Clear the link and save to remove it.
           </p>
           {saved && (
             <span role="status" className="inline-flex items-center gap-1 text-[12px] font-bold text-good">

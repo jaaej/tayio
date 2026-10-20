@@ -343,7 +343,7 @@ export async function saveLessonNote(formData: FormData) {
 /**
  * Attach (or clear) a recording link for a lesson - a hosted video URL
  * (YouTube/Vimeo/Drive/etc.) that the class's students watch from their
- * "Recorded lessons" tab. Link-based, so there is no upload/storage cost.
+ * "Class recordings" list. Link-based, so there is no upload/storage cost.
  * Empty input clears the link; a non-empty value must be an http(s) URL.
  */
 export async function saveLessonRecording(formData: FormData) {

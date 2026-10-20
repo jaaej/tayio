@@ -18,7 +18,7 @@ export async function RecordedLessons({ studentId }: { studentId: string }) {
       className="glass flex flex-col rounded-[24px] p-1.5 lg:sticky lg:top-[var(--portal-sticky-top)] lg:max-h-[var(--portal-fill-h)]"
     >
       <h2 id="rl-h" className="pb-2.5 pl-3 pr-2 pt-2 text-[16px] font-extrabold text-ink">
-        Recorded lessons
+        Class recordings
       </h2>
       <div className="panel scroll-fade flex min-h-0 flex-col gap-0.5 p-1.5 lg:overflow-y-auto">
         {lessons.length === 0 ? (

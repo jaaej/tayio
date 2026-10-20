@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { parseMonthParam } from "@/lib/month-param";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { MonthGrid, type MonthChip } from "@/components/calendar/month-grid";
@@ -18,7 +19,7 @@ import { weeklyWindowsByDay } from "@/lib/availability-windows";
 import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import { getTutorAbsenceLessonOptions } from "@/lib/tutor-cover";
-import { melbourneDate, tutorCoverClassLabel } from "@/lib/tutor-cover-rules";
+import { tutorCoverClassLabel } from "@/lib/tutor-cover-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { cn } from "@/lib/utils";
 import { getWeeklyRules } from "../_lib/availability";
@@ -58,15 +59,6 @@ const PANEL_TABS: Record<string, LeaveTab> = {
 
 function monthKey(year: number, month: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
-}
-
-function parseMonthParam(value: string | undefined) {
-  if (value && /^\d{4}-\d{2}$/.test(value)) {
-    const [year, month] = value.split("-").map(Number);
-    if (month >= 1 && month <= 12) return { year, month: month - 1 };
-  }
-  const [year, month] = melbourneDate().split("-").map(Number);
-  return { year, month: month - 1 };
 }
 
 function shiftMonth(year: number, month: number, delta: number) {
