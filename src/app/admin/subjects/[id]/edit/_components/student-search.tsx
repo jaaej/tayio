@@ -21,10 +21,13 @@ const MAX_SHOWN = 8;
 export function StudentSearch({
   options,
   onPick,
+  tall = false,
 }: {
   /** Students who can still be added. */
   options: StudentOption[];
   onPick: (id: string) => void;
+  /** 38px high, to sit in a row of 38px buttons (the lesson roll's header). */
+  tall?: boolean;
 }) {
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -48,7 +51,12 @@ export function StudentSearch({
 
   return (
     <div className="relative w-full sm:w-[240px]">
-      <span className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[#DCDEE9] bg-white px-2.5 text-[#5E5A73] focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10 pointer-coarse:h-11">
+      <span
+        className={cn(
+          "flex items-center gap-1.5 border border-[#DCDEE9] bg-white px-2.5 text-[#5E5A73] focus-within:border-ink focus-within:ring-[3px] focus-within:ring-ink/10 pointer-coarse:h-11",
+          tall ? "h-[38px] rounded-[11px]" : "h-[34px] rounded-[10px]",
+        )}
+      >
         <Plus className="h-[14px] w-[14px] shrink-0" strokeWidth={2.2} aria-hidden />
         <input
           role="combobox"

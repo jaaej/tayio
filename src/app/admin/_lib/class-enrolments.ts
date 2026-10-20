@@ -4,6 +4,7 @@ import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { db } from "@/db/client";
 import { enrollments, profiles } from "@/db/schema";
 import { coarseRole } from "@/lib/roles";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -16,7 +17,8 @@ export class NotAStudent extends Error {}
 /**
  * Apply a class's student changes inside the caller's transaction: a joining
  * student is enrolled (or re-enrolled after leaving), and a leaving one is
- * withdrawn (attendance and notes are kept). New class and the subject
+ * withdrawn from today (attendance and notes are kept, and they stay on the
+ * rolls of lessons before today). New class and the subject
  * page's class cards both save students through this.
  */
 export async function applyStudentChanges(tx: DbTx, classId: string, changes: StudentChanges) {
@@ -40,7 +42,7 @@ export async function applyStudentChanges(tx: DbTx, classId: string, changes: St
     if (rejoining.length > 0) {
       await tx
         .update(enrollments)
-        .set({ withdrawnAt: null, enrolledAt: new Date() })
+        .set({ withdrawnAt: null, endsOn: null, enrolledAt: new Date() })
         .where(
           and(
             eq(enrollments.classId, classId),
@@ -57,9 +59,11 @@ export async function applyStudentChanges(tx: DbTx, classId: string, changes: St
   }
 
   if (changes.withdraw.length > 0) {
+    // Off the rolls from today; still on the lessons before it.
+    const now = new Date();
     await tx
       .update(enrollments)
-      .set({ withdrawnAt: new Date() })
+      .set({ withdrawnAt: now, endsOn: melbourneDate(now) })
       .where(
         and(
           eq(enrollments.classId, classId),

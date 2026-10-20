@@ -40,6 +40,7 @@ const ALLOW_NO_RLS = new Set([
   "announcement_recipients", // server-resolved audience snapshots, migration 0048
   "announcement_email_deliveries", // auditable urgent-email queue, migration 0048
   "school_year_ends", // owner-run end-of-year archive and move up, migration 0079
+  "lesson_roll_exclusions", // admin roll edits for one lesson, migration 0080
   "schema_migrations", // migration ledger, created by scripts/migration-ledger.mjs
 ]);
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, gt, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { onRosterSql } from "@/lib/class-roster-sql";
 import {
   attendance,
   classes,
@@ -95,7 +96,10 @@ export async function lessonFromLabel(lessonId: string): Promise<string> {
   return t ? `${t.className} · ${formatDateLong(t.date)} ${formatTime(t.startTime)}` : "another session";
 }
 
-/** Is the student the owner of this lesson (enrolled in its class)? */
+/**
+ * Is the lesson the student's own: they are on its class's roll for that
+ * date (`onRosterSql`), so they may move or cancel it?
+ */
 export async function studentOwnsLesson(
   studentId: string,
   lessonId: string,
@@ -109,6 +113,7 @@ export async function studentOwnsLesson(
         eq(lessons.id, lessonId),
         eq(enrollments.studentId, studentId),
         isNull(enrollments.withdrawnAt),
+        onRosterSql("enrollments", "lessons"),
       ),
     )
     .limit(1);
@@ -132,10 +137,12 @@ async function seatsLeftOn(
   lessonId: string,
   capacity: number,
 ): Promise<number> {
+  // The class's students on that lesson (`onRosterSql`), not today's list.
   const [{ enrolled }] = await db
     .select({ enrolled: sql<number>`count(*)::int` })
     .from(enrollments)
-    .where(and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)));
+    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
+    .where(and(eq(lessons.id, lessonId), eq(enrollments.classId, classId), onRosterSql("enrollments", "lessons")));
   const [{ makeups }] = await db
     .select({ makeups: sql<number>`count(*)::int` })
     .from(attendance)

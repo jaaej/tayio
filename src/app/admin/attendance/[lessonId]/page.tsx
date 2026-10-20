@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { Empty, Pill } from "@/components/admin/ui";
 import { db } from "@/db/client";
-import { classes, lessonNotes, lessons, profiles, subjects } from "@/db/schema";
+import { classes, lessonNotes, lessonRollExclusions, lessons, profiles, subjects } from "@/db/schema";
+import { STUDENT_TIERS } from "@/lib/roles";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
+import { formatDateLong, formatTime, formatTimeRange, yearLevelLabel } from "@/lib/format";
 import { classDisplayName, classNameDetail } from "@/lib/class-display";
 import { subjectTone } from "@/lib/subject-tone";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
@@ -12,7 +13,7 @@ import { getLessonRoll } from "@/lib/lesson-roll";
 import { AttendanceQueue } from "../_components/attendance-queue";
 import { DeleteLessonButton } from "../_components/delete-lesson-button";
 import { LessonNotesButton } from "../_components/lesson-notes-button";
-import { MarkingPane, type MarkingStudent } from "../_components/marking-pane";
+import { MarkingPane, type MarkingStudent, type RollEdit } from "../_components/marking-pane";
 import { getAttendanceQueue, parseQueueFilters } from "../_lib/queue";
 import { nextLessonId, queueQueryString } from "../_lib/queue-logic";
 
@@ -56,7 +57,8 @@ export default async function AdminLessonAttendancePage({
   const classDetail = classNameDetail(lesson.subjectName, lesson.className);
   const lessonTitle = classDetail || lesson.subjectName;
 
-  const [queue, roll, noteRows] = await Promise.all([
+  const editable = !["makeup", "cancelled", "rescheduled"].includes(lesson.status);
+  const [queue, roll, noteRows, studentRows, excludedRows] = await Promise.all([
     getAttendanceQueue(filters),
     getLessonRoll(lesson),
     db
@@ -78,9 +80,47 @@ export default async function AdminLessonAttendancePage({
       .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
       .where(eq(lessonNotes.lessonId, lessonId))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
+    // Who can be added: every active student (those on the roll are left out below).
+    editable
+      ? db
+          .select({
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            yearLevel: profiles.yearLevel,
+            school: profiles.school,
+          })
+          .from(profiles)
+          .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)))
+          .orderBy(asc(profiles.firstName), asc(profiles.lastName))
+      : Promise.resolve([]),
+    db
+      .select({ studentId: lessonRollExclusions.studentId })
+      .from(lessonRollExclusions)
+      .where(eq(lessonRollExclusions.lessonId, lessonId)),
   ]);
 
   const students: MarkingStudent[] = roll.map((s) => ({ ...s, href: `/admin/users/${s.id}` }));
+  const onRoll = new Set(roll.map((s) => s.id));
+  const noted = new Set(noteRows.map((n) => n.studentId));
+  const rollEdit: RollEdit | undefined = editable
+    ? {
+        candidates: studentRows
+          .filter((r) => !onRoll.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            name: `${r.firstName} ${r.lastName}`.trim(),
+            detail: [r.yearLevel ? yearLevelLabel(r.yearLevel) : null, r.school].filter(Boolean).join(" · "),
+          })),
+        lessonDay: formatDateLong(lesson.date),
+        classStudentIds: roll.filter((s) => s.inClass).map((s) => s.id),
+        excludedIds: excludedRows.map((r) => r.studentId),
+        // Moved, cancelled, on a credit or noted by the tutor: undone elsewhere.
+        lockedIds: roll
+          .filter((s) => s.movedOutTo || s.tookCredit || s.makeupFrom || noted.has(s.id))
+          .map((s) => s.id),
+      }
+    : undefined;
 
   const query = queueQueryString(filters);
   const nextId = nextLessonId(
@@ -117,6 +157,7 @@ export default async function AdminLessonAttendancePage({
         students={students}
         backHref={`/admin/attendance${query}`}
         nextHref={nextId ? `/admin/attendance/${nextId}${query}` : null}
+        rollEdit={rollEdit}
         headerAction={
           lessonStartInstant(lesson.date, lesson.startTime) <= new Date() ? (
             <DeleteLessonButton

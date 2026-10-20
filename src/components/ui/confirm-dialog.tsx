@@ -32,9 +32,15 @@ export type ConfirmOptions = {
   warning?: string;
   /** Text the user must type (e.g. a class name) before confirming. */
   confirmText?: string;
+  /**
+   * One choice the action needs, as radio options under the body (e.g. this
+   * lesson only, or this lesson and after). Use `choose`, which resolves
+   * with the chosen value.
+   */
+  choices?: { legend: string; options: { value: string; label: string; detail?: string }[]; defaultValue: string };
 };
 
-type Pending = { opts: ConfirmOptions; resolve: (ok: boolean) => void };
+type Pending = { opts: ConfirmOptions; resolve: (ok: boolean, choice: string | null) => void };
 
 /**
  * Promise-based styled replacement for the native window.confirm().
@@ -55,14 +61,23 @@ export function useConfirm() {
 
   const confirm = useCallback(
     (opts: ConfirmOptions) =>
-      new Promise<boolean>((resolve) => setPending({ opts, resolve })),
+      new Promise<boolean>((resolve) => setPending({ opts, resolve: (ok) => resolve(ok) })),
+    [],
+  );
+
+  /** Like `confirm` with `choices`: the chosen value, or null when cancelled. */
+  const choose = useCallback(
+    (opts: ConfirmOptions & { choices: NonNullable<ConfirmOptions["choices"]> }) =>
+      new Promise<string | null>((resolve) =>
+        setPending({ opts, resolve: (ok, choice) => resolve(ok ? choice : null) }),
+      ),
     [],
   );
 
   const settle = useCallback(
-    (ok: boolean) => {
+    (ok: boolean, choice: string | null = null) => {
       setPending((p) => {
-        p?.resolve(ok);
+        p?.resolve(ok, choice);
         return null;
       });
     },
@@ -73,11 +88,11 @@ export function useConfirm() {
     <ConfirmDialog
       opts={pending.opts}
       onCancel={() => settle(false)}
-      onConfirm={() => settle(true)}
+      onConfirm={(choice) => settle(true, choice)}
     />
   ) : null;
 
-  return { confirm, confirmDialog };
+  return { confirm, choose, confirmDialog };
 }
 
 const BUTTON =
@@ -90,9 +105,11 @@ function ConfirmDialog({
 }: {
   opts: ConfirmOptions;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (choice: string | null) => void;
 }) {
   const [typed, setTyped] = useState("");
+  const [choice, setChoice] = useState<string | null>(opts.choices?.defaultValue ?? null);
+  const choiceName = useId();
   const titleId = useId();
   const bodyId = useId();
   const typeId = useId();
@@ -114,11 +131,11 @@ function ConfirmDialog({
         e.preventDefault();
         onCancel();
       }
-      if (e.key === "Enter" && ready) onConfirm();
+      if (e.key === "Enter" && ready) onConfirm(choice);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onCancel, onConfirm, ready]);
+  }, [onCancel, onConfirm, ready, choice]);
 
   const dialog = (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -179,6 +196,33 @@ function ConfirmDialog({
               ))}
             </ul>
           )}
+          {opts.choices && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="sr-only">{opts.choices.legend}</legend>
+              {opts.choices.options.map((o) => (
+                <label
+                  key={o.value}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-[14px] border px-3.5 py-3 transition-colors",
+                    choice === o.value ? "border-ink bg-[#F6F7FA]" : "border-[#DFE1EC] hover:bg-[#F8F9FC]",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={choiceName}
+                    value={o.value}
+                    checked={choice === o.value}
+                    onChange={() => setChoice(o.value)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#17152B]"
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-[14px] font-bold text-ink">{o.label}</span>
+                    {o.detail && <span className="text-[13px] leading-snug text-[#5E5A73]">{o.detail}</span>}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           {opts.note && (
             <p className="text-[13px] leading-normal text-[#5E5A73]">{opts.note}</p>
           )}
@@ -213,7 +257,7 @@ function ConfirmDialog({
               type="button"
               autoFocus={!opts.confirmText}
               disabled={!ready}
-              onClick={onConfirm}
+              onClick={() => onConfirm(choice)}
               className={cn(
                 BUTTON,
                 "px-[18px] text-white disabled:cursor-not-allowed disabled:opacity-45",

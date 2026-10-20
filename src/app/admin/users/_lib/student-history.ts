@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { onRosterSql } from "@/lib/class-roster-sql";
 import {
   attendance,
   classes,
@@ -94,8 +95,7 @@ export async function getStudentHistory(
         and(
           lessonRanSql(now),
           ne(lessons.status, "makeup"),
-          isNull(enrollments.withdrawnAt),
-          sql`(${enrollments.enrolledAt} at time zone 'Australia/Melbourne')::date <= ${lessons.date}`,
+          onRosterSql("enrollments", "lessons"),
           sql`not exists (select 1 from ${attendance} a where a.lesson_id = ${lessons.id} and a.student_id = ${studentId})`,
         ),
       ),

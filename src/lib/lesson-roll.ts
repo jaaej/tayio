@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   attendance,
@@ -16,6 +16,7 @@ import type { RollStudent } from "@/components/attendance/attendance-row";
 import { yearLevelLabel } from "@/lib/format";
 import { getLessonReschedules, lessonFromLabel } from "@/lib/reschedule";
 import { moveReasons, rollMemberIds } from "@/lib/lesson-roll-rules";
+import { onRosterSql } from "@/lib/class-roster-sql";
 
 /** A roll row, and whether the student is in the class (not just this lesson). */
 export type LessonRollStudent = RollStudent & { inClass: boolean };
@@ -60,27 +61,16 @@ export async function lessonRollIds(
   });
 }
 
-function classRosterIds(classId: string) {
-  return db
-    .select({ studentId: enrollments.studentId })
-    .from(enrollments)
-    .where(and(eq(enrollments.classId, classId), isNull(enrollments.withdrawnAt)));
-}
-
-/** The class's current students who had enrolled by the lesson date (Melbourne). */
+/**
+ * The class's students on this lesson (`onRosterSql`): joined by its date,
+ * not left before it, not taken off this lesson alone.
+ */
 function classRosterOnDate(lesson: Pick<RollLesson, "id" | "classId">) {
   return db
     .select({ studentId: enrollments.studentId })
     .from(enrollments)
-    .where(
-      and(
-        eq(enrollments.classId, lesson.classId),
-        isNull(enrollments.withdrawnAt),
-        sql`(${enrollments.enrolledAt} at time zone 'Australia/Melbourne')::date <= (
-          select l.date from lessons l where l.id = ${lesson.id}
-        )`,
-      ),
-    );
+    .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
+    .where(and(eq(lessons.id, lesson.id), eq(enrollments.classId, lesson.classId), onRosterSql("enrollments", "lessons")));
 }
 
 /**
@@ -122,7 +112,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
         .from(attendance)
         .where(eq(attendance.lessonId, lesson.id)),
       getLessonReschedules(lesson.id),
-      lesson.status === "makeup" ? Promise.resolve([]) : classRosterIds(lesson.classId),
+      lesson.status === "makeup" ? Promise.resolve([]) : classRosterOnDate(lesson),
       db
         .select({ studentId: studentLeave.studentId })
         .from(studentLeave)
@@ -201,6 +191,8 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
       ...(inClass.has(p.id) && movedOutTo.has(p.id) && { movedOutTo: movedOutTo.get(p.id) }),
       ...(!movedOutTo.has(p.id) && tookCredit.has(p.id) && { tookCredit: true }),
       ...(joined && { makeupFrom: joined }),
+      // Put on this lesson alone by an admin (actions-roll), from no move or credit.
+      ...(!inClass.has(p.id) && !joined && mark?.status === "makeup_attended" && { visiting: true }),
       ...(reasonBy.has(p.id) && { moveReason: reasonBy.get(p.id) }),
     };
   });

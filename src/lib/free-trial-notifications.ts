@@ -3,6 +3,8 @@ import "server-only";
 import { and, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { onRosterSql } from "@/lib/class-roster-sql";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import {
   classes,
   enrollments,
@@ -103,7 +105,7 @@ async function getTodaysTrialLessons(today: string): Promise<TrialLessonEvent[]>
         inArray(lessons.status, ["upcoming", "completed", "missed"]),
         isNull(lessons.rescheduledFrom),
         eq(trialStudent.isActive, true),
-        isNull(enrollments.withdrawnAt),
+        onRosterSql("enrollments", "lessons"),
         isNull(approvedMove.id),
         isNull(cancellation.id),
         sql`${studentTrials.startDate} <= ${today}`,
@@ -231,9 +233,10 @@ export async function runFreeTrialSweep(now = new Date()) {
   const left = new Map<string, string[]>();
   const tutorValues: Array<typeof notifications.$inferInsert> = [];
   for (const c of trialClasses.filter((x) => trialWithdrawalDue(x.endDate, today))) {
+    // Off the rolls from the day after the trial, still on its lessons.
     const withdrawn = await db
       .update(enrollments)
-      .set({ withdrawnAt: now })
+      .set({ withdrawnAt: now, endsOn: addIsoDays(c.endDate, 1) })
       .where(
         and(
           eq(enrollments.classId, c.classId),

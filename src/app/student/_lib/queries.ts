@@ -1,6 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { studentOnClassRosterSql } from "@/lib/class-roster-sql";
 import { isoDate } from "@/lib/format";
 import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
 import { isInvoiceOpen } from "@/lib/invoice-rules";
@@ -430,9 +431,6 @@ export async function getStudentLessonsWithNotes(
   studentId: string,
   opts: { until?: string } = {},
 ): Promise<LessonWithNoteListItem[]> {
-  const enrolledClassIds = await getEnrolledClassIds(studentId);
-  if (enrolledClassIds.length === 0) return [];
-
   const rows = await db
     .select({
       lessonId: lessons.id,
@@ -457,7 +455,12 @@ export async function getStudentLessonsWithNotes(
     )
     .where(
       and(
-        inArray(lessons.classId, enrolledClassIds),
+        // Their class's lessons they were on the roll for, and lessons they
+        // attended as a make-up; never a classmate's private make-up.
+        or(
+          studentOnClassRosterSql(studentId),
+          sql`exists (select 1 from attendance a where a.lesson_id = ${lessons.id} and a.student_id = ${studentId} and a.status = 'makeup_attended')`,
+        ),
         opts.until ? lte(lessons.date, opts.until) : undefined,
       ),
     )
@@ -500,7 +503,6 @@ export async function getStudentTimetableLessons(
   studentId: string,
   opts: { from?: Date; to?: Date } = {},
 ): Promise<TimetableLesson[]> {
-  const enrolledClassIds = await getEnrolledClassIds(studentId);
   const fromIso = opts.from ? isoDate(opts.from) : undefined;
   const toIso = opts.to ? isoDate(opts.to) : undefined;
   const range = () => {
@@ -524,15 +526,15 @@ export async function getStudentTimetableLessons(
     tutorName: sql<string | null>`nullif(trim(concat_ws(' ', ${profiles.firstName}, ${profiles.lastName})), '')`,
   };
 
-  const enrolledLessons = enrolledClassIds.length
-    ? await db
-        .select(baseCols)
-        .from(lessons)
-        .innerJoin(classes, eq(classes.id, lessons.classId))
-        .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-        .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
-        .where(and(inArray(lessons.classId, enrolledClassIds), ...range()))
-    : [];
+  // The lessons of their classes they are on the roll for (joined by then,
+  // not left, not taken off that one lesson). Their own make-ups follow.
+  const enrolledLessons = await db
+    .select(baseCols)
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .where(and(studentOnClassRosterSql(studentId), ...range()));
 
   const attRows = await db
     .select({ lessonId: attendance.lessonId, status: attendance.status })

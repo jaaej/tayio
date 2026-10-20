@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { resolveCurrentTerm } from "@/lib/curriculum";
 import { STUDENT_TIERS } from "@/lib/roles";
+import { onRosterSql } from "@/lib/class-roster-sql";
 import {
   Empty,
   GlassPanel,
@@ -257,10 +258,10 @@ export default async function ClassesPage({
       room: sql<string | null>`coalesce(nullif(trim(${lessons.location}), ''), nullif(trim(${classes.location}), ''))`,
       tutorFirst: profiles.firstName,
       tutorLast: profiles.lastName,
+      // The class's students on this lesson (who joined by then, not left).
       enrolled: sql<number>`(
-        select count(*)::int from ${enrollments}
-        where ${enrollments.classId} = ${lessons.classId}
-          and ${enrollments.withdrawnAt} is null
+        select count(*)::int from enrollments e
+        where e.class_id = lessons.class_id and ${onRosterSql("e", "lessons")}
       )`,
     })
     .from(lessons)

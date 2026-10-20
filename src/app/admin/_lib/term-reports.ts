@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -156,13 +156,15 @@ export async function getStudentReportIssues(studentId: string): Promise<Map<str
   return new Map(rows.map((r) => [r.termId, r.issuedAt]));
 }
 
-/** An enrolment that overlapped the term (Melbourne dates). */
+/**
+ * An enrolment that overlapped the term (Melbourne dates): joined by its end,
+ * and not gone before it started (`ends_on` is the first day off the rolls).
+ */
 function inTerm(term: TermRow) {
   return and(
     lte(sql`(${enrollments.enrolledAt} at time zone 'Australia/Melbourne')::date`, term.endDate),
-    or(
-      isNull(enrollments.withdrawnAt),
-      gte(sql`(${enrollments.withdrawnAt} at time zone 'Australia/Melbourne')::date`, term.startDate),
-    ),
+    sql`case when ${enrollments.endsOn} is not null then ${enrollments.endsOn} > ${term.startDate}
+      else ${enrollments.withdrawnAt} is null
+        or (${enrollments.withdrawnAt} at time zone 'Australia/Melbourne')::date >= ${term.startDate} end`,
   );
 }

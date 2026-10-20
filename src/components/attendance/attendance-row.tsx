@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
-import { NotebookPen } from "lucide-react";
+import { NotebookPen, UserMinus } from "lucide-react";
 import { Avatar, Pill } from "@/components/admin/ui";
 import { ATTENDANCE_OPTIONS, type AttendanceStatus } from "@/lib/attendance-roll";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ export type RollStudent = {
   moveReason?: string;
   /** Set when the student is here as a make-up: where they came from. */
   makeupFrom?: string;
+  /** Added by an admin for this lesson only, not in the class. */
+  visiting?: boolean;
   /** Profile link for the name, when the viewer may open it. */
   href?: string;
   /** Short muted detail after the name (a year level). */
@@ -40,17 +42,25 @@ export function AttendanceRow({
   student,
   status,
   onChange,
+  onRemove,
 }: {
   student: RollStudent;
   status: AttendanceStatus | null;
   onChange: (status: AttendanceStatus) => void;
+  /** Admin only: take the student off this lesson's roll. */
+  onRemove?: () => void;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState(student.note);
   const noteId = useId();
   const hasNote = note.trim().length > 0;
   const hasTags =
-    student.onLeave || student.onTrial || student.movedOutTo || student.tookCredit || student.makeupFrom;
+    student.onLeave ||
+    student.onTrial ||
+    student.movedOutTo ||
+    student.tookCredit ||
+    student.makeupFrom ||
+    student.visiting;
 
   return (
     <li className="border-b border-line px-3 py-3 sm:px-4">
@@ -86,6 +96,7 @@ export function AttendanceRow({
                 </span>
               )}
               {student.tookCredit && <Pill tone="warn">Cancelled for a credit</Pill>}
+              {student.visiting && <Pill tone="mint">One-off visit</Pill>}
               {student.makeupFrom && (
                 <span title={`Make-up ← ${student.makeupFrom}`} className="flex min-w-0 max-w-full">
                   <Pill tone="mint" className="min-w-0 max-w-full">
@@ -101,6 +112,17 @@ export function AttendanceRow({
             </span>
           )}
         </div>
+        {onRemove && (
+          <button
+            type="button"
+            aria-label={`Take ${student.name} off this lesson`}
+            title="Take off this lesson"
+            onClick={onRemove}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-ink-soft transition-colors hover:bg-[#FDE8E8] hover:text-[#B42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:order-last"
+          >
+            <UserMinus className="h-[15px] w-[15px]" aria-hidden />
+          </button>
+        )}
         <button
           type="button"
           aria-label={`${hasNote ? "Edit" : "Add"} note for ${student.name}`}

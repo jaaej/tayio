@@ -256,8 +256,29 @@ export const enrollments = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+    /**
+     * First lesson date the student is off the class's rolls (migration
+     * 0080); `withdrawnAt` follows on that day. Rule: `onRosterSql`.
+     */
+    endsOn: date("ends_on"),
   },
   (t) => [primaryKey({ columns: [t.classId, t.studentId] })],
+);
+
+/** A class student taken off one lesson's roll only (migration 0080). */
+export const lessonRollExclusions = pgTable(
+  "lesson_roll_exclusions",
+  {
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    excludedBy: uuid("excluded_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.lessonId, t.studentId] }), index("lesson_roll_exclusions_student_idx").on(t.studentId)],
 );
 
 export const lessons = pgTable(

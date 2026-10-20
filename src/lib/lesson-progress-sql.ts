@@ -2,6 +2,7 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { lessons } from "@/db/schema";
 import { melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
+import { onRosterSql } from "@/lib/class-roster-sql";
 
 /**
  * Database versions of the lesson rules in `lesson-progress.ts`, so the admin
@@ -19,15 +20,14 @@ export function lessonRanSql(now: Date): SQL {
 }
 
 /**
- * Students on the lesson's roll with no attendance yet: the class's current
- * students who had enrolled by the lesson date. A make-up lesson's roll is
- * its bookings, which are marked when booked, so it has none.
+ * Students on the lesson's roll with no attendance yet: the class's students
+ * on that lesson (`onRosterSql`). A make-up lesson's roll is its bookings,
+ * which are marked when booked, so it has none.
  */
 export const unmarkedOnRollSql = sql<number>`case when ${lessons.status} = 'makeup' then 0 else (
   select count(*)::int from enrollments e
   where e.class_id = ${lessons.classId}
-    and e.withdrawn_at is null
-    and (e.enrolled_at at time zone 'Australia/Melbourne')::date <= ${lessons.date}
+    and ${onRosterSql("e", "lessons")}
     and not exists (
       select 1 from attendance a
       where a.lesson_id = ${lessons.id} and a.student_id = e.student_id
@@ -51,8 +51,8 @@ export const notesMissingSql = sql<number>`(
 /**
  * The `LessonCounts` columns `describeLesson` reads, for a select over
  * `lessons` (single-table or joined). The roll is `lessonRollIds`' rule: the
- * class's current students who had enrolled by the lesson date (nobody on a
- * make-up, a private booking) and anyone marked on the lesson. Notes count
+ * class's students on the lesson (`onRosterSql`; nobody on a make-up, a
+ * private booking) and anyone marked on the lesson. Notes count
  * only students who were not absent: absent students need none. Columns are
  * spelled `lessons.*`: Drizzle drops the table prefix from select-list
  * columns in a single-table select, which would bind these correlated
@@ -64,8 +64,7 @@ export const lessonCountFields = {
       select e.student_id from enrollments e
       where lessons.status <> 'makeup'
         and e.class_id = lessons.class_id
-        and e.withdrawn_at is null
-        and (e.enrolled_at at time zone 'Australia/Melbourne')::date <= lessons.date
+        and ${onRosterSql("e", "lessons")}
       union
       select a.student_id from attendance a where a.lesson_id = lessons.id
     ) roll

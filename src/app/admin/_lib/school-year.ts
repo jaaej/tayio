@@ -23,6 +23,7 @@ import {
   type RolloverStudent,
 } from "@/lib/school-year-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { addIsoDays } from "@/lib/tutor-checkin-rules";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Reader = typeof db | DbTx;
@@ -177,7 +178,7 @@ export async function archiveStudentsInTx(
 
   await tx
     .update(enrollments)
-    .set({ withdrawnAt: now })
+    .set({ withdrawnAt: now, endsOn: addIsoDays(today, 1) })
     .where(and(inArray(enrollments.studentId, studentIds), isNull(enrollments.withdrawnAt)));
 
   await tx

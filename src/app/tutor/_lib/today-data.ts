@@ -3,7 +3,6 @@ import { and, asc, desc, eq, gte, inArray, min, notInArray, sql } from "drizzle-
 import { db } from "@/db/client";
 import {
   classes,
-  enrollments,
   homework,
   homeworkAssignments,
   lessons,
@@ -58,11 +57,8 @@ function lessonSelect() {
       classLocation: classes.location,
       recordingUrl: lessons.recordingUrl,
       status: lessons.status,
-      studentCount: sql<number>`(
-        select count(*)::int from ${enrollments}
-        where ${enrollments.classId} = ${lessons.classId}
-          and ${enrollments.withdrawnAt} is null
-      )`,
+      // Everyone on the lesson's roll, the same count its roll shows.
+      studentCount: lessonCountFields.roster,
       ...lessonCountFields,
     })
     .from(lessons)

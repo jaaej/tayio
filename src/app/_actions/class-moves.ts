@@ -23,6 +23,7 @@ import {
 } from "@/lib/class-move-rules";
 import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { withActor } from "@/lib/with-actor";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -235,9 +236,10 @@ async function executeMove(input: {
     if (validationError) throw new Error(validationError);
 
     const movedAt = new Date();
+    // Off the old class's rolls from the move's day, still on its earlier lessons.
     await tx
       .update(enrollments)
-      .set({ withdrawnAt: movedAt })
+      .set({ withdrawnAt: movedAt, endsOn: melbourneDate(movedAt) })
       .where(
         and(
           eq(enrollments.studentId, input.studentId),
@@ -249,7 +251,7 @@ async function executeMove(input: {
     if (targetEnrolment.length > 0) {
       await tx
         .update(enrollments)
-        .set({ withdrawnAt: null, enrolledAt: movedAt })
+        .set({ withdrawnAt: null, endsOn: null, enrolledAt: movedAt })
         .where(
           and(
             eq(enrollments.studentId, input.studentId),

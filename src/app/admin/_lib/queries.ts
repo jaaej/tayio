@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { onRosterSql } from "@/lib/class-roster-sql";
 import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
@@ -360,6 +361,8 @@ export async function getLessonContextForStudent(
         eq(lessons.id, lessonId),
         eq(enrollments.studentId, studentId),
         isNull(enrollments.withdrawnAt),
+        // On that lesson's roll, not merely in the class today.
+        onRosterSql("enrollments", "lessons"),
       ),
     )
     .limit(1);
