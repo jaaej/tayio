@@ -13,7 +13,7 @@ Last updated: 20 October 2026
 
 ## Manual QA required
 
-- [ ] Consistency audit fixes (18 to 20 October 2026): before checking, deploy and apply migrations 0065, 0066, 0067, 0068, 0070, 0071, 0072 and 0076 to Production in that order (after the deploy, never before: the previous build reads columns 0065 drops), then run `npm run db:check-rls` against Production.
+- [ ] Consistency audit fixes (18 to 20 October 2026): deployed (`48203bf`) and migrations 0065 to 0077 applied to Production on 20 October 2026, with `npm run db:check-rls` passing there.
   Admin: the dashboard To do rows match the queues they link to (Attendance to mark and Notes, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
   Tutor: Today's "lessons need finishing" equals the Classes cards; Request time away with a handover note, then cancel it from Time away; another tutor's Cover board shows the handover note, not the reason; Week plan shows Class recording and the quiz's Instructions and Changes requested separately; a student's Lessons timeline.
   Parent (Safari and a phone): the new shell and menu (Subjects, Timetable), the Overview's Next lesson and "Can't make it?", one subject page with Attendance and Tutor feedback, a homework page and a recap page, Payments overdue by due date, switching children and opening a notification for the second child.
@@ -25,7 +25,7 @@ Last updated: 20 October 2026
   Add class opens a new class marked "Not saved"; Save with an error (no tutor) and confirm that class opens with the message.
   Delete subject is the red link under the classes.
 
-- [ ] One lesson roll, one-on-one classes and one Room picker (18 October 2026): apply migration `0066_one_on_one_capacity.sql` to Production after the code is deployed (it goes with 0065; the previous build can save a one-on-one class with more than one place, which the new constraint refuses).
+- [ ] One lesson roll, one-on-one classes and one Room picker (18 October 2026): migration `0066_one_on_one_capacity.sql` applied to Production on 20 October 2026, after the deploy.
   Roll: open the same lesson as its tutor and in admin Attendance; both rolls list the same students with year levels and the same On leave / Free trial / Make-up pills.
   Open a make-up lesson as its tutor and confirm only the booked student is listed.
   One-on-one: on a class card pick One-on-one; Capacity reads "1 student", Save is refused while more than one student stays, and with one student the Add picker becomes "Withdraw to change student".
@@ -33,7 +33,7 @@ Last updated: 20 October 2026
   New class with One-on-one shows "1 student".
   Room: in New class pick a day and time another class uses and confirm that room reads "· taken" and cannot be picked, as on the class card.
 
-- [ ] Class card cleanup and staff-only attendance notes (18 October 2026): first apply migration `0065_class_card_cleanup.sql` to Production, after the code is deployed (the previous build reads the dropped columns).
+- [ ] Class card cleanup and staff-only attendance notes (18 October 2026): migration `0065_class_card_cleanup.sql` applied to Production on 20 October 2026, after the deploy.
   As admin at 1440px and 390px, open a subject's pencil: each class card has Day, Starts, Ends, Tutor, Room, Class name, Type and Capacity (no Online link or Subject), and student rows have only Withdraw (no Delivery or private note).
   In New class, the Room suggestions end with "Online" and there is no Online link field.
   Mark a lesson with a note as a tutor; confirm the admin roll shows the note, and the linked parent's Classes page and class page show the lesson's status without it.
@@ -669,6 +669,15 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] The homework grading lock works on Production (20 October 2026, found while checking Production after the audit migrations).
+  Cause: migration 0007's BEFORE UPDATE trigger on `homework_assignments` calls `is_tutor_of_homework()`, which no migration creates.
+  Dev had a hand-made copy, so it passed there; on Production every update of the table through the public API (a tutor marking, a student handing in) failed with "function public.is_tutor_of_homework(uuid) does not exist".
+  The app writes homework through its own server connection, which the trigger skips, and Production had no homework rows yet, so nobody hit it.
+  Fix, migration `0077_grading_lock_class_tutor.sql`: the lock asks `tutor_manages_homework_id()` from 0070, so the tutor who may mark is the class's tutor, the same rule as the RLS policies.
+  It drops dev's five hand-made helpers (nothing depended on them) so dev cannot hide a missing function again, and adds the `resources_kind_payload` and `discussion_attachments_parent_check` checks that Production never got (its tables were created by drizzle before 0016 and 0024 ran; existing rows satisfy both).
+  Verified: reproduced on dev in a rolled-back transaction with the helper dropped (tutor and student updates both failed), then with 0077 the class tutor's mark saved and a student's score change was reverted; applied to dev and Production; no database function calls a missing one; `db:check-rls` passes on both; the dev and Production schemas, policies and function bodies now match.
+  Left as is: foreign keys are named differently on Production (drizzle names), and dev still holds the term-test and free-trial tables and columns from migrations 0028 to 0030, whose files were deleted in August 2026; no code on main reads them.
+
 - [x] Consistency audit fixes (18 to 20 October 2026, owner request: "fix all", with the free-trial note kept visible to tutors and mastery worked out from marks).
   Groundwork on main first (`7149c36`): one shared rule each for attendance (moved lessons are not absences), invoices (overdue by due date), homework (a late hand-in is handed in) and lesson progress, then three agents in parallel worktrees (admin, tutor, parent/student), merged into main with the follow-ups below.
   Admin (`fix/audit-admin`): numbers on the shared rules (dashboard, Payments, Revenue, Reports, term report PDF, directory flags); one count per queue for the dashboard To do, queue pages and menu badge (reproduced: 20 vs 39 vs a real 163 lessons to mark); Attendance Notes tab grouped by tutor; a Class moves queue; History tab on the student profile; the student Lessons tab on the shared timetable; Cover & leave; Classes schedule opens rolls and draws real lessons; `/admin/tutors` retired; the trial note says tutors read it; quiz brief and review note kept apart (migration 0067); term reports a class at a time with sent tracking (migration 0068).
@@ -678,7 +687,8 @@ Still open after the fixes:
   Behaviour changes owners will notice: student recap headings follow the tutor editor; homework is overdue from the day after the due day; a lesson's roll leaves out students who joined after that lesson; the student timetable no longer opens on a lesson the student moved away from.
   Verified on dev: typecheck, lint, 640 tests (also on UTC, Melbourne and Los Angeles clocks), each agent's production build, `db:check-rls`, and browser runs in Chrome and WebKit: every parent and student page at 1440px and 390px (no sideways scroll, no page errors), the admin queue, History, Lessons, Term reports, Cover & leave and rolls, and the tutor Today, Classes, Students, Week plan, roll reasons, Schedule and timeline checks, with test data removed.
   Not browser-checked: sending a term report (built and unit-tested).
-  Production: migrations 0065 to 0076 above are applied to dev only.
+  Production: deployed (`48203bf`) and migrations 0065 to 0076 applied on 20 October 2026, after the deploy; 0065 and 0066 changed no rows (10 classes, no attendance yet).
+  `db:check-rls` passes there, and `set role authenticated` refuses `select note` on attendance and allows `select status`.
 
 - [x] Class times are dropdowns, so a typed time can no longer be lost (18 October 2026, owner report: a new class with 12:30 pm to 1:30 pm showed "Choose a start and end time." on Save).
   Cause: the owner's browser was Safari (its number boxes show the arrows without hover).
@@ -724,7 +734,7 @@ Still open after the fixes:
   Attendance notes are staff-only (owner decision): `/parent/classes` and `/parent/classes/[classId]` no longer select or show them, and the migration withholds `attendance.note` from the `authenticated` role (column-level SELECT on every other column), so a student or parent cannot read it through the public API either.
   The app's own server connection is unaffected.
   Verified against dev: typecheck, lint, 554 tests, a production build (isolated copy, the dev server kept running), `db:check-rls` (56 tables), migration applied to dev, `set role authenticated` refused `select note` and allowed `select status`, and browser runs of the subject page (1440px and 390px), a capacity change saved through it and reverted (checked in the database each time), New class, the admin and tutor rolls, tutor Classes and the parent class page (a child with notes on 16 and 17 June shows only the statuses).
-  Production: migration 0065 not applied yet.
+  Production: migration 0065 applied on 20 October 2026.
   Before applying: 0 delivery modes, 0 enrolment notes, 0 class or lesson links, 0 attendance rows.
 
 - [x] Student profile without the quick-fact tiles (18 October 2026, owner request): `/admin/users/[id]` for a student no longer shows the Attendance, Homework, Invoices and Credits tiles above the tabs (`studentFacts` removed from `src/app/admin/users/_lib/profile-facts.ts`). Tutors keep Classes and Students, parents keep Invoices. Checked in the browser on a student profile; lint and 555 tests pass.
@@ -1003,7 +1013,7 @@ Still open after the fixes:
   `ListPane` (admin Users and Attendance now use it; both panes are now the
   same width). Parent still uses `CollapsiblePortalShell`; student moved to the glass shell on 13 October 2026.
 - [x] One "For students this week" field per class per week (12 October 2026,
-  migration `0060_class_week_plans.sql`, applied to dev only). Replaces
+  migration `0060_class_week_plans.sql`, applied to dev and Production). Replaces
   `classes.lesson_plan` and the per-tutor `tutor_week_sections` notes; tables
   were renamed in place (`class_week_plans`, `class_week_plan_attachments`) so
   attachment ids and library links survive, and a shared tutor note was copied
