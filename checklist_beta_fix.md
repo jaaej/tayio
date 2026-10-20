@@ -669,6 +669,13 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Check-ins name the week of term (21 October 2026, owner request: "we need week number").
+  The tutor's Weekly check-in shows "Term 4, Week 2" in the Week tile with the dates under it, and the admin Tutor check-ins header leads with it; a week with no term day reads "Holidays", and nothing shows when no terms are set.
+  Rule: `weekOfTermLabel` (`src/lib/term-week.ts`, tested), the earliest term with a day in the Monday-to-Sunday week, numbered by `weekNumberOn` like the curriculum and the home headers; query `getWeekOfTermLabel` in `src/lib/curriculum.ts`.
+  Production data: Term 4 2026 is saved as 1 to 30 September, so check-ins there read "Holidays" until an admin corrects the dates in Terms.
+  Dev now has a Term 4 2026 (12 October to 22 November) for testing.
+  Verified on dev in Chrome and WebKit: 19 to 25 October reads Term 4, Week 2 on both pages and 23 to 29 November reads Holidays.
+
 - [x] Login heading and portal brand (21 October 2026, owner request).
   `/login` reads "Welcome Back." (the owner's words, with a full stop).
   The glass sidebar of every role reads "Taiyo Tuition Portal" on one line beside the torii (`GlassBrandMark` in `src/components/portal/glass-chrome.tsx`, also the phone header); the expanded sidebar is 252px wide (was 236px) so the name fits, and the collapsed rail still shows the gate only.

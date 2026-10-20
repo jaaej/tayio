@@ -19,6 +19,7 @@ import {
   getTutorCheckinWeeks,
 } from "@/lib/tutor-checkins";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { getWeekOfTermLabel } from "@/lib/curriculum";
 import {
   buildMatrixRow,
   hoursLabel,
@@ -134,10 +135,13 @@ export default async function AdminTutorCheckinsPage({
     : tutors;
   // Sync the selected week's snapshots first so the monthly table includes a
   // newly generated current week on the very first page load.
-  const checkinViews = await getTutorCheckinWeeks(
-    visibleTutors.map((tutor) => tutor.id),
-    week,
-  );
+  const [checkinViews, termWeek] = await Promise.all([
+    getTutorCheckinWeeks(
+      visibleTutors.map((tutor) => tutor.id),
+      week,
+    ),
+    getWeekOfTermLabel(week),
+  ]);
   const views = visibleTutors.map((tutor, index) => ({
     tutor,
     view: checkinViews[index],
@@ -209,6 +213,7 @@ export default async function AdminTutorCheckinsPage({
 
   const weekLabel = weekRangeLabel(week);
   const headerSub = [
+    termWeek,
     weekLabel,
     `${money(summary.approvedPay)} approved`,
     summary.awaiting > 0 ? `${summary.awaiting} awaiting approval` : null,
