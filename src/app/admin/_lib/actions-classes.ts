@@ -18,16 +18,23 @@ import {
   type ClassDeletionImpact,
 } from "./class-lessons";
 import { classPatchSchema, insertClass, patchTimeError } from "./class-writes";
+import { NotAStudent, applyStudentChanges } from "./class-enrolments";
+import { oneOnOneError } from "@/lib/class-capacity";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const classSchema = classPatchSchema.required({
-  name: true,
-  subjectId: true,
-  tutorId: true,
-  capacity: true,
-  isRecurring: true,
-});
+const classSchema = classPatchSchema
+  .required({
+    name: true,
+    subjectId: true,
+    tutorId: true,
+    capacity: true,
+    isRecurring: true,
+  })
+  .extend({
+    /** Students to enrol in the new class. */
+    students: z.array(z.string().uuid()).max(200).default([]),
+  });
 
 function revalidateSchedules() {
   revalidatePath("/admin/classes");
@@ -44,7 +51,22 @@ export async function createClass(input: z.input<typeof classSchema>) {
   const data = classSchema.parse(input);
   const timeError = patchTimeError(data);
   if (timeError) return { ok: false as const, error: timeError };
-  const id = await withActor({ id: user.id, role: "admin" }, (tx) => insertClass(tx, data));
+  const students = [...new Set(data.students)];
+  const oneOnOne = oneOnOneError(data.classType ?? "group", students.length);
+  if (oneOnOne) return { ok: false as const, error: "A one-on-one class has one student." };
+  let id: string;
+  try {
+    id = await withActor({ id: user.id, role: "admin" }, async (tx) => {
+      const classId = await insertClass(tx, data);
+      await applyStudentChanges(tx, classId, { add: students, withdraw: [] });
+      return classId;
+    });
+  } catch (error) {
+    if (error instanceof NotAStudent) {
+      return { ok: false as const, error: "One of the students no longer has a student account." };
+    }
+    throw error;
+  }
   if (data.isRecurring) {
     try {
       await ensureRecurringLessons({ classIds: [id] });

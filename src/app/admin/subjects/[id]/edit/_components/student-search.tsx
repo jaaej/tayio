@@ -79,8 +79,11 @@ export function StudentSearch({
               // Never submit the page's form from here.
               e.preventDefault();
               if (shown && matches[active]) pick(matches[active].id);
-            } else if (e.key === "Escape") {
+            } else if (e.key === "Escape" && (shown || query)) {
+              // Close the suggestions, not a panel the search sits in.
+              e.preventDefault();
               setOpen(false);
+              setQuery("");
             }
           }}
           className="h-full min-w-0 flex-1 border-0 bg-transparent text-[13px] text-ink outline-none placeholder:text-[#5E5A73]"

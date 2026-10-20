@@ -148,11 +148,18 @@ export function ClassTypeSegment({
 export function CapacityStepper({
   id,
   defaultValue,
+  onValueChange,
 }: {
   id: string;
   defaultValue: number;
+  /** The number now in the box, for a "2 of 8" count beside it. */
+  onValueChange?: (value: number) => void;
 }) {
-  const [value, setValue] = useState(String(defaultValue));
+  const [value, setRawValue] = useState(String(defaultValue));
+  const setValue = (next: string) => {
+    setRawValue(next);
+    onValueChange?.(Number(next));
+  };
   const step = (delta: number) => {
     const n = Number(value);
     const base = Number.isFinite(n) && n > 0 ? n : defaultValue;

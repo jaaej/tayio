@@ -669,6 +669,14 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] New class takes its students (21 October 2026, owner request: add and remove students when creating a class).
+  `/admin/classes` → New class has a Students section: the subject page's Add a student search and list (`ClassStudents` with `newClass`, "2 of 8" under the heading), Remove before saving.
+  `createClass` enrols them in the class's transaction through `applyStudentChanges`, now in `src/app/admin/_lib/class-enrolments.ts` (moved out of the `"use server"` subject actions, where an exported helper would have been a callable action) and shared with the subject page's Save.
+  A one-on-one class refuses more than one student; capacity stays a warning, as on the subject page.
+  Both pickers offer active accounts only (the subject page also listed deactivated students).
+  Bug fixed on the way (found in the test): Escape in a panel's student search closed the whole New class panel and lost what was typed; `SidePanel` now ignores an Escape a control inside it already used (`defaultPrevented`), the search uses it to close its suggestions, and `ConfirmDialog` takes Escape first so cancelling a confirmation raised from a panel leaves the panel open.
+  Verified on dev in Chrome (a class created with two students picked and one removed: only the remaining student enrolled, 16 lessons generated; test class and its 3 notifications deleted) and WebKit (pick, remove, Escape).
+
 - [x] Check-ins name the week of term (21 October 2026, owner request: "we need week number").
   The tutor's Weekly check-in shows "Term 4, Week 2" in the Week tile with the dates under it, and the admin Tutor check-ins header leads with it; a week with no term day reads "Holidays", and nothing shows when no terms are set.
   Rule: `weekOfTermLabel` (`src/lib/term-week.ts`, tested), the earliest term with a day in the Monday-to-Sunday week, numbered by `weekNumberOn` like the curriculum and the home headers; query `getWeekOfTermLabel` in `src/lib/curriculum.ts`.

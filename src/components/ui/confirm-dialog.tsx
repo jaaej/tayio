@@ -107,12 +107,17 @@ function ConfirmDialog({
   const ready = !opts.confirmText || typed.trim() === opts.confirmText.trim();
 
   useEffect(() => {
+    // Capture phase, ahead of a side panel the dialog was raised from, so
+    // Escape cancels the dialog without also closing the panel.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      }
       if (e.key === "Enter" && ready) onConfirm();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onCancel, onConfirm, ready]);
 
   const dialog = (

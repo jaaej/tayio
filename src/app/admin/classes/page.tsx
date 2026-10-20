@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { and, eq, gte, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -13,6 +13,7 @@ import {
   tutorAvailability,
 } from "@/db/schema";
 import { resolveCurrentTerm } from "@/lib/curriculum";
+import { STUDENT_TIERS } from "@/lib/roles";
 import {
   Empty,
   GlassPanel,
@@ -92,7 +93,7 @@ export default async function ClassesPage({
   const isMonth = view === "month";
   const todayIso = melbourneDate(new Date());
 
-  const [allRows, tutors, subjectList, currentTerm, quizzesToReview, availabilityRows] = await Promise.all([
+  const [allRows, tutors, subjectList, currentTerm, quizzesToReview, availabilityRows, studentRows] = await Promise.all([
     db
       .select({
         id: classes.id,
@@ -162,7 +163,25 @@ export default async function ClassesPage({
           eq(tutorAvailability.isAvailable, true),
         ),
       ),
+    // Students New class can enrol (as the subject page's Add a student).
+    db
+      .select({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+        email: profiles.email,
+        school: profiles.school,
+      })
+      .from(profiles)
+      .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)))
+      .orderBy(profiles.firstName, profiles.lastName),
   ]);
+  const students = studentRows.map((r) => ({
+    id: r.id,
+    name: `${r.firstName} ${r.lastName}`.trim(),
+    detail: r.school ? `${r.school} · ${r.email}` : r.email,
+    short: r.school || r.email,
+  }));
   const tutorWindows: TutorWeeklyWindow[] = availabilityRows.map((r) => ({
     tutorId: r.tutorId,
     weekday: r.weekday!,
@@ -367,6 +386,7 @@ export default async function ClassesPage({
               rooms={rooms}
               roomSlots={roomSlots}
               lessonMinutes={lessonMinutes}
+              students={students}
               triggerSize="lg"
               defaultOpen={openCreate === "1"}
             />
@@ -474,6 +494,7 @@ export default async function ClassesPage({
               rooms={rooms}
               roomSlots={roomSlots}
               lessonMinutes={lessonMinutes}
+              students={students}
               triggerSize="lg"
             />
           </Empty>

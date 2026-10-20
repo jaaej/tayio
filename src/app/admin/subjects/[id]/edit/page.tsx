@@ -100,7 +100,8 @@ export default async function EditSubjectPage({
         school: profiles.school,
       })
       .from(profiles)
-      .where(inArray(profiles.role, STUDENT_TIERS))
+      // Active accounts only: a deactivated or archived student cannot join.
+      .where(and(inArray(profiles.role, STUDENT_TIERS), eq(profiles.isActive, true)))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
     // Weekly availability, to rank tutors for a class's day and time (as in
     // New class; date-specific rows are one-off changes).

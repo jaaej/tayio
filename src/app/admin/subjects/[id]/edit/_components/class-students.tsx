@@ -13,7 +13,8 @@ const Q_BTN =
 /**
  * A class's students: "Students · 2 of 8", the Add a student search, and one
  * line per student. Nothing is sent until the page's Save changes; staged
- * joins and leaves say so on their row.
+ * joins and leaves say so on their row. New class uses it too, where every
+ * student joins when the class is created.
  */
 export function ClassStudents({
   students,
@@ -21,6 +22,7 @@ export function ClassStudents({
   oneOnOne,
   candidates,
   onChange,
+  newClass = false,
 }: {
   students: CardStudent[];
   capacity: number;
@@ -29,6 +31,8 @@ export function ClassStudents({
   /** Every student account (those on the class are left out of the search). */
   candidates: (StudentOption & { short: string })[];
   onChange: (students: CardStudent[]) => void;
+  /** The class is being created, so a "Joins on save" tag would say nothing. */
+  newClass?: boolean;
 }) {
   const onClass = new Set(students.map((s) => s.id));
   const available = candidates.filter((c) => !onClass.has(c.id));
@@ -46,7 +50,8 @@ export function ClassStudents({
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <span className="text-[12px] font-bold text-[#5E5A73]">
-          Students · {staying} of {capacity}
+          {/* New class titles its section "Students" already. */}
+          {newClass ? `${staying} of ${capacity}` : `Students · ${staying} of ${capacity}`}
         </span>
         {oneOnOne && staying >= 1 ? (
           <span className="text-[13px] font-semibold text-[#5E5A73]">Withdraw to change student</span>
@@ -87,7 +92,7 @@ export function ClassStudents({
                 <span className="block text-[12px] text-[#5E5A73]">Their past attendance and notes are kept.</span>
               )}
             </span>
-            {!s.saved && !s.leaving && (
+            {!newClass && !s.saved && !s.leaving && (
               <span className="shrink-0 text-[12px] font-bold text-[#1E4FB8]">Joins on save</span>
             )}
             {s.leaving && <span className="shrink-0 text-[12px] font-bold text-[#B42318]">Leaves on save</span>}

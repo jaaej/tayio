@@ -7,6 +7,7 @@ import { createClass } from "@/app/admin/_lib/actions-classes";
 import type { TutorClassSlot, TutorWeeklyWindow } from "../_lib/tutor-fit";
 import { CreateClassForm, type CreateClassValues } from "./create-class-form";
 import type { RoomUse } from "../_lib/rooms";
+import type { StudentOption } from "@/app/admin/subjects/[id]/edit/_components/student-search";
 
 export function CreateClassPanel({
   tutors,
@@ -16,6 +17,7 @@ export function CreateClassPanel({
   rooms,
   roomSlots,
   lessonMinutes,
+  students,
   triggerSize = "md",
   defaultOpen = false,
 }: {
@@ -31,6 +33,8 @@ export function CreateClassPanel({
   roomSlots: RoomUse[];
   /** Usual lesson length in minutes; the end time defaults this far after the start. */
   lessonMinutes: number;
+  /** Active student accounts, for Add a student. */
+  students: (StudentOption & { short: string })[];
   /** `lg` for the empty-state trigger, where the button is the whole surface. */
   triggerSize?: "md" | "lg";
   /** Open on arrival, for links such as the dashboard's "New class". */
@@ -143,6 +147,7 @@ export function CreateClassPanel({
             rooms={rooms}
             roomSlots={roomSlots}
             lessonMinutes={lessonMinutes}
+            students={students}
             disabled={pending}
             error={error}
             onSubmit={submit}

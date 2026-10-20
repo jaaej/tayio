@@ -101,7 +101,9 @@ export function SidePanel({
 
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        // A control inside the panel that used Escape itself (closing a list
+        // of suggestions) prevents its default; only a free Escape closes.
+        if (!e.defaultPrevented) onClose();
         return;
       }
       if (e.key !== "Tab") return;

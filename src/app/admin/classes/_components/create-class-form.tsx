@@ -17,6 +17,9 @@ import { DEFAULT_GROUP_CAPACITY, classCapacity } from "@/lib/class-capacity";
 import { TutorPicker } from "./tutor-picker";
 import { RoomPicker } from "./room-picker";
 import type { RoomUse } from "../_lib/rooms";
+import { ClassStudents } from "@/app/admin/subjects/[id]/edit/_components/class-students";
+import type { StudentOption } from "@/app/admin/subjects/[id]/edit/_components/student-search";
+import type { CardStudent } from "@/app/admin/subjects/[id]/edit/_lib/class-card";
 
 export type CreateClassValues = {
   name: string;
@@ -29,6 +32,8 @@ export type CreateClassValues = {
   weekday: number | null;
   startTime: string | null;
   endTime: string | null;
+  /** Students to enrol when the class is created. */
+  students: string[];
 };
 
 /**
@@ -45,6 +50,7 @@ export function CreateClassForm({
   rooms,
   roomSlots,
   lessonMinutes,
+  students: candidates,
   disabled,
   error,
   onSubmit,
@@ -62,6 +68,8 @@ export function CreateClassForm({
   roomSlots: RoomUse[];
   /** Usual lesson length, used to default the end time after the start. */
   lessonMinutes: number;
+  /** Active student accounts, for Add a student. */
+  students: (StudentOption & { short: string })[];
   disabled: boolean;
   error: string | null;
   onSubmit: (values: CreateClassValues) => void;
@@ -71,6 +79,8 @@ export function CreateClassForm({
   const fid = (name: string) => `${formId}-${name}`;
 
   const [classType, setClassType] = useState<ClassTypeValue>("group");
+  const [capacity, setCapacity] = useState(DEFAULT_GROUP_CAPACITY);
+  const [picked, setPicked] = useState<CardStudent[]>([]);
   const [times] = useState(() => defaultClassTimes(lessonMinutes));
   const [subjectId, setSubjectId] = useState("");
   const [room, setRoom] = useState("");
@@ -109,6 +119,7 @@ export function CreateClassForm({
           weekday: text("weekday") === "" ? null : Number(text("weekday")),
           startTime: text("startTime") || null,
           endTime: text("endTime") || null,
+          students: picked.map((p) => p.id),
         });
       }}
     >
@@ -156,7 +167,11 @@ export function CreateClassForm({
                 </span>
               </Field>
             ) : (
-              <CapacityStepper id={fid("capacity")} defaultValue={DEFAULT_GROUP_CAPACITY} />
+              <CapacityStepper
+                id={fid("capacity")}
+                defaultValue={DEFAULT_GROUP_CAPACITY}
+                onValueChange={setCapacity}
+              />
             )}
           </div>
         </Section>
@@ -190,6 +205,17 @@ export function CreateClassForm({
 
         <Section id={fid("s-tutor")} title="Tutor">
           <TutorPicker name="tutorId" tutors={rankedTutors} />
+        </Section>
+
+        <Section id={fid("s-students")} title="Students">
+          <ClassStudents
+            newClass
+            students={picked}
+            capacity={classCapacity(classType, capacity || 1)}
+            oneOnOne={classType === "one_on_one"}
+            candidates={candidates}
+            onChange={setPicked}
+          />
         </Section>
       </fieldset>
 
