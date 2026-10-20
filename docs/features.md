@@ -1,6 +1,6 @@
 # Feature Reference
 
-Last reconciled with the current codebase: **10 October 2026**.
+Last reconciled with the current codebase: **10 October 2026** (sections touched by the 18 to 20 October 2026 consistency audit were updated then).
 
 A comprehensive, deploy-ready reference of every feature shipped in `tayio_portal`,
 organized by role. Each feature documents three things:
@@ -125,19 +125,19 @@ Conventions referenced throughout:
 ## Parent
 
 ### Dashboard
-1. **What it is** - Overview of a child's attendance, homework, latest tutor feedback, payment status, and outstanding balance, with a contact block.
-2. **How it works** - `/parent` (`src/app/parent/page.tsx`, `_lib/`). Reads `attendance`, `homeworkAssignments`, `lesson_notes_safe`, `invoices`. Child selection via `family_links`. Guard: `requireRole("parent")`.
-3. **Rationale:** Feedback surfaced on the dashboard is parent-visible only (via `lesson_notes_safe`); internal tutor notes are excluded (per security-checklist A3 / migration 0003).
+1. **What it is** - The child's Overview: attendance, homework handed in, mastery and outstanding balance tiles; the next lesson with "Can't make it?"; overdue and due-this-week homework; recent tutor recaps; payments; announcements; contacts.
+2. **How it works** - `/parent` (`src/app/parent/page.tsx`). Attendance uses `attendanceSummary` (moved lessons are not absences), homework `homework-rules`, mastery `getSubjectMastery` (`src/lib/topic-mastery-data.ts`), the next lesson `nextAttendingLesson` over `buildTimetableChips`, recaps the shared lesson recap. Guard: `requireRole("parent")`.
+3. **Rationale:** The Overview summarises and routes; each block links to the page that does the work (consistency audit, 18 October 2026). Recaps come only from family-visible note fields (`src/lib/lesson-recap.ts`); internal notes never leave the database.
 
 ### Child switcher
-1. **What it is** - Switch the whole parent view between multiple linked children.
-2. **How it works** - Uses `familyLinks` (`parent_id`, `student_id`, `is_primary_contact`). `resolveSelectedChild` scopes queries to the chosen child. Guard: `requireRole("parent")` + `family_links` ownership.
-3. **Rationale:** Parent-child linking is a first-class concept enforced by ownership checks so a parent only ever sees their own children's data (per PRD cross-cutting non-negotiables; strict role permissions).
+1. **What it is** - Switch the whole parent view between linked children; the choice is remembered.
+2. **How it works** - `ChildPicker` in the glass portal shell. `resolveSelectedChild` reads `?child=` or the `taiyo_parent_child` cookie (`src/lib/parent-child.ts`) and only accepts a linked child. Parent notification links carry `?child=`. Guard: `requireRole("parent")` + `family_links` ownership.
+3. **Rationale:** A parent with several children used to land on the first child from the menu and from notifications (consistency audit item 10).
 
 ### Classes (calendar + attendance + reschedule)
-1. **What it is** - Combined per-child calendar, attendance log, and the reschedule entry point.
-2. **How it works** - `/parent/classes` renders the shared interactive timetable and attendance (each lesson's status; the tutor's attendance note is staff-only) for the selected linked child. `/parent/classes/[classId]` is the class detail. The older `/parent/classes/reschedule/[lessonId]` route remains in the tree but is not the current linked entry point. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
-3. **Rationale:** Keeping attendance, upcoming lessons, and the move action on one calendar reduces the number of places a parent must search.
+1. **What it is** - The child's Timetable: the shared calendar with the reschedule and cancel entry points.
+2. **How it works** - `/parent/timetable` renders the student's `InteractiveTimetable` for the selected child (`?lesson=` opens on a lesson; past lessons link to their recap). `/parent/classes` redirects here with its query; `/parent/classes/[classId]` redirects to the subject page. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
+3. **Rationale:** One shared timetable for student, parent and admin (consistency audit items 13 and 27); "Timetable" is the students' word for it.
 
 ### Reschedule a class
 1. **What it is** - A parent can move an eligible upcoming lesson for a linked child into an available slot with the same tutor.
@@ -145,29 +145,29 @@ Conventions referenced throughout:
 3. **Rationale:** Student and parent self-service share one implementation so eligibility, allowance, attendance isolation, and notifications cannot drift between portals. Office intervention remains available when no eligible slot exists or a gate fails.
 
 ### Homework view (read-only)
-1. **What it is** - Track a child's homework completion, scores, and feedback.
-2. **How it works** - `/parent/homework`. Reads `homework`/`homeworkAssignments` scoped through `family_links`. Guard: `requireRole("parent")` + child ownership.
-3. **Rationale:** `Rationale: not documented.`
+1. **What it is** - The child's homework board and a read-only page per task.
+2. **How it works** - `/parent/homework` is the student's board (`src/components/homework/homework-board.tsx`); `/parent/homework/[id]` shows the submission, mark, rank and full feedback through the shared `homework-detail.tsx` (linked children only). Status follows `src/lib/homework-rules.ts`: a late hand-in is handed in; overdue means not handed in after the due day. Guard: `requireRole("parent")` + child ownership.
+3. **Rationale:** One homework rule and one view for every role (consistency audit item 3).
 
 ### Tutor feedback feed
-1. **What it is** - Chronological feed of parent-visible tutor comments, with read/unread tracking.
-2. **How it works** - `/parent/feedback` + "From the tutor" dashboard block. Reads `lesson_notes_safe` (`parentVisibleComment`). Read/unread stored in `localStorage`. Guard: `requireRole("parent")`.
-3. **Rationale:** Only `parentVisibleComment` is fed through - `internalNote` is stripped by the `lesson_notes_safe` view (per security-checklist A3 / migration 0003). Deep-link to per-class detail is a known TODO - `/parent/classes/[classId]` doesn't exist yet (memory `project_pending_feedback_to_class_link`).
+1. **What it is** - The child's lesson recaps.
+2. **How it works** - `/parent/feedback` lists recaps and `/parent/feedback/[lessonId]` opens one, through the shared `LessonRecap` (`src/components/lessons/lesson-recap.tsx`) and `src/lib/lesson-recap.ts`, which selects only the family fields of `src/lib/lesson-note-fields.ts` (Topic covered, Performance, Strengths, Struggled with, Next lesson focus, Comment). A note counts as a recap when any of those is filled. Guard: `requireRole("parent")`.
+3. **Rationale:** The same recap the student sees, in the tutor editor's words; before, parents saw only notes with a comment (consistency audit item 11). `internal_note` is never selected.
 
 ### Progress page
-1. **What it is** - Per-child, per-subject mastery, topics, attendance, and homework summary.
-2. **How it works** - `/parent/progress` (added 2026-05-26). Reads `progressTopics`, `subjectTopics`, `attendance`, `homeworkAssignments`. Guard: `requireRole("parent")` + child ownership.
-3. **Rationale:** `Rationale: not documented.`
+1. **What it is** - The student's Progress view for the selected child: term picker, average score, recent marks, test rank, topic mastery and term reports.
+2. **How it works** - `/parent/progress` and `/parent/progress/[id]` reuse the student progress panes. Mastery comes from marks (`src/lib/topic-mastery.ts`: average of marked homework and latest quiz attempts in each topic's weeks; "No marks yet" otherwise); `progress_topics` is no longer read. Guard: `requireRole("parent")` + child ownership.
+3. **Rationale:** Parents are the ones told "Term report ready"; the parent page was a thinner copy (consistency audit items 5 and 14).
 
 ### Subject deep-dive (curriculum, read-only)
-1. **What it is** - Read-only mirror of the student curriculum view, scoped to the selected child.
-2. **How it works** - `/parent/subjects/[id]` (`_queries.ts`, `_components/`). Same tables as student subject view; parent cannot trigger watch/open tracking. Guard: `requireRole("parent")` + child-enrolment scope; `notFound()` on failure.
-3. **Rationale:** Parent mirrors the child's *enrolled class's tutor's* section only (per `docs/superpowers/specs/2026-07-01-tutor-sections-design.md`); `notFound()` (not 403) avoids leaking subject existence (per `docs/superpowers/specs/2026-05-30-subject-curriculum-design.md`).
+1. **What it is** - One page per subject: the student's subject page (read-only) plus the child's attendance and tutor recaps for that class.
+2. **How it works** - `/parent/subjects/[id]` (`/parent/subjects` opens the first subject; Subjects is in the parent menu). The parent can open materials without ticking them off for the child. Guard: `requireRole("parent")` + child-enrolment scope; `notFound()` on failure.
+3. **Rationale:** One home per subject instead of three pages (consistency audit item 27). `notFound()` (not 403) avoids leaking subject existence (per `docs/superpowers/specs/2026-05-30-subject-curriculum-design.md`).
 
 ### Payments
-1. **What it is** - View invoices and statuses (read-only).
-2. **How it works** - `/parent/payments`. Reads `invoices WHERE parent_id = me`. Statuses use the fixed `invoiceStatusEnum` (unpaid/paid/overdue/partially_paid/refunded/cancelled). Guard: `requireRole("parent")`.
-3. **Rationale:** Payment statuses are a fixed enum per the PRDs' cross-cutting non-negotiables (`invoiceStatusEnum` in `schema.ts`). Read-only - no processor wired (checklist ⬜ "Online payment").
+1. **What it is** - The family's invoices (read-only), the same view students with billing access get.
+2. **How it works** - `/parent/payments` renders `FamilyInvoices` (`src/components/invoices/family-invoices.tsx`) with `summarizeInvoices` (`src/lib/invoice-rules.ts`): an open invoice past its due date is overdue without anyone setting it; dates are Melbourne days (`src/lib/invoice-dates.ts`); "Message the office" opens the office conversation (`src/lib/office-contact.ts`, active admins only). Guard: `requireRole("parent")`.
+3. **Rationale:** Families saw "Overdue 0" while admins saw overdue invoices (consistency audit item 2). Read-only - no processor wired (checklist ⬜ "Online payment").
 
 ### Direct messaging
 1. **What it is** - 1:1 DMs with the child's tutors and the admin office.
@@ -190,7 +190,6 @@ Conventions referenced throughout:
 ### Planned / not yet built (parent)
 - **Online self-service credit purchase** - reschedule allowances and class credits exist, but there is no payment flow for purchasing extra credit.
 - **Online payment** - stub link only, no processor (checklist ⬜).
-- **Per-class feedback detail link** - `/parent/classes/[classId]` not built (memory `project_pending_feedback_to_class_link`).
 
 ---
 
@@ -207,24 +206,25 @@ Conventions referenced throughout:
 3. **Rationale:** The tutor-facing one-date/isolation control was removed because an actual inability to teach belongs in the absence/leave workflow, where admin receives notification. Class creation currently does not automatically reject a tutor outside these recurring hours, so admin reviews the shared availability board before choosing the tutor; automatic allocation guidance remains a separate scheduling feature.
 
 ### Tutor leave & cover board
-1. **What it is** - Tutors can post one class they cannot teach or request multi-day leave. Extended leave requires admin approval; approval publishes each affected class to a shared board where any active, non-conflicting tutor can claim it.
-2. **How it works** - Requests are submitted from the `Absence or leave request` slide-over on `/tutor/timetable` (`?panel=leave` opens it directly); `/tutor/cover` is the notice board for claims, releases, and status. `/admin/reschedules#tutor-cover` handles leave approval, manual assignment/reassignment, and returning an accidental claim to the open board. Tables: `tutorLeaveRequests`, `tutorCoverRequests` (migration 0043). Claiming atomically moves `lessons.tutorId` to the replacement while retaining `originalTutorId` on the cover record; reopening restores the original lesson tutor before another claim. Server actions recheck role, lesson ownership, the 48-hour submission gate, active-tutor status, timetable clashes, and the expected current claim before mutation.
-3. **Rationale:** Multi-day leave is an approval envelope, while each lesson is independently claimable and auditable. Admin receives immediate workflow notifications, urgent 48h/24h alerts, and one reminder per day while approved leave remains partly uncovered. A secured daily Vercel cron is backed by an idempotent five-minute check while an admin has the portal open, matching Hobby's once-daily cron limit without producing duplicate alerts.
+1. **What it is** - Tutors post one class they cannot teach or request multi-day leave, with a private reason and an optional handover note. Extended leave needs admin approval; approval publishes each affected class to a board where any active, non-conflicting tutor can claim it.
+2. **How it works** - "Request time away" on `/tutor/timetable` (`?panel=leave` opens it); the page's Time away list (`#time-away`) is the one home for the tutor's own leave and posted classes, with Cancel request on pending leave and unclaimed single classes (`cancelTutorCoverRequest`, which tells admins; a cancelled lesson can be posted again, reusing its row). `/tutor/cover` lists other tutors' requests and the ones you are covering, showing only "From <name>: <handover note>" (migration 0071). The tutor badge and Today count only covers this tutor can take (`fitsFor`). Admins work it on Cover & leave.
+3. **Rationale:** The leave reason ("surgery") used to be copied onto every cover request and shown to all tutors (consistency audit item 7). Multi-day leave is an approval envelope while each lesson is independently claimable and auditable.
 
 ### Weekly check-in and payroll
 1. **What it is** - A weekly record of scheduled work that tutors approve or dispute, with owner-only correction and pay reconciliation.
-2. **How it works** - `/tutor/checkin` creates one `tutorWeeklyCheckins` row per tutor/week and synchronizes lesson-backed `tutorCheckinEntries` until approval. `/admin/tutor-checkins` is owner-only and filters by week, tutor, and class; the owner can correct, remove, or restore entries without changing the lesson timetable. Rates come from owner-only `tutorBankDetails`, are snapshotted on entries, and valid approved weeks are not rewritten by later rate changes. Saturday/Sunday reminders and the Sunday owner alert are deduped by the daily cron. Database uniqueness prevents duplicate tutor/week and lesson/check-in rows.
-3. **Rationale:** Payroll uses an auditable snapshot rather than recalculating already approved pay from mutable schedules or rates. Missing/legacy zero rates reopen affected approval instead of silently paying `$0`, and stale owner edits are rejected to prevent lost updates.
+2. **How it works** - `/tutor/checkin` opens on the oldest week still to confirm (`pendingCheckinWeeks`, tested), with a nav badge and a Today row pointing there; it creates one `tutorWeeklyCheckins` row per tutor/week and synchronizes lesson-backed `tutorCheckinEntries` until approval. `/admin/tutor-checkins` is owner-only and filters by week, tutor, and class.
+3. **Rationale:** Payroll uses an auditable snapshot rather than recalculating already approved pay from mutable schedules or rates. The page used to open on the current week, so missed weeks went unnoticed (consistency audit item 26).
 
 ### Homework marking
 1. **What it is** - Create homework, upload worksheets and solutions, mark submissions, record scores/feedback, and request resubmission.
 2. **How it works** - Tutors create class homework inside `/tutor/classes/[id]/curriculum` and manage it at `/tutor/homework/[id]`.
+   Access follows the class's current tutor (`tutorHomeworkFilter`, `src/app/tutor/_lib/homework-access.ts`, and RLS from migration 0070), so a class handed to another tutor brings its homework with it; homework without a class stays with its author.
+   The To mark queue is grouped by class with counts; class cards and Week plan rail weeks show "N to mark".
    Homework attachments, solutions, and supported student submission files open in the shared in-portal viewer.
-   The shared solution editor writes `homework.solutionUrl`; students receive the signed file only after the due date.
    Marking writes `homeworkAssignments` (`score`, `feedback`, `status`, `markedBy`).
    The tutor dashboard's `Students to bump` action reloads current overdue tasks server-side and writes a task-specific DM plus one unread inbox notification.
-   Guard: `requireRole("tutor")`, homework/class ownership, current-enrolment scope, DM relationship checks, and a per-tutor rate limit.
-3. **Rationale:** Reminder text is generated from server-loaded homework titles rather than browser input, preventing a forged one-click action from sending arbitrary content or messaging an unrelated/withdrawn student.
+   Guard: `requireRole("tutor")`, class-tutor scope, current-enrolment scope, DM relationship checks, and a per-tutor rate limit.
+3. **Rationale:** A tutor change used to strand homework with the old tutor (the new one got a 404; consistency audit item 6). Migration 0070 also fixed RLS recursion that made the homework tables unreadable through the API for every non-admin.
 
 ### Lesson notes (parent-visible + internal split)
 1. **What it is** - Per-student lesson notes with a strict split between a parent-visible comment and an internal-only note.
@@ -237,9 +237,9 @@ Conventions referenced throughout:
 3. **Rationale:** `Rationale: not documented.`
 
 ### Student profile
-1. **What it is** - Per-student history: attendance, homework, and lesson notes for students the tutor teaches.
-2. **How it works** - `/tutor/students/[id]`. Reads `attendance`, `homeworkAssignments`, `lessonNotes`. Entry point for "Message student"/"Message parent". Guard: `requireRole("tutor")` + shared-class scope.
-3. **Rationale:** Tutor sees only assigned students - enforced by shared-class scoping, matching the PRD's strict tutor permission (tutors see only assigned students).
+1. **What it is** - Per-student history for students the tutor teaches: one Lessons timeline, homework and quizzes.
+2. **How it works** - `/tutor/students/[id]`. The Lessons tab (`?tab=attendance` and `?tab=notes` still work) lists each lesson with its mark ("Moved" for moves), the roll note, every note field under the editor's two labels from `src/lib/lesson-note-fields.ts`, "Written by", and Edit or Add note. Notes are scoped to the tutor's current classes plus their own; another tutor's internal note is never sent. Guard: `requireRole("tutor")` + shared-class scope.
+3. **Rationale:** The profile used to show only the comment and internal note (consistency audit item 15). The admin student profile has its own History tab (`src/components/student-history`); unifying the two is recorded as an open parity item.
 
 ### Curriculum sections (per-tutor additive)
 1. **What it is** - A tutor can add a note + file attachments to any week of a subject they teach, layered on top of the locked admin base, visible only to their own students.
@@ -290,9 +290,9 @@ Conventions referenced throughout:
 ## Admin
 
 ### Operations dashboard
-1. **What it is** - Stat tiles, alerts, and recent activity for the whole business.
-2. **How it works** - `/admin` (`src/app/admin/page.tsx`, `_lib/queries.ts`). Aggregates across `profiles`, `enrollments`, `attendance`, `invoices`. Section headers retain a solid surface while attention items, the weekly calendar, at-risk students, recent activity, and announcements use the shared frosted-glass visual treatment. Guard: `requireAdmin()` (either admin tier via middleware).
-3. **Rationale:** Solid headers preserve the dashboard hierarchy while glass content surfaces connect its operational blocks to the calendar visual system. `Rationale: not documented` for the specific tile set. Revenue figures were moved off this page; see Revenue below.
+1. **What it is** - The admin home: one To do row per live queue, the weekly calendar, students to watch, recent activity and announcements.
+2. **How it works** - `/admin` (`src/app/admin/page.tsx`, `_lib/dashboard-queries.ts`, `_lib/admin-queues.ts`). To do rows: cover requests (with how many start within 48 hours), attendance to mark and notes missing (`getQueueBacklog`, the Attendance queue's own predicates, no cutoff), tutor leave, class moves, quizzes to review, tutor announcements, overdue invoices (by due date), and the owner's check-ins. The sidebar badge uses the same queue function. "Students to watch" reads `watch-signals.ts` and links to the student's History tab.
+3. **Rationale:** The dashboard counted a retired approval flow, missed cover, leave, quizzes and class moves, and disagreed with the Attendance queue (20 vs 39 vs a real 163; consistency audit items 4, 16 and 19).
 
 ### User management + account creation
 1. **What it is** - Search, create, edit, deactivate, reset, and permanently delete accounts, including optional same-step linked-parent creation for a student.
@@ -340,7 +340,7 @@ Conventions referenced throughout:
 ### Revenue (PIN-walled)
 1. **What it is** - A dedicated page showing this/last-month cash received and overdue outstanding, gated behind a separate admin PIN (step-up auth).
 2. **How it works** - `/admin/revenue` (`src/app/admin/revenue/page.tsx`, nav Insight → Revenue). Server component returns the PIN prompt *before* any query if `!isAdminUnlocked()`. Queries `getRevenueSummary` (cash bucketed by `paidAt`) + `getRecentPayments` (`admin/_lib/queries.ts`). Table: `admin_settings` (`pin_hash`, `failed_attempts`, `locked_until`; migrations 0020/0021). Lock logic in `src/lib/admin-lock.ts` (scrypt hash + HMAC-signed httpOnly `admin_unlock` cookie, ~30 min, user-bound). Actions in `actions-security.ts` (`setAdminPin`, `unlockAdmin`). PIN set/changed at `/admin/settings`. Guard: `requireAdmin()` + PIN unlock.
-3. **Rationale:** The PIN wall gates financial figures on `/admin/revenue`: the owner bypasses it and reception must unlock it. Separate role-tier controls protect account security—reception cannot create privileged users, change roles, manage admin accounts, or change the shared PIN. Revenue values are never queried or rendered before the viewer passes the relevant gate. Lockout remains 5 misses followed by 15 minutes.
+3. **Rationale:** The PIN wall gates financial figures on `/admin/revenue`: the owner bypasses it and reception must unlock it. Separate role-tier controls protect account security-reception cannot create privileged users, change roles, manage admin accounts, or change the shared PIN. Revenue values are never queried or rendered before the viewer passes the relevant gate. Lockout remains 5 misses followed by 15 minutes.
 
 ### Admin settings (PIN)
 1. **What it is** - Set or change the admin PIN.
@@ -353,9 +353,9 @@ Conventions referenced throughout:
 3. **Rationale:** Combinable filters avoid maintaining a long ambiguous audience dropdown. Recipient rows are resolved once and deduped so in-app and urgent-email delivery target the same audience without broad role leakage.
 
 ### Reschedules & tutor cover (admin)
-1. **What it is** - Tutor leave approval, open/claimed class-cover operations, read-only student credits/allowance usage, and admin-initiated student reschedules.
-2. **How it works** - `/admin/reschedules#tutor-cover` is the operational leave/cover queue; admin may approve/reject leave, assign or change to any active non-conflicting tutor, and return a claimed shift to the open board. The same page retains class-credit and usage tables. Admin moves an individual student's future lesson from the user detail panel via `rescheduleStudentLesson`. Guard: `requireRole("admin")` / `requireAdmin()`.
-3. **Rationale:** Cover is placed at the top of the existing reschedule destination so urgent notification links land directly in the admin's schedule workflow. Tutor self-claims and admin assignments share one clash-checked mutation, preventing the two paths from drifting.
+1. **What it is** - "Cover & leave" in the menu: tutor leave approval, open/claimed class cover, family class-move requests, and read-only credits and term usage.
+2. **How it works** - `/admin/reschedules` (URL unchanged) with tabs Cover, Leave, Class moves (approve/decline with the card the student profile also uses), Credits (each credit's type, and for a "No slot available" credit the family's own reason, `class_credits.request_reason`, migration 0076) and Term usage (names open the student's Credits tab). Admin cover cards show the tutor's private reason and the handover note. Moving a lesson or granting a credit happens on the student's profile.
+3. **Rationale:** The old "Reschedules" label promised something the page did not hold, and family class-move requests had no queue (consistency audit items 16 and 18).
 
 ### Curriculum & terms management
 1. **What it is** - Define terms, subject topics, the canonical week-by-week curriculum, quizzes, and class homework.
@@ -397,9 +397,9 @@ Conventions referenced throughout:
 3. **Rationale:** Scheduled notifications are event notifications rather than passive state. Database uniqueness on `(user_id, dedupe_key)` makes cron retries and admin-triggered reconciliation safe without hiding legitimate alerts for a different lesson or later trial period.
 
 ### Reporting
-1. **What it is** - Term-selectable operational reporting with organisation totals, per-class metrics, and CSV export.
-2. **How it works** - `/admin/reports` aggregates attendance, homework completion, average test result, current enrolment, capacity, and current class fill. `/admin/reports/export?term=…` emits the same class rows as CSV. Guard: `requireAdmin()`.
-3. **Rationale:** The metric calculation and CSV serialization are separated into testable helpers so the download and on-screen table use the same definitions.
+1. **What it is** - Term-selectable operational reporting, CSV export, and term reports.
+2. **How it works** - `/admin/reports` (Classes view) aggregates attendance (moved lessons are not absences; left early counts as attended), homework completion, average test result, enrolment and fill; `/admin/reports/export?term=…` emits the same rows as CSV. The Term reports view sends reports a class at a time with Sent / Not sent / No family linked per student (`term_report_issues`, migration 0068; `issueTermReport`, recipients by `src/lib/term-report-rules.ts`). Guard: `requireAdmin()`.
+3. **Rationale:** Reports used to go out one student at a time with no record of who had one (consistency audit item 21).
 
 ### Resource Library (moderation)
 1. **What it is** - Admin-wide moderation view of every resource across every subject, including unpublished and removed ones, with unpublish/republish/remove(with reason)/restore.
@@ -463,6 +463,18 @@ Conventions referenced throughout:
 3. **Rationale:** Private objects plus short-lived signed URLs keep student work and teaching material from becoming world-readable. Every replacement environment must create all five private buckets before runtime QA.
 
 ---
+
+### Shared rules (one definition per number)
+1. **What it is** - Every role computes these the same way, from one module each (consistency audit, 18 to 20 October 2026).
+2. **How it works** -
+   - Attendance: `src/lib/attendance-rules.ts` (`attendanceSummary`, `attendanceLabel`) with `attendanceMovedSql` (`src/lib/attendance-moved.ts`). Present, late, left early and make-up attended count as attending; an absence written by an approved reschedule or a credit cancellation is a move, left out of every rate and labelled "Moved".
+   - Invoices: `src/lib/invoice-rules.ts`. Overdue means money owed and the due date passed; nothing has to set the status.
+   - Homework: `src/lib/homework-rules.ts`. Handed in means submitted (on time or late), marked or returned; overdue means not handed in after the due day.
+   - Lessons: `src/lib/lesson-progress.ts` (`describeLesson`) and `src/lib/lesson-progress-sql.ts` (`lessonRanSql`, `unmarkedOnRollSql`, `notesMissingSql`, `lessonCountFields`) for "ran", "to mark", "notes missing" and "needs finishing". `src/lib/lesson-roll.ts` decides who is on a lesson's roll for both rolls and both save actions, and shows a move's reason from its record.
+   - Lesson notes: `src/lib/lesson-note-fields.ts` holds each field, its label and who sees it; the editor, the tutor timeline and the family recap read it.
+   - Mastery: `src/lib/topic-mastery.ts` from quiz and homework marks.
+   - Time: lesson starts are Melbourne wall times (`lessonStartInstant`), never `new Date(\`${date}T${time}\`)`, which reads the server's time zone (production runs in UTC); `formatDueDate` and `formatDateLong` of a moment format the Melbourne day; `?month=` uses `src/lib/month-param.ts`. Class times are picked with `TimeSelect` (`src/components/ui/time-select.tsx`), not typed time boxes, which lose their value in Safari.
+3. **Rationale:** Each of these used to be computed two to four ways, so the same lesson, invoice or task read differently depending on who looked.
 
 ## Sources
 

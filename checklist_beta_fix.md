@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 18 October 2026
+Last updated: 20 October 2026
 
 ## Status key
 
@@ -12,6 +12,12 @@ Last updated: 18 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Consistency audit fixes (18 to 20 October 2026): before checking, deploy and apply migrations 0065, 0066, 0067, 0068, 0070, 0071, 0072 and 0076 to Production in that order (after the deploy, never before: the previous build reads columns 0065 drops), then run `npm run db:check-rls` against Production.
+  Admin: the dashboard To do rows match the queues they link to (Attendance to mark and Notes, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
+  Tutor: Today's "lessons need finishing" equals the Classes cards; Request time away with a handover note, then cancel it from Time away; another tutor's Cover board shows the handover note, not the reason; Week plan shows Class recording and the quiz's Instructions and Changes requested separately; a student's Lessons timeline.
+  Parent (Safari and a phone): the new shell and menu (Subjects, Timetable), the Overview's Next lesson and "Can't make it?", one subject page with Attendance and Tutor feedback, a homework page and a recap page, Payments overdue by due date, switching children and opening a notification for the second child.
+  Student: recap headings now match the tutor editor (Topic covered, Performance, Strengths, Struggled with, Next lesson focus, Comment); homework turns Overdue the day after its due day; Resources lists "Class recordings"; an announcement notification opens the full text.
 
 - [ ] Subject edit page restyle (18 October 2026, handoff `taiyo-admin-classes-edit-2.zip`): sign in as admin at 1440px, 390px and on a touch device.
   Open a subject's pencil: the subject is one row (name, level, colour swatches, Open curriculum); one class is open and the rest are one-line rows (name, day and time, tutor, room, "n of capacity"); clicking a row opens it and closes the other; a link to a class (`#class-<id>`) opens that class.
@@ -588,72 +594,91 @@ Last updated: 18 October 2026
 
 Read-only code audit across all four portals (owner request: duplicated notes, the same thing shown differently, tasks split across pages).
 Items marked "checked" were confirmed in the code by hand; the rest come from the audit with file references and still need a look before building.
-Nothing here is built yet.
+Status 20 October 2026: every item below is fixed on main (see "Consistency audit fixes" under Recently implemented); owner QA is under Manual QA required.
+The two items still open are at the end of this section.
 
 Wrong numbers (fix first):
 
-- [ ] Attendance rate counts a moved lesson as an absence (checked).
+- [x] Attendance rate counts a moved lesson as an absence (checked).
   An approved reschedule or credit writes `absent` on the original lesson (`src/lib/reschedule.ts` around 523-547), and every rate divides by it: parent Overview and Classes (`src/app/parent/_data.ts:88-98`), the term report PDF (`src/lib/student-report.ts:100-112`), admin Reports, tutor lists.
   "Left early" counts as attended for tutors only.
   Fix: one `attendanceSummary()` in `src/lib` used by every rate, leaving out moved or credited lessons.
-- [ ] "Overdue" invoices differ by role (checked).
+- [x] "Overdue" invoices differ by role (checked).
   Admin derives overdue from the due date; families count only invoices manually set to `overdue` (`src/app/parent/payments/page.tsx:27`, `src/app/student/payments/_lib/invoice-summary.ts:32`), and nothing sets that status.
   The parent invoice date is formatted in UTC (`parent/payments/page.tsx:126`), a day early before about 11am Melbourne.
   Fix: one invoice-state rule in `src/lib` for every role.
-- [ ] Homework "done" means different things (checked two): a late hand-in is done on the student board (`student/homework/_lib/homework-list.ts:57-61`), still due on the student and parent timetables (`student/timetable/page.tsx:63`, `parent/classes/page.tsx:76`), "Late" on parent Homework and overdue in admin flags.
+- [x] Homework "done" means different things (checked two): a late hand-in is done on the student board (`student/homework/_lib/homework-list.ts:57-61`), still due on the student and parent timetables (`student/timetable/page.tsx:63`, `parent/classes/page.tsx:76`), "Late" on parent Homework and overdue in admin flags.
   Fix: one `homeworkState()`.
-- [ ] Admin "lessons without notes" never fires in Production (checked): it counts lessons with status `completed` (`admin/_lib/dashboard-queries.ts:136`), and nothing in the app sets that status (only `scripts/seed-demo.mjs`).
+- [x] Admin "lessons without notes" never fires in Production (checked): it counts lessons with status `completed` (`admin/_lib/dashboard-queries.ts:136`), and nothing in the app sets that status (only `scripts/seed-demo.mjs`).
   Tutor Today counts by date instead.
   Fix: one "this lesson ran" rule (date passed, not cancelled or moved).
-- [ ] Topic mastery is always empty in Production (checked): nothing in the app writes `progress_topics` (seed only), yet student and parent Progress and the parent Overview show it.
+- [x] Topic mastery is always empty in Production (checked): nothing in the app writes `progress_topics` (seed only), yet student and parent Progress and the parent Overview show it.
   Fix: base mastery on real marks, or hide it.
 
 Leaks and breakage:
 
-- [ ] Changing a class's tutor strands its homework and notes (checked): tutor access goes through the copied `homework.tutor_id` (`tutor/homework/_lib/marking-data.ts:31`, `assertOwnsHomework` in `tutor/_actions.ts`), and `applyClassEdit` never moves it.
+- [x] Changing a class's tutor strands its homework and notes (checked): tutor access goes through the copied `homework.tutor_id` (`tutor/homework/_lib/marking-data.ts:31`, `assertOwnsHomework` in `tutor/_actions.ts`), and `applyClassEdit` never moves it.
   The new tutor gets a 404 on "to mark"; the old one keeps the queue.
   Fix: scope tutor access through `classes.tutor_id`.
-- [ ] A tutor's leave reason is shown to every tutor (checked): approval copies it into each cover request and the Cover board prints "Tutor: reason" (`tutor/cover/page.tsx:78`).
+- [x] A tutor's leave reason is shown to every tutor (checked): approval copies it into each cover request and the Cover board prints "Tutor: reason" (`tutor/cover/page.tsx:78`).
   Fix: a private reason for admin and a separate handover note for the board.
-- [ ] The free-trial note is labelled "Note (optional)" next to "Internal note (admins only)" on the student profile (checked, `student-trial-manager.tsx:96`), but tutors see it on every roll during the trial.
+- [x] The free-trial note is labelled "Note (optional)" next to "Internal note (admins only)" on the student profile (checked, `student-trial-manager.tsx:96`), but tutors see it on every roll during the trial.
   Fix: label it "Note for the tutor".
-- [ ] Requesting changes on a quiz overwrites the admin's original brief (checked, `_actions/quizzes.ts:259` and the `requestChanges` update).
+- [x] Requesting changes on a quiz overwrites the admin's original brief (checked, `_actions/quizzes.ts:259` and the `requestChanges` update).
   Fix: a separate review note.
-- [ ] Parents with more than one child land on the first child (checked): no menu link or notification carries `?child=` and `resolveSelectedChild` falls back to the first (`parent/_data.ts:48-58`).
+- [x] Parents with more than one child land on the first child (checked): no menu link or notification carries `?child=` and `resolveSelectedChild` falls back to the first (`parent/_data.ts:48-58`).
   Fix: remember the chosen child; put `child=` in notification links.
 
 Same feature, different versions (one feature, one implementation):
 
-- [ ] Lesson notes: each role sees different fields.
+- [x] Lesson notes: each role sees different fields.
   Parents see topic and comment only, and only when the comment is filled (checked, `parent/_data.ts` getFeedback); the student recap shows "Key concepts", which nothing writes; the tutor's own student profile shows only comment and internal note (checked).
   Fix: one shared recap component and query.
-- [ ] Announcements can't be read in full by students or tutors (checked): the notification links to `/student` or the inbox (`src/lib/announcement-rules.ts:26-37`), and a linked inbox row never expands.
+- [x] Announcements can't be read in full by students or tutors (checked): the notification links to `/student` or the inbox (`src/lib/announcement-rules.ts:26-37`), and a linked inbox row never expands.
   Fix: a shared announcement view per role, or unlinked rows that expand.
-- [ ] A student's lessons are computed three ways (timetable, dashboard, admin calendar).
+- [x] A student's lessons are computed three ways (timetable, dashboard, admin calendar).
   The admin calendar hides every absent lesson, including real absences (checked, `admin/_lib/queries.ts:529-537`), and shows no make-ups.
   Fix: one lesson source and the shared timetable.
-- [ ] Parent portal copies: Progress is a thinner copy of the student's (and the Overview mastery uses a third query), Resources renders a different component, Payments is built twice, and `src/components/parent/ui` is a drifted copy of the admin kit (checked it exists).
-- [ ] Staff notes about a student live in five places (account note, trial note, leave note, lesson internal note, attendance note) with no per-student timeline; the admin profile has none and the tutor profile doesn't show attendance notes.
+- [x] Parent portal copies: Progress is a thinner copy of the student's (and the Overview mastery uses a third query), Resources renders a different component, Payments is built twice, and `src/components/parent/ui` is a drifted copy of the admin kit (checked it exists).
+- [x] Staff notes about a student live in five places (account note, trial note, leave note, lesson internal note, attendance note) with no per-student timeline; the admin profile has none and the tutor profile doesn't show attendance notes.
   The attendance note and the internal lesson note overlap (owner kept both for now).
 
 Buried or split tasks:
 
-- [ ] Admin: family class-move requests have no queue (only a notification and the student's Lessons tab), and the dashboard To do counts the retired reschedule-approval flow but not cover, leave, quizzes to review or class moves (checked, `dashboard-queries.ts:110`, `:379`).
-- [ ] Admin: "Students to watch" links to a profile with no attendance or homework history.
-- [ ] Admin: the "Reschedules" menu item holds Cover board, Leave, Credits and Term usage; moving a lesson and granting credit happen on the student profile.
-- [ ] Admin: dashboard "attendance to mark" and the Attendance queue count differently (14 vs 30 days, none vs any unmarked).
-- [ ] Admin: a lesson on the Classes schedule opens the subject edit page, while the dashboard's schedule opens its roll; Month view ignores term dates and holidays.
-- [ ] Admin: term reports are issued one student at a time with no sent/not-sent view.
-- [ ] Admin: tutor details live on three pages (`/admin/tutors` is owner-only and only linked from the availability board).
-- [ ] Tutor: "lessons to finish" is counted three ways (Today, class Lessons tab, lesson page), Today stops at 7 days, and absent students count as notes still to write.
-- [ ] Tutor: time away and cover requests are split between Schedule and the Cover board, a single-class cover request cannot be cancelled, and one action has four labels.
-- [ ] Tutor: "Recording" means the admin's week video on Week plan and the per-lesson link on the lesson page.
-- [ ] Tutor: weekly check-in opens on the current week, not the oldest pending one; the cover badge counts covers the tutor cannot take.
-- [ ] Parent: the Overview has no next lesson or overdue homework; one subject is split over three pages (Classes, class page, subject page) and the class page loops with Feedback.
+- [x] Admin: family class-move requests have no queue (only a notification and the student's Lessons tab), and the dashboard To do counts the retired reschedule-approval flow but not cover, leave, quizzes to review or class moves (checked, `dashboard-queries.ts:110`, `:379`).
+- [x] Admin: "Students to watch" links to a profile with no attendance or homework history.
+- [x] Admin: the "Reschedules" menu item holds Cover board, Leave, Credits and Term usage; moving a lesson and granting credit happen on the student profile.
+- [x] Admin: dashboard "attendance to mark" and the Attendance queue count differently (14 vs 30 days, none vs any unmarked).
+- [x] Admin: a lesson on the Classes schedule opens the subject edit page, while the dashboard's schedule opens its roll; Month view ignores term dates and holidays.
+- [x] Admin: term reports are issued one student at a time with no sent/not-sent view.
+- [x] Admin: tutor details live on three pages (`/admin/tutors` is owner-only and only linked from the availability board).
+- [x] Tutor: "lessons to finish" is counted three ways (Today, class Lessons tab, lesson page), Today stops at 7 days, and absent students count as notes still to write.
+- [x] Tutor: time away and cover requests are split between Schedule and the Cover board, a single-class cover request cannot be cancelled, and one action has four labels.
+- [x] Tutor: "Recording" means the admin's week video on Week plan and the per-lesson link on the lesson page.
+- [x] Tutor: weekly check-in opens on the current week, not the oldest pending one; the cover badge counts covers the tutor cannot take.
+- [x] Parent: the Overview has no next lesson or overdue homework; one subject is split over three pages (Classes, class page, subject page) and the class page loops with Feedback.
 
 Small items: tutor destination named "Schedule & availability", "Open calendar" and "Open timetable"; microcopy subtitles on parent Progress, the parent class page, the parent Overview eyebrow and recorded lessons' "{n} total"; three copies of `parseMonthParam`, two using server time; the parent office contact can pick a deactivated admin; make-up lessons show no room on some views; a family's cancel reason is copied into the roll note as "Rescheduled: ..."; the admin feed shows targeted announcements as "Everyone"; unused files such as `src/components/student/notifications-inbox.tsx` and `src/components/ui/page-hero.tsx`.
 
+Still open after the fixes:
+
+- [ ] Admin and tutor each have their own per-student history view: the admin History tab (`src/components/student-history`) and the tutor profile's Lessons timeline (`src/app/tutor/students/[id]`).
+  They were built in parallel on 18 to 19 October 2026 and show the same lessons, homework and notes differently.
+  Fix: one shared history component, scoped by role (staff notes for admins, the tutor's classes for tutors).
+- [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
+
 ## Recently implemented
+
+- [x] Consistency audit fixes (18 to 20 October 2026, owner request: "fix all", with the free-trial note kept visible to tutors and mastery worked out from marks).
+  Groundwork on main first (`7149c36`): one shared rule each for attendance (moved lessons are not absences), invoices (overdue by due date), homework (a late hand-in is handed in) and lesson progress, then three agents in parallel worktrees (admin, tutor, parent/student), merged into main with the follow-ups below.
+  Admin (`fix/audit-admin`): numbers on the shared rules (dashboard, Payments, Revenue, Reports, term report PDF, directory flags); one count per queue for the dashboard To do, queue pages and menu badge (reproduced: 20 vs 39 vs a real 163 lessons to mark); Attendance Notes tab grouped by tutor; a Class moves queue; History tab on the student profile; the student Lessons tab on the shared timetable; Cover & leave; Classes schedule opens rolls and draws real lessons; `/admin/tutors` retired; the trial note says tutors read it; quiz brief and review note kept apart (migration 0067); term reports a class at a time with sent tracking (migration 0068).
+  Tutor (`fix/audit-tutor`): homework access follows the class's current tutor, with RLS (migration 0070, which also fixed a policy recursion that made homework unreadable through the API for every non-admin); one "lessons need finishing" rule; a per-student Lessons timeline; marking grouped by class; private leave reasons with a separate handover note (migration 0071); Time away as the one home with Cancel request; check-in opens on the oldest pending week; Class recording named apart from the week video; make-up rooms; reasons stay out of the roll note and show from their record (index migration 0072, `class_credits.request_reason` migration 0076).
+  Parent and student (`fix/audit-family`): rates, invoices, homework and mastery on the shared rules; one recap; announcements open in full; one next-lesson rule and a Next lesson card; the chosen child remembered; one subject page; parent Progress, Resources, Homework and Timetable are the student's views; the parent portal on the shared glass shell; dead code removed.
+  Coordinator fixes on main: Safari lost typed class times (owner report; class times are now `TimeSelect` dropdowns); cancellation and reschedule notice and "has it started" checks read lesson times in the server's time zone, so on UTC (production) families could cancel about 13 hours before a lesson instead of 24 (reproduced on a UTC clock; eleven places now use `lessonStartInstant`); due dates of a moment format the Melbourne day; announcement links carry their id; class-move requests link to the queue; Cover & leave shows the family's credit reason and the handover note; one name for class recordings; an em dash in a notification title.
+  Behaviour changes owners will notice: student recap headings follow the tutor editor; homework is overdue from the day after the due day; a lesson's roll leaves out students who joined after that lesson; the student timetable no longer opens on a lesson the student moved away from.
+  Verified on dev: typecheck, lint, 640 tests (also on UTC, Melbourne and Los Angeles clocks), each agent's production build, `db:check-rls`, and browser runs in Chrome and WebKit: every parent and student page at 1440px and 390px (no sideways scroll, no page errors), the admin queue, History, Lessons, Term reports, Cover & leave and rolls, and the tutor Today, Classes, Students, Week plan, roll reasons, Schedule and timeline checks, with test data removed.
+  Not browser-checked: sending a term report (built and unit-tested).
+  Production: migrations 0065 to 0076 above are applied to dev only.
 
 - [x] Class times are dropdowns, so a typed time can no longer be lost (18 October 2026, owner report: a new class with 12:30 pm to 1:30 pm showed "Choose a start and end time." on Save).
   Cause: the owner's browser was Safari (its number boxes show the arrows without hover).
