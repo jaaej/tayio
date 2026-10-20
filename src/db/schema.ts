@@ -1112,6 +1112,22 @@ export const terms = pgTable(
   (t) => [uniqueIndex("terms_year_term_idx").on(t.year, t.termNumber)],
 );
 
+/**
+ * The end of a school year (migration 0079): when the Year 12s were archived
+ * and when every other student moved up a year, with who did each. One row
+ * per school year; `rolledOverAt` set means the move has happened.
+ */
+export const schoolYearEnds = pgTable("school_year_ends", {
+  schoolYear: integer("school_year").primaryKey(),
+  year12ArchivedAt: timestamp("year12_archived_at", { withTimezone: true }),
+  year12ArchivedBy: uuid("year12_archived_by").references(() => profiles.id, { onDelete: "set null" }),
+  archivedStudentIds: uuid("archived_student_ids").array().notNull().default(sql`'{}'`),
+  archivedParentIds: uuid("archived_parent_ids").array().notNull().default(sql`'{}'`),
+  rolledOverAt: timestamp("rolled_over_at", { withTimezone: true }),
+  rolledOverBy: uuid("rolled_over_by").references(() => profiles.id, { onDelete: "set null" }),
+  moved: jsonb("moved").$type<{ id: string; from: string; to: string }[]>().notNull().default([]),
+});
+
 /** When a student's term report was last issued to their family (migration 0068). */
 export const termReportIssues = pgTable(
   "term_report_issues",

@@ -7,6 +7,7 @@ import { inclusiveDayCount, melbourneDate } from "@/lib/tutor-cover-rules";
 import { getAdminQueues } from "./admin-queues";
 import { rankWatchList } from "./watch-rules";
 import { getWatchSignals } from "./watch-signals";
+import { getSchoolYearEnd } from "./school-year";
 
 /*
  * Data for the admin dashboard's To do, Revenue, and Students to watch cards.
@@ -24,7 +25,8 @@ export type TodoKind =
   | "quizzes"
   | "announcements"
   | "overdue"
-  | "checkins";
+  | "checkins"
+  | "school_year";
 
 export type TodoItem = {
   kind: TodoKind;
@@ -162,6 +164,28 @@ export async function getDashboardTodo(
       action: "Open",
       href: `/admin/tutor-checkins?week=${q.checkins.weekStart}`,
     });
+  }
+
+  // Owner-level: once the final term has ended, the school year still has to
+  // move up (Terms page). Not shown before then, so it never sits here for weeks.
+  if (opts.isOwner) {
+    const yearEnd = await getSchoolYearEnd();
+    if (yearEnd && yearEnd.termEnded && !yearEnd.rolledOver) {
+      const moving = yearEnd.plan.moves.length;
+      const finishing = yearEnd.plan.finishing.length;
+      items.push({
+        kind: "school_year",
+        title: `End the ${yearEnd.year} school year`,
+        detail: [
+          `Move ${plural(moving, "student")} up a year`,
+          finishing > 0 ? `archive ${plural(finishing, "Year 12 student")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" and "),
+        action: "Review",
+        href: "/admin/terms#school-year",
+      });
+    }
   }
 
   return items;

@@ -669,6 +669,16 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] End of school year: archive the Year 12s, move every student up a year (21 October 2026, owner request; owner chose archive, not delete).
+  `/admin/terms` (Classes → Terms) shows "End of {year} school year" to owner-level admins from the start of the year's final term (Term 4 or later, `schoolYearToEnd` in `src/lib/school-year-rules.ts`, tested) until next year's Term 1 starts.
+  Archive Year 12 students: lists them in its confirmation; each is deactivated and banned from signing in, withdrawn from every class, and loses what was booked after today (make-up attendance, approved moves into future lessons, a credit spent on one, pending reschedules and class moves), so they leave future rolls and the admin queues; attendance, notes, homework and invoices stay, and Reactivate on the profile restores the login.
+  A parent goes with them only when they have no other active child and no unpaid, overdue or part-paid invoice (`parentsLeavingWith`); otherwise they keep their login to see and pay it, and the confirmation says how many of each.
+  Move every student up a year: opens when the final term has ended ("Opens when Term 4 ends on Sunday 22 November." before then); the confirmation lists "Year 9 → Year 10: 2 students" rows and any Year 12s still active (archived as finished); students with no readable level (VCE, a typo, none) stay as they are and are linked on the panel to fix.
+  Once per school year: migration `0079_school_year_ends.sql` keeps one row per year with who archived and moved whom and each student's old and new level, and both actions lock it and refuse after the move (`src/app/admin/_lib/school-year.ts`, `actions-school-year.ts`); afterwards the panel only says "8 students moved up a year on …".
+  The owner's dashboard To do gains "End the {year} school year" once the final term has ended and the move has not happened.
+  Known gap: a 1-on-1 make-up lesson created for an archived student is cancelled only when they were its only booking.
+  Verified on dev in Chrome (WebKit for sign-in): a Year 12 test student made through New user with a parent and a class, archived (both inactive, banned to 2126, enrolment withdrawn, sign-in refused with the new message); with Term 4's end moved to yesterday, the panel and the To do row, the confirmation, the move (8 students up, 6 unreadable left), and the done line; dev then restored (levels, the 2026 row, Term 4's end, test accounts deleted).
+
 - [x] Year level is picked from a list (21 October 2026, needed for moving every student up a year).
   New user and a student's profile have a Year level select: Not set, Prep, Year 1 to Year 12 (`STUDENT_YEAR_LEVELS` in `src/lib/year-level.ts`, tested); the profile form shows it only for students and keeps an older value the list lacks ("VCE") until an admin picks a level.
   `createUser` and `updateUser` accept only the list's levels (or the unchanged older value) and store the list's spelling.

@@ -6,15 +6,23 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { Empty, PageHeader } from "@/components/admin/ui";
 import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import { TermForm, TermRow } from "./_components/term-form";
+import { SchoolYearEndPanel } from "./_components/school-year-end-panel";
+import { getSchoolYearEnd } from "../_lib/school-year";
+import { moveSummary } from "@/lib/school-year-rules";
+import { isUnrestrictedAdmin } from "@/lib/roles";
+import { formatDateLong } from "@/lib/format";
+import type { UserRole } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminTermsPage() {
-  await requireRole("admin");
-  const allTerms = await db
-    .select()
-    .from(terms)
-    .orderBy(desc(terms.year), desc(terms.termNumber));
+  const user = await requireRole("admin");
+  const isOwner = isUnrestrictedAdmin(user.app_metadata?.role as UserRole | undefined);
+  const [allTerms, yearEnd] = await Promise.all([
+    db.select().from(terms).orderBy(desc(terms.year), desc(terms.termNumber)),
+    // Archiving and moving students up is owner-level work.
+    isOwner ? getSchoolYearEnd() : Promise.resolve(null),
+  ]);
   const today = melbourneDate(new Date());
 
   return (
@@ -23,6 +31,26 @@ export default async function AdminTermsPage() {
         back={{ href: "/admin/classes", label: "Back to classes" }}
         title="Terms"
       />
+
+      {yearEnd && (
+        <SchoolYearEndPanel
+          year={yearEnd.year}
+          termNumber={yearEnd.finalTerm.termNumber}
+          termEndLabel={formatDateLong(yearEnd.finalTerm.endDate)}
+          termEnded={yearEnd.termEnded}
+          done={
+            yearEnd.rolledOver
+              ? { onLabel: formatDateLong(yearEnd.rolledOver.at), moved: yearEnd.rolledOver.moved }
+              : null
+          }
+          year12={yearEnd.year12}
+          year12Parents={yearEnd.year12Parents}
+          moves={moveSummary(yearEnd.plan.moves)}
+          finishing={yearEnd.plan.finishing}
+          finishingParents={yearEnd.planParents}
+          unknown={yearEnd.plan.unknown}
+        />
+      )}
 
       <GlassPanel title="Add a term" titleId="add-term-heading">
         <div className="p-4">

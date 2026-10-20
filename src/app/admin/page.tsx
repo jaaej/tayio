@@ -4,6 +4,7 @@ import {
   CalendarOff,
   ClipboardCheck,
   CreditCard,
+  GraduationCap,
   ListChecks,
   Lock,
   Megaphone,
@@ -54,6 +55,7 @@ const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
   announcements: { icon: <Megaphone className="h-4 w-4" />, tone: "bg-info-bg text-info" },
   overdue: { icon: <CreditCard className="h-4 w-4" />, tone: "bg-bad-bg text-bad" },
   checkins: { icon: <Wallet className="h-4 w-4" />, tone: "bg-good-bg text-good" },
+  school_year: { icon: <GraduationCap className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
 };
 
 const LINE_SM = buttonVariants({ variant: "outline", size: "md" });
