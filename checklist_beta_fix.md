@@ -669,6 +669,12 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Login heading and portal brand (21 October 2026, owner request).
+  `/login` reads "Welcome Back." (the owner's words, with a full stop).
+  The glass sidebar of every role reads "Taiyo Tuition Portal" on one line beside the torii (`GlassBrandMark` in `src/components/portal/glass-chrome.tsx`, also the phone header); the expanded sidebar is 252px wide (was 236px) so the name fits, and the collapsed rail still shows the gate only.
+  The quotes on `/login` are Satoshi Variable, the portal's only font, at Regular 400 (owner question).
+  Verified on dev in Chrome and WebKit at 1440px, and at 390px for the parent and tutor headers.
+
 - [x] The homework grading lock works on Production (20 October 2026, found while checking Production after the audit migrations).
   Cause: migration 0007's BEFORE UPDATE trigger on `homework_assignments` calls `is_tutor_of_homework()`, which no migration creates.
   Dev had a hand-made copy, so it passed there; on Production every update of the table through the public API (a tutor marking, a student handing in) failed with "function public.is_tutor_of_homework(uuid) does not exist".

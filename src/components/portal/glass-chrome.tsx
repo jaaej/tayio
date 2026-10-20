@@ -8,24 +8,23 @@ import { signOutAction } from "@/app/auth/actions";
 // every role that uses GlassPortalShell.
 
 /**
- * The torii gate mark in its own colours, with no tile behind it, and the
- * name set beside it. The collapsed rail hides the name and keeps the gate.
+ * The torii gate mark in its own colours, with no tile behind it, and
+ * "Taiyo Tuition Portal" on one line beside it. The collapsed rail hides the
+ * name and keeps the gate.
  */
 export function GlassBrandMark({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      aria-label="Taiyo Tuition home"
-      className="flex items-center gap-2.5 rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      aria-label="Taiyo Tuition Portal home"
+      className="flex items-center gap-2 rounded-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
     >
-      <span className="grid h-[34px] w-[40px] shrink-0 place-items-center">
-        <ToriiMark width={40} />
+      <span className="grid h-[34px] w-9 shrink-0 place-items-center">
+        <ToriiMark width={36} />
       </span>
-      <span className="portal-brand-text flex flex-col leading-[1.1]">
-        <span className="text-[15px] font-extrabold text-ink">Taiyo</span>
-        <span className="text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-          Tuition
-        </span>
+      <span className="portal-brand-text whitespace-nowrap text-[14px] leading-none tracking-[-0.01em] text-ink">
+        <span className="font-extrabold">Taiyo Tuition</span>{" "}
+        <span className="font-medium text-ink-soft">Portal</span>
       </span>
     </Link>
   );
