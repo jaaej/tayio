@@ -20,6 +20,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { getLatestQuizAttempts } from "@/lib/quiz-scores";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
+import { yearLevelLabel } from "@/lib/format";
 import { tutorHomeworkFilter } from "./_lib/homework-access";
 
 const noteAuthor = alias(profiles, "note_author");
@@ -255,7 +256,7 @@ export async function getTutorDmContacts(
   const students = studentRows.map((s) => ({
     id: s.id,
     name: `${s.firstName} ${s.lastName}`.trim(),
-    meta: s.yearLevel ? `Year ${s.yearLevel}` : undefined,
+    meta: s.yearLevel ? yearLevelLabel(s.yearLevel) : undefined,
   }));
 
   const studentIds = studentRows.map((s) => s.id);

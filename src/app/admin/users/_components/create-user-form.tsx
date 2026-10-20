@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/select";
 import type { UserRole } from "@/db/schema";
 import { coarseRole, createUserRoleOptions } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { STUDENT_YEAR_LEVELS } from "@/lib/year-level";
 
 export type LinkedParentValues = {
   firstName: string;
@@ -150,7 +151,14 @@ export function CreateUserForm({
         {isStudent && (
           <div className="grid grid-cols-2 gap-3">
             <Field id="yearLevel" label="Year level">
-              <Input id="yearLevel" name="yearLevel" placeholder="e.g. 10" />
+              <Select id="yearLevel" name="yearLevel" defaultValue="">
+                <option value="">Not set</option>
+                {STUDENT_YEAR_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </Select>
             </Field>
             <Field id="school" label="School">
               <Input id="school" name="school" placeholder="Optional" />

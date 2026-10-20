@@ -669,6 +669,14 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Year level is picked from a list (21 October 2026, needed for moving every student up a year).
+  New user and a student's profile have a Year level select: Not set, Prep, Year 1 to Year 12 (`STUDENT_YEAR_LEVELS` in `src/lib/year-level.ts`, tested); the profile form shows it only for students and keeps an older value the list lacks ("VCE") until an admin picks a level.
+  `createUser` and `updateUser` accept only the list's levels (or the unchanged older value) and store the list's spelling.
+  Migration `0078_student_year_levels.sql` rewrites saved values that name a school year ("10", "Year10", "Yr 10", "prep") to the list's spelling and leaves the rest; dev now holds Year 9, Year 10, Year 11, VCE (3) and "asdf" (1), and Production holds bare numbers 7 to 11, which become Year 7 to Year 11 (screens already showed them that way).
+  The tutor's message contacts read the year with `yearLevelLabel` (it printed "Year " before the stored value, which would have read "Year Year 10").
+  Under Year 7: the list already starts at Prep, as the free text allowed any year; whether younger students get a login is still the owner's open question.
+  Verified on dev: 0078 applied, the edit form of a VCE student (VCE kept and selected) and New user's list in Chrome.
+
 - [x] Weekly schedule keeps a busy slot readable (21 October 2026, owner request with a mock of `/admin/classes`).
   The shared `WeekTimeGrid` (`src/components/data/week-time-grid.tsx`; rules in `week-time-grid-layout.ts`, tested) now: fits the hours to the week's lessons with an hour either side, and "Show full day" / "Fit to classes" widens to 8 am to 9 pm; narrows days without lessons to 74px; counts each day's lessons in its header; puts two lessons at once side by side and folds three or more at once into one card ("4:30 pm · 3 classes", a row per class with its enrolled count, a small time label above rows that start later, each row opening its roll), the card stopping above the day's next lessons.
   The classes page draws it tall (104px an hour, class, time, tutor and room, and enrolled count on each block); side-by-side blocks wrap their lines instead of cutting them off.

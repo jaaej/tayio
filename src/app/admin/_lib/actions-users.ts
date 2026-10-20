@@ -16,6 +16,7 @@ import {
 } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
 import { passwordSetupRedirect } from "@/lib/site-url";
+import { canonicalStudentYear } from "@/lib/year-level";
 
 /** The signed-in admin's tiered role (from server-only app_metadata). */
 function currentAdminRole(
@@ -71,7 +72,11 @@ const createUserSchema = z
     lastName: z.string().min(1).max(100),
     phone: z.string().max(40).optional(),
     ...postalAddressShape,
-    yearLevel: z.string().max(40).optional(),
+    yearLevel: z
+      .string()
+      .refine((v) => canonicalStudentYear(v) !== null, "Choose a year level from the list.")
+      .transform((v) => canonicalStudentYear(v)!)
+      .optional(),
     school: z.string().max(200).optional(),
     linkedParent: linkedParentSchema.optional(),
   })
@@ -452,11 +457,21 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       role: profiles.role,
+      yearLevel: profiles.yearLevel,
     })
     .from(profiles)
     .where(eq(profiles.id, data.id));
   if (!existing) {
     return { ok: false as const, error: "User account not found." };
+  }
+  // Year level is one of the picker's levels; an older free-text value
+  // ("VCE") may stay as it is until someone picks a level.
+  const yearLevel = data.yearLevel
+    ? canonicalStudentYear(data.yearLevel) ??
+      (data.yearLevel === existing.yearLevel?.trim() ? data.yearLevel : undefined)
+    : null;
+  if (yearLevel === undefined) {
+    return { ok: false as const, error: "Choose a year level from the list." };
   }
   if (!canAdminManageAccount(currentAdminRole(user), existing.role)) {
     return {
@@ -511,7 +526,7 @@ export async function updateUser(input: z.infer<typeof updateUserSchema>) {
           suburb: data.suburb || null,
           state: data.state || null,
           postcode: data.postcode || null,
-          yearLevel: data.yearLevel || null,
+          yearLevel,
           school: data.school || null,
           role: data.role,
           updatedAt: new Date(),

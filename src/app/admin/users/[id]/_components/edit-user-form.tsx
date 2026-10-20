@@ -9,6 +9,7 @@ import { updateUser } from "@/app/admin/_lib/actions-users";
 import type { UserRole } from "@/db/schema";
 import { ROLE_OPTIONS } from "@/lib/roles";
 import { coarseRole } from "@/lib/roles";
+import { canonicalStudentYear, studentYearOptions } from "@/lib/year-level";
 
 export function EditUserForm(props: {
   id: string;
@@ -200,15 +201,25 @@ export function EditUserForm(props: {
           </p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="yearLevel">Year level</Label>
-        <Input
-          id="yearLevel"
-          name="yearLevel"
-          defaultValue={props.yearLevel}
-          disabled={!props.canEditProfile}
-        />
-      </div>
+      {/* A school year means something only for a student. */}
+      {coarseRole(role) === "student" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="yearLevel">Year level</Label>
+          <Select
+            id="yearLevel"
+            name="yearLevel"
+            defaultValue={canonicalStudentYear(props.yearLevel) ?? props.yearLevel}
+            disabled={!props.canEditProfile}
+          >
+            <option value="">Not set</option>
+            {studentYearOptions(props.yearLevel).map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div className="space-y-1.5">
         <Label htmlFor="school">School</Label>
         <Input
