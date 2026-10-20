@@ -4,9 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { coarseRole } from "@/lib/roles";
-import type { UserRole } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { profiles, type UserRole } from "@/db/schema";
 
 export type LoginState = { error?: string };
+
+const INACTIVE_ACCOUNT = "This account is no longer active. Ask your Taiyo admin if you need it back.";
 
 export async function loginAction(
   _prev: LoginState,
@@ -40,7 +44,21 @@ export async function loginAction(
     password,
   });
   if (error) {
+    // A deactivated account is banned in Supabase Auth.
+    if (error.code === "user_banned") return { error: INACTIVE_ACCOUNT };
     return { error: error.message };
+  }
+
+  // A deactivated profile never gets a session, even if its Auth ban is
+  // missing or has run out.
+  const [profile] = await db
+    .select({ isActive: profiles.isActive })
+    .from(profiles)
+    .where(eq(profiles.id, data.user.id))
+    .limit(1);
+  if (!profile?.isActive) {
+    await supabase.auth.signOut();
+    return { error: INACTIVE_ACCOUNT };
   }
 
   // app_metadata only - user_metadata is user-mutable and must not gate access.

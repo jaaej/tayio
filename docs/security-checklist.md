@@ -58,6 +58,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | B9 | Refresh token rotation enabled | ☐ | P1 | Supabase setting; check + document |
 | B10 | MFA / 2FA for admin accounts | ☐ | P2 | Supabase supports TOTP |
 | B11 | Sign-up disabled (invite-only - admins create accounts) | ✓ | P0 | Decision: invite-only. Frontend done 2026-05-27 (signup page replaced with "contact admin"; login no longer links to /signup). Supabase dashboard signup toggle flipped off 2026-05-27 (Authentication → Sign In / Providers → Email) |
+| B12 | A deactivated account stays out | ✓ | P0 | **Fixed 2026-10-21.** Deactivating banned the Auth login for `8760h` (one year) and nothing else checked `profiles.is_active`, so a deactivated account could sign in again a year later. The ban is now `876000h` (`DEACTIVATED_BAN_DURATION`, `src/lib/account-ban.ts`, used by Deactivate and by archiving Year 12s), and the sign-in action refuses an inactive profile even without a ban ("This account is no longer active."). Neither database had a deactivated account yet, so no existing ban needed extending. Verified on dev: an archived test student was refused in WebKit; its ban ran to 2126. Sessions already open when an account is deactivated still end only when their token cannot refresh (B8/B9). |
 
 ## C. API / Server Actions
 

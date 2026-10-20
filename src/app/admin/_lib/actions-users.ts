@@ -17,6 +17,7 @@ import {
 import type { UserRole } from "@/db/schema";
 import { passwordSetupRedirect } from "@/lib/site-url";
 import { canonicalStudentYear } from "@/lib/year-level";
+import { DEACTIVATED_BAN_DURATION } from "@/lib/account-ban";
 
 /** The signed-in admin's tiered role (from server-only app_metadata). */
 function currentAdminRole(
@@ -632,7 +633,7 @@ export async function setUserActive(id: string, isActive: boolean) {
 
   const admin = createAdminClient();
   await admin.auth.admin.updateUserById(id, {
-    ban_duration: isActive ? "none" : "8760h",
+    ban_duration: isActive ? "none" : DEACTIVATED_BAN_DURATION,
   });
 
   revalidatePath("/admin/users");
