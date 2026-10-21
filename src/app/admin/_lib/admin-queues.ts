@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { getQueueBacklog, type QueueBacklog } from "@/app/admin/attendance/_lib/queue";
 import { OPEN_INVOICE_STATUSES, isInvoiceOverdue } from "@/lib/invoice-rules";
-import { getCoverBoardRows } from "@/lib/tutor-cover";
+import { getAdminCoverBoardRows } from "@/lib/tutor-cover";
 import { MIN_COVER_NOTICE_HOURS, melbourneDate } from "@/lib/tutor-cover-rules";
 import { addIsoDays, weekStartForIsoDate } from "@/lib/tutor-checkin-rules";
 
@@ -38,7 +38,7 @@ export type CoverLeaveQueue = {
 /** What the Cover & leave page holds for an admin to decide. */
 export async function getCoverLeaveQueue(now = new Date()): Promise<CoverLeaveQueue> {
   const [board, leave, moves] = await Promise.all([
-    getCoverBoardRows(now),
+    getAdminCoverBoardRows(now),
     db
       .select({
         count: sql<number>`count(*)::int`,
@@ -51,7 +51,8 @@ export async function getCoverLeaveQueue(now = new Date()): Promise<CoverLeaveQu
       .from(classMoveRequests)
       .where(eq(classMoveRequests.status, "pending")),
   ]);
-  const open = board.filter((row) => row.status === "open");
+  // Still needing a tutor, including a class that started with nobody on it.
+  const open = board.filter((row) => row.status === "open" || row.status === "expired");
   return {
     coverOpen: open.length,
     coverSoon: open.filter((row) => row.hoursRemaining <= MIN_COVER_NOTICE_HOURS).length,

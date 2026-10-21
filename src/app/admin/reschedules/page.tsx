@@ -1,3 +1,5 @@
+import { CancelLessonButton } from "@/components/lessons/cancel-lesson-button";
+import type { CreditGrantReason } from "@/db/schema";
 import Link from "next/link";
 import {
   Avatar,
@@ -15,7 +17,8 @@ import { getCreditsOverview } from "@/app/admin/_lib/queries";
 import { ClassMoveRequestCard } from "@/app/admin/_components/class-move-request-card";
 import { getPendingClassMoves } from "@/lib/class-moves";
 import { requireRole } from "@/lib/auth";
-import { formatDateLong, formatDateShort } from "@/lib/format";
+import { formatDateLong, formatDateShort, formatTime } from "@/lib/format";
+import { subjectTone } from "@/lib/subject-tone";
 import { type CreditStatus } from "@/lib/reschedule-credits";
 import { listPendingRequests } from "@/lib/reschedule";
 import {
@@ -24,12 +27,11 @@ import {
   runTutorCoverReminders,
   type CoverBoardRow,
 } from "@/lib/tutor-cover";
-import {
-  melbourneDate,
-} from "@/lib/tutor-cover-rules";
+import { melbourneDate, tutorCoverClassLabel } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import {
   AssignCoverForm,
+  OutsideCoverForm,
   LeaveDecisionButtons,
   ReopenCoverButton,
 } from "./_components/cover-controls";
@@ -37,6 +39,7 @@ import {
   COVER_COLUMNS,
   COVER_COLUMN_LABEL,
   bucketCoverBoard,
+  startedWithoutCover,
   isInsideNoticeWindow,
   type CoverColumn,
 } from "./_lib/cover-columns";
@@ -79,13 +82,11 @@ const STATUS_LABEL: Record<CreditStatus, string> = {
   expired: "Expired",
 };
 
-const REASON_LABEL: Record<
-  "cancellation" | "reschedule_no_slot" | "admin_grant",
-  string
-> = {
+const REASON_LABEL: Record<CreditGrantReason, string> = {
   cancellation: "Cancellation",
   reschedule_no_slot: "No slot available",
   admin_grant: "Admin grant",
+  lesson_cancelled: "Lesson cancelled by Taiyo",
 };
 
 const LEAVE_TONE: Record<string, PillTone> = {
@@ -453,6 +454,8 @@ function AdminCoverCard({
   tutors: { id: string; firstName: string; lastName: string }[];
 }) {
   const covered = row.status === "claimed";
+  const outside = row.status === "external";
+  const started = startedWithoutCover(row, now);
   return (
     <CoverCard
       subjectName={row.subjectName}
@@ -468,24 +471,51 @@ function AdminCoverCard({
       ]
         .filter(Boolean)
         .join(" · ")}
-      urgency={isInsideNoticeWindow(row, now) ? "Under 48h" : null}
+      urgency={started ? "Started without cover" : isInsideNoticeWindow(row, now) ? "Under 48h" : null}
       state={
         covered
           ? {
               text: `Covered by ${row.replacementTutorFirst} ${row.replacementTutorLast}`,
               tone: "good",
             }
-          : null
+          : outside
+            ? {
+                text: row.externalTutorName
+                  ? `Covered by ${row.externalTutorName} (not on the portal)`
+                  : "Covered by someone not on the portal",
+                tone: "good",
+              }
+            : null
       }
       actions={
         <div className="flex w-full flex-col gap-2.5">
-          <AssignCoverForm
-            coverRequestId={row.id}
-            originalTutorId={row.originalTutorId}
-            currentReplacementTutorId={row.replacementTutorId}
-            tutors={tutors}
-          />
-          {covered && <ReopenCoverButton coverRequestId={row.id} />}
+          {/* A portal tutor can take it until it starts. */}
+          {!outside && !started && (
+            <AssignCoverForm
+              coverRequestId={row.id}
+              originalTutorId={row.originalTutorId}
+              currentReplacementTutorId={row.replacementTutorId}
+              tutors={tutors}
+            />
+          )}
+          {(covered || outside) && row.hoursRemaining > 0 && <ReopenCoverButton coverRequestId={row.id} />}
+          {!covered && !outside && (
+            <>
+              <OutsideCoverForm coverRequestId={row.id} />
+              <CancelLessonButton
+                lessonId={row.lessonId}
+                variant="card"
+                subject={{
+                  label: [
+                    tutorCoverClassLabel(row.subjectName, row.className),
+                    formatDateLong(row.date),
+                    formatTime(row.startTime),
+                  ].join(" · "),
+                  dot: subjectTone(row.subjectName, row.subjectColor).dot,
+                }}
+              />
+            </>
+          )}
         </div>
       }
     />

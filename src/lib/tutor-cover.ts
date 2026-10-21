@@ -81,6 +81,7 @@ function coverRows() {
       /** The note for the covering tutor: the class's own, else its leave's. */
       handoverNote: sql<string | null>`coalesce(${tutorCoverRequests.handoverNote}, ${coverLeave.handoverNote})`,
       status: tutorCoverRequests.status,
+      externalTutorName: tutorCoverRequests.externalTutorName,
       claimedAt: tutorCoverRequests.claimedAt,
       alert48SentAt: tutorCoverRequests.alert48SentAt,
       alert24SentAt: tutorCoverRequests.alert24SentAt,
@@ -136,11 +137,15 @@ export const reopenCancelledCover = {
 
 export type CoverBoardRow = Awaited<ReturnType<typeof getCoverBoardRows>>[number];
 
+/**
+ * Upcoming cover requests: open ones for any tutor to take, and claimed or
+ * covered-off-the-portal ones so their tutors see where their class went.
+ */
 export async function getCoverBoardRows(now = new Date()) {
   const rows = await coverRows()
     .where(
       and(
-        inArray(tutorCoverRequests.status, ["open", "claimed"]),
+        inArray(tutorCoverRequests.status, ["open", "claimed", "external"]),
         gte(lessons.date, melbourneDate(now)),
         notInArray(lessons.status, ["cancelled", "rescheduled"]),
       ),
@@ -153,6 +158,32 @@ export async function getCoverBoardRows(now = new Date()) {
       hoursRemaining: hoursUntilLesson(row.date, row.startTime, now),
     }))
     .filter((row) => row.hoursRemaining > 0);
+}
+
+/**
+ * The admin's cover board: the tutors' board, plus classes covered by
+ * someone not on the portal, plus any class that started with nobody on it
+ * and is still unresolved (an admin records an outside cover or cancels it).
+ */
+export async function getAdminCoverBoardRows(now = new Date()) {
+  const rows = await coverRows()
+    .where(
+      and(
+        inArray(tutorCoverRequests.status, ["open", "claimed", "external", "expired"]),
+        notInArray(lessons.status, ["cancelled", "rescheduled"]),
+      ),
+    )
+    .orderBy(asc(lessons.date), asc(lessons.startTime));
+  return rows
+    .map((row) => ({
+      ...row,
+      hoursRemaining: hoursUntilLesson(row.date, row.startTime, now),
+    }))
+    .filter((row) =>
+      row.hoursRemaining > 0
+        ? row.status !== "expired"
+        : row.status === "open" || row.status === "expired",
+    );
 }
 
 export async function getTutorCoverPageData(tutorId: string, now = new Date()) {
@@ -273,7 +304,7 @@ export async function getAdminCoverOverview(now = new Date()) {
       .innerJoin(leaveTutor, eq(leaveTutor.id, tutorLeaveRequests.tutorId))
       .where(eq(tutorLeaveRequests.status, "pending"))
       .orderBy(asc(tutorLeaveRequests.startDate)),
-    getCoverBoardRows(now),
+    getAdminCoverBoardRows(now),
     db
       .select({
         id: profiles.id,

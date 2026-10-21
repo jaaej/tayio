@@ -1,5 +1,6 @@
 import "server-only";
-import { and, asc, eq, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, lt, notInArray, sql } from "drizzle-orm";
+import { tutorAwayFromLessonSql } from "@/lib/cover-away-sql";
 import { db } from "@/db/client";
 import { classes, lessons, subjects } from "@/db/schema";
 import { describeLesson, type LessonView } from "@/lib/lesson-progress";
@@ -17,7 +18,8 @@ export type LessonToFinish = LessonView & {
  * (`describeLesson`), oldest first, with no cut-off: their own classes,
  * make-ups and covers alike. Today's "lessons need finishing" item counts
  * them, and the Classes cards count each class's share (the class Lessons tab
- * rule: the class's own lessons, make-ups left out).
+ * rule: the class's own lessons, make-ups left out). A lesson they asked cover
+ * for that nobody on the portal took is not theirs to finish.
  */
 export async function getLessonsToFinish(
   tutorId: string,
@@ -45,6 +47,8 @@ export async function getLessonsToFinish(
         eq(lessons.tutorId, tutorId),
         lt(lessons.date, today),
         notInArray(lessons.status, [...LESSON_OFF_STATUSES]),
+        // Covered off the portal or still waiting: not theirs to finish.
+        sql`not ${tutorAwayFromLessonSql}`,
       ),
     )
     .orderBy(asc(lessons.date), asc(lessons.startTime));

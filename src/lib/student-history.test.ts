@@ -97,3 +97,14 @@ describe("staffNotesTimeline", () => {
     ).toEqual([]);
   });
 });
+
+describe("lessons Taiyo cancelled", () => {
+  it("reads Cancelled by Taiyo and stays out of the rate", () => {
+    const { rows, summary } = attendanceHistory([
+      { lessonId: "a", date: "2026-10-17", startTime: "10:00", className: "Year 9 Maths", status: "present", moved: false },
+      { lessonId: "b", date: "2026-10-24", startTime: "10:00", className: "Year 9 Maths", status: null, moved: false, cancelled: true },
+    ]);
+    expect(rows[0]).toMatchObject({ lessonId: "b", label: "Cancelled by Taiyo", tone: "default" });
+    expect(summary.total).toBe(1);
+  });
+});

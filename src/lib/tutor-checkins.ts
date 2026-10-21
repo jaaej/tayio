@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { tutorAwayFromLessonSql } from "@/lib/cover-away-sql";
 import {
   addIsoDays,
   checkinMinutes,
@@ -146,6 +147,8 @@ export async function getTutorCheckinWeeks(
               inArray(lessons.status, ["upcoming", "completed", "makeup"]),
               gte(lessons.date, weekStart),
               lte(lessons.date, weekEnd),
+              // Not a lesson they asked cover for that nobody on the portal took.
+              sql`not ${tutorAwayFromLessonSql}`,
             ),
           );
   const ratePromise =

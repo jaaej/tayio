@@ -71,6 +71,8 @@ export const tutorCoverStatusEnum = pgEnum("tutor_cover_status", [
   "claimed",
   "cancelled",
   "expired",
+  /** Taught by someone not on the portal (migration 0082). */
+  "external",
 ]);
 
 export const accountPauseStatusEnum = pgEnum("account_pause_status", [
@@ -299,6 +301,9 @@ export const lessons = pgTable(
     location: text("location"),
     recordingUrl: text("recording_url"),
     rescheduledFrom: uuid("rescheduled_from"),
+    /** When an admin cancelled the lesson for everyone (migration 0082). */
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledById: uuid("cancelled_by_id").references((): AnyPgColumn => profiles.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -497,6 +502,8 @@ export const tutorCoverRequests = pgTable(
      *  leave's note through leaveRequestId instead (migration 0071). */
     handoverNote: text("handover_note"),
     status: tutorCoverStatusEnum("status").notNull().default("open"),
+    /** Who taught it when the status is "external" (optional, migration 0082). */
+    externalTutorName: text("external_tutor_name"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     alert48SentAt: timestamp("alert_48_sent_at", { withTimezone: true }),
     alert24SentAt: timestamp("alert_24_sent_at", { withTimezone: true }),
@@ -519,6 +526,8 @@ export const creditGrantReasonEnum = pgEnum("credit_grant_reason", [
   "cancellation",
   "reschedule_no_slot",
   "admin_grant",
+  /** Taiyo cancelled the lesson (migration 0082). */
+  "lesson_cancelled",
 ]);
 export type CreditGrantReason = (typeof creditGrantReasonEnum.enumValues)[number];
 export const creditStatusEnum = pgEnum("credit_status", [

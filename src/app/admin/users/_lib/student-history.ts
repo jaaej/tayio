@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { onRosterSql } from "@/lib/class-roster-sql";
 import {
   attendance,
+  classCredits,
   classes,
   enrollments,
   homework,
@@ -160,7 +161,31 @@ export async function getStudentHistory(
       .limit(1),
   ]);
 
+  // Lessons Taiyo cancelled that they were booked on: each gave them a credit.
+  const cancelledLessons = await db
+    .select({
+      lessonId: lessons.id,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(classCredits)
+    .innerJoin(lessons, eq(lessons.id, classCredits.grantedFromLessonId))
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(and(eq(classCredits.studentId, studentId), eq(classCredits.grantReason, "lesson_cancelled")));
+
   const { rows, summary } = attendanceHistory([
+    ...cancelledLessons.map((c) => ({
+      lessonId: c.lessonId,
+      date: c.date,
+      startTime: c.startTime,
+      className: classDisplayName(c.subjectName, c.className),
+      status: null,
+      moved: false,
+      cancelled: true,
+    })),
     ...marks.map((m) => ({
       lessonId: m.lessonId,
       date: m.date,

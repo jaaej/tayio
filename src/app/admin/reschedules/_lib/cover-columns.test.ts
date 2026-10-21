@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketCoverBoard, coverColumnFor, isInsideNoticeWindow } from "./cover-columns";
+import { bucketCoverBoard, coverColumnFor, isInsideNoticeWindow, startedWithoutCover } from "./cover-columns";
 
 // 2026-10-11 09:00 in Melbourne (AEDT, UTC+11).
 const NOW = new Date("2026-10-10T22:00:00.000Z");
@@ -46,5 +46,24 @@ describe("bucketCoverBoard", () => {
     expect(columns.urgent.map((r) => r.id)).toEqual(["a"]);
     expect(columns.open.map((r) => r.id)).toEqual(["c", "d"]);
     expect(columns.covered.map((r) => r.id)).toEqual(["b"]);
+  });
+});
+
+describe("outside cover and classes that started without cover", () => {
+  it("puts a class covered off the portal in Covered", () => {
+    expect(coverColumnFor({ status: "external", date: "2026-10-11", startTime: "10:00:00" }, NOW)).toBe("covered");
+    expect(isInsideNoticeWindow({ status: "external", date: "2026-10-12", startTime: "16:00:00" }, NOW)).toBe(false);
+  });
+
+  it("keeps a class that started with nobody on it in Under 24 hours", () => {
+    const started = { status: "expired", date: "2026-10-11", startTime: "08:00:00" };
+    expect(coverColumnFor(started, NOW)).toBe("urgent");
+    expect(startedWithoutCover(started, NOW)).toBe(true);
+    expect(startedWithoutCover({ ...started, status: "open" }, NOW)).toBe(true);
+  });
+
+  it("does not call an upcoming or covered class started without cover", () => {
+    expect(startedWithoutCover({ status: "open", date: "2026-10-11", startTime: "10:00:00" }, NOW)).toBe(false);
+    expect(startedWithoutCover({ status: "external", date: "2026-10-11", startTime: "08:00:00" }, NOW)).toBe(false);
   });
 });

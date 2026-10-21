@@ -143,28 +143,29 @@ export default async function TutorTimetablePage({
   ]);
 
   // Your classes posted for cover (one-off or by leave) still waiting for a tutor.
-  const openCoverIds =
+  // A class covered off the portal stays the tutor's lesson but is not theirs to teach.
+  const coverRows =
     ownLessons.length === 0
-      ? new Set<string>()
-      : new Set(
-          (
-            await db
-              .select({ lessonId: tutorCoverRequests.lessonId })
-              .from(tutorCoverRequests)
-              .where(
-                and(
-                  eq(tutorCoverRequests.status, "open"),
-                  inArray(
-                    tutorCoverRequests.lessonId,
-                    ownLessons.map((lesson) => lesson.id),
-                  ),
-                ),
-              )
-          ).map((row) => row.lessonId),
-        );
+      ? []
+      : await db
+          .select({ lessonId: tutorCoverRequests.lessonId, status: tutorCoverRequests.status })
+          .from(tutorCoverRequests)
+          .where(
+            and(
+              inArray(tutorCoverRequests.status, ["open", "external"]),
+              inArray(
+                tutorCoverRequests.lessonId,
+                ownLessons.map((lesson) => lesson.id),
+              ),
+            ),
+          );
+  const openCoverIds = new Set(coverRows.filter((r) => r.status === "open").map((r) => r.lessonId));
+  const coveredOffPortalIds = new Set(coverRows.filter((r) => r.status === "external").map((r) => r.lessonId));
 
   const chips: MonthChip[] = [
-    ...ownLessons.map((lesson): MonthChip => {
+    ...ownLessons
+      .filter((lesson) => !coveredOffPortalIds.has(lesson.id))
+      .map((lesson): MonthChip => {
       const tone = subjectTone(lesson.subjectName, lesson.subjectColor);
       const name = classDisplayName(lesson.subjectName, lesson.className);
       const off = lesson.status === "cancelled" || lesson.status === "rescheduled";
@@ -197,7 +198,7 @@ export default async function TutorTimetablePage({
           .join(", "),
       };
     }),
-    ...handedOff.map((lesson): MonthChip => {
+    ...[...handedOff, ...ownLessons.filter((lesson) => coveredOffPortalIds.has(lesson.id))].map((lesson): MonthChip => {
       const name = classDisplayName(lesson.subjectName, lesson.className);
       return {
         id: `handed-${lesson.id}`,
@@ -277,7 +278,7 @@ export default async function TutorTimetablePage({
       sort: row.date,
       when: leaveRangeLabel(row.date, row.date),
       status:
-        row.status === "claimed"
+        row.status === "claimed" || row.status === "external"
           ? { label: "Covered", tone: "good" as PillTone }
           : { label: "Needs cover", tone: "warn" as PillTone },
       detail: [
@@ -285,7 +286,9 @@ export default async function TutorTimetablePage({
         row.reason,
         row.status === "claimed"
           ? `${row.replacementTutorFirst} ${row.replacementTutorLast} is teaching`
-          : null,
+          : row.status === "external"
+            ? `${row.externalTutorName ?? "Someone not on the portal"} is teaching`
+            : null,
       ]
         .filter(Boolean)
         .join(" · "),

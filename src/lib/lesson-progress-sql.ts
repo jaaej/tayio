@@ -3,6 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { lessons } from "@/db/schema";
 import { melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
 import { onRosterSql } from "@/lib/class-roster-sql";
+import { coveredOffPortalSql } from "@/lib/cover-away-sql";
 
 /**
  * Database versions of the lesson rules in `lesson-progress.ts`, so the admin
@@ -36,9 +37,10 @@ export const unmarkedOnRollSql = sql<number>`case when ${lessons.status} = 'make
 
 /**
  * Students marked as attending (present, late, left early or make-up) with
- * no lesson note yet. Absent students need no note.
+ * no lesson note yet. Absent students need no note, and a lesson taught by
+ * someone not on the portal needs none at all.
  */
-export const notesMissingSql = sql<number>`(
+export const notesMissingSql = sql<number>`case when ${coveredOffPortalSql} then 0 else (
   select count(*)::int from attendance a
   where a.lesson_id = ${lessons.id}
     and a.status in ('present', 'late', 'left_early', 'makeup_attended')
@@ -46,7 +48,7 @@ export const notesMissingSql = sql<number>`(
       select 1 from lesson_notes n
       where n.lesson_id = ${lessons.id} and n.student_id = a.student_id
     )
-)`;
+) end`;
 
 /**
  * The `LessonCounts` columns `describeLesson` reads, for a select over

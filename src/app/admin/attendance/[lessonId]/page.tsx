@@ -12,6 +12,7 @@ import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 import { getLessonRoll } from "@/lib/lesson-roll";
 import { AttendanceQueue } from "../_components/attendance-queue";
 import { DeleteLessonButton } from "../_components/delete-lesson-button";
+import { CancelLessonButton } from "@/components/lessons/cancel-lesson-button";
 import { LessonNotesButton } from "../_components/lesson-notes-button";
 import { MarkingPane, type MarkingStudent, type RollEdit } from "../_components/marking-pane";
 import { getAttendanceQueue, parseQueueFilters } from "../_lib/queue";
@@ -40,6 +41,7 @@ export default async function AdminLessonAttendancePage({
       startTime: lessons.startTime,
       endTime: lessons.endTime,
       status: lessons.status,
+      cancelledAt: lessons.cancelledAt,
       className: classes.name,
       classId: classes.id,
       subjectName: subjects.name,
@@ -123,6 +125,14 @@ export default async function AdminLessonAttendancePage({
     : undefined;
 
   const query = queueQueryString(filters);
+  const lessonSubject = {
+    label: [
+      classDisplayName(lesson.subjectName, lesson.className),
+      formatDateLong(lesson.date),
+      formatTimeRange(lesson.startTime, lesson.endTime),
+    ].join(" · "),
+    dot: subjectTone(lesson.subjectName, lesson.subjectColor).dot,
+  };
   const nextId = nextLessonId(
     queue.items.map((item) => item.id),
     lesson.id,
@@ -149,6 +159,22 @@ export default async function AdminLessonAttendancePage({
         className="hidden xl:flex"
       />
 
+      {lesson.status === "cancelled" ? (
+        <section className="glass flex min-w-0 flex-1 flex-col rounded-[24px] p-1.5">
+          <div className="flex flex-col gap-0.5 py-2.5 pl-3.5 pr-2.5">
+            <h1 className="text-[20px] font-extrabold leading-tight text-ink">{lessonTitle}</h1>
+            <p className="text-[13px] font-semibold text-ink-soft">{sub}</p>
+          </div>
+          <div className="panel p-5 text-[14px] text-ink-soft">
+            <p className="font-bold text-ink">
+              Cancelled{lesson.cancelledAt ? ` on ${formatDateLong(lesson.cancelledAt)}` : ""}.
+            </p>
+            {lesson.cancelledAt && (
+              <p className="mt-1">Each student it was for has a class credit to book a make-up.</p>
+            )}
+          </div>
+        </section>
+      ) : (
       <MarkingPane
         key={lesson.id}
         lessonId={lesson.id}
@@ -159,20 +185,18 @@ export default async function AdminLessonAttendancePage({
         nextHref={nextId ? `/admin/attendance/${nextId}${query}` : null}
         rollEdit={rollEdit}
         headerAction={
-          lessonStartInstant(lesson.date, lesson.startTime) <= new Date() ? (
-            <DeleteLessonButton
-              lessonId={lesson.id}
-              backHref={`/admin/attendance${query}`}
-              subject={{
-                label: [
-                  classDisplayName(lesson.subjectName, lesson.className),
-                  formatDateLong(lesson.date),
-                  formatTimeRange(lesson.startTime, lesson.endTime),
-                ].join(" · "),
-                dot: subjectTone(lesson.subjectName, lesson.subjectColor).dot,
-              }}
-            />
-          ) : null
+          <>
+            {lesson.status !== "rescheduled" && (
+              <CancelLessonButton lessonId={lesson.id} subject={lessonSubject} />
+            )}
+            {lessonStartInstant(lesson.date, lesson.startTime) <= new Date() && (
+              <DeleteLessonButton
+                lessonId={lesson.id}
+                backHref={`/admin/attendance${query}`}
+                subject={lessonSubject}
+              />
+            )}
+          </>
         }
         notesButton={
           <LessonNotesButton
@@ -229,6 +253,7 @@ export default async function AdminLessonAttendancePage({
           </LessonNotesButton>
         }
       />
+      )}
     </div>
   );
 }

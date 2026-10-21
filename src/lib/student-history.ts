@@ -25,11 +25,14 @@ export type LessonMark = {
   /** Null when the lesson ran and nobody marked this student. */
   status: string | null;
   moved: boolean;
+  /** Taiyo cancelled the lesson (they had a class credit for it). */
+  cancelled?: boolean;
 };
 
 export type AttendanceHistoryRow = LessonMark & { label: string; tone: HistoryTone };
 
-export function attendanceTone(mark: { status: string | null; moved: boolean }): HistoryTone {
+export function attendanceTone(mark: { status: string | null; moved: boolean; cancelled?: boolean }): HistoryTone {
+  if (mark.cancelled) return "default";
   if (mark.status === null) return "warn";
   if (isMovedAbsence({ status: mark.status, moved: mark.moved })) return "default";
   if (mark.status === "absent") return "bad";
@@ -38,7 +41,11 @@ export function attendanceTone(mark: { status: string | null; moved: boolean }):
   return isAttended(mark.status) ? "good" : "default";
 }
 
-/** Newest first, with the shared labels ("Moved" for a moved lesson). */
+/**
+ * Newest first, with the shared labels ("Moved" for a moved lesson). A lesson
+ * Taiyo cancelled reads "Cancelled by Taiyo" and is left out of the rate: it
+ * was neither attended nor missed.
+ */
 export function attendanceHistory(lessons: readonly LessonMark[]): {
   rows: AttendanceHistoryRow[];
   summary: AttendanceSummary;
@@ -47,14 +54,15 @@ export function attendanceHistory(lessons: readonly LessonMark[]): {
     .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime))
     .map((lesson) => ({
       ...lesson,
-      label:
-        lesson.status === null
+      label: lesson.cancelled
+        ? "Cancelled by Taiyo"
+        : lesson.status === null
           ? "Not marked"
           : attendanceLabel({ status: lesson.status, moved: lesson.moved }),
       tone: attendanceTone(lesson),
     }));
   const summary = attendanceSummary(
-    lessons.flatMap((l) => (l.status === null ? [] : [{ status: l.status, moved: l.moved }])),
+    lessons.flatMap((l) => (l.status === null || l.cancelled ? [] : [{ status: l.status, moved: l.moved }])),
   );
   return { rows, summary };
 }

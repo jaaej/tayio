@@ -1,3 +1,4 @@
+import type { CreditGrantReason } from "@/db/schema";
 import "server-only";
 import {
   and,
@@ -696,7 +697,7 @@ export type CreditRow = {
   /** Effective status derived at read time via `deriveCreditStatus`, not the
    *  raw stored column. */
   status: CreditStatus;
-  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+  grantReason: CreditGrantReason;
   /** What the family wrote when they asked for the credit (no slot free). */
   requestReason: string | null;
   grantedFromLabel: string | null;

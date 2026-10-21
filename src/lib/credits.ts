@@ -1,3 +1,4 @@
+import type { CreditGrantReason } from "@/db/schema";
 import "server-only";
 import { and, eq, gt, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -144,7 +145,7 @@ export async function grantCredit(
     studentId: string;
     subjectId: string;
     termId: string;
-    reason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+    reason: CreditGrantReason;
     fromLessonId: string | null;
     grantedById: string;
     expiresAt: string;
@@ -330,7 +331,7 @@ export type RedeemableCredit = {
   subjectName: string;
   subjectColor: string | null;
   expiresAt: string;
-  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+  grantReason: CreditGrantReason;
 };
 
 /** The student's currently-redeemable credits (effective status "active").

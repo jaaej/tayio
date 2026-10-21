@@ -1,5 +1,6 @@
 "use client";
 
+import type { CreditGrantReason } from "@/db/schema";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,7 +15,7 @@ export type PanelCredit = {
   subjectName: string;
   subjectColor: string | null;
   expiresAt: string;
-  grantReason: "cancellation" | "reschedule_no_slot" | "admin_grant";
+  grantReason: CreditGrantReason;
 };
 
 type OpenState = {

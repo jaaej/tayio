@@ -828,6 +828,82 @@ export async function adminAssignTutorCover(
   return assignCover({ ...parsed.data, assignedBy: "admin" });
 }
 
+const outsideCoverSchema = z.object({
+  coverRequestId: z.string().uuid(),
+  name: z.string().trim().max(120).optional(),
+});
+
+/**
+ * Record that someone not on the portal teaches (or taught) a class nobody
+ * took on the cover board. The lesson stays the original tutor's but leaves
+ * their weekly check-in, and an admin marks its roll.
+ */
+export async function adminMarkOutsideCover(formData: FormData): Promise<ActionResult> {
+  await requireRole("admin");
+  const parsed = outsideCoverSchema.safeParse({
+    coverRequestId: formData.get("coverRequestId"),
+    name: String(formData.get("name") ?? "") || undefined,
+  });
+  if (!parsed.success) return { ok: false, error: "Keep the name under 120 characters." };
+  const name = parsed.data.name || null;
+
+  const [cover] = await db
+    .select({
+      id: tutorCoverRequests.id,
+      originalTutorId: tutorCoverRequests.originalTutorId,
+      lessonStatus: lessons.status,
+      date: lessons.date,
+      startTime: lessons.startTime,
+      endTime: lessons.endTime,
+      className: classes.name,
+      subjectName: subjects.name,
+    })
+    .from(tutorCoverRequests)
+    .innerJoin(lessons, eq(lessons.id, tutorCoverRequests.lessonId))
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .where(
+      and(
+        eq(tutorCoverRequests.id, parsed.data.coverRequestId),
+        inArray(tutorCoverRequests.status, ["open", "expired"]),
+      ),
+    )
+    .limit(1);
+  if (!cover || !["upcoming", "makeup"].includes(cover.lessonStatus)) {
+    return { ok: false, error: "This class has already been covered or cancelled." };
+  }
+
+  const now = new Date();
+  const detail = tutorCoverLessonDescription(cover);
+  const recorded = await db.transaction(async (tx) => {
+    const changed = await tx
+      .update(tutorCoverRequests)
+      .set({ status: "external", externalTutorName: name, replacementTutorId: null, claimedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(tutorCoverRequests.id, cover.id),
+          inArray(tutorCoverRequests.status, ["open", "expired"]),
+        ),
+      )
+      .returning({ id: tutorCoverRequests.id });
+    if (changed.length === 0) return false;
+    await tx.insert(notifications).values({
+      userId: cover.originalTutorId,
+      channel: "in_app" as const,
+      title: "Your class has been covered",
+      body: `${name ?? "Someone from outside the portal"} is teaching ${detail}.`,
+      href: TIME_AWAY_HREF,
+    });
+    return true;
+  });
+  if (!recorded) return { ok: false, error: "This cover request has already changed." };
+
+  revalidatePath("/tutor", "layout");
+  revalidatePath("/admin/reschedules");
+  revalidatePath("/admin/attendance");
+  return { ok: true, message: "Recorded as covered." };
+}
+
 export async function adminReopenTutorCover(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -841,6 +917,7 @@ export async function adminReopenTutorCover(
       lessonId: tutorCoverRequests.lessonId,
       originalTutorId: tutorCoverRequests.originalTutorId,
       replacementTutorId: tutorCoverRequests.replacementTutorId,
+      status: tutorCoverRequests.status,
       date: lessons.date,
       startTime: lessons.startTime,
       endTime: lessons.endTime,
@@ -854,11 +931,12 @@ export async function adminReopenTutorCover(
     .where(
       and(
         eq(tutorCoverRequests.id, parsed.data),
-        eq(tutorCoverRequests.status, "claimed"),
+        inArray(tutorCoverRequests.status, ["claimed", "external"]),
       ),
     )
     .limit(1);
-  if (!cover?.replacementTutorId) {
+  const outside = cover?.status === "external";
+  if (!cover || (!outside && !cover.replacementTutorId)) {
     return { ok: false, error: "This cover assignment is no longer claimed." };
   }
   const replacementTutorId = cover.replacementTutorId;
@@ -883,6 +961,7 @@ export async function adminReopenTutorCover(
       .set({
         status: "open",
         replacementTutorId: null,
+        externalTutorName: null,
         claimedAt: null,
         updatedAt: now,
         ...deadlineFlags,
@@ -890,17 +969,24 @@ export async function adminReopenTutorCover(
       .where(
         and(
           eq(tutorCoverRequests.id, cover.id),
-          eq(tutorCoverRequests.status, "claimed"),
-          eq(tutorCoverRequests.replacementTutorId, replacementTutorId),
+          outside
+            ? eq(tutorCoverRequests.status, "external")
+            : and(
+                eq(tutorCoverRequests.status, "claimed"),
+                eq(tutorCoverRequests.replacementTutorId, replacementTutorId!),
+              ),
         ),
       )
       .returning({ id: tutorCoverRequests.id });
     if (changed.length === 0) return false;
 
-    await tx
-      .update(lessons)
-      .set({ tutorId: cover.originalTutorId })
-      .where(eq(lessons.id, cover.lessonId));
+    // A portal tutor's claim moved the lesson to them; an outside cover did not.
+    if (!outside) {
+      await tx
+        .update(lessons)
+        .set({ tutorId: cover.originalTutorId })
+        .where(eq(lessons.id, cover.lessonId));
+    }
 
     await tx.insert(notifications).values([
       ...adminNotificationValues(adminIds, {
@@ -914,13 +1000,17 @@ export async function adminReopenTutorCover(
         body: `${detail} was returned to the cover board by admin.`,
         href: TIME_AWAY_HREF,
       },
-      {
-        userId: replacementTutorId,
-        channel: "in_app" as const,
-        title: "Cover assignment removed",
-        body: `Admin returned ${detail} to the cover board.`,
-        href: "/tutor/cover",
-      },
+      ...(replacementTutorId
+        ? [
+            {
+              userId: replacementTutorId,
+              channel: "in_app" as const,
+              title: "Cover assignment removed",
+              body: `Admin returned ${detail} to the cover board.`,
+              href: "/tutor/cover",
+            },
+          ]
+        : []),
     ]);
     return true;
   });

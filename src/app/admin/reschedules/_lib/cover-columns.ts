@@ -26,7 +26,7 @@ type BoardRow = {
 };
 
 export function coverColumnFor(row: BoardRow, now: Date): CoverColumn {
-  if (row.status === "claimed") return "covered";
+  if (row.status === "claimed" || row.status === "external") return "covered";
   return hoursUntilLesson(row.date, row.startTime, now) <= COVER_URGENT_24_HOURS
     ? "urgent"
     : "open";
@@ -34,9 +34,14 @@ export function coverColumnFor(row: BoardRow, now: Date): CoverColumn {
 
 /** True for an open request inside the minimum notice window (24 to 48h). */
 export function isInsideNoticeWindow(row: BoardRow, now: Date): boolean {
-  if (row.status === "claimed") return false;
+  if (row.status === "claimed" || row.status === "external") return false;
   const hours = hoursUntilLesson(row.date, row.startTime, now);
   return hours > COVER_URGENT_24_HOURS && hours <= MIN_COVER_NOTICE_HOURS;
+}
+
+/** An open request whose class has started with nobody on it. */
+export function startedWithoutCover(row: BoardRow, now: Date): boolean {
+  return (row.status === "open" || row.status === "expired") && hoursUntilLesson(row.date, row.startTime, now) <= 0;
 }
 
 /** Split board rows into the three columns, keeping their incoming order. */
