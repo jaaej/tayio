@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { issueClassTermReports, issueStudentReport } from "@/app/admin/_lib/actions-reports";
 
 /** Issue (or re-issue) one student's term report from the class list. */
@@ -13,38 +14,55 @@ export function IssueStudentButton({
   termId,
   sent,
   studentName,
+  missing = 0,
 }: {
   studentId: string;
   termId: string;
   sent: boolean;
   studentName: string;
+  /** Subjects whose tutor's summary is not written yet. */
+  missing?: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
   return (
-    <Button
-      type="button"
-      variant={sent ? "outline" : "primary"}
-      size="sm"
-      disabled={pending}
-      aria-label={`${sent ? "Send again" : "Send"} ${studentName}'s report`}
-      onClick={() => {
-        setError(false);
-        start(async () => {
-          try {
-            await issueStudentReport({ studentId, termId });
-            router.refresh();
-          } catch {
-            setError(true);
+    <>
+      <Button
+        type="button"
+        variant={sent ? "outline" : "primary"}
+        size="sm"
+        disabled={pending}
+        aria-label={`${sent ? "Send again" : "Send"} ${studentName}'s report`}
+        onClick={async () => {
+          if (
+            missing > 0 &&
+            !(await confirm({
+              title: `Send ${studentName}'s report?`,
+              body: `${missing} ${missing === 1 ? "subject has" : "subjects have"} no tutor's summary yet, so the report goes without ${missing === 1 ? "it" : "them"}.`,
+              confirmLabel: "Send anyway",
+            }))
+          ) {
+            return;
           }
-        });
-      }}
-    >
-      <ActionButtonLabel pending={pending} pendingLabel="Sending…">
-        {error ? "Try again" : sent ? "Send again" : "Send"}
-      </ActionButtonLabel>
-    </Button>
+          setError(false);
+          start(async () => {
+            try {
+              await issueStudentReport({ studentId, termId });
+              router.refresh();
+            } catch {
+              setError(true);
+            }
+          });
+        }}
+      >
+        <ActionButtonLabel pending={pending} pendingLabel="Sending…">
+          {error ? "Try again" : sent ? "Send again" : "Send"}
+        </ActionButtonLabel>
+      </Button>
+      {confirmDialog}
+    </>
   );
 }
 
@@ -53,14 +71,18 @@ export function IssueClassButton({
   termId,
   classId,
   count,
+  incomplete = 0,
 }: {
   termId: string;
   classId: string;
   count: number;
+  /** Of those, how many still lack a tutor's summary for a subject. */
+  incomplete?: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   return (
     <span className="flex flex-wrap items-center gap-2">
       {message && (
@@ -73,7 +95,17 @@ export function IssueClassButton({
         variant="primary"
         size="md"
         disabled={pending || count === 0}
-        onClick={() => {
+        onClick={async () => {
+          if (
+            incomplete > 0 &&
+            !(await confirm({
+              title: `Send ${count} ${count === 1 ? "report" : "reports"}?`,
+              body: `${incomplete} of them ${incomplete === 1 ? "is" : "are"} missing a tutor's summary for a subject, and will go without it.`,
+              confirmLabel: "Send anyway",
+            }))
+          ) {
+            return;
+          }
           setMessage(null);
           start(async () => {
             try {
@@ -96,6 +128,7 @@ export function IssueClassButton({
           </>
         </ActionButtonLabel>
       </Button>
+      {confirmDialog}
     </span>
   );
 }

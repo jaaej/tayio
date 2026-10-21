@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  smallint,
   boolean,
   date,
   time,
@@ -1148,6 +1149,38 @@ export const schoolYearEnds = pgTable("school_year_ends", {
   rolledOverBy: uuid("rolled_over_by").references(() => profiles.id, { onDelete: "set null" }),
   moved: jsonb("moved").$type<{ id: string; from: string; to: string }[]>().notNull().default([]),
 });
+
+/**
+ * The tutor's part of a student's term report for one subject (migration
+ * 0081): a summary of the term and effort, homework and understanding rated
+ * 1 to 5. Read into the PDF by `getStudentTermReport`.
+ */
+export const termReportEntries = pgTable(
+  "term_report_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    summary: text("summary").notNull(),
+    effort: smallint("effort").notNull(),
+    homework: smallint("homework").notNull(),
+    understanding: smallint("understanding").notNull(),
+    writtenBy: uuid("written_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("term_report_entries_unique").on(t.studentId, t.termId, t.subjectId),
+    index("term_report_entries_term_idx").on(t.termId),
+  ],
+);
 
 /** When a student's term report was last issued to their family (migration 0068). */
 export const termReportIssues = pgTable(

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, lte, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -13,6 +13,7 @@ import {
   terms,
 } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
+import { enrolledInTermSql } from "@/lib/term-enrolment-sql";
 import { termReportRecipients } from "@/lib/term-report-rules";
 
 /*
@@ -89,7 +90,7 @@ export async function issueTermReport(
   return { notified: recipientIds.length };
 }
 
-export type TermReportClass = { id: string; label: string };
+export type TermReportClass = { id: string; label: string; subjectId: string };
 
 /** Classes with at least one student enrolled at some point in the term. */
 export async function getTermReportClasses(term: TermRow): Promise<TermReportClass[]> {
@@ -97,14 +98,19 @@ export async function getTermReportClasses(term: TermRow): Promise<TermReportCla
     .selectDistinct({
       id: classes.id,
       name: classes.name,
+      subjectId: subjects.id,
       subjectName: subjects.name,
     })
     .from(classes)
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .innerJoin(enrollments, eq(enrollments.classId, classes.id))
-    .where(inTerm(term))
+    .where(enrolledInTermSql(term))
     .orderBy(asc(subjects.name), asc(classes.name));
-  return rows.map((r) => ({ id: r.id, label: classDisplayName(r.subjectName, r.name) }));
+  return rows.map((r) => ({
+    id: r.id,
+    label: classDisplayName(r.subjectName, r.name),
+    subjectId: r.subjectId,
+  }));
 }
 
 export type TermReportStudent = {
@@ -137,7 +143,7 @@ export async function getTermReportRoster(
       termReportIssues,
       and(eq(termReportIssues.studentId, profiles.id), eq(termReportIssues.termId, term.id)),
     )
-    .where(and(eq(enrollments.classId, classId), inTerm(term)))
+    .where(and(eq(enrollments.classId, classId), enrolledInTermSql(term)))
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
   return rows.map((r) => ({
     id: r.id,
@@ -154,17 +160,4 @@ export async function getStudentReportIssues(studentId: string): Promise<Map<str
     .from(termReportIssues)
     .where(eq(termReportIssues.studentId, studentId));
   return new Map(rows.map((r) => [r.termId, r.issuedAt]));
-}
-
-/**
- * An enrolment that overlapped the term (Melbourne dates): joined by its end,
- * and not gone before it started (`ends_on` is the first day off the rolls).
- */
-function inTerm(term: TermRow) {
-  return and(
-    lte(sql`(${enrollments.enrolledAt} at time zone 'Australia/Melbourne')::date`, term.endDate),
-    sql`case when ${enrollments.endsOn} is not null then ${enrollments.endsOn} > ${term.startDate}
-      else ${enrollments.withdrawnAt} is null
-        or (${enrollments.withdrawnAt} at time zone 'Australia/Melbourne')::date >= ${term.startDate} end`,
-  );
 }

@@ -12,6 +12,7 @@ import {
   buttonVariants,
 } from "@/components/admin/ui";
 import { requireAdmin } from "@/app/admin/_lib/guard";
+import { getReportProgress } from "@/lib/term-report-entries";
 import {
   listTerms,
   getCurrentTermId,
@@ -128,6 +129,8 @@ export default async function ReportsPage({
     const classId =
       reportClasses.find((c) => c.id === classParam)?.id ?? reportClasses[0]?.id ?? null;
     const roster = classId ? await getTermReportRoster(selected, classId) : [];
+    // How much of each student's whole report their tutors have written.
+    const progress = await getReportProgress(selected, roster.map((s) => s.id));
     return (
       <div className="flex flex-col gap-5">
         <PageHeader
@@ -143,7 +146,11 @@ export default async function ReportsPage({
           termId={selected.id}
           classes={reportClasses}
           classId={classId}
-          roster={roster}
+          roster={roster.map((s) => ({
+            ...s,
+            written: progress.get(s.id)?.written ?? 0,
+            subjects: progress.get(s.id)?.total ?? 0,
+          }))}
         />
       </div>
     );

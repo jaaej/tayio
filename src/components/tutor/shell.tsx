@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   MessageCircle,
   Bell,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
@@ -39,6 +40,7 @@ import { getPendingMarkCount, getTutorStudentsByClass } from "@/app/tutor/_data"
 import { getClaimableCoverCount } from "@/app/tutor/_lib/nav-badges";
 import { getPendingCheckinWeeks } from "@/app/tutor/checkin/_lib/queries";
 import { studentSearchEntries } from "@/app/tutor/_lib/student-search";
+import { countReportsToWrite } from "@/lib/term-report-entries";
 
 const IC = "h-[17px] w-[17px]";
 
@@ -100,12 +102,14 @@ export async function TutorShell({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
-  const badges = { marking: 0, cover: 0, checkin: 0, messages: 0, notifications: 0 };
+  const badges = { marking: 0, cover: 0, checkin: 0, messages: 0, notifications: 0, reports: 0 };
+  // Term reports is in the menu only while a term's reports are open.
+  let reportsOpen = false;
   let people: PortalSearchDestination[] = [];
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
   if (user) {
-    const [marking, cover, checkin, messages, notifications, avatarResult, roster] =
+    const [marking, cover, checkin, messages, notifications, avatarResult, roster, reports] =
       await Promise.allSettled([
         getPendingMarkCount(user.id),
         getClaimableCoverCount(user.id),
@@ -121,12 +125,19 @@ export async function TutorShell({
           .where(eq(profiles.id, user.id))
           .limit(1),
         getTutorStudentsByClass(user.id),
+        countReportsToWrite(user.id),
       ]);
     badges.marking = settled(marking, "marking");
     badges.cover = settled(cover, "cover");
     badges.checkin = settled(checkin, "check-in");
     badges.messages = settled(messages, "message");
     badges.notifications = settled(notifications, "notification");
+    if (reports.status === "fulfilled" && reports.value) {
+      reportsOpen = true;
+      badges.reports = reports.value.count;
+    } else if (reports.status === "rejected") {
+      console.error("[tutor-shell] term reports count failed:", reports.reason);
+    }
     if (avatarResult.status === "fulfilled") {
       profileAvatarKey = avatarResult.value[0]?.profileAvatarKey ?? null;
       profilePhotoUrl = await signProfilePhoto(avatarResult.value[0]?.avatarUrl);
@@ -144,10 +155,14 @@ export async function TutorShell({
     "/tutor/cover": badges.cover,
     "/tutor/checkin": badges.checkin,
     "/tutor/messages": badges.messages,
+    "/tutor/reports": badges.reports,
   };
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
-    items: s.items.map((item) => {
+    items: (s.heading === "Teaching" && reportsOpen
+      ? [...s.items, { label: "Term reports", href: "/tutor/reports", icon: <FileText className={IC} /> }]
+      : s.items
+    ).map((item) => {
       if (item.href === "/tutor/notifications") {
         return { ...item, badge: badges.notifications, badgeTone: "danger" as const };
       }

@@ -7,7 +7,8 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { PDF_BRAND } from "./brand";
-import type { StudentTermReport } from "@/lib/student-report";
+import type { StudentTermReport, SubjectReport } from "@/lib/student-report";
+import { REPORT_RATINGS, ratingLabel } from "@/lib/term-report-entry-rules";
 
 const s = StyleSheet.create({
   page: {
@@ -65,44 +66,41 @@ const s = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-  tHead: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: PDF_BRAND.indigo,
-    paddingBottom: 4,
+  subject: {
+    borderWidth: 1,
+    borderColor: PDF_BRAND.line,
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 10,
   },
-  tRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: PDF_BRAND.line,
-    paddingVertical: 5,
-  },
-  th: {
-    fontSize: 8,
+  subjectHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  subjectName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
+  subjectTutor: { fontSize: 8.5, color: PDF_BRAND.muted, marginTop: 2 },
+  grade: { fontSize: 12, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark, textAlign: "right" },
+  gradeSub: { fontSize: 8, color: PDF_BRAND.muted, textAlign: "right", marginTop: 2 },
+  ratings: { flexDirection: "row", gap: 10, marginTop: 10 },
+  rating: { flex: 1, backgroundColor: PDF_BRAND.surfaceTint, borderRadius: 5, padding: 7 },
+  ratingLabel: {
+    fontSize: 7.5,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     color: PDF_BRAND.muted,
     fontFamily: "Helvetica-Bold",
   },
-  td: { fontSize: 10, color: PDF_BRAND.inkSoft },
-  colSubject: { width: "52%" },
-  colScore: { width: "24%", textAlign: "right" },
-  colGrade: { width: "24%", textAlign: "right" },
-  gradeLetter: { fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark },
-  empty: { fontSize: 9, color: PDF_BRAND.muted, paddingVertical: 6 },
-  comment: {
+  dots: { flexDirection: "row", gap: 3, marginTop: 5, alignItems: "center" },
+  dot: { width: 7, height: 7, borderRadius: 3.5 },
+  ratingWord: { fontSize: 8.5, color: PDF_BRAND.inkSoft, marginLeft: 5 },
+  facts: { marginTop: 9, fontSize: 9, color: PDF_BRAND.inkSoft, lineHeight: 1.45 },
+  factLabel: { fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
+  summary: {
+    marginTop: 9,
     borderLeftWidth: 2,
     borderLeftColor: PDF_BRAND.indigo,
     paddingLeft: 8,
-    marginBottom: 8,
   },
-  commentMeta: {
-    fontSize: 8,
-    color: PDF_BRAND.muted,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 2,
-  },
-  commentText: { fontSize: 9, color: PDF_BRAND.inkSoft, lineHeight: 1.4 },
+  summaryText: { fontSize: 9.5, color: PDF_BRAND.ink, lineHeight: 1.5 },
+  summaryBy: { fontSize: 8, color: PDF_BRAND.muted, marginTop: 3 },
+  empty: { fontSize: 9, color: PDF_BRAND.muted, paddingVertical: 6 },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -119,6 +117,71 @@ const s = StyleSheet.create({
 
 function gradeText(g: StudentTermReport["overall"]): string {
   return g ? `${g.letter} · ${g.percent}%` : "-";
+}
+
+function Dots({ value }: { value: number }) {
+  return (
+    <View style={s.dots}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <View
+          key={i}
+          style={[s.dot, { backgroundColor: i <= value ? PDF_BRAND.indigo : PDF_BRAND.line }]}
+        />
+      ))}
+      <Text style={s.ratingWord}>{ratingLabel(value)}</Text>
+    </View>
+  );
+}
+
+function SubjectBlock({ sub }: { sub: SubjectReport }) {
+  const facts = [
+    sub.attendance.total > 0 ? ["Attendance", `${sub.attendance.attended} of ${sub.attendance.total} lessons`] : null,
+    sub.homework.set > 0 ? ["Homework handed in", `${sub.homework.handedIn} of ${sub.homework.set}`] : null,
+    sub.quizzes.length > 0
+      ? ["Quizzes", sub.quizzes.map((q) => `${q.label} ${q.percent}%`).join(", ")]
+      : null,
+    sub.topics.length > 0 ? ["Covered", sub.topics.join("; ")] : null,
+  ].filter((f): f is [string, string] => f !== null);
+  return (
+    <View style={s.subject} wrap={false}>
+      <View style={s.subjectHead}>
+        <View>
+          <Text style={s.subjectName}>{sub.subjectName}</Text>
+          {sub.tutorNames.length > 0 && <Text style={s.subjectTutor}>{sub.tutorNames.join(", ")}</Text>}
+        </View>
+        <View>
+          <Text style={s.grade}>{sub.grade ? `${sub.grade.letter} · ${sub.grade.percent}%` : "-"}</Text>
+          <Text style={s.gradeSub}>{sub.grade ? "Quiz + test average" : "No scores yet"}</Text>
+        </View>
+      </View>
+      {sub.entry && (
+        <View style={s.ratings}>
+          {REPORT_RATINGS.map((r) => (
+            <View key={r.key} style={s.rating}>
+              <Text style={s.ratingLabel}>{r.label}</Text>
+              <Dots value={sub.entry![r.key]} />
+            </View>
+          ))}
+        </View>
+      )}
+      {facts.length > 0 && (
+        <View style={s.facts}>
+          {facts.map(([label, value]) => (
+            <Text key={label}>
+              <Text style={s.factLabel}>{label}: </Text>
+              {value}
+            </Text>
+          ))}
+        </View>
+      )}
+      {sub.entry && (
+        <View style={s.summary}>
+          <Text style={s.summaryText}>{sub.entry.summary}</Text>
+          {sub.entry.writtenBy && <Text style={s.summaryBy}>{sub.entry.writtenBy}</Text>}
+        </View>
+      )}
+    </View>
+  );
 }
 
 export function StudentReportPdf({
@@ -170,45 +233,11 @@ export function StudentReportPdf({
           </View>
         </View>
 
-        <Text style={s.sectionTitle}>Results by subject</Text>
+        <Text style={s.sectionTitle}>Subjects</Text>
         {report.subjects.length === 0 ? (
-          <Text style={s.empty}>No enrolled subjects for this term.</Text>
+          <Text style={s.empty}>No classes this term.</Text>
         ) : (
-          <View>
-            <View style={s.tHead}>
-              <Text style={[s.th, s.colSubject]}>Subject</Text>
-              <Text style={[s.th, s.colScore]}>Score</Text>
-              <Text style={[s.th, s.colGrade]}>Grade</Text>
-            </View>
-            {report.subjects.map((sub) => (
-              <View key={sub.subjectId} style={s.tRow} wrap={false}>
-                <Text style={[s.td, s.colSubject]}>{sub.subjectName}</Text>
-                <Text style={[s.td, s.colScore]}>
-                  {sub.grade ? `${sub.grade.percent}%` : "No scores yet"}
-                </Text>
-                <Text style={[s.td, s.colGrade, s.gradeLetter]}>
-                  {sub.grade ? sub.grade.letter : "-"}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={{ height: 18 }} />
-
-        <Text style={s.sectionTitle}>Tutor comments</Text>
-        {report.comments.length === 0 ? (
-          <Text style={s.empty}>No tutor comments recorded this term.</Text>
-        ) : (
-          report.comments.map((c, i) => (
-            <View key={i} style={s.comment} wrap={false}>
-              <Text style={s.commentMeta}>
-                {c.date}
-                {c.subjectName ? ` · ${c.subjectName}` : ""}
-              </Text>
-              <Text style={s.commentText}>{c.comment}</Text>
-            </View>
-          ))
+          report.subjects.map((sub) => <SubjectBlock key={sub.subjectId} sub={sub} />)
         )}
 
         <View style={s.footer} fixed>

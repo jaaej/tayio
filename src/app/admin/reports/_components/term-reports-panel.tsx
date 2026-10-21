@@ -7,11 +7,19 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import type { TermReportClass, TermReportStudent } from "@/app/admin/_lib/term-reports";
 import { IssueClassButton, IssueStudentButton } from "./issue-report-buttons";
+import { ReviewReportButton } from "./review-report-button";
+
+export type TermReportRow = TermReportStudent & {
+  /** Subjects the student had this term, and how many have their tutor's part. */
+  subjects: number;
+  written: number;
+};
 
 /**
- * Reports > Term reports: one class at a time, every student with whether
- * their term report has gone to the family, a PDF preview, and sending for
- * one student or everyone not yet sent.
+ * Reports > Term reports: one class at a time, every student with how much
+ * of their report the tutors have written, whether it has gone to the
+ * family, Review (this class's subject, in the tutors' writer), a PDF
+ * preview, and sending for one student or everyone not yet sent.
  */
 export function TermReportsPanel({
   termId,
@@ -22,9 +30,11 @@ export function TermReportsPanel({
   termId: string;
   classes: TermReportClass[];
   classId: string | null;
-  roster: TermReportStudent[];
+  roster: TermReportRow[];
 }) {
-  const notSent = roster.filter((s) => s.issuedAt === null && s.recipients > 0).length;
+  const toSend = roster.filter((s) => s.issuedAt === null && s.recipients > 0);
+  const notSent = toSend.length;
+  const subject = classes.find((c) => c.id === classId);
   return (
     <GlassPanel
       title="Term reports"
@@ -37,7 +47,14 @@ export function TermReportsPanel({
               param="class"
               options={classes.map((c) => ({ value: c.id, label: c.label }))}
             />
-            {classId && <IssueClassButton termId={termId} classId={classId} count={notSent} />}
+            {classId && (
+              <IssueClassButton
+                termId={termId}
+                classId={classId}
+                count={notSent}
+                incomplete={toSend.filter((s) => s.written < s.subjects).length}
+              />
+            )}
           </span>
         )
       }
@@ -59,6 +76,13 @@ export function TermReportsPanel({
               >
                 {s.name}
               </Link>
+              {s.subjects > 0 && (
+                <span className="shrink-0">
+                  <Pill tone={s.written === s.subjects ? "info" : "default"}>
+                    {s.written} of {s.subjects} written
+                  </Pill>
+                </span>
+              )}
               <span className="shrink-0">
                 {s.recipients === 0 ? (
                   <Pill tone="default">No family linked</Pill>
@@ -69,6 +93,16 @@ export function TermReportsPanel({
                 )}
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                {subject && (
+                  <ReviewReportButton
+                    target={{
+                      studentId: s.id,
+                      termId,
+                      subjectId: subject.subjectId,
+                      title: `${s.name} · ${subject.label}`,
+                    }}
+                  />
+                )}
                 <a
                   href={`/reports/${s.id}/${termId}`}
                   target="_blank"
@@ -85,6 +119,7 @@ export function TermReportsPanel({
                     termId={termId}
                     sent={s.issuedAt !== null}
                     studentName={s.name}
+                    missing={s.subjects - s.written}
                   />
                 )}
               </span>

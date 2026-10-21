@@ -3,9 +3,11 @@ import {
   ArrowLeftRight,
   CircleCheck,
   CircleHelp,
+  FileText,
   NotebookPen,
   PenLine,
 } from "lucide-react";
+import { countReportsToWrite } from "@/lib/term-report-entries";
 import {
   Empty,
   GlassPanel,
@@ -22,6 +24,7 @@ import { requireRole } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
 import { termWeekLabel } from "@/lib/curriculum";
 import {
+  formatDateLong,
   formatTime,
   formatTimeRange,
   melbourneGreeting,
@@ -115,6 +118,7 @@ export default async function TutorToday({
     covers,
     overdue,
     recentNotes,
+    reports,
   ] = await Promise.all([
     termWeekLabel(todayIso),
     getTutorDayLessons(tutorId, todayIso),
@@ -130,6 +134,7 @@ export default async function TutorToday({
     getClaimableCovers(tutorId, now),
     getOverdueHomework(tutorId, now),
     getRecentLessonNotes(tutorId, 4),
+    countReportsToWrite(tutorId),
   ]);
 
   // Only needed for the empty Today card, and for the week summaries below.
@@ -199,6 +204,20 @@ export default async function TutorToday({
         .join(" · ")}`,
       href: `/tutor/checkin?week=${checkin.week}`,
       action: "Review",
+    });
+  }
+  // While a term's reports are open: the students whose summary is still to write.
+  if (reports && reports.count > 0) {
+    todo.push({
+      key: "reports",
+      icon: <FileText className={ICON} aria-hidden />,
+      tone: "bg-brand-50 text-brand-700",
+      title: `Write ${plural(reports.count, "term report")}`,
+      detail: `${reports.term.year} Term ${reports.term.termNumber} ${
+        reports.term.endDate >= todayIso ? "ends" : "ended"
+      } ${formatDateLong(reports.term.endDate)}`,
+      href: "/tutor/reports",
+      action: "Write",
     });
   }
   if (covers.length > 0) {
