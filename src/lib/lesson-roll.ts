@@ -6,6 +6,7 @@ import {
   classCredits,
   enrollments,
   lessonCancellations,
+  lessonRollAdditions,
   lessons,
   profiles,
   rescheduleRequests,
@@ -17,6 +18,8 @@ import { yearLevelLabel } from "@/lib/format";
 import { getLessonReschedules, lessonFromLabel } from "@/lib/reschedule";
 import { moveReasons, rollMemberIds } from "@/lib/lesson-roll-rules";
 import { onRosterSql } from "@/lib/class-roster-sql";
+import { lessonGuestIds } from "@/lib/lesson-guests";
+import { rollStatusOf } from "@/lib/attendance-roll";
 
 /** A roll row, and whether the student is in the class (not just this lesson). */
 export type LessonRollStudent = RollStudent & { inClass: boolean };
@@ -29,26 +32,19 @@ export type RollLesson = {
 };
 
 /**
- * Who is on a lesson's roll (`rollMemberIds`): a credit make-up and a student
- * who has since left the class are on it through their attendance, and a
- * student who joined the class after the lesson is not on it. The admin and
- * tutor rolls, both save actions and the lesson counts
+ * Who is on a lesson's roll (`rollMemberIds`): the class on its date, the
+ * students booked onto it (`lessonGuestIdsSql`: a reschedule, a credit, an
+ * admin's one-off visit), and a student who has since left the class through
+ * their mark; a student who joined the class after the lesson is not on it.
+ * The admin and tutor rolls, both save actions and the lesson counts
  * (`lessonCountFields`) use this one rule.
  */
 export async function lessonRollIds(
   lesson: Pick<RollLesson, "id" | "classId" | "status">,
 ): Promise<Set<string>> {
-  const [regular, movedIn, marked] = await Promise.all([
+  const [regular, booked, marked] = await Promise.all([
     lesson.status === "makeup" ? Promise.resolve([]) : classRosterOnDate(lesson),
-    db
-      .select({ studentId: rescheduleRequests.studentId })
-      .from(rescheduleRequests)
-      .where(
-        and(
-          eq(rescheduleRequests.targetLessonId, lesson.id),
-          eq(rescheduleRequests.status, "approved"),
-        ),
-      ),
+    lessonGuestIds(lesson.id),
     db
       .select({ studentId: attendance.studentId })
       .from(attendance)
@@ -56,7 +52,7 @@ export async function lessonRollIds(
   ]);
   return rollMemberIds(lesson.status, {
     classRoster: regular.map((r) => r.studentId),
-    movedIn: movedIn.map((r) => r.studentId),
+    booked,
     marked: marked.map((r) => r.studentId),
   });
 }
@@ -96,6 +92,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
     creditedOut,
     moveRequests,
     cancellations,
+    added,
   ] = await Promise.all([
       db
         .select({
@@ -154,6 +151,11 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
         .select({ studentId: lessonCancellations.studentId, reason: lessonCancellations.reason })
         .from(lessonCancellations)
         .where(eq(lessonCancellations.lessonId, lesson.id)),
+      // Put on this lesson alone by an admin (actions-roll).
+      db
+        .select({ studentId: lessonRollAdditions.studentId })
+        .from(lessonRollAdditions)
+        .where(eq(lessonRollAdditions.lessonId, lesson.id)),
     ]);
 
   const markBy = new Map(marks.map((m) => [m.studentId, m]));
@@ -163,6 +165,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
   const trialBy = new Map(trials.map((t) => [t.studentId, t]));
   const makeupFrom = new Map(movedIn.map((m) => [m.studentId, m.fromLabel]));
   const tookCredit = new Set(creditedOut.map((c) => c.studentId));
+  const visitors = new Set(added.map((a) => a.studentId));
   const reasonBy = moveReasons({
     movedOut: moveRequests.filter((r) => r.out),
     cancelled: cancellations,
@@ -181,7 +184,8 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
     return {
       id: p.id,
       name: `${p.firstName} ${p.lastName}`.trim(),
-      status: mark?.status ?? (joined ? "makeup_attended" : null),
+      // Everyone starts unmarked, make-ups too: the tutor marks who came.
+      status: rollStatusOf(mark?.status),
       note: mark?.note ?? "",
       detail: p.yearLevel ? yearLevelLabel(p.yearLevel) : null,
       onLeave: onLeave.has(p.id),
@@ -191,8 +195,7 @@ export async function getLessonRoll(lesson: RollLesson): Promise<LessonRollStude
       ...(inClass.has(p.id) && movedOutTo.has(p.id) && { movedOutTo: movedOutTo.get(p.id) }),
       ...(!movedOutTo.has(p.id) && tookCredit.has(p.id) && { tookCredit: true }),
       ...(joined && { makeupFrom: joined }),
-      // Put on this lesson alone by an admin (actions-roll), from no move or credit.
-      ...(!inClass.has(p.id) && !joined && mark?.status === "makeup_attended" && { visiting: true }),
+      ...(!inClass.has(p.id) && !joined && visitors.has(p.id) && { visiting: true }),
       ...(reasonBy.has(p.id) && { moveReason: reasonBy.get(p.id) }),
     };
   });

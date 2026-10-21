@@ -1,14 +1,13 @@
 import "server-only";
 
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { onRosterSql } from "@/lib/class-roster-sql";
+import { studentBookedOnLessonSql, studentOnClassRosterSql } from "@/lib/class-roster-sql";
 import {
   attendance,
   classCredits,
   classes,
-  enrollments,
   homework,
   homeworkAssignments,
   lessonNotes,
@@ -18,7 +17,7 @@ import {
   studentTrials,
   subjects,
 } from "@/db/schema";
-import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { attendanceMovedSql, attendanceStatusShownSql } from "@/lib/attendance-moved";
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateShort } from "@/lib/format";
 import { lessonRanSql } from "@/lib/lesson-progress-sql";
@@ -66,7 +65,7 @@ export async function getStudentHistory(
         startTime: lessons.startTime,
         className: classes.name,
         subjectName: subjects.name,
-        status: attendance.status,
+        status: attendanceStatusShownSql,
         moved: attendanceMovedSql,
         note: attendance.note,
       })
@@ -75,8 +74,9 @@ export async function getStudentHistory(
       .innerJoin(classes, eq(classes.id, lessons.classId))
       .innerJoin(subjects, eq(subjects.id, classes.subjectId))
       .where(eq(attendance.studentId, studentId)),
-    // The same roll as the Attendance queue's "to mark": the student's
-    // current classes, from the day they enrolled, lessons that have run.
+    // The same roll as the Attendance queue's "to mark": lessons that have
+    // run of their classes they were on the roll for, and lessons they were
+    // booked onto (make-ups), with no mark for them.
     db
       .select({
         lessonId: lessons.id,
@@ -88,15 +88,10 @@ export async function getStudentHistory(
       .from(lessons)
       .innerJoin(classes, eq(classes.id, lessons.classId))
       .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-      .innerJoin(
-        enrollments,
-        and(eq(enrollments.classId, lessons.classId), eq(enrollments.studentId, studentId)),
-      )
       .where(
         and(
           lessonRanSql(now),
-          ne(lessons.status, "makeup"),
-          onRosterSql("enrollments", "lessons"),
+          or(studentOnClassRosterSql(studentId), studentBookedOnLessonSql(studentId)),
           sql`not exists (select 1 from ${attendance} a where a.lesson_id = ${lessons.id} and a.student_id = ${studentId})`,
         ),
       ),

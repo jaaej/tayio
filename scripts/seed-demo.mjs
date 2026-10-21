@@ -574,7 +574,7 @@ for (const l of allLessons) {
 // ----------------------------------------------------------------------------
 // 6.5. Make-up lessons - pick up to 2 completed lessons, mark one student
 //      absent on the original, then create a make-up lesson on a later date
-//      with `makeup_attended` attendance. Demos the admin reschedule flow.
+//      that the tutor marked them present on. Demos the admin reschedule flow.
 // ----------------------------------------------------------------------------
 
 console.log("→ Seeding make-up lessons");
@@ -628,8 +628,23 @@ console.log("→ Seeding make-up lessons");
 
     await sql`
       insert into attendance (lesson_id, student_id, status, note, marked_by)
-      values (${makeupId}, ${studentId}, 'makeup_attended', 'Make-up session', ${orig.tutorId})
+      values (${makeupId}, ${studentId}, 'present', 'Make-up session', ${orig.tutorId})
       on conflict (lesson_id, student_id) do nothing
+    `;
+    // The approved move is what books the student onto the make-up.
+    await sql`
+      insert into reschedule_requests (
+        original_lesson_id, student_id, requested_by_id, status,
+        target_tutor_id, target_date, target_start_time, target_end_time,
+        target_lesson_id, decided_by_id, decided_at
+      )
+      select ${orig.id}, ${studentId}, ${orig.tutorId}, 'approved',
+        ${orig.tutorId}, ${makeupDateStr}, ${orig.startTime}, ${orig.endTime},
+        ${makeupId}, ${orig.tutorId}, now()
+      where not exists (
+        select 1 from reschedule_requests
+        where original_lesson_id = ${orig.id} and student_id = ${studentId} and status = 'approved'
+      )
     `;
   }
 }

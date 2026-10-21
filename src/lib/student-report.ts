@@ -15,8 +15,8 @@ import {
   termReportEntries,
   terms,
 } from "@/db/schema";
-import { attendanceMovedSql } from "@/lib/attendance-moved";
-import { attendanceSummary } from "@/lib/attendance-rules";
+import { attendanceBookedSql, attendanceMovedSql } from "@/lib/attendance-moved";
+import { ATTENDED_STATUSES, attendanceSummary } from "@/lib/attendance-rules";
 import { attendanceStrip, bandLabel, type Band, type StripCell } from "@/lib/attainment-bands";
 import { classDisplayName } from "@/lib/class-display";
 import { onRosterSql } from "@/lib/class-roster-sql";
@@ -214,8 +214,9 @@ export async function getStudentTermReport(
             ),
           )
       : [],
-    // Make-ups the student attended this term, by subject: a missed lesson
-    // made up in the same week counts as made up.
+    // Make-ups the student attended this term, by subject: lessons they
+    // were booked onto and marked as attending. A missed lesson made up in
+    // the same week counts as made up.
     db
       .select({ subjectId: classes.subjectId, date: lessons.date })
       .from(attendance)
@@ -224,7 +225,8 @@ export async function getStudentTermReport(
       .where(
         and(
           eq(attendance.studentId, studentId),
-          eq(attendance.status, "makeup_attended"),
+          inArray(attendance.status, [...ATTENDED_STATUSES]),
+          attendanceBookedSql,
           between(lessons.date, start, end),
         ),
       ),

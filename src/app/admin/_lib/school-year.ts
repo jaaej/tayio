@@ -9,6 +9,7 @@ import {
   enrollments,
   familyLinks,
   invoices,
+  lessonRollAdditions,
   lessons,
   profiles,
   rescheduleRequests,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/school-year-rules";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
+import { othersOnLesson } from "@/lib/lesson-guests";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Reader = typeof db | DbTx;
@@ -112,36 +114,41 @@ export async function archiveStudentsInTx(
   const today = melbourneDate(now);
   const futureLessons = tx.select({ id: lessons.id }).from(lessons).where(gt(lessons.date, today));
 
-  // Make-ups booked on a future private lesson: cancel the lesson when the
-  // student was its only booking, as cancelling a move does.
-  const futureMoves = await tx
-    .select({ targetLessonId: rescheduleRequests.targetLessonId })
-    .from(rescheduleRequests)
-    .where(
-      and(
-        inArray(rescheduleRequests.studentId, studentIds),
-        eq(rescheduleRequests.status, "approved"),
-        inArray(rescheduleRequests.targetLessonId, futureLessons),
+  // Make-ups booked on a future private lesson (a move or a credit): once
+  // their bookings are undone below, the lesson is cancelled when nobody
+  // else is on it, as cancelling a move does.
+  const [futureMoves, futureCredits] = await Promise.all([
+    tx
+      .select({ lessonId: rescheduleRequests.targetLessonId })
+      .from(rescheduleRequests)
+      .where(
+        and(
+          inArray(rescheduleRequests.studentId, studentIds),
+          eq(rescheduleRequests.status, "approved"),
+          inArray(rescheduleRequests.targetLessonId, futureLessons),
+        ),
       ),
-    );
+    tx
+      .select({ lessonId: classCredits.redeemedOnLessonId })
+      .from(classCredits)
+      .where(
+        and(
+          inArray(classCredits.studentId, studentIds),
+          eq(classCredits.status, "redeemed"),
+          inArray(classCredits.redeemedOnLessonId, futureLessons),
+        ),
+      ),
+  ]);
+  const bookedLessonIds = new Set(
+    [...futureMoves, ...futureCredits].map((m) => m.lessonId).filter((id): id is string => !!id),
+  );
 
   await tx
     .delete(attendance)
     .where(and(inArray(attendance.studentId, studentIds), inArray(attendance.lessonId, futureLessons)));
-
-  for (const lessonId of new Set(futureMoves.map((m) => m.targetLessonId).filter((id): id is string => !!id))) {
-    const [remaining] = await tx
-      .select({ studentId: attendance.studentId })
-      .from(attendance)
-      .where(eq(attendance.lessonId, lessonId))
-      .limit(1);
-    if (!remaining) {
-      await tx
-        .update(lessons)
-        .set({ status: "cancelled" })
-        .where(and(eq(lessons.id, lessonId), eq(lessons.status, "makeup")));
-    }
-  }
+  await tx
+    .delete(lessonRollAdditions)
+    .where(and(inArray(lessonRollAdditions.studentId, studentIds), inArray(lessonRollAdditions.lessonId, futureLessons)));
 
   await tx
     .update(rescheduleRequests)
@@ -170,6 +177,15 @@ export async function archiveStudentsInTx(
         inArray(classCredits.redeemedOnLessonId, futureLessons),
       ),
     );
+
+  for (const lessonId of bookedLessonIds) {
+    if (!(await othersOnLesson(tx, lessonId, studentIds))) {
+      await tx
+        .update(lessons)
+        .set({ status: "cancelled" })
+        .where(and(eq(lessons.id, lessonId), eq(lessons.status, "makeup")));
+    }
+  }
 
   await tx
     .update(classMoveRequests)

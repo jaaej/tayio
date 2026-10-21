@@ -1,26 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { canMarkAllPresent, markAllPresent, rollSummary } from "./attendance-roll";
+import { canMarkAllPresent, markAllPresent, rollStatusOf, rollSummary } from "./attendance-roll";
 
 const roll = [
   { id: "a" },
   { id: "b" },
   { id: "moved", movedOutTo: "Thu 4 pm" },
+  { id: "credit", tookCredit: true },
   { id: "makeup", makeupFrom: "Tue 6 Oct" },
 ];
 
 describe("markAllPresent", () => {
-  it("marks only the class that is here", () => {
+  it("marks everyone here, make-ups included, and leaves those away", () => {
     const next = markAllPresent(roll, {
       a: null,
       b: "late",
       moved: "absent",
-      makeup: "makeup_attended",
+      credit: "absent",
+      makeup: null,
     });
     expect(next).toEqual({
       a: "present",
       b: "present",
       moved: "absent",
-      makeup: "makeup_attended",
+      credit: "absent",
+      makeup: "present",
     });
   });
 
@@ -32,17 +35,26 @@ describe("markAllPresent", () => {
 });
 
 describe("canMarkAllPresent", () => {
-  it("is false when everyone moved or is a make-up", () => {
-    expect(canMarkAllPresent(roll.slice(2))).toBe(false);
-    expect(canMarkAllPresent(roll)).toBe(true);
+  it("is false when everyone moved or took a credit", () => {
+    expect(canMarkAllPresent(roll.slice(2, 4))).toBe(false);
+    expect(canMarkAllPresent(roll.slice(4))).toBe(true);
+  });
+});
+
+describe("rollStatusOf", () => {
+  it("shows a saved mark, an old make-up mark as Present, and nothing else", () => {
+    expect(rollStatusOf("late")).toBe("late");
+    expect(rollStatusOf("makeup_attended")).toBe("present");
+    expect(rollStatusOf(null)).toBeNull();
+    expect(rollStatusOf("excused")).toBeNull();
   });
 });
 
 describe("rollSummary", () => {
   it("counts in option order and ends with the unmarked", () => {
     expect(
-      rollSummary(roll, { a: "late", b: "present", moved: null, makeup: "present" }),
-    ).toBe("2 present · 1 late · 1 not marked");
+      rollSummary(roll, { a: "late", b: "present", moved: null, credit: "absent", makeup: null }),
+    ).toBe("1 present · 1 late · 1 absent · 2 not marked");
   });
 
   it("is empty for an empty roll", () => {

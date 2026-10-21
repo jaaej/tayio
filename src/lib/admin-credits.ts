@@ -34,6 +34,7 @@ import {
   grantCredit,
 } from "@/lib/credits";
 import { distinctSubjects } from "@/lib/subject-label";
+import { othersOnLesson } from "@/lib/lesson-guests";
 
 /** Thrown inside `undoCancellation`'s transaction when the credit was redeemed
  *  concurrently, to roll the whole undo back. */
@@ -462,7 +463,7 @@ export async function grantAllowance(p: {
 // --- Undo -------------------------------------------------------------------
 
 /** Reverse an approved reschedule: delete the make-up lesson it created (which
- *  cascades that lesson's attendance), restore the student's attendance on the
+ *  cascades that lesson's attendance) when nobody else is on it, restore the student's attendance on the
  *  original lesson, and delete the request row - which returns their reschedule
  *  allowance automatically (the count is derived from the surviving rows). */
 export async function undoReschedule(p: {
@@ -507,9 +508,10 @@ export async function undoReschedule(p: {
         .limit(1);
       if (tl?.status === "makeup") {
         // Pull this student's attendance off the make-up first, then delete
-        // the make-up lesson ONLY if no other student is attending it - a group
-        // switch can place a second student onto the same make-up lesson, and
-        // deleting it would cascade-delete their attendance + request row.
+        // the make-up lesson ONLY if nobody else is booked onto or marked on
+        // it - a group switch can place a second student onto the same
+        // make-up lesson, and deleting it would cascade-delete their
+        // attendance + request row.
         await tx
           .delete(attendance)
           .where(
@@ -518,12 +520,7 @@ export async function undoReschedule(p: {
               eq(attendance.studentId, req.studentId),
             ),
           );
-        const [otherAttendee] = await tx
-          .select({ studentId: attendance.studentId })
-          .from(attendance)
-          .where(eq(attendance.lessonId, req.targetLessonId))
-          .limit(1);
-        if (!otherAttendee) {
+        if (!(await othersOnLesson(tx, req.targetLessonId, [req.studentId]))) {
           await tx.delete(lessons).where(eq(lessons.id, req.targetLessonId));
         }
       } else {
@@ -736,8 +733,9 @@ export async function undoRedemption(p: {
       if (restored.length === 0) throw new RedemptionChangedDuringUndoError();
 
       // Pull this student's attendance off the make-up, then delete the make-up
-      // lesson only if no other student is attending it - a credit make-up is
-      // normally single-student, but never cascade-delete a shared lesson.
+      // lesson only if nobody else is booked onto or marked on it - a credit
+      // make-up is normally single-student, but never cascade-delete a shared
+      // lesson.
       await tx
         .delete(attendance)
         .where(
@@ -746,12 +744,7 @@ export async function undoRedemption(p: {
             eq(attendance.studentId, credit.studentId),
           ),
         );
-      const [otherAttendee] = await tx
-        .select({ studentId: attendance.studentId })
-        .from(attendance)
-        .where(eq(attendance.lessonId, makeupLessonId))
-        .limit(1);
-      if (!otherAttendee) {
+      if (!(await othersOnLesson(tx, makeupLessonId, [credit.studentId]))) {
         await tx.delete(lessons).where(eq(lessons.id, makeupLessonId));
       }
 

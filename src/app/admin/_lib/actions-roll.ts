@@ -11,6 +11,7 @@ import {
   enrollments,
   lessonCancellations,
   lessonNotes,
+  lessonRollAdditions,
   lessonRollExclusions,
   lessons,
   profiles,
@@ -89,9 +90,9 @@ function revalidateRoll(lessonId: string) {
 
 /**
  * Put a student on a lesson's roll: for this lesson only (a one-off visit,
- * recorded like a make-up: attendance "Make-up"), or from this lesson on (they
- * join the class from its date). A class student taken off this lesson alone
- * is simply put back.
+ * `lesson_roll_additions`; unmarked until the tutor marks who came), or from
+ * this lesson on (they join the class from its date). A class student taken
+ * off this lesson alone is simply put back.
  */
 export async function addStudentToLesson(input: z.input<typeof inputSchema>): Promise<RollChangeResult> {
   const user = await requireAdmin();
@@ -130,8 +131,8 @@ export async function addStudentToLesson(input: z.input<typeof inputSchema>): Pr
     if (scope === "lesson") {
       if (excluded.length > 0) return;
       await tx
-        .insert(attendance)
-        .values({ lessonId, studentId, status: "makeup_attended", markedBy: user.id })
+        .insert(lessonRollAdditions)
+        .values({ lessonId, studentId, addedBy: user.id })
         .onConflictDoNothing();
       return;
     }
@@ -221,7 +222,10 @@ export async function removeStudentFromLesson(input: z.input<typeof inputSchema>
   const today = melbourneDate(new Date());
   await withActor({ id: user.id, role: "admin" }, async (tx) => {
     await tx.delete(attendance).where(and(eq(attendance.lessonId, lessonId), eq(attendance.studentId, studentId)));
-    if (!inClass) return; // a one-off visitor: clearing the booking is all
+    await tx
+      .delete(lessonRollAdditions)
+      .where(and(eq(lessonRollAdditions.lessonId, lessonId), eq(lessonRollAdditions.studentId, studentId)));
+    if (!inClass) return; // a one-off visitor: clearing the visit is all
 
     if (scope === "lesson") {
       await tx

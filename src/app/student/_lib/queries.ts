@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { studentOnClassRosterSql } from "@/lib/class-roster-sql";
+import { studentBookedOnLessonSql, studentOnClassRosterSql } from "@/lib/class-roster-sql";
 import { isoDate } from "@/lib/format";
 import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
 import { isInvoiceOpen } from "@/lib/invoice-rules";
@@ -456,11 +456,8 @@ export async function getStudentLessonsWithNotes(
     .where(
       and(
         // Their class's lessons they were on the roll for, and lessons they
-        // attended as a make-up; never a classmate's private make-up.
-        or(
-          studentOnClassRosterSql(studentId),
-          sql`exists (select 1 from attendance a where a.lesson_id = ${lessons.id} and a.student_id = ${studentId} and a.status = 'makeup_attended')`,
-        ),
+        // were booked onto (make-ups); never a classmate's private make-up.
+        or(studentOnClassRosterSql(studentId), studentBookedOnLessonSql(studentId)),
         opts.until ? lte(lessons.date, opts.until) : undefined,
       ),
     )
@@ -543,19 +540,16 @@ export async function getStudentTimetableLessons(
     .where(and(eq(attendance.studentId, studentId), ...range()));
   const attByLesson = new Map(attRows.map((a) => [a.lessonId, a.status]));
 
-  const enrolledIds = new Set(enrolledLessons.map((l) => l.id));
-  const makeupIds = attRows
-    .filter((a) => a.status === "makeup_attended" && !enrolledIds.has(a.lessonId))
-    .map((a) => a.lessonId);
-  const makeupLessons = makeupIds.length
-    ? await db
-        .select(baseCols)
-        .from(lessons)
-        .innerJoin(classes, eq(classes.id, lessons.classId))
-        .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-        .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
-        .where(inArray(lessons.id, makeupIds))
-    : [];
+  // Lessons they are booked onto outside their classes (make-ups), whether
+  // or not the tutor has marked them yet.
+  const makeupLessons = await db
+    .select(baseCols)
+    .from(lessons)
+    .innerJoin(classes, eq(classes.id, lessons.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+    .leftJoin(profiles, eq(profiles.id, lessons.tutorId))
+    .where(and(studentBookedOnLessonSql(studentId), ...range()));
+  const makeupIds = new Set(makeupLessons.map((l) => l.id));
 
   const resched = await db
     .select({
@@ -610,7 +604,7 @@ export async function getStudentTimetableLessons(
     const status = attByLesson.get(l.id);
     let studentState: TimetableLesson["studentState"] = "normal";
     let moveLabel: string | null = null;
-    if (status === "makeup_attended") {
+    if (makeupIds.has(l.id)) {
       studentState = "makeup_in";
       if (creditMakeupIds.has(l.id)) {
         moveLabel = "Make-up: booked with credits";

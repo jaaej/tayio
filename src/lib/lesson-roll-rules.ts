@@ -1,15 +1,16 @@
 /**
  * The roll rule behind `lessonRollIds`: the class's students (never on a
  * make-up lesson, a private booking that only points at a class), anyone
- * rescheduled into the lesson, and anyone with attendance on it.
+ * booked onto the lesson (`lessonGuestIdsSql`: a reschedule, a credit, an
+ * admin's one-off visit), and anyone with attendance on it.
  */
 export function rollMemberIds(
   status: string,
-  sources: { classRoster: string[]; movedIn: string[]; marked: string[] },
+  sources: { classRoster: string[]; booked: string[]; marked: string[] },
 ): Set<string> {
   return new Set([
     ...(status === "makeup" ? [] : sources.classRoster),
-    ...sources.movedIn,
+    ...sources.booked,
     ...sources.marked,
   ]);
 }

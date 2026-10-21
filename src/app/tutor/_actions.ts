@@ -7,7 +7,6 @@ import { db } from "@/db/client";
 import {
   announcements,
   attendance,
-  attendanceStatusEnum,
   classes,
   dmMessages,
   dmThreads,
@@ -28,6 +27,7 @@ import {
 } from "@/db/schema";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 import { lessonRollIds } from "@/lib/lesson-roll";
+import { ROLL_STATUSES } from "@/lib/attendance-roll";
 import { BUCKET, removeCurriculumObject } from "@/lib/curriculum-storage";
 import {
   discardDirectUpload,
@@ -57,7 +57,7 @@ const HOMEWORK_BUCKET = "homework-attachments";
 const TUTOR_HOMEWORK_UPLOAD_PURPOSE = "tutor-homework-attachment";
 const TUTOR_HOMEWORK_EDIT_UPLOAD_PURPOSE = "tutor-homework-edit-attachment";
 
-const attendanceStatusSchema = z.enum(attendanceStatusEnum.enumValues);
+const attendanceStatusSchema = z.enum(ROLL_STATUSES);
 const homeworkStatusSchema = z.enum(homeworkStatusEnum.enumValues);
 const directFileSchema = z.object({
   classId: z.string().uuid(),

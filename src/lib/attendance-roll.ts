@@ -6,30 +6,46 @@ export const ATTENDANCE_OPTIONS = [
   { value: "late", label: "Late", tone: "text-warn" },
   { value: "left_early", label: "Left early", tone: "text-warn" },
   { value: "absent", label: "Absent", tone: "text-bad" },
-  { value: "makeup_attended", label: "Make-up", tone: "text-info" },
 ] as const;
 
 export type AttendanceStatus = (typeof ATTENDANCE_OPTIONS)[number]["value"];
 
-export type RollStatuses = Record<string, AttendanceStatus | null>;
-
-type RollMember = { id: string; movedOutTo?: string; makeupFrom?: string };
+/** The marks a roll can save: a make-up student is marked like the class. */
+export const ROLL_STATUSES = ATTENDANCE_OPTIONS.map((o) => o.value) as [AttendanceStatus, ...AttendanceStatus[]];
 
 /**
- * Students who moved to another lesson keep the absence written when they
- * were moved, and make-up attendees default to "Make-up"; "All present" only
- * fills in the class that is actually here.
+ * A saved mark as the roll shows it. "Make-up attended" is no longer a mark
+ * (migration 0084 made every one "present"); read one as Present.
+ */
+export function rollStatusOf(status: string | null | undefined): AttendanceStatus | null {
+  if (status === "makeup_attended") return "present";
+  return (ROLL_STATUSES as readonly string[]).includes(status ?? "") ? (status as AttendanceStatus) : null;
+}
+
+export type RollStatuses = Record<string, AttendanceStatus | null>;
+
+type RollMember = { id: string; movedOutTo?: string; tookCredit?: boolean };
+
+/** Away from this lesson: moved to another, or cancelled for a credit. */
+function isAway(s: RollMember): boolean {
+  return Boolean(s.movedOutTo || s.tookCredit);
+}
+
+/**
+ * "All present" marks everyone here, make-up students included; students
+ * who moved to another lesson or cancelled it for a credit keep the absence
+ * written then.
  */
 export function markAllPresent(students: RollMember[], statuses: RollStatuses): RollStatuses {
   const next = { ...statuses };
   for (const s of students) {
-    if (!s.movedOutTo && !s.makeupFrom) next[s.id] = "present";
+    if (!isAway(s)) next[s.id] = "present";
   }
   return next;
 }
 
 export function canMarkAllPresent(students: RollMember[]): boolean {
-  return students.some((s) => !s.movedOutTo && !s.makeupFrom);
+  return students.some((s) => !isAway(s));
 }
 
 /** "5 present · 1 late · 2 not marked", in option order. */

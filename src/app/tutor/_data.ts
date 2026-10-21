@@ -2,7 +2,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { and, eq, inArray, sql, desc, isNull, asc, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { attendanceMovedSql, attendanceStatusShownSql } from "@/lib/attendance-moved";
 import { db } from "@/db/client";
 import {
   announcements,
@@ -341,7 +341,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
   const attendanceRows = await db
     .select({
       lessonId: attendance.lessonId,
-      status: attendance.status,
+      status: attendanceStatusShownSql,
       moved: attendanceMovedSql,
       note: attendance.note,
       markedAt: attendance.markedAt,

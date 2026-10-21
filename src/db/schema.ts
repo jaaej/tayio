@@ -283,6 +283,22 @@ export const lessonRollExclusions = pgTable(
   (t) => [primaryKey({ columns: [t.lessonId, t.studentId] }), index("lesson_roll_exclusions_student_idx").on(t.studentId)],
 );
 
+/** A student an admin added to one lesson's roll only, not to its class (migration 0084). */
+export const lessonRollAdditions = pgTable(
+  "lesson_roll_additions",
+  {
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    addedBy: uuid("added_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.lessonId, t.studentId] }), index("lesson_roll_additions_student_idx").on(t.studentId)],
+);
+
 export const lessons = pgTable(
   "lessons",
   {

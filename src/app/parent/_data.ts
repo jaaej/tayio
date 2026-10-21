@@ -23,7 +23,7 @@ import { meanMastery, type TopicMastery } from "@/lib/topic-mastery";
 import { getSubjectMastery } from "@/lib/topic-mastery-data";
 import { getStudentProgressBySubject } from "@/app/student/_lib/queries";
 import { attendanceSummary } from "@/lib/attendance-rules";
-import { attendanceMovedSql } from "@/lib/attendance-moved";
+import { attendanceMovedSql, attendanceStatusShownSql } from "@/lib/attendance-moved";
 import { SELECTED_CHILD_COOKIE, pickSelectedChild } from "@/lib/parent-child";
 
 export type ParentChild = {
@@ -134,7 +134,7 @@ export async function getAttendance(
       subjectName: subjects.name,
       tutorFirst: tutorProfile.firstName,
       tutorLast: tutorProfile.lastName,
-      status: attendance.status,
+      status: attendanceStatusShownSql,
       moved: attendanceMovedSql,
     })
     .from(attendance)

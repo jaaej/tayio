@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, gt, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { onRosterSql } from "@/lib/class-roster-sql";
+import { lessonGuestIds, othersOnLesson } from "@/lib/lesson-guests";
 import {
   attendance,
   classes,
@@ -143,16 +144,9 @@ async function seatsLeftOn(
     .from(enrollments)
     .innerJoin(lessons, eq(lessons.classId, enrollments.classId))
     .where(and(eq(lessons.id, lessonId), eq(enrollments.classId, classId), onRosterSql("enrollments", "lessons")));
-  const [{ makeups }] = await db
-    .select({ makeups: sql<number>`count(*)::int` })
-    .from(attendance)
-    .where(
-      and(
-        eq(attendance.lessonId, lessonId),
-        eq(attendance.status, "makeup_attended"),
-      ),
-    );
-  return capacity - Number(enrolled) - Number(makeups);
+  // Plus the students booked onto it, marked or not.
+  const makeups = (await lessonGuestIds(lessonId)).length;
+  return capacity - Number(enrolled) - makeups;
 }
 
 /** Other same-subject group sessions that week with a spare seat. */
@@ -346,10 +340,7 @@ export async function executeMakeupReschedule(p: {
         eq(attendance.lessonId, move.targetLessonId),
         eq(attendance.studentId, p.studentId),
       ));
-      const [remaining] = await tx.select({ studentId: attendance.studentId })
-        .from(attendance).where(eq(attendance.lessonId, move.targetLessonId))
-        .limit(1);
-      if (!remaining) {
+      if (!(await othersOnLesson(tx, move.targetLessonId, [p.studentId]))) {
         await tx.update(lessons).set({ status: "cancelled" }).where(and(
           eq(lessons.id, move.targetLessonId),
           eq(lessons.status, "makeup"),
@@ -378,14 +369,9 @@ export async function executeMakeupReschedule(p: {
       rescheduledFrom: original.id,
     }).returning({ id: lessons.id });
     await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId, tx);
-    // The roll shows where the student came from (getLessonRoll); the reason
-    // stays on the reschedule request, not in the staff roll note.
-    await tx.insert(attendance).values({
-      lessonId: newLesson.id,
-      studentId: p.studentId,
-      status: "makeup_attended",
-      markedBy: p.actorId,
-    });
+    // The approved request below books them onto the make-up, unmarked until
+    // the tutor marks who came; the roll shows where they came from
+    // (getLessonRoll) and the reason stays on the request.
     if (p.pendingRequestId) {
       await tx.update(rescheduleRequests).set({
         status: "approved",
@@ -444,7 +430,8 @@ export async function executeMakeupReschedule(p: {
   });
 }
 
-/** Group: move the student's attendance onto an existing target lesson.
+/** Group: move the student out of their lesson onto an existing target
+ *  lesson (the caller approves the request that books them onto it).
  *  (Retained for compatibility; the current flow uses executeMakeupReschedule.) */
 export async function executeSessionSwitch(p: {
   studentId: string;
@@ -471,23 +458,8 @@ export async function executeSessionSwitch(p: {
     return { ok: false, error: "That session just filled up - pick another." };
   }
 
+  // The request, approved by the caller, books them onto the target lesson.
   await markStudentAbsent(original.id, p.studentId, p.reason, p.actorId);
-  await db
-    .insert(attendance)
-    .values({
-      lessonId: target.id,
-      studentId: p.studentId,
-      status: "makeup_attended",
-      markedBy: p.actorId,
-    })
-    .onConflictDoUpdate({
-      target: [attendance.lessonId, attendance.studentId],
-      set: {
-        status: "makeup_attended",
-        markedBy: p.actorId,
-        markedAt: new Date(),
-      },
-    });
 
   await notifyReschedule({
     studentId: p.studentId,

@@ -4,14 +4,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { attendance, attendanceStatusEnum, lessons } from "@/db/schema";
+import { attendance, lessons } from "@/db/schema";
+import { ROLL_STATUSES } from "@/lib/attendance-roll";
 import { lessonRollIds } from "@/lib/lesson-roll";
 import { optionalText } from "@/lib/validation";
 import { withActor } from "@/lib/with-actor";
 import { requireAdmin } from "./guard";
 import { lessonDeletionImpact } from "./class-lessons";
 
-const statusSchema = z.enum(attendanceStatusEnum.enumValues);
+const statusSchema = z.enum(ROLL_STATUSES);
 
 export async function adminSaveAttendance(formData: FormData) {
   const admin = await requireAdmin();

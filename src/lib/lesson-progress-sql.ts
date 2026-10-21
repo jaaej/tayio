@@ -2,7 +2,7 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { lessons } from "@/db/schema";
 import { melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
-import { onRosterSql } from "@/lib/class-roster-sql";
+import { lessonGuestIdsSql, onRosterSql } from "@/lib/class-roster-sql";
 import { coveredOffPortalSql } from "@/lib/cover-away-sql";
 
 /**
@@ -21,19 +21,31 @@ export function lessonRanSql(now: Date): SQL {
 }
 
 /**
- * Students on the lesson's roll with no attendance yet: the class's students
- * on that lesson (`onRosterSql`). A make-up lesson's roll is its bookings,
- * which are marked when booked, so it has none.
+ * The students a lesson is for: the class on its date (`onRosterSql`; nobody
+ * on a make-up lesson, a private booking) and the students booked onto it
+ * (`lessonGuestIdsSql`). Spelled `lessons.*` for the reason below.
  */
-export const unmarkedOnRollSql = sql<number>`case when ${lessons.status} = 'makeup' then 0 else (
-  select count(*)::int from enrollments e
-  where e.class_id = ${lessons.classId}
+const lessonForSql = sql`(
+  select e.student_id from enrollments e
+  where lessons.status <> 'makeup'
+    and e.class_id = lessons.class_id
     and ${onRosterSql("e", "lessons")}
-    and not exists (
-      select 1 from attendance a
-      where a.lesson_id = ${lessons.id} and a.student_id = e.student_id
-    )
-) end`;
+  union
+  ${lessonGuestIdsSql(sql.raw("lessons.id"))}
+)`;
+
+/**
+ * Students on the lesson's roll with no attendance yet (`lessonForSql`). A
+ * booked make-up starts unmarked like the class, so a make-up lesson nobody
+ * marked still needs its attendance.
+ */
+export const unmarkedOnRollSql = sql<number>`(
+  select count(*)::int from ${lessonForSql} roll
+  where not exists (
+    select 1 from attendance a
+    where a.lesson_id = lessons.id and a.student_id = roll.student_id
+  )
+)`;
 
 /**
  * Students marked as attending (present, late, left early or make-up) with
@@ -63,10 +75,7 @@ export const notesMissingSql = sql<number>`case when ${coveredOffPortalSql} then
 export const lessonCountFields = {
   roster: sql<number>`(
     select count(*)::int from (
-      select e.student_id from enrollments e
-      where lessons.status <> 'makeup'
-        and e.class_id = lessons.class_id
-        and ${onRosterSql("e", "lessons")}
+      select roll_for.student_id from ${lessonForSql} roll_for
       union
       select a.student_id from attendance a where a.lesson_id = lessons.id
     ) roll

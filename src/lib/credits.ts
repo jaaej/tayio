@@ -620,7 +620,7 @@ async function notifyRedemption(o: {
 
 /** Thrown inside the redemption transaction when the credit-status flip
  *  affects zero rows - another redeem already won the race - so the
- *  just-inserted makeup lesson + attendance roll back with it. */
+ *  just-inserted makeup lesson rolls back with it. */
 class CreditAlreadyRedeemedError extends Error {}
 
 export async function redeemCreditIntoSlot(p: {
@@ -700,18 +700,12 @@ export async function redeemCreditIntoSlot(p: {
         })
         .returning({ id: lessons.id });
 
-      // The roll labels a credit make-up from the credit (getLessonRoll).
-      await tx.insert(attendance).values({
-        lessonId: inserted.id,
-        studentId: credit.studentId,
-        status: "makeup_attended",
-        markedBy: p.actorId,
-      });
-
       // Conditional flip: only succeeds if the credit was still "active" the
       // moment this ran. If another redeem already flipped it, zero rows
-      // come back and we throw to roll back the lesson + attendance just
-      // inserted above - the two redeems must not both create a lesson.
+      // come back and we throw to roll back the lesson just inserted above -
+      // the two redeems must not both create a lesson. The redeemed credit
+      // books the student onto it (lessonGuestIdsSql), unmarked until the
+      // tutor marks who came; the roll labels it from the credit.
       const flipped = await tx
         .update(classCredits)
         .set({

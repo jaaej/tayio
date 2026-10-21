@@ -25,6 +25,7 @@ import { requireAdmin } from "./guard";
 import { getLessonContextForStudent } from "./queries";
 import { ADMIN_TIERS } from "@/lib/roles";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
+import { othersOnLesson } from "@/lib/lesson-guests";
 
 const slotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -184,10 +185,7 @@ export async function rescheduleStudentLesson(
           eq(attendance.lessonId, move.targetLessonId),
           eq(attendance.studentId, studentId),
         ));
-        const [remaining] = await tx.select({ studentId: attendance.studentId })
-          .from(attendance).where(eq(attendance.lessonId, move.targetLessonId))
-          .limit(1);
-        if (!remaining) {
+        if (!(await othersOnLesson(tx, move.targetLessonId, [studentId]))) {
           await tx.update(lessons).set({ status: "cancelled" }).where(and(
             eq(lessons.id, move.targetLessonId),
             eq(lessons.status, "makeup"),
@@ -231,12 +229,8 @@ export async function rescheduleStudentLesson(
         markedAt: new Date(),
       },
     });
-    await tx.insert(attendance).values({
-      lessonId: newLesson.id,
-      studentId,
-      status: "makeup_attended",
-      markedBy: admin.id,
-    });
+    // The approved request books them onto the make-up, unmarked until the
+    // tutor marks who came.
     await tx.insert(rescheduleRequests).values({
       originalLessonId: original.id,
       studentId,
