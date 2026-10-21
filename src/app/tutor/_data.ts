@@ -187,6 +187,7 @@ export type TutorClassRoster = {
     id: string;
     firstName: string;
     lastName: string;
+    email: string;
     yearLevel: string | null;
   }>;
 };
@@ -210,6 +211,7 @@ export async function getTutorStudentsByClass(
       studentId: profiles.id,
       firstName: profiles.firstName,
       lastName: profiles.lastName,
+      email: profiles.email,
       yearLevel: profiles.yearLevel,
     })
     .from(classes)
@@ -251,6 +253,7 @@ export async function getTutorStudentsByClass(
         id: r.studentId,
         firstName: r.firstName ?? "",
         lastName: r.lastName ?? "",
+        email: r.email ?? "",
         yearLevel: r.yearLevel,
       });
       distinctStudents.add(r.studentId);

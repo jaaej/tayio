@@ -68,11 +68,6 @@ export default async function TutorClassesPage() {
             ? "No active classes"
             : `${list.length} active class${list.length === 1 ? "" : "es"}`
         }
-        sub={
-          list.length > 0
-            ? `${students.length} student${students.length === 1 ? "" : "s"} · ${weekLessons.length} lesson${weekLessons.length === 1 ? "" : "s"} this week`
-            : undefined
-        }
       />
 
       {list.length > 0 && (
@@ -136,7 +131,7 @@ export default async function TutorClassesPage() {
                         </span>
                       </div>
                       <div className="text-[12px] text-muted mt-0.5 truncate">
-                        {nextLesson.className} · {nextLesson.subjectName} ·{" "}
+                        {nextLesson.className} ·{" "}
                         {nextLesson.isToday
                           ? "Open to mark attendance and write notes"
                           : "Open the lesson"}
@@ -183,13 +178,9 @@ export default async function TutorClassesPage() {
                       {initial}
                     </div>
                     <div className="min-w-0">
-                      <div
-                        className="text-[10px] uppercase tracking-[0.12em] font-bold"
-                        style={{ color: accent.meta }}
-                      >
-                        {c.subjectName}
-                        {c.subjectYear ? ` · ${c.subjectYear}` : ""}
-                      </div>
+                      {/* No subject eyebrow: the class name already leads with
+                          the subject, and subjectYear is the year level, so
+                          this read "Year 10 Maths · 10" above "Year 10 Maths". */}
                       <div
                         className="text-[14px] font-extrabold leading-tight truncate"
                         style={{ color: accent.title }}

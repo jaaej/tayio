@@ -31,7 +31,16 @@
   --surface-3: #f2f5fc;
   --card: #ffffff;
 
-  background: var(--background);
+  /* Same diagonal page wash as .theme-student / .theme-tutor in globals.css -
+   * see the comment there for why it is painted on the wrapper and fixed. */
+  background-color: var(--background);
+  background-image: linear-gradient(
+    135deg,
+    var(--periwinkle-50) 0%,
+    var(--periwinkle-200) 45%,
+    var(--periwinkle-500) 100%
+  );
+  background-attachment: fixed;
   color: var(--ink);
   min-height: 100vh;
 }

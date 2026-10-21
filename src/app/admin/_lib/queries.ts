@@ -6,7 +6,6 @@ import {
   eq,
   gte,
   inArray,
-  isNotNull,
   isNull,
   lt,
   lte,
@@ -666,83 +665,77 @@ export async function getLessonContextForStudent(
   return rows[0] ?? null;
 }
 
-export type DiscontinuedClass = {
-  classId: string;
-  className: string;
-  subjectName: string;
-  withdrawnAt: Date;
-};
-
-export type DiscontinuedStudent = {
-  studentId: string;
+export type DirectoryUser = {
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string | null;
-  mostRecentWithdraw: Date;
-  classes: DiscontinuedClass[];
+  role: UserRole;
+  yearLevel: string | null;
+  school: string | null;
+  isActive: boolean;
+  /** Enrolments still live. Always 0 for non-students. */
+  activeClasses: number;
+  /** Enrolments the student has been withdrawn from. Always 0 for non-students. */
+  withdrawnClasses: number;
+  /** Most recent withdrawal date, or null if they have never withdrawn. */
+  lastWithdrawnAt: Date | null;
 };
 
 /**
- * Students with at least one withdrawn enrolment, grouped so a student
- * withdrawn from N classes appears once with all N classes listed. Powers the
- * "Discontinued" tab on `/admin/users` (the sole home for withdrawn students;
- * the old standalone `/admin/leaving` page was retired 2026-08-03).
+ * Every account plus the enrolment counts the directory needs to derive a
+ * status. Powers `/admin/users`, whose Status filter replaced the old
+ * "Discontinued" tab (and, before that, the standalone `/admin/leaving` page).
  */
-export async function getDiscontinuedStudents(
-  limit = 200,
-): Promise<DiscontinuedStudent[]> {
-  const rows = await db
-    .select({
-      studentId: profiles.id,
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-      email: profiles.email,
-      phone: profiles.phone,
-      classId: classes.id,
-      className: classes.name,
-      subjectName: subjects.name,
-      withdrawnAt: enrollments.withdrawnAt,
-    })
-    .from(enrollments)
-    .innerJoin(profiles, eq(profiles.id, enrollments.studentId))
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .where(isNotNull(enrollments.withdrawnAt))
-    .orderBy(desc(enrollments.withdrawnAt))
-    .limit(limit);
+export async function getUserDirectory(): Promise<DirectoryUser[]> {
+  const [people, enrolmentTotals] = await Promise.all([
+    db
+      .select({
+        id: profiles.id,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+        email: profiles.email,
+        role: profiles.role,
+        yearLevel: profiles.yearLevel,
+        school: profiles.school,
+        isActive: profiles.isActive,
+      })
+      .from(profiles),
+    db
+      .select({
+        studentId: enrollments.studentId,
+        activeClasses: sql<number>`count(*) filter (where ${enrollments.withdrawnAt} is null)`,
+        withdrawnClasses: sql<number>`count(*) filter (where ${enrollments.withdrawnAt} is not null)`,
+        lastWithdrawnAt: sql<Date | null>`max(${enrollments.withdrawnAt})`,
+      })
+      .from(enrollments)
+      .groupBy(enrollments.studentId),
+  ]);
 
-  const byStudent = new Map<string, DiscontinuedStudent>();
-  for (const r of rows) {
-    if (!r.withdrawnAt) continue;
-    const classRecord: DiscontinuedClass = {
-      classId: r.classId,
-      className: r.className,
-      subjectName: r.subjectName,
-      withdrawnAt: r.withdrawnAt,
+  const totals = new Map(enrolmentTotals.map((t) => [t.studentId, t]));
+
+  return people.map((p) => {
+    const t = totals.get(p.id);
+    return {
+      ...p,
+      activeClasses: Number(t?.activeClasses ?? 0),
+      withdrawnClasses: Number(t?.withdrawnClasses ?? 0),
+      lastWithdrawnAt: t?.lastWithdrawnAt ? new Date(t.lastWithdrawnAt) : null,
     };
-    const existing = byStudent.get(r.studentId);
-    if (existing) {
-      existing.classes.push(classRecord);
-      if (r.withdrawnAt > existing.mostRecentWithdraw) {
-        existing.mostRecentWithdraw = r.withdrawnAt;
-      }
-    } else {
-      byStudent.set(r.studentId, {
-        studentId: r.studentId,
-        firstName: r.firstName,
-        lastName: r.lastName,
-        email: r.email,
-        phone: r.phone,
-        mostRecentWithdraw: r.withdrawnAt,
-        classes: [classRecord],
-      });
-    }
-  }
+  });
+}
 
-  return Array.from(byStudent.values()).sort(
-    (a, b) => b.mostRecentWithdraw.getTime() - a.mostRecentWithdraw.getTime(),
-  );
+/**
+ * An account is discontinued when it has been deactivated, or - for a student -
+ * when every one of their enrolments has been withdrawn. A student withdrawn
+ * from one class but still attending another stays active; their withdrawal is
+ * surfaced on the row rather than in the status.
+ */
+export function directoryStatus(u: DirectoryUser): "active" | "discontinued" {
+  if (!u.isActive) return "discontinued";
+  return u.withdrawnClasses > 0 && u.activeClasses === 0
+    ? "discontinued"
+    : "active";
 }
 
 export type CreditRow = {
@@ -948,12 +941,17 @@ export type TutorAvailabilitySlot = {
   weekday: number;
   startTime: string;
   endTime: string;
+  /** Null = the slot applies to any subject (migration 0040). */
+  subjectId: string | null;
+  subjectName: string | null;
 };
 
 export type TutorWeeklyAvailability = {
   tutorId: string;
   firstName: string;
   lastName: string;
+  /** Subjects the tutor teaches, derived from their assigned classes. */
+  subjects: Array<{ id: string; name: string }>;
   slots: TutorAvailabilitySlot[];
 };
 
@@ -968,10 +966,17 @@ export type TutorWeeklyAvailability = {
  *
  * Tutors with no availability rows are still returned (empty `slots`) so gaps
  * in the roster are visible rather than silently dropped.
+ *
+ * Each slot carries the subject it is scoped to (null = any subject), and each
+ * tutor carries the subjects they teach - derived from their assigned classes,
+ * the same source getTutorDirectory() uses - so the editor can offer one scope
+ * per subject the tutor actually teaches.
  */
 export async function getTutorWeeklyAvailabilityBoard(): Promise<
   TutorWeeklyAvailability[]
 > {
+  const availabilitySubject = alias(subjects, "availability_subject");
+
   const rows = await db
     .select({
       tutorId: profiles.id,
@@ -980,6 +985,8 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
       weekday: tutorAvailability.weekday,
       startTime: tutorAvailability.startTime,
       endTime: tutorAvailability.endTime,
+      subjectId: tutorAvailability.subjectId,
+      subjectName: availabilitySubject.name,
     })
     .from(profiles)
     .leftJoin(
@@ -989,6 +996,10 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         isNull(tutorAvailability.date),
         eq(tutorAvailability.isAvailable, true),
       ),
+    )
+    .leftJoin(
+      availabilitySubject,
+      eq(availabilitySubject.id, tutorAvailability.subjectId),
     )
     .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)))
     .orderBy(asc(profiles.firstName), asc(profiles.lastName));
@@ -1001,6 +1012,7 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         tutorId: r.tutorId,
         firstName: r.firstName,
         lastName: r.lastName,
+        subjects: [],
         slots: [],
       };
       byTutor.set(r.tutorId, tutor);
@@ -1008,9 +1020,11 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
     if (r.weekday === null || r.startTime === null || r.endTime === null) {
       continue;
     }
-    // Dedup identical (weekday, start, end) rows so a duplicated rule renders once.
+    // Dedup identical (subject, weekday, start, end) rows so a duplicated rule
+    // renders once - but the same window under two subjects stays two slots.
     const dup = tutor.slots.some(
       (s) =>
+        s.subjectId === r.subjectId &&
         s.weekday === r.weekday &&
         s.startTime === r.startTime &&
         s.endTime === r.endTime,
@@ -1020,13 +1034,38 @@ export async function getTutorWeeklyAvailabilityBoard(): Promise<
         weekday: r.weekday,
         startTime: r.startTime,
         endTime: r.endTime,
+        subjectId: r.subjectId,
+        subjectName: r.subjectName,
+      });
+    }
+  }
+
+  const tutorIds = Array.from(byTutor.keys());
+  if (tutorIds.length > 0) {
+    const taught = await db
+      .selectDistinct({
+        tutorId: classes.tutorId,
+        subjectId: subjects.id,
+        subjectName: subjects.name,
+      })
+      .from(classes)
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
+      .where(inArray(classes.tutorId, tutorIds))
+      .orderBy(asc(subjects.name));
+    for (const t of taught) {
+      byTutor.get(t.tutorId)?.subjects.push({
+        id: t.subjectId,
+        name: t.subjectName,
       });
     }
   }
 
   for (const tutor of byTutor.values()) {
     tutor.slots.sort(
-      (a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime),
+      (a, b) =>
+        a.weekday - b.weekday ||
+        a.startTime.localeCompare(b.startTime) ||
+        (a.subjectName ?? "").localeCompare(b.subjectName ?? ""),
     );
   }
 

@@ -43,11 +43,6 @@ export default async function StudentMessagesPage() {
       <PageHead
         eyebrow="Messages"
         title="Inbox"
-        sub={
-          isUnrestricted
-            ? "Conversations with your tutors and the admin office."
-            : "Conversations with your tutors."
-        }
       />
       <InboxCompose
         threads={threads}

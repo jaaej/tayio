@@ -194,9 +194,9 @@ export default async function TutorDashboard() {
                         />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-muted">
-                          {l.subjectName}
-                        </div>
+                        {/* No subject eyebrow: class names already lead with
+                            the subject ("Year 10 Maths · Monday PM"), so it
+                            printed the same words twice. */}
                         <div className="text-[14px] font-extrabold text-ink leading-tight truncate">
                           {l.className}
                         </div>
@@ -232,13 +232,6 @@ export default async function TutorDashboard() {
               icon={<Inbox className="h-4 w-4" />}
               iconBg="bg-brand-600"
               title="Submissions to mark"
-              tagline={
-                submissions.length === 0
-                  ? "Nothing waiting - enjoy the breather."
-                  : lateCount > 0
-                    ? `${lateCount} late · review the most urgent first`
-                    : `${submissions.length} fresh submission${submissions.length === 1 ? "" : "s"} waiting`
-              }
               actionHref="/tutor/homework"
               actionLabel="All homework"
               countBadge={submissions.length}
@@ -309,11 +302,6 @@ export default async function TutorDashboard() {
               icon={<BellRing className="h-4 w-4" />}
               iconBg="bg-coral"
               title="Students to bump"
-              tagline={
-                bumpList.length === 0
-                  ? "Everyone's on track - nice work."
-                  : "Send a nudge before homework piles up."
-              }
               countBadge={bumpList.length}
               tone={bumpList.length > 0 ? "bad" : "good"}
             />
@@ -364,9 +352,6 @@ export default async function TutorDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="text-[13px] font-bold text-ink truncate">
                               {l.className}
-                            </div>
-                            <div className="text-[11px] text-muted mt-0.5 truncate">
-                              {l.subjectName}
                             </div>
                           </div>
                           <span className="text-[11px] uppercase tracking-[0.12em] font-bold text-brand-600 shrink-0">
@@ -438,7 +423,7 @@ function RichHeader({
   icon: React.ReactNode;
   iconBg: string;
   title: string;
-  tagline: string;
+  tagline?: string;
   actionHref?: string;
   actionLabel?: string;
   countBadge?: number;
@@ -471,7 +456,9 @@ function RichHeader({
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          {tagline && (
+            <p className="text-[11px] text-muted mt-0.5 truncate">{tagline}</p>
+          )}
         </div>
       </div>
       {actionHref && actionLabel && (

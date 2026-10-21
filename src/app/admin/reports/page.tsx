@@ -58,7 +58,6 @@ export default async function ReportsPage({
         className="rise"
         eyebrow="Reports"
         title="Operational reports"
-        sub="Attendance, homework completion, and class fill for the selected term."
         actions={
           <div className="flex items-center gap-3">
             <TermSelect terms={terms} selectedId={selected.id} />

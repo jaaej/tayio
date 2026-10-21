@@ -220,7 +220,6 @@ export default async function TutorTimetablePage({
       <PageHead
         eyebrow="Timetable"
         title={`${MONTH_NAMES[month]} ${year}`}
-        sub={`${lessonCount} lesson${lessonCount === 1 ? "" : "s"} this month · ${availCount} weekly availability slot${availCount === 1 ? "" : "s"}`}
         actions={
           <Link
             href={editToggleHref}

@@ -22,7 +22,6 @@ export default async function ParentFeedbackPage({
       <div className="space-y-6">
         <PageHeader
           title="Tutor feedback"
-          sub="Your tutor's comments after each lesson."
         />
         <EmptyChildrenNotice />
       </div>
@@ -35,7 +34,6 @@ export default async function ParentFeedbackPage({
     <div className="space-y-6">
       <PageHeader
         title={`Feedback for ${selected.firstName}`}
-        sub="Your tutor's parent-visible comments after each lesson."
       />
 
       {children.length > 1 && (

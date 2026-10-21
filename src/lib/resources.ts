@@ -13,7 +13,17 @@ import {
 } from "@/db/schema";
 
 type ResourceType = (typeof resourceTypeEnum.enumValues)[number];
-export type ResourceFilter = { type?: ResourceType; topicId?: string; q?: string };
+export type ResourceFilter = {
+  type?: ResourceType;
+  topicId?: string;
+  q?: string;
+  /**
+   * Authoring view (tutor library): also return rows the author has unshared,
+   * so unsharing hides a resource from students without making it vanish from
+   * the tutor's own page. Admin-removed rows stay hidden either way.
+   */
+  includeUnpublished?: boolean;
+};
 
 export async function enrolledSubjectIds(studentId: string): Promise<string[]> {
   const rows = await db
@@ -52,9 +62,9 @@ export async function listResourcesForSubjects(
   if (subjectIds.length === 0) return [];
   const conds = [
     inArray(resources.subjectId, subjectIds),
-    eq(resources.isPublished, true),
     isNull(resources.removedAt),
   ];
+  if (!filter.includeUnpublished) conds.push(eq(resources.isPublished, true));
   if (filter.type) conds.push(eq(resources.type, filter.type));
   if (filter.topicId) conds.push(eq(resources.topicId, filter.topicId));
   if (filter.q) conds.push(ilike(resources.title, `%${filter.q}%`));

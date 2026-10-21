@@ -73,6 +73,11 @@
   --muted-2:   #9094a1;
   --line:        #e1e7f5;
   --line-strong: #cdd6ec;
+  /* Form-control boundary. --line-strong is only 1.46:1 on white, so an input
+   * outlined with it reads as "white on white". This sits at 3.16:1, the WCAG
+   * 1.4.11 minimum for non-text UI boundaries. Not theme-overridden: a field
+   * edge has to stay visible in every portal scope. */
+  --line-field:  #8790ad;
 
   --radius-sm: 9px;
   --radius:    14px;
@@ -110,7 +115,22 @@
   --surface-3:  #f2f5fc;
   --card:       #ffffff;
 
-  background: var(--background);
+  /* Diagonal page wash - the default backdrop for every portal page. Painted
+   * on the shell wrapper rather than <main> so the header, sidebar and content
+   * all sit on one continuous field; the shell's own bars are opaque
+   * (bg-surface), so only the content column shows it. Fixed attachment
+   * anchors the gradient to the viewport, so it holds still while <main>
+   * scrolls and reads the same on a short page and a long one.
+   * --background stays as the flat fallback and as the token behind the
+   * `bg-background` utility (tinted chips on white cards). */
+  background-color: var(--background);
+  background-image: linear-gradient(
+    135deg,
+    var(--periwinkle-50) 0%,
+    var(--periwinkle-200) 45%,
+    var(--periwinkle-500) 100%
+  );
+  background-attachment: fixed;
   color: var(--ink);
 }
 
@@ -136,6 +156,7 @@
   --color-hairline: var(--hairline);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-line-field: var(--line-field);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);

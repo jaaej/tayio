@@ -14,6 +14,7 @@ const weekInputSchema = z.object({
   weekNumber: z.coerce.number().int().min(1).max(20),
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
+  objectives: z.string().max(5000).optional(),
   videoUrl: z.string().max(2000).optional(),
   bookletUrl: z.string().max(2000).optional(),
   topicId: z.preprocess(

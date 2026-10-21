@@ -40,12 +40,6 @@ export default async function AnnouncementsPage() {
         className="rise"
         eyebrow="Communications"
         title="Announcements"
-        sub="Broadcast notices to everyone, a role, or a single class."
-        actions={
-          <Pill tone="brand">
-            {rows.length} {rows.length === 1 ? "notice" : "notices"}
-          </Pill>
-        }
       />
 
       <section className="rise" style={{ animationDelay: "60ms" }}>

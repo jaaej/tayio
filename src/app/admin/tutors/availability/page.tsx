@@ -1,4 +1,4 @@
-import { Card, CardHead, Pill, PageHeader, Empty } from "@/components/admin/ui";
+import { Card, CardHead, PageHeader, Empty } from "@/components/admin/ui";
 import { getTutorWeeklyAvailabilityBoard } from "@/app/admin/_lib/queries";
 import { requireRole } from "@/lib/auth";
 import { formatTime } from "@/lib/format";
@@ -38,18 +38,10 @@ export default async function AdminTutorAvailabilityPage() {
         className="rise"
         eyebrow="Scheduling"
         title="Tutor availability"
-        sub="Every tutor's standing weekly availability in one view. Scan a day column for gaps when coordinating cover, then add or remove a tutor's recurring slots below."
       />
 
       <Card className="rise">
-        <CardHead
-          title="Weekly availability"
-          action={
-            <Pill tone="default">
-              {tutors.length} tutor{tutors.length === 1 ? "" : "s"}
-            </Pill>
-          }
-        />
+        <CardHead title="Weekly availability" />
         {tutors.length === 0 ? (
           <Empty>No active tutors on record.</Empty>
         ) : (
@@ -119,9 +111,16 @@ export default async function AdminTutorAvailabilityPage() {
                                 {slots.map((s, i) => (
                                   <span
                                     key={i}
-                                    className="inline-flex w-fit items-center rounded-md bg-brand-50 px-2 py-1 text-[12px] font-semibold text-brand-700 tabular-nums"
+                                    className="inline-flex w-fit flex-col items-start rounded-md bg-brand-50 px-2 py-1 text-[12px] font-semibold text-brand-700 leading-tight"
                                   >
-                                    {formatTime(s.startTime)} – {formatTime(s.endTime)}
+                                    <span className="tabular-nums">
+                                      {formatTime(s.startTime)} – {formatTime(s.endTime)}
+                                    </span>
+                                    {s.subjectName && (
+                                      <span className="text-[11px] font-semibold text-brand-700/75">
+                                        {s.subjectName}
+                                      </span>
+                                    )}
                                   </span>
                                 ))}
                               </div>
@@ -156,8 +155,6 @@ export default async function AdminTutorAvailabilityPage() {
                     {tutor.firstName} {tutor.lastName}
                   </span>
                   <span className="flex items-center gap-2 text-[12px] text-muted">
-                    {tutor.slots.length} slot
-                    {tutor.slots.length === 1 ? "" : "s"}
                     <span className="text-brand-600 font-semibold group-open:hidden">
                       Edit ↓
                     </span>
@@ -169,6 +166,7 @@ export default async function AdminTutorAvailabilityPage() {
                 <div className="px-5 pb-4">
                   <TutorAvailabilityEditor
                     tutorId={tutor.tutorId}
+                    subjects={tutor.subjects}
                     slots={tutor.slots}
                   />
                 </div>

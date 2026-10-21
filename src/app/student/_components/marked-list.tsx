@@ -32,7 +32,7 @@ function MarkedRow({ hw }: { hw: HomeworkRow }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-brand-50/50"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-brand-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
       >
         <div className="min-w-0 flex-1">
           <div className="text-[10px] uppercase tracking-[0.16em] font-semibold text-muted truncate">
@@ -75,7 +75,7 @@ function MarkedRow({ hw }: { hw: HomeworkRow }) {
             </span>
             <Link
               href={`/student/homework/${hw.homeworkId}`}
-              className="text-xs uppercase tracking-[0.14em] font-medium text-brand-700 hover:text-brand-800"
+              className="inline-flex min-h-9 items-center rounded-[8px] px-1 text-xs uppercase tracking-[0.14em] font-medium text-brand-700 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
             >
               Open full →
             </Link>

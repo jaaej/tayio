@@ -15,12 +15,10 @@ import {
 export function SubjectCard({
   name,
   mastery,
-  nextLabel,
   href,
 }: {
   name: string;
   mastery: number;
-  nextLabel?: string;
   href: string;
 }) {
   const family = colorFamilyForSubject(name);
@@ -52,16 +50,10 @@ export function SubjectCard({
           track={ringTrack}
         />
       </div>
-      <div className="mt-3.5 text-[15px] font-extrabold text-ink leading-tight">
-        {name}
-      </div>
-      <div className="text-[12px] text-muted mt-0.5">
-        Mastery {Math.round(mastery)}%
-      </div>
-      <div className="mt-3.5 flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-ink-soft truncate">
-          {nextLabel ? `Next · ${nextLabel}` : "No upcoming class"}
-        </span>
+      <div className="mt-3.5 flex items-center justify-between gap-2">
+        <div className="text-[15px] font-extrabold text-ink leading-tight">
+          {name}
+        </div>
         <ArrowRight
           className="h-[15px] w-[15px] shrink-0"
           style={{ color: ringColor }}

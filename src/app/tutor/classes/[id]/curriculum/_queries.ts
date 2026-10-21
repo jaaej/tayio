@@ -22,6 +22,7 @@ export type TutorCurriculumWeek = {
   weekNumber: number;
   title: string;
   description: string | null;
+  objectives: string | null;
   topicId: string | null;
   topicName: string | null;
   videoUrl: string | null;
@@ -184,6 +185,7 @@ export async function getTutorCurriculum(
       weekNumber: tpl.weekNumber,
       title: tpl.title,
       description: tpl.description,
+      objectives: tpl.objectives,
       topicId: tpl.topicId,
       topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
       videoUrl: tpl.videoUrl,

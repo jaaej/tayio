@@ -1,10 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FilterSelect } from "@/components/admin/ui";
 import { RESOURCE_TYPES } from "@/lib/resource-types";
-
-const selectClass =
-  "rounded-[10px] border border-line bg-surface px-3 py-2 text-[13px] text-ink focus:outline-none focus:border-line-strong";
 
 export function ResourceFilters({
   subjects,
@@ -23,43 +21,36 @@ export function ResourceFilters({
   }
 
   return (
-    <div className="flex flex-wrap gap-2.5">
-      <select
-        defaultValue={searchParams.get("subjectId") ?? ""}
-        onChange={(e) => update("subjectId", e.target.value)}
-        className={selectClass}
-      >
-        <option value="">All subjects</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        defaultValue={searchParams.get("type") ?? ""}
-        onChange={(e) => update("type", e.target.value)}
-        className={selectClass}
-      >
-        <option value="">All types</option>
-        {RESOURCE_TYPES.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
-          </option>
-        ))}
-      </select>
-
-      <select
-        defaultValue={searchParams.get("status") ?? ""}
-        onChange={(e) => update("status", e.target.value)}
-        className={selectClass}
-      >
-        <option value="">All statuses</option>
-        <option value="live">Live</option>
-        <option value="unpublished">Unpublished</option>
-        <option value="removed">Removed</option>
-      </select>
+    <div className="flex flex-wrap items-center gap-2.5">
+      <FilterSelect
+        label="Filter by subject"
+        value={searchParams.get("subjectId") ?? ""}
+        onChange={(v) => update("subjectId", v)}
+        options={[
+          { value: "", label: "All subjects" },
+          ...subjects.map((s) => ({ value: s.id, label: s.name })),
+        ]}
+      />
+      <FilterSelect
+        label="Filter by type"
+        value={searchParams.get("type") ?? ""}
+        onChange={(v) => update("type", v)}
+        options={[
+          { value: "", label: "All types" },
+          ...RESOURCE_TYPES.map((t) => ({ value: t.value, label: t.label })),
+        ]}
+      />
+      <FilterSelect
+        label="Filter by status"
+        value={searchParams.get("status") ?? ""}
+        onChange={(v) => update("status", v)}
+        options={[
+          { value: "", label: "All statuses" },
+          { value: "live", label: "Live" },
+          { value: "unpublished", label: "Unpublished" },
+          { value: "removed", label: "Removed" },
+        ]}
+      />
     </div>
   );
 }

@@ -27,6 +27,7 @@ export type ParentCurriculumWeek = {
   weekNumber: number;
   title: string;
   description: string | null;
+  objectives: string | null;
   videoUrl: string | null;
   bookletUrl: string | null;
   topicId: string | null;
@@ -229,6 +230,7 @@ export async function getParentCurriculum(
         weekNumber: tpl.weekNumber,
         title: tpl.title,
         description: tpl.description,
+        objectives: tpl.objectives,
         videoUrl: tpl.videoUrl,
         bookletUrl: tpl.bookletUrl,
         topicId: tpl.topicId,

@@ -555,6 +555,11 @@ export const tutorAvailability = pgTable(
     tutorId: uuid("tutor_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    // Null = the slot applies to any subject (how every row before migration
+    // 0040 behaves); set = availability scoped to that one subject.
+    subjectId: uuid("subject_id").references(() => subjects.id, {
+      onDelete: "cascade",
+    }),
     weekday: integer("weekday"),
     date: date("date"),
     startTime: time("start_time").notNull(),
@@ -565,6 +570,7 @@ export const tutorAvailability = pgTable(
   (t) => [
     index("tutor_availability_tutor_idx").on(t.tutorId),
     index("tutor_availability_date_idx").on(t.date),
+    index("tutor_availability_tutor_subject_idx").on(t.tutorId, t.subjectId),
   ],
 );
 
@@ -777,6 +783,8 @@ export const subjectWeeks = pgTable(
     weekNumber: integer("week_number").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    /** Learning objectives, one per line ("By the end of this week you can"). */
+    objectives: text("objectives"),
     videoUrl: text("video_url"),
     bookletUrl: text("booklet_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -961,6 +969,9 @@ export const quizStatusEnum = pgEnum("quiz_status", [
   "pending_review",
   "changes_requested",
   "approved",
+  // Admin-written and admin-published. Live exactly like "approved"; last in
+  // the list because ALTER TYPE ... ADD VALUE appended it in the DB (0039).
+  "admin",
 ]);
 
 export const quizQuestionTypeEnum = pgEnum("quiz_question_type", [

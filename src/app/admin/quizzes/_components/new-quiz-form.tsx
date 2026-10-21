@@ -1,73 +1,67 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/admin/ui";
 import { Input, Label } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { createQuizDirect } from "@/app/_actions/quizzes";
+import type { QuizTargetWeek } from "@/lib/quiz-queries";
+import { SubjectWeekFields } from "./subject-week-fields";
 
-export function NewQuizForm({ weeks }: { weeks: { id: string; label: string }[] }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+export type NewQuizValues = { subjectWeekId: string; title: string };
 
-  if (weeks.length === 0) {
-    return (
-      <p className="text-[13px] text-muted">
-        No unused subject weeks are available. Add a curriculum week or edit
-        its existing quiz.
-      </p>
-    );
-  }
+/**
+ * Body of the "I'll write it" tab of the new-quiz slide-over. The submit
+ * button lives in the panel's footer and reaches back in via `form={formId}`,
+ * so the panel owns pending / error state and this stays a set of fields.
+ */
+export function NewQuizForm({
+  formId,
+  weeks,
+  disabled,
+  error,
+  onSubmit,
+}: {
+  formId: string;
+  weeks: QuizTargetWeek[];
+  disabled: boolean;
+  error: string | null;
+  onSubmit: (values: NewQuizValues) => void;
+}) {
+  const titleId = `${formId}-title`;
 
   return (
     <form
-      className="space-y-4"
+      id={formId}
+      className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        setError(null);
         const fd = new FormData(e.currentTarget);
-        start(async () => {
-          const res = await createQuizDirect({
-            subjectWeekId: String(fd.get("subjectWeekId") || ""),
-            title: String(fd.get("title") || ""),
-          });
-          if (res.ok) {
-            router.push(`/admin/quizzes/${res.id}`);
-          } else {
-            setError(res.error);
-          }
+        onSubmit({
+          subjectWeekId: String(fd.get("subjectWeekId") ?? ""),
+          title: String(fd.get("title") ?? "").trim(),
         });
       }}
     >
-      <div className="space-y-1.5">
-        <Label htmlFor="new-quiz-week">Subject &amp; week</Label>
-        <Select id="new-quiz-week" name="subjectWeekId" required defaultValue="">
-          <option value="" disabled>
-            Pick a subject week
-          </option>
-          {weeks.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="new-quiz-title">Title</Label>
-        <Input id="new-quiz-title" name="title" required maxLength={200} placeholder="Week 4 quiz" />
-      </div>
-      <div className="flex items-center gap-3 pt-1">
-        <Button type="submit" variant="brand" disabled={pending}>
-          {pending ? "Creating…" : "Create quiz"}
-        </Button>
-        {error && (
-          <span role="alert" className="text-[12px] font-semibold text-bad">
-            {error}
-          </span>
-        )}
-      </div>
+      <fieldset disabled={disabled} className="space-y-5">
+        <div className="space-y-1.5">
+          <Label htmlFor={titleId} className="block font-bold">
+            Title
+          </Label>
+          <Input
+            id={titleId}
+            name="title"
+            required
+            maxLength={200}
+            placeholder="Week 4 quiz"
+            autoComplete="off"
+          />
+        </div>
+
+        <SubjectWeekFields idPrefix={formId} weeks={weeks} />
+      </fieldset>
+
+      {error && (
+        <p role="alert" className="text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

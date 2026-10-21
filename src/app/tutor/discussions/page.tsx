@@ -11,7 +11,6 @@ export default async function TutorDiscussionsPage() {
       boards={boards}
       hrefPrefix="/tutor/discussions"
       title="Answer & guide."
-      subtitle="Reply to questions on the boards for your classes, plus the general help board."
     />
   );
 }

@@ -104,10 +104,7 @@ export default async function ParentClassesPage({
 
       <div className="rise" style={{ animationDelay: "40ms" }}>
         <Card>
-          <SectionHeader
-            title={`${selected.firstName}'s schedule`}
-            description="Click a lesson to open it, then choose Go to subject, Reschedule, or Cancel."
-          />
+          <SectionHeader title={`${selected.firstName}'s schedule`} />
           <div className="p-4 lg:p-5">
             <InteractiveTimetable
               key={selected.id}
