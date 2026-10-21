@@ -6,7 +6,6 @@ import {
   type Term,
 } from "@/db/schema";
 import { inclusiveDayCount } from "@/lib/tutor-cover-rules";
-import { weekOfTermLabel } from "@/lib/term-week";
 
 export async function resolveCurrentTerm(
   date: Date = new Date(),
@@ -61,10 +60,3 @@ export async function termWeekLabel(todayIso: string): Promise<string | null> {
   return `Term ${term.termNumber}, Week ${currentWeekNumber(term, weeks, day)}`;
 }
 
-/** "Term 4, Week 2" or "Holidays" for the Monday-to-Sunday week starting `weekStart` (`weekOfTermLabel`). */
-export async function getWeekOfTermLabel(weekStart: string): Promise<string | null> {
-  const rows = await db
-    .select({ termNumber: terms.termNumber, startDate: terms.startDate, endDate: terms.endDate })
-    .from(terms);
-  return weekOfTermLabel(rows, weekStart);
-}

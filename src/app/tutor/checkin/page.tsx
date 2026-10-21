@@ -32,7 +32,7 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { TutorCheckinActions } from "./_components/checkin-actions";
 import { getPendingCheckinWeeks } from "./_lib/queries";
-import { getWeekOfTermLabel } from "@/lib/curriculum";
+import { checkinWeekNumber } from "@/lib/checkin-week";
 
 export const dynamic = "force-dynamic";
 
@@ -95,10 +95,7 @@ export default async function TutorCheckinPage({
   const week = safeWeek(requestedWeek);
   const nextPending = pending.find((w) => w !== week) ?? null;
   const thisWeek = weekStartForIsoDate(melbourneDate());
-  const [view, termWeek] = await Promise.all([
-    getTutorCheckinWeek(tutor.id, week),
-    getWeekOfTermLabel(week),
-  ]);
+  const view = await getTutorCheckinWeek(tutor.id, week);
   const activeEntries = view.entries.filter((entry) => !entry.isRemoved);
   const correctedCount = activeEntries.filter((entry) => entry.isManualOverride).length;
   const rates = new Set(activeEntries.map((entry) => Number(entry.hourlyRate)));
@@ -145,8 +142,8 @@ export default async function TutorCheckinPage({
       <div className="glass grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-1.5 rounded-[22px] p-1.5">
         <MetricTile
           label="Week"
-          value={termWeek ?? weekRangeLabel(week)}
-          sub={termWeek ? weekRangeLabel(week) : undefined}
+          value={String(checkinWeekNumber(week))}
+          sub={weekRangeLabel(week)}
         />
         <MetricTile
           label="Worked hours"

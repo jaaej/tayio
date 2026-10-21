@@ -727,7 +727,9 @@ Still open after the fixes:
   Move every student up a year: opens when the final term has ended ("Opens when Term 4 ends on Sunday 22 November." before then); the confirmation lists "Year 9 → Year 10: 2 students" rows and any Year 12s still active (archived as finished); students with no readable level (VCE, a typo, none) stay as they are and are linked on the panel to fix.
   Once per school year: migration `0079_school_year_ends.sql` keeps one row per year with who archived and moved whom and each student's old and new level, and both actions lock it and refuse after the move (`src/app/admin/_lib/school-year.ts`, `actions-school-year.ts`); afterwards the panel only says "8 students moved up a year on …".
   The owner's dashboard To do gains "End the {year} school year" once the final term has ended and the move has not happened.
-  Known gap: a 1-on-1 make-up lesson created for an archived student is cancelled only when they were its only booking.
+  The gate is the end date of the year's last term as saved on the Terms page (owner restated on 23 October 2026: at the end of Term 4, as the admin sets it); changing that date moves it.
+  Production data: Term 4 2026 is saved there as 1 to 30 September, so on Production the move would open at once; correct Term 4's dates there before deploying this.
+  A private make-up lesson booked for an archived student (a move or, since 23 October 2026, a credit) is cancelled when nobody else is booked onto or marked on it (`othersOnLesson`).
   Verified on dev in Chrome (WebKit for sign-in): a Year 12 test student made through New user with a parent and a class, archived (both inactive, banned to 2126, enrolment withdrawn, sign-in refused with the new message); with Term 4's end moved to yesterday, the panel and the To do row, the confirmation, the move (8 students up, 6 unreadable left), and the done line; dev then restored (levels, the 2026 row, Term 4's end, test accounts deleted).
 
 - [x] Year level is picked from a list (21 October 2026, needed for moving every student up a year).
@@ -753,12 +755,11 @@ Still open after the fixes:
   Bug fixed on the way (found in the test): Escape in a panel's student search closed the whole New class panel and lost what was typed; `SidePanel` now ignores an Escape a control inside it already used (`defaultPrevented`), the search uses it to close its suggestions, and `ConfirmDialog` takes Escape first so cancelling a confirmation raised from a panel leaves the panel open.
   Verified on dev in Chrome (a class created with two students picked and one removed: only the remaining student enrolled, 16 lessons generated; test class and its 3 notifications deleted) and WebKit (pick, remove, Escape).
 
-- [x] Check-ins name the week of term (21 October 2026, owner request: "we need week number").
-  The tutor's Weekly check-in shows "Term 4, Week 2" in the Week tile with the dates under it, and the admin Tutor check-ins header leads with it; a week with no term day reads "Holidays", and nothing shows when no terms are set.
-  Rule: `weekOfTermLabel` (`src/lib/term-week.ts`, tested), the earliest term with a day in the Monday-to-Sunday week, numbered by `weekNumberOn` like the curriculum and the home headers; query `getWeekOfTermLabel` in `src/lib/curriculum.ts`.
-  Production data: Term 4 2026 is saved as 1 to 30 September, so check-ins there read "Holidays" until an admin corrects the dates in Terms.
-  Dev now has a Term 4 2026 (12 October to 22 November) for testing.
-  Verified on dev in Chrome and WebKit: 19 to 25 October reads Term 4, Week 2 on both pages and 23 to 29 November reads Holidays.
+- [x] Check-ins number the week from Week 200 (23 October 2026, owner request: "we are in week 200, 19/10/26 to 25/10/26, so after it will be week 201").
+  The tutor's Weekly check-in shows the number in the Week tile ("Week" over "200", the dates under it), and the admin Tutor check-ins header leads with "Week 200".
+  Rule: `checkinWeekNumber` (`src/lib/checkin-week.ts`, tested): the Monday-to-Sunday week from 19 October 2026 is 200, one more every week, holidays included; no term dates involved.
+  This replaced "Term 4, Week 2" from 21 October (the owner meant Taiyo's running week number), and with it `src/lib/term-week.ts` and `getWeekOfTermLabel`.
+  Verified on dev in Chrome and WebKit: 19 to 25 October reads 200 on both pages, 26 October to 1 November reads 201 (phone width too).
 
 - [x] Login heading and portal brand (21 October 2026, owner request).
   `/login` reads "Welcome Back." (the owner's words, with a full stop).
