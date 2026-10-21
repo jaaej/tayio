@@ -669,6 +669,11 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Subject cards on Classes follow the owner's mock (21 October 2026).
+  `/admin/classes` Subjects: each subject is its own white card on the glass (`SubjectBlock`, `src/app/admin/_components/subject-block.tsx`): a 4px bar in the subject's colour beside the name (17px extrabold, one line with the full name on hover) and "Year 11 · 1 class" (the subject's number of classes, replacing "N weeks this term"), then Curriculum and Classes as two equal grey buttons.
+  Sizes are the mock's divided by its 116% zoom (measured against the sidebar in the owner's earlier screenshot).
+  Verified on dev in Chrome and WebKit at 1440px (four columns, no label cut off) and at 390px (one column, no sideways scroll).
+
 - [x] Tutors write the end-of-term progress report; admins review and send it (21 October 2026, owner request: "at the end of each term, of the student's progress, and tutor's notes"; owner chose a tutor's summary, ratings, more progress data, PDF only, admin reviews then sends).
   Tutor: `/tutor/reports` (menu item "Term reports" with the count still to write, and a Today To do "Write N term reports") from three weeks before a term ends to four weeks after (`reportWritingTerm`, `src/lib/term-report-entry-rules.ts`, tested); each class they taught that term with its students (To write, Written, Sent) and a writer panel: the subject's term in numbers (grade, attendance, homework handed in, quizzes, curriculum covered), a summary, and Effort, Homework and Understanding rated 1 to 5 (Needs support to Excellent). Once the report has gone to the family the tutor sees it read-only ("Ask an admin to change it.").
   Admin: Reports > Term reports shows "n of m written" per student (all their subjects that term), Review opens the same writer for the class's subject (an admin can always edit), and sending a report, or a class's reports, with a summary missing asks first ("Send anyway").

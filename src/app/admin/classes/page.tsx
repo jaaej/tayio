@@ -9,10 +9,8 @@ import {
   profiles,
   quizzes,
   subjects,
-  subjectWeeks,
   tutorAvailability,
 } from "@/db/schema";
-import { resolveCurrentTerm } from "@/lib/curriculum";
 import { STUDENT_TIERS } from "@/lib/roles";
 import { onRosterSql } from "@/lib/class-roster-sql";
 import {
@@ -80,11 +78,6 @@ type SearchParams = Promise<{
   tutor?: string;
 }>;
 
-function weekLabel(weeks: number) {
-  if (weeks === 0) return "No weeks this term";
-  return `${weeks} week${weeks === 1 ? "" : "s"} this term`;
-}
-
 export default async function ClassesPage({
   searchParams,
 }: {
@@ -94,7 +87,7 @@ export default async function ClassesPage({
   const isMonth = view === "month";
   const todayIso = melbourneDate(new Date());
 
-  const [allRows, tutors, subjectList, currentTerm, quizzesToReview, availabilityRows, studentRows] = await Promise.all([
+  const [allRows, tutors, subjectList, quizzesToReview, availabilityRows, studentRows] = await Promise.all([
     db
       .select({
         id: classes.id,
@@ -140,7 +133,6 @@ export default async function ClassesPage({
       })
       .from(subjects)
       .orderBy(subjects.name),
-    resolveCurrentTerm(),
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(quizzes)
@@ -198,16 +190,9 @@ export default async function ClassesPage({
     endTime: r.endTime,
   }));
 
-  // Weeks planned this term, per subject: one grouped count, only in term.
-  const weekCounts = new Map<string, number>();
-  if (currentTerm) {
-    const weekRows = await db
-      .select({ subjectId: subjectWeeks.subjectId, n: sql<number>`count(*)::int` })
-      .from(subjectWeeks)
-      .where(eq(subjectWeeks.termId, currentTerm.id))
-      .groupBy(subjectWeeks.subjectId);
-    for (const row of weekRows) weekCounts.set(row.subjectId, row.n);
-  }
+  // Each subject's number of classes, under its name.
+  const classCounts = new Map<string, number>();
+  for (const r of allRows) classCounts.set(r.subjectId, (classCounts.get(r.subjectId) ?? 0) + 1);
 
   const tutorFilter = tutor && tutors.some((t) => t.id === tutor) ? tutor : null;
   const rows = tutorFilter
@@ -400,10 +385,13 @@ export default async function ClassesPage({
         titleId="subjects-heading"
         meta={subjectList.length}
         action={<SubjectPanel />}
-        bodyClassName="p-2"
+        // Each subject is its own white card on the glass, as in the mock.
+        bodyClassName="rounded-none bg-transparent p-1 shadow-none"
       >
         {subjectList.length === 0 ? (
-          <Empty>No subjects yet.</Empty>
+          <div className="panel">
+            <Empty>No subjects yet.</Empty>
+          </div>
         ) : (
           <ul
             className="grid gap-2"
@@ -419,11 +407,7 @@ export default async function ClassesPage({
                   name={s.name}
                   color={s.color}
                   yearLevel={s.yearLevel}
-                  detail={
-                    currentTerm
-                      ? weekLabel(weekCounts.get(s.id) ?? 0)
-                      : undefined
-                  }
+                  detail={`${classCounts.get(s.id) ?? 0} ${classCounts.get(s.id) === 1 ? "class" : "classes"}`}
                 />
               </li>
             ))}
