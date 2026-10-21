@@ -4,6 +4,7 @@ import { getQuizWithContent } from "@/lib/quiz-queries";
 import { QuizMaker } from "@/components/quiz/quiz-maker";
 import { quizNotes } from "@/lib/quiz-notes";
 import { ReviewControls } from "./_components/review-controls";
+import { MajorQuizToggle } from "./_components/major-quiz-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +32,10 @@ export default async function AdminQuizDetailPage({
       hrefBack={`/admin/subjects/${quiz.subjectId}/curriculum?term=${quiz.termId}&week=${quiz.subjectWeekId}`}
       backLabel="Back to curriculum week"
       headerActions={
-        quiz.status === "pending_review" ? (
-          <ReviewControls quizId={quiz.id} />
-        ) : undefined
+        <>
+          <MajorQuizToggle quizId={quiz.id} isMajor={quiz.isMajor} />
+          {quiz.status === "pending_review" && <ReviewControls quizId={quiz.id} />}
+        </>
       }
       notes={quizNotes(quiz)}
     />

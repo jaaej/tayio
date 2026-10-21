@@ -3,8 +3,9 @@
 import { Input, Label } from "@/components/ui/input";
 import type { QuizTargetWeek } from "@/lib/quiz-queries";
 import { SubjectWeekFields } from "./subject-week-fields";
+import { MajorQuizField } from "./major-quiz-field";
 
-export type NewQuizValues = { subjectWeekId: string; title: string };
+export type NewQuizValues = { subjectWeekId: string; title: string; isMajor: boolean };
 
 /**
  * Body of the "I'll write it" tab of the new-quiz slide-over. The submit
@@ -36,6 +37,7 @@ export function NewQuizForm({
         onSubmit({
           subjectWeekId: String(fd.get("subjectWeekId") ?? ""),
           title: String(fd.get("title") ?? "").trim(),
+          isMajor: fd.get("isMajor") === "on",
         });
       }}
     >
@@ -55,6 +57,8 @@ export function NewQuizForm({
         </div>
 
         <SubjectWeekFields idPrefix={formId} weeks={weeks} />
+
+        <MajorQuizField id={`${formId}-major`} />
       </fieldset>
 
       {error && (

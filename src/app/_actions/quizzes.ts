@@ -156,16 +156,19 @@ async function quizIdAndTypeForOption(
 export async function createQuizDirect(input: {
   subjectWeekId: string;
   title: string;
+  /** Counts towards the term report's ratings (migration 0083). */
+  isMajor?: boolean;
 }): Promise<CreateResult> {
   const user = await requireAdmin();
   const parsed = z
     .object({
       subjectWeekId: z.string().uuid(),
       title: z.string().trim().min(1).max(200),
+      isMajor: z.boolean().default(false),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { subjectWeekId, title } = parsed.data;
+  const { subjectWeekId, title, isMajor } = parsed.data;
 
   const [week] = await db
     .select({ subjectId: subjectWeeks.subjectId })
@@ -186,6 +189,7 @@ export async function createQuizDirect(input: {
         subjectWeekId,
         title,
         status: "draft",
+        isMajor,
         createdBy: user.id,
       })
       .returning({ id: quizzes.id });
@@ -206,6 +210,8 @@ export async function requestQuiz(input: {
   title: string;
   tutorId: string;
   note?: string;
+  /** Counts towards the term report's ratings (migration 0083). */
+  isMajor?: boolean;
 }): Promise<CreateResult> {
   const user = await requireAdmin();
   const parsed = z
@@ -214,10 +220,11 @@ export async function requestQuiz(input: {
       title: z.string().trim().min(1).max(200),
       tutorId: z.string().uuid(),
       note: z.string().trim().max(5000).optional(),
+      isMajor: z.boolean().default(false),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { subjectWeekId, title, tutorId, note } = parsed.data;
+  const { subjectWeekId, title, tutorId, note, isMajor } = parsed.data;
 
   const [week] = await db
     .select({
@@ -254,6 +261,7 @@ export async function requestQuiz(input: {
         subjectWeekId,
         title,
         status: "requested",
+        isMajor,
         createdBy: user.id,
         assignedTutorId: tutorId,
         note: note && note.length > 0 ? note : null,
@@ -279,6 +287,25 @@ export async function requestQuiz(input: {
 
   revalidate(row.id);
   return { ok: true, id: row.id };
+}
+
+/**
+ * Mark a quiz as major (its scores count towards the term report's 1 to 6
+ * ratings) or as practice. Admin only; any time, since ratings are worked
+ * out when a report is opened.
+ */
+export async function setQuizMajor(input: { quizId: string; isMajor: boolean }): Promise<Result> {
+  await requireAdmin();
+  const parsed = z.object({ quizId: z.string().uuid(), isMajor: z.boolean() }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const updated = await db
+    .update(quizzes)
+    .set({ isMajor: parsed.data.isMajor })
+    .where(eq(quizzes.id, parsed.data.quizId))
+    .returning({ id: quizzes.id });
+  if (updated.length === 0) return { ok: false, error: "Quiz not found." };
+  revalidate(parsed.data.quizId);
+  return { ok: true };
 }
 
 // --- Shared editing (admin or assigned tutor) ---------------------------

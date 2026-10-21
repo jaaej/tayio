@@ -71,6 +71,8 @@ export type QuizWithContent = {
     id: string;
     title: string;
     status: string;
+    /** Counts towards term report ratings (migration 0083). */
+    isMajor: boolean;
     subjectId: string;
     subjectName: string;
     subjectWeekId: string;
@@ -256,6 +258,7 @@ export async function getQuizWithContent(
       id: quizzes.id,
       title: quizzes.title,
       status: quizzes.status,
+      isMajor: quizzes.isMajor,
       subjectId: quizzes.subjectId,
       subjectName: subjects.name,
       subjectWeekId: quizzes.subjectWeekId,

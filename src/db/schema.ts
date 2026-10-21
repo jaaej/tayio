@@ -4,7 +4,6 @@ import {
   text,
   timestamp,
   integer,
-  smallint,
   boolean,
   date,
   time,
@@ -1161,8 +1160,8 @@ export const schoolYearEnds = pgTable("school_year_ends", {
 
 /**
  * The tutor's part of a student's term report for one subject (migration
- * 0081): a summary of the term and effort, homework and understanding rated
- * 1 to 5. Read into the PDF by `getStudentTermReport`.
+ * 0081): strengths, what to work on and goals for next term. Read into the
+ * PDF by `getStudentTermReport`.
  */
 export const termReportEntries = pgTable(
   "term_report_entries",
@@ -1177,10 +1176,9 @@ export const termReportEntries = pgTable(
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
-    summary: text("summary").notNull(),
-    effort: smallint("effort").notNull(),
-    homework: smallint("homework").notNull(),
-    understanding: smallint("understanding").notNull(),
+    strengths: text("strengths").notNull(),
+    toWorkOn: text("to_work_on").notNull(),
+    goals: text("goals").notNull(),
     writtenBy: uuid("written_by").references(() => profiles.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1491,6 +1489,8 @@ export const quizzes = pgTable(
       .references(() => subjectWeeks.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     status: quizStatusEnum("status").notNull().default("draft"),
+    /** Counts towards the term report's ratings (migration 0083). */
+    isMajor: boolean("is_major").notNull().default(false),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => profiles.id),

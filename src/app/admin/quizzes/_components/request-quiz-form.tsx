@@ -4,12 +4,14 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { QuizTargetWeek } from "@/lib/quiz-queries";
 import { SubjectWeekFields } from "./subject-week-fields";
+import { MajorQuizField } from "./major-quiz-field";
 
 export type RequestQuizValues = {
   subjectWeekId: string;
   title: string;
   tutorId: string;
   note?: string;
+  isMajor: boolean;
 };
 
 /**
@@ -48,6 +50,7 @@ export function RequestQuizForm({
           title: String(fd.get("title") ?? "").trim(),
           tutorId: String(fd.get("tutorId") ?? ""),
           note: note.length > 0 ? note : undefined,
+          isMajor: fd.get("isMajor") === "on",
         });
       }}
     >
@@ -97,6 +100,8 @@ export function RequestQuizForm({
             className="w-full rounded-[10px] border border-line-field bg-card px-4 py-2.5 text-sm text-ink placeholder:text-muted/70 transition-colors focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20"
           />
         </div>
+
+        <MajorQuizField id={`${formId}-major`} />
       </fieldset>
 
       {error && (

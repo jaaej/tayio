@@ -9,15 +9,9 @@ import {
   saveTermReportEntry,
   type ReportEntryContext,
 } from "@/app/_actions/term-report-entries";
-import {
-  RATING_SCALE,
-  REPORT_RATINGS,
-  SUMMARY_MAX,
-  checkEntry,
-  ratingLabel,
-  type RatingKey,
-  type Ratings,
-} from "@/lib/term-report-entry-rules";
+import { FIELD_MAX, REPORT_FIELDS, checkEntry, type EntryText } from "@/lib/term-report-entry-rules";
+import { BANDS } from "@/lib/attainment-bands";
+import type { BandRating } from "@/lib/student-report";
 import { cn } from "@/lib/utils";
 
 export type ReportTarget = {
@@ -30,87 +24,62 @@ export type ReportTarget = {
 
 const SECTION = "panel flex flex-col gap-3 p-[18px]";
 const HEADING = "text-[13px] font-extrabold text-muted";
+const EMPTY: EntryText = { strengths: "", toWorkOn: "", goals: "" };
 
-function count(n: number, one: string, many = `${one}s`) {
-  return `${n} ${n === 1 ? one : many}`;
-}
-
-/** The subject's term in numbers, to write the summary from. */
-function TermFacts({ subject }: { subject: ReportEntryContext["subject"] }) {
-  const facts = [
-    ["Grade", subject.grade ? `${subject.grade.letter} · ${subject.grade.percent}%` : "No quiz or test scores yet"],
-    ["Attendance", subject.attendance.total > 0 ? `${subject.attendance.attended} of ${count(subject.attendance.total, "lesson")}` : "No lessons marked yet"],
-    ["Homework handed in", subject.homework.set > 0 ? `${subject.homework.handedIn} of ${subject.homework.set}` : "None set"],
-    ["Quizzes", subject.quizzes.length > 0 ? subject.quizzes.map((q) => `${q.label} ${q.percent}%`).join(", ") : "None taken"],
-    ["Covered", subject.topics.length > 0 ? subject.topics.join("; ") : "No curriculum weeks yet"],
-  ];
+/** Six steps filled up to the band, with its name; as on the report. */
+function Rating({ rating }: { rating: BandRating | null }) {
+  if (!rating) return <span className="text-[13px] text-muted">Not yet assessed</span>;
   return (
-    <dl className="grid gap-2 text-[13px]">
-      {facts.map(([label, value]) => (
-        <div key={label} className="grid grid-cols-[132px_minmax(0,1fr)] gap-2">
-          <dt className="font-bold text-ink">{label}</dt>
-          <dd className="text-ink-soft [overflow-wrap:anywhere]">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <span className="flex items-center gap-2">
+      <span className="flex gap-0.5" aria-hidden>
+        {BANDS.map((b) => (
+          <span
+            key={b.value}
+            className={cn("h-1.5 w-3 rounded-[2px]", b.value <= rating.band ? "bg-brand-400" : "bg-surface-3")}
+          />
+        ))}
+      </span>
+      <span className="text-[13px] font-bold text-ink">{rating.label}</span>
+    </span>
   );
 }
 
-function RatingField({
-  ratingKey,
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  ratingKey: RatingKey;
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  disabled: boolean;
-}) {
-  const name = useId();
+/** The subject's term from the portal's records, to write from. */
+function TermFacts({ subject }: { subject: ReportEntryContext["subject"] }) {
   return (
-    <fieldset className="flex flex-col gap-1.5" disabled={disabled}>
-      <legend className="mb-1.5 flex w-full items-baseline justify-between gap-2 text-[14px] font-bold text-ink">
-        {label}
-        <span className="text-[12px] font-semibold text-ink-soft">{value ? ratingLabel(value) : "Not rated"}</span>
-      </legend>
-      <div className="grid grid-cols-5 gap-1 rounded-[12px] bg-surface-2 p-1">
-        {RATING_SCALE.map((word, i) => {
-          const n = i + 1;
-          return (
-            <label
-              key={word}
-              title={word}
-              className={cn(
-                "grid h-10 cursor-pointer place-items-center rounded-[9px] text-[14px] font-extrabold tabular-nums transition-colors duration-150",
-                "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400",
-                value === n ? "bg-white text-ink shadow-[0_1px_3px_rgba(23,21,43,.12)]" : "text-ink-soft hover:text-ink",
-                disabled && "cursor-default",
-              )}
-            >
-              <input
-                type="radio"
-                name={`${name}-${ratingKey}`}
-                value={n}
-                checked={value === n}
-                onChange={() => onChange(n)}
-                className="sr-only"
-                aria-label={`${label} ${n}, ${word}`}
-              />
-              {n}
-            </label>
-          );
-        })}
+    <div className="flex flex-col gap-3 text-[13px]">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-bold text-ink">Overall</span>
+          <Rating rating={subject.overall} />
+        </div>
+        {subject.topicRatings.map((t) => (
+          <div key={t.name} className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-ink-soft">{t.name}</span>
+            <Rating rating={t.rating} />
+          </div>
+        ))}
       </div>
-    </fieldset>
+      <dl className="grid gap-1.5 border-t border-line pt-3">
+        {[
+          ["Results", subject.results.length > 0 ? subject.results.map((r) => `${r.label} ${r.percent}%`).join(", ") : "No quizzes or tests yet"],
+          ["Attendance", subject.attendance.total > 0 ? `${subject.attendance.attended} of ${subject.attendance.total} lessons` : "No lessons marked yet"],
+          ["Homework handed in", subject.homework.set > 0 ? `${subject.homework.handedIn} of ${subject.homework.set}` : "None set"],
+        ].map(([label, value]) => (
+          <div key={label} className="grid grid-cols-[132px_minmax(0,1fr)] gap-2">
+            <dt className="font-bold text-ink">{label}</dt>
+            <dd className="text-ink-soft [overflow-wrap:anywhere]">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
 /**
- * The tutor's part of one student's term report for one subject: the term's
- * numbers to write from, a summary and three ratings. The same panel for
+ * The tutor's part of one student's term report for one subject: the term
+ * from the portal's records (the system's ratings, results, attendance) and
+ * the tutor's strengths, things to work on and goals. The same panel for
  * tutors (Term reports) and admins (Reports > Term reports, to review).
  */
 export function TermReportWriter({
@@ -123,11 +92,10 @@ export function TermReportWriter({
   const router = useRouter();
   const [context, setContext] = useState<ReportEntryContext | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [summary, setSummary] = useState("");
-  const [ratings, setRatings] = useState<Ratings>({ effort: 0, homework: 0, understanding: 0 });
+  const [text, setText] = useState<EntryText>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const summaryId = useId();
+  const fieldId = useId();
 
   useEffect(() => {
     if (!target) return;
@@ -143,12 +111,8 @@ export function TermReportWriter({
           return;
         }
         setContext(res.context);
-        setSummary(res.context.entry?.summary ?? "");
-        setRatings({
-          effort: res.context.entry?.effort ?? 0,
-          homework: res.context.entry?.homework ?? 0,
-          understanding: res.context.entry?.understanding ?? 0,
-        });
+        const entry = res.context.entry;
+        setText(entry ? { strengths: entry.strengths, toWorkOn: entry.toWorkOn, goals: entry.goals } : EMPTY);
       })
       .catch(() => live && setLoadError("This report could not be opened. Try again."));
     return () => {
@@ -160,14 +124,14 @@ export function TermReportWriter({
 
   function save() {
     if (!target) return;
-    const invalid = checkEntry({ summary, ...ratings });
+    const invalid = checkEntry(text);
     if (invalid) {
       setError(invalid);
       return;
     }
     setError(null);
     start(async () => {
-      const res = await saveTermReportEntry({ ...target, summary, ...ratings }).catch(() => null);
+      const res = await saveTermReportEntry({ ...target, ...text }).catch(() => null);
       if (!res) setError("It could not be saved. Try again.");
       else if (!res.ok) setError(res.error);
       else {
@@ -219,40 +183,30 @@ export function TermReportWriter({
               {readOnly}
             </p>
           )}
-          <section className={SECTION} aria-labelledby={`${summaryId}-facts`}>
-            <h3 id={`${summaryId}-facts`} className={HEADING}>
+          <section className={SECTION} aria-labelledby={`${fieldId}-facts`}>
+            <h3 id={`${fieldId}-facts`} className={HEADING}>
               This term
             </h3>
             <TermFacts subject={context.subject} />
           </section>
 
           <section className={SECTION}>
-            <label htmlFor={summaryId} className={HEADING}>
-              Summary
-            </label>
-            <textarea
-              id={summaryId}
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              readOnly={Boolean(readOnly)}
-              rows={8}
-              maxLength={SUMMARY_MAX}
-              placeholder="How the term went, what they did well, and what to work on next."
-              className="w-full resize-y rounded-[12px] border border-line-field bg-white px-3.5 py-3 text-[15px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 read-only:bg-surface-2"
-            />
-          </section>
-
-          <section className={SECTION}>
-            <h3 className={HEADING}>Ratings</h3>
-            {REPORT_RATINGS.map((r) => (
-              <RatingField
-                key={r.key}
-                ratingKey={r.key}
-                label={r.label}
-                value={ratings[r.key]}
-                disabled={Boolean(readOnly) || pending}
-                onChange={(value) => setRatings((prev) => ({ ...prev, [r.key]: value }))}
-              />
+            {REPORT_FIELDS.map((f) => (
+              <div key={f.key} className="flex flex-col gap-1.5">
+                <label htmlFor={`${fieldId}-${f.key}`} className="text-[14px] font-bold text-ink">
+                  {f.label}
+                </label>
+                <textarea
+                  id={`${fieldId}-${f.key}`}
+                  value={text[f.key]}
+                  onChange={(e) => setText((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  readOnly={Boolean(readOnly)}
+                  rows={3}
+                  maxLength={FIELD_MAX}
+                  placeholder={f.hint}
+                  className="w-full resize-y rounded-[12px] border border-line-field bg-white px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 read-only:bg-surface-2"
+                />
+              </div>
             ))}
           </section>
 

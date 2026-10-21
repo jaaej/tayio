@@ -21,10 +21,9 @@ const keySchema = z.object({
 });
 
 const entrySchema = keySchema.extend({
-  summary: z.string().max(8000),
-  effort: z.number().int(),
-  homework: z.number().int(),
-  understanding: z.number().int(),
+  strengths: z.string().max(4000),
+  toWorkOn: z.string().max(4000),
+  goals: z.string().max(4000),
 });
 
 type Writer = { id: string; role: "admin" | "tutor" };
@@ -148,10 +147,9 @@ export async function saveTermReportEntry(
 
   const now = new Date();
   const values = {
-    summary: data.summary.trim(),
-    effort: data.effort,
-    homework: data.homework,
-    understanding: data.understanding,
+    strengths: data.strengths.trim(),
+    toWorkOn: data.toWorkOn.trim(),
+    goals: data.goals.trim(),
     writtenBy: writer.id,
     updatedAt: now,
   };

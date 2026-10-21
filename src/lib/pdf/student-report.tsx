@@ -1,19 +1,17 @@
 import "server-only";
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-} from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { PDF_BRAND } from "./brand";
-import type { StudentTermReport, SubjectReport } from "@/lib/student-report";
-import { REPORT_RATINGS, ratingLabel } from "@/lib/term-report-entry-rules";
+import type { BandRating, StudentTermReport, SubjectReport } from "@/lib/student-report";
+import { BANDS } from "@/lib/attainment-bands";
+
+const GREEN = "#16A34A";
+const RED = "#DC2626";
+const GREY = "#CBD5E1";
 
 const s = StyleSheet.create({
   page: {
     paddingTop: 44,
-    paddingBottom: 48,
+    paddingBottom: 54,
     paddingHorizontal: 44,
     fontSize: 10,
     color: PDF_BRAND.ink,
@@ -26,81 +24,71 @@ const s = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: PDF_BRAND.indigo,
     paddingBottom: 10,
-    marginBottom: 18,
+    marginBottom: 16,
   },
-  company: {
-    fontSize: 16,
-    fontFamily: "Helvetica-Bold",
-    color: PDF_BRAND.indigoDark,
-  },
+  company: { fontSize: 16, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark },
   docTitle: { fontSize: 10, color: PDF_BRAND.muted, marginTop: 2 },
-  metaRight: { fontSize: 10, color: PDF_BRAND.inkSoft, textAlign: "right" },
-  studentName: { fontSize: 13, fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
-  topRow: { flexDirection: "row", gap: 12, marginBottom: 22 },
+  studentName: { fontSize: 13, fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink, textAlign: "right" },
+  metaRight: { fontSize: 9.5, color: PDF_BRAND.inkSoft, textAlign: "right", marginTop: 1 },
+  topRow: { flexDirection: "row", gap: 12, marginBottom: 18 },
   card: {
     flex: 1,
     borderWidth: 1,
     borderColor: PDF_BRAND.line,
     borderRadius: 6,
-    padding: 12,
+    padding: 11,
     backgroundColor: PDF_BRAND.surfaceTint,
   },
-  cardLabel: {
-    fontSize: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    color: PDF_BRAND.muted,
-    fontFamily: "Helvetica-Bold",
-  },
-  bigValue: {
-    fontSize: 22,
-    fontFamily: "Helvetica-Bold",
-    color: PDF_BRAND.indigoDark,
-    marginTop: 4,
-  },
-  cardSub: { fontSize: 8, color: PDF_BRAND.muted, marginTop: 3 },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: PDF_BRAND.ink,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  subject: {
-    borderWidth: 1,
-    borderColor: PDF_BRAND.line,
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 10,
-  },
-  subjectHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  subjectName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
-  subjectTutor: { fontSize: 8.5, color: PDF_BRAND.muted, marginTop: 2 },
-  grade: { fontSize: 12, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark, textAlign: "right" },
-  gradeSub: { fontSize: 8, color: PDF_BRAND.muted, textAlign: "right", marginTop: 2 },
-  ratings: { flexDirection: "row", gap: 10, marginTop: 10 },
-  rating: { flex: 1, backgroundColor: PDF_BRAND.surfaceTint, borderRadius: 5, padding: 7 },
-  ratingLabel: {
+  label: {
     fontSize: 7.5,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     color: PDF_BRAND.muted,
     fontFamily: "Helvetica-Bold",
   },
-  dots: { flexDirection: "row", gap: 3, marginTop: 5, alignItems: "center" },
-  dot: { width: 7, height: 7, borderRadius: 3.5 },
-  ratingWord: { fontSize: 8.5, color: PDF_BRAND.inkSoft, marginLeft: 5 },
-  facts: { marginTop: 9, fontSize: 9, color: PDF_BRAND.inkSoft, lineHeight: 1.45 },
-  factLabel: { fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
-  summary: {
-    marginTop: 9,
-    borderLeftWidth: 2,
-    borderLeftColor: PDF_BRAND.indigo,
-    paddingLeft: 8,
+  bigValue: { fontSize: 20, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark, marginTop: 3 },
+  cardSub: { fontSize: 8, color: PDF_BRAND.muted, marginTop: 2 },
+  subject: { borderWidth: 1, borderColor: PDF_BRAND.line, borderRadius: 6, padding: 12, marginBottom: 12 },
+  subjectHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
+  subjectName: { fontSize: 12.5, fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
+  subjectTutor: { fontSize: 8.5, color: PDF_BRAND.muted, marginTop: 2 },
+  overallBox: { alignItems: "flex-end" },
+  bandWord: { fontSize: 10, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark, marginTop: 3 },
+  section: { marginTop: 10 },
+  sectionTitle: {
+    fontSize: 7.5,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    color: PDF_BRAND.muted,
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 4,
   },
-  summaryText: { fontSize: 9.5, color: PDF_BRAND.ink, lineHeight: 1.5 },
-  summaryBy: { fontSize: 8, color: PDF_BRAND.muted, marginTop: 3 },
-  empty: { fontSize: 9, color: PDF_BRAND.muted, paddingVertical: 6 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 3,
+    borderBottomWidth: 0.5,
+    borderBottomColor: PDF_BRAND.line,
+  },
+  rowName: { flex: 1, fontSize: 9, color: PDF_BRAND.inkSoft },
+  tag: { width: 58, fontSize: 7.5, color: PDF_BRAND.muted, textAlign: "right" },
+  percent: { width: 40, fontSize: 9, color: PDF_BRAND.ink, textAlign: "right", fontFamily: "Helvetica-Bold" },
+  steps: { flexDirection: "row", gap: 2 },
+  step: { width: 12, height: 6, borderRadius: 1.5 },
+  stripRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
+  stripLabel: { width: 150, fontSize: 8.5, color: PDF_BRAND.inkSoft },
+  squares: { flexDirection: "row", flexWrap: "wrap", gap: 2, flex: 1 },
+  square: { width: 8, height: 8, borderRadius: 1.5 },
+  stripCount: { width: 76, fontSize: 8, color: PDF_BRAND.muted, textAlign: "right" },
+  legend: { flexDirection: "row", gap: 10, marginTop: 3 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 3, fontSize: 7.5, color: PDF_BRAND.muted },
+  facts: { fontSize: 9, color: PDF_BRAND.inkSoft, lineHeight: 1.45 },
+  factLabel: { fontFamily: "Helvetica-Bold", color: PDF_BRAND.ink },
+  comment: { marginTop: 5 },
+  commentLabel: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: PDF_BRAND.indigoDark },
+  commentText: { fontSize: 9.5, color: PDF_BRAND.ink, lineHeight: 1.45, marginTop: 1 },
+  commentBy: { fontSize: 8, color: PDF_BRAND.muted, marginTop: 4 },
+  empty: { fontSize: 8.5, color: PDF_BRAND.muted },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -115,57 +103,145 @@ const s = StyleSheet.create({
   footerText: { fontSize: 8, color: PDF_BRAND.muted },
 });
 
-function gradeText(g: StudentTermReport["overall"]): string {
-  return g ? `${g.letter} · ${g.percent}%` : "-";
-}
-
-function Dots({ value }: { value: number }) {
+/** Six steps, filled up to the band. */
+function Steps({ band }: { band: number }) {
   return (
-    <View style={s.dots}>
-      {[1, 2, 3, 4, 5].map((i) => (
+    <View style={s.steps}>
+      {BANDS.map((b) => (
         <View
-          key={i}
-          style={[s.dot, { backgroundColor: i <= value ? PDF_BRAND.indigo : PDF_BRAND.line }]}
+          key={b.value}
+          style={[s.step, { backgroundColor: b.value <= band ? PDF_BRAND.indigo : PDF_BRAND.line }]}
         />
       ))}
-      <Text style={s.ratingWord}>{ratingLabel(value)}</Text>
     </View>
   );
 }
 
+function RatingCell({ rating }: { rating: BandRating | null }) {
+  if (!rating) return <Text style={[s.empty, { width: 170, textAlign: "right" }]}>Not yet assessed</Text>;
+  return (
+    <View style={{ width: 170, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+      <Steps band={rating.band} />
+      <Text style={{ width: 80, fontSize: 9, color: PDF_BRAND.ink, textAlign: "right" }}>{rating.label}</Text>
+    </View>
+  );
+}
+
+const SQUARE_COLOUR = {
+  attended: GREEN,
+  made_up: GREEN,
+  missed: RED,
+  cancelled: GREY,
+  unmarked: "#ffffff",
+} as const;
+
 function SubjectBlock({ sub }: { sub: SubjectReport }) {
   const facts = [
-    sub.attendance.total > 0 ? ["Attendance", `${sub.attendance.attended} of ${sub.attendance.total} lessons`] : null,
     sub.homework.set > 0 ? ["Homework handed in", `${sub.homework.handedIn} of ${sub.homework.set}`] : null,
-    sub.quizzes.length > 0
-      ? ["Quizzes", sub.quizzes.map((q) => `${q.label} ${q.percent}%`).join(", ")]
-      : null,
-    sub.topics.length > 0 ? ["Covered", sub.topics.join("; ")] : null,
+    sub.covered.length > 0 ? ["Covered", sub.covered.join("; ")] : null,
   ].filter((f): f is [string, string] => f !== null);
   return (
-    <View style={s.subject} wrap={false}>
-      <View style={s.subjectHead}>
+    <View style={s.subject}>
+      <View style={s.subjectHead} wrap={false}>
         <View>
           <Text style={s.subjectName}>{sub.subjectName}</Text>
           {sub.tutorNames.length > 0 && <Text style={s.subjectTutor}>{sub.tutorNames.join(", ")}</Text>}
         </View>
-        <View>
-          <Text style={s.grade}>{sub.grade ? `${sub.grade.letter} · ${sub.grade.percent}%` : "-"}</Text>
-          <Text style={s.gradeSub}>{sub.grade ? "Quiz + test average" : "No scores yet"}</Text>
+        <View style={s.overallBox}>
+          <Text style={s.label}>Overall</Text>
+          {sub.overall ? (
+            <>
+              <View style={{ marginTop: 4 }}>
+                <Steps band={sub.overall.band} />
+              </View>
+              <Text style={s.bandWord}>{sub.overall.label}</Text>
+            </>
+          ) : (
+            <Text style={[s.empty, { marginTop: 3 }]}>Not yet assessed</Text>
+          )}
         </View>
       </View>
-      {sub.entry && (
-        <View style={s.ratings}>
-          {REPORT_RATINGS.map((r) => (
-            <View key={r.key} style={s.rating}>
-              <Text style={s.ratingLabel}>{r.label}</Text>
-              <Dots value={sub.entry![r.key]} />
+
+      {sub.topicRatings.length > 0 && (
+        <View style={s.section} wrap={false}>
+          <Text style={s.sectionTitle}>Topics</Text>
+          {sub.topicRatings.map((t) => (
+            <View key={t.name} style={s.row}>
+              <Text style={s.rowName}>{t.name}</Text>
+              <RatingCell rating={t.rating} />
             </View>
           ))}
         </View>
       )}
+
+      <View style={s.section} wrap={false}>
+        <Text style={s.sectionTitle}>Quiz and test results</Text>
+        {sub.results.length === 0 ? (
+          <Text style={s.empty}>No quizzes or tests this term.</Text>
+        ) : (
+          sub.results.map((r, i) => (
+            <View key={`${r.label}-${i}`} style={s.row}>
+              <Text style={s.rowName}>{r.label}</Text>
+              <Text style={s.tag}>{r.kind === "test" ? "Test" : r.counts ? "Major quiz" : "Quiz"}</Text>
+              <Text style={s.percent}>{r.percent}%</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      {sub.attendanceHistory.length > 0 && (
+        <View style={s.section} wrap={false}>
+          <Text style={s.sectionTitle}>Attendance</Text>
+          {sub.attendanceHistory.map((h) => {
+            const counted = h.cells.filter((c) => c.state !== "cancelled" && c.state !== "unmarked");
+            const attended = counted.filter((c) => c.state !== "missed").length;
+            return (
+              <View key={h.classLabel} style={s.stripRow}>
+                <Text style={s.stripLabel}>{h.classLabel}</Text>
+                <View style={s.squares}>
+                  {h.cells.map((c) => (
+                    <View
+                      key={c.date}
+                      style={[
+                        s.square,
+                        { backgroundColor: SQUARE_COLOUR[c.state] },
+                        c.state === "unmarked" ? { borderWidth: 0.75, borderColor: GREY } : {},
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={s.stripCount}>
+                  {counted.length > 0 ? `${attended} of ${counted.length} attended` : ""}
+                </Text>
+              </View>
+            );
+          })}
+          <View style={s.legend}>
+            {[
+              [GREEN, "Attended, or made up that week"],
+              [RED, "Missed"],
+              [GREY, "Cancelled by Taiyo"],
+              ...(sub.attendanceHistory.some((h) => h.cells.some((c) => c.state === "unmarked"))
+                ? [["#ffffff", "Not recorded"]]
+                : []),
+            ].map(([colour, text]) => (
+              <View key={text} style={s.legendItem}>
+                <View
+                  style={[
+                    s.square,
+                    { backgroundColor: colour },
+                    colour === "#ffffff" ? { borderWidth: 0.75, borderColor: GREY } : {},
+                  ]}
+                />
+                <Text>{text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       {facts.length > 0 && (
-        <View style={s.facts}>
+        <View style={[s.section, s.facts]} wrap={false}>
           {facts.map(([label, value]) => (
             <Text key={label}>
               <Text style={s.factLabel}>{label}: </Text>
@@ -174,10 +250,21 @@ function SubjectBlock({ sub }: { sub: SubjectReport }) {
           ))}
         </View>
       )}
+
       {sub.entry && (
-        <View style={s.summary}>
-          <Text style={s.summaryText}>{sub.entry.summary}</Text>
-          {sub.entry.writtenBy && <Text style={s.summaryBy}>{sub.entry.writtenBy}</Text>}
+        <View style={s.section} wrap={false}>
+          <Text style={s.sectionTitle}>From the tutor</Text>
+          {[
+            ["Strengths", sub.entry.strengths],
+            ["To work on", sub.entry.toWorkOn],
+            ["Goals for next term", sub.entry.goals],
+          ].map(([label, text]) => (
+            <View key={label} style={s.comment}>
+              <Text style={s.commentLabel}>{label}</Text>
+              <Text style={s.commentText}>{text}</Text>
+            </View>
+          ))}
+          {sub.entry.writtenBy && <Text style={s.commentBy}>{sub.entry.writtenBy}</Text>}
         </View>
       )}
     </View>
@@ -193,6 +280,8 @@ export function StudentReportPdf({
 }) {
   const { student, term } = report;
   const studentName = `${student.firstName} ${student.lastName}`.trim();
+  const homeworkPct =
+    report.homework.set > 0 ? `${Math.round((report.homework.handedIn / report.homework.set) * 100)}%` : "-";
   return (
     <Document
       title={`${studentName} - ${term.year} Term ${term.termNumber} report`}
@@ -207,38 +296,43 @@ export function StudentReportPdf({
           <View>
             <Text style={s.studentName}>{studentName}</Text>
             <Text style={s.metaRight}>
-              {student.yearLevel ? `${student.yearLevel} · ` : ""}
-              {term.year} Term {term.termNumber}
+              {[student.yearLevel, student.school, `${term.year} Term ${term.termNumber}`]
+                .filter(Boolean)
+                .join(" · ")}
             </Text>
           </View>
         </View>
 
         <View style={s.topRow}>
           <View style={s.card}>
-            <Text style={s.cardLabel}>Overall grade</Text>
-            <Text style={s.bigValue}>{gradeText(report.overall)}</Text>
-            <Text style={s.cardSub}>Quiz + test average, equal weight</Text>
-          </View>
-          <View style={s.card}>
-            <Text style={s.cardLabel}>Attendance</Text>
+            <Text style={s.label}>Attendance</Text>
             <Text style={s.bigValue}>
-              {report.attendance.percent !== null
-                ? `${report.attendance.percent}%`
-                : "-"}
+              {report.attendance.percent !== null ? `${report.attendance.percent}%` : "-"}
             </Text>
             <Text style={s.cardSub}>
-              {report.attendance.present}/{report.attendance.total} lessons
-              attended
+              {report.attendance.present} of {report.attendance.total} lessons attended
+            </Text>
+          </View>
+          <View style={s.card}>
+            <Text style={s.label}>Homework handed in</Text>
+            <Text style={s.bigValue}>{homeworkPct}</Text>
+            <Text style={s.cardSub}>
+              {report.homework.handedIn} of {report.homework.set} tasks
             </Text>
           </View>
         </View>
 
-        <Text style={s.sectionTitle}>Subjects</Text>
         {report.subjects.length === 0 ? (
           <Text style={s.empty}>No classes this term.</Text>
         ) : (
           report.subjects.map((sub) => <SubjectBlock key={sub.subjectId} sub={sub} />)
         )}
+
+        <Text style={[s.empty, { marginTop: 2, lineHeight: 1.4 }]}>
+          Ratings place a student among everyone taking the same subject this term, from its topic tests and
+          major quizzes, from Below average through Low average, Average, High average and Above average to
+          Proficient. Where fewer than ten students have a score, the rating comes from the score itself.
+        </Text>
 
         <View style={s.footer} fixed>
           <Text style={s.footerText}>

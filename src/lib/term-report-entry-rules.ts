@@ -1,25 +1,32 @@
 /**
- * The tutor's part of a term report (migration 0081): a summary of the term
- * per student and subject, and three ratings from 1 to 5.
+ * The tutor's part of a term report (migration 0081): strengths, what to work
+ * on and goals, per student and subject. The report's ratings are the
+ * system's (`attainment-bands`), not the tutor's.
  */
 
-export const REPORT_RATINGS = [
-  { key: "effort", label: "Effort" },
-  { key: "homework", label: "Homework" },
-  { key: "understanding", label: "Understanding" },
+/** What the tutor writes for each student and subject, in report order. */
+export const REPORT_FIELDS = [
+  {
+    key: "strengths",
+    label: "Strengths",
+    hint: "What they did well this term.",
+  },
+  {
+    key: "toWorkOn",
+    label: "To work on",
+    hint: "What would help them most next.",
+  },
+  {
+    key: "goals",
+    label: "Goals for next term",
+    hint: "Two or three goals to aim for.",
+  },
 ] as const;
 
-export type RatingKey = (typeof REPORT_RATINGS)[number]["key"];
-export type Ratings = Record<RatingKey, number>;
+export type FieldKey = (typeof REPORT_FIELDS)[number]["key"];
+export type EntryText = Record<FieldKey, string>;
 
-/** What each point on the scale means, 1 to 5. */
-export const RATING_SCALE = ["Needs support", "Developing", "Steady", "Strong", "Excellent"] as const;
-
-export function ratingLabel(value: number): string {
-  return RATING_SCALE[value - 1] ?? "";
-}
-
-export const SUMMARY_MAX = 4000;
+export const FIELD_MAX = 1500;
 
 /** Tutors write reports from three weeks before a term ends to four weeks after. */
 export const REPORTS_OPEN_DAYS_BEFORE_END = 21;
@@ -50,14 +57,12 @@ export function reportWritingTerm<T extends TermDates>(terms: T[], today: string
   );
 }
 
-/** A summary and ratings ready to save, or the reason they are not. */
-export function checkEntry(input: { summary: string } & Ratings): string | null {
-  const summary = input.summary.trim();
-  if (!summary) return "Write a summary of the term.";
-  if (summary.length > SUMMARY_MAX) return `Keep the summary under ${SUMMARY_MAX} characters.`;
-  for (const r of REPORT_RATINGS) {
-    const v = input[r.key];
-    if (!Number.isInteger(v) || v < 1 || v > 5) return `Rate ${r.label.toLowerCase()} from 1 to 5.`;
+/** The three parts ready to save, or what is missing. */
+export function checkEntry(input: EntryText): string | null {
+  for (const f of REPORT_FIELDS) {
+    const text = input[f.key].trim();
+    if (!text) return `Write the ${f.label.toLowerCase()} part.`;
+    if (text.length > FIELD_MAX) return `Keep ${f.label.toLowerCase()} under ${FIELD_MAX} characters.`;
   }
   return null;
 }
