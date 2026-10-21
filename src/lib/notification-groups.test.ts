@@ -171,6 +171,9 @@ describe("notificationGroupFor", () => {
     expect(
       notificationGroupFor({ title: "Cancellation undone", href: null }),
     ).toBe("updates");
+    expect(
+      notificationGroupFor({ title: "Make-up booking undone", href: null }),
+    ).toBe("updates");
   });
 
   it("treats an admin's class changes as schedule updates for every role", () => {

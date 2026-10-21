@@ -17,6 +17,7 @@ import {
   rescheduleRequests,
   subjects,
   terms,
+  type CreditGrantReason,
 } from "@/db/schema";
 import { formatDateLong, formatTime, isoDate } from "@/lib/format";
 import {
@@ -35,6 +36,7 @@ import {
 } from "@/lib/credits";
 import { distinctSubjects } from "@/lib/subject-label";
 import { othersOnLesson } from "@/lib/lesson-guests";
+import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 /** Thrown inside `undoCancellation`'s transaction when the credit was redeemed
  *  concurrently, to roll the whole undo back. */
@@ -76,26 +78,31 @@ async function logAdminAudit(
 
 // --- Notifications ----------------------------------------------------------
 
-/** In-app notification to the student plus every linked parent. */
-async function notifyStudentAndParents(
-  studentId: string,
-  title: string,
-  body: string,
-) {
-  const recipients = new Set<string>([studentId]);
-  const parents = await db
-    .select({ id: familyLinks.parentId })
-    .from(familyLinks)
-    .where(eq(familyLinks.studentId, studentId));
-  for (const p of parents) recipients.add(p.id);
-
-  const rows = Array.from(recipients).map((userId) => ({
+async function notifyUsers(userIds: Iterable<string>, title: string, body: string) {
+  const rows = Array.from(new Set(userIds)).map((userId) => ({
     userId,
     channel: "in_app" as const,
     title,
     body,
   }));
   if (rows.length) await db.insert(notifications).values(rows);
+}
+
+/** In-app notification to the student plus every linked parent, and anyone in
+ *  `alsoNotify` (the tutors whose lessons changed). */
+async function notifyStudentAndParents(
+  studentId: string,
+  title: string,
+  body: string,
+  alsoNotify: string[] = [],
+) {
+  const recipients = new Set<string>([studentId, ...alsoNotify]);
+  const parents = await db
+    .select({ id: familyLinks.parentId })
+    .from(familyLinks)
+    .where(eq(familyLinks.studentId, studentId));
+  for (const p of parents) recipients.add(p.id);
+  await notifyUsers(recipients, title, body);
 }
 
 async function studentName(studentId: string): Promise<string> {
@@ -109,6 +116,12 @@ async function studentName(studentId: string): Promise<string> {
 
 // --- Activity (undo surface) ------------------------------------------------
 
+/** Has the lesson started? From then on its roll and notes can hold what really
+ *  happened, so an undo that would delete the lesson or a mark on it is refused. */
+function hasStarted(date: string, startTime: string): boolean {
+  return lessonStartInstant(date, startTime).getTime() <= Date.now();
+}
+
 export type RescheduleActivity = {
   id: string;
   subjectName: string;
@@ -117,6 +130,8 @@ export type RescheduleActivity = {
   reason: string | null;
   createdAt: Date;
   targetLessonId: string | null;
+  /** False once the lesson they moved to has started. */
+  undoable: boolean;
 };
 
 /** The make-up a redeemed credit was spent on - surfaced under a blocked
@@ -126,6 +141,23 @@ export type RedemptionInfo = {
   lessonId: string;
   label: string;
   subjectName: string;
+  /** False once the make-up has started. */
+  undoable: boolean;
+};
+
+/** A make-up booked with a credit that no family cancellation holds: an admin
+ *  grant, a credit for a reschedule with no free slot, or one for a lesson
+ *  Taiyo cancelled. Families can't cancel or move these, so this row is where
+ *  a wrong booking is put right. */
+export type CreditBookingActivity = {
+  creditId: string;
+  subjectName: string;
+  grantReason: CreditGrantReason;
+  /** The lesson the credit was given for; null for an admin grant. */
+  fromLabel: string | null;
+  makeupLabel: string;
+  /** False once the make-up has started. */
+  undoable: boolean;
 };
 
 export type CancellationActivity = {
@@ -143,10 +175,12 @@ export type CancellationActivity = {
 export type StudentActivity = {
   reschedules: RescheduleActivity[];
   cancellations: CancellationActivity[];
+  creditBookings: CreditBookingActivity[];
 };
 
-/** A student's approved reschedules + cancellations, most-recent first, with
- *  the labels + linked-credit status the admin undo surface needs. */
+/** A student's approved reschedules, cancellations and credit make-ups,
+ *  most-recent first, with the labels + linked-credit status the admin undo
+ *  surface needs. */
 export async function getStudentActivity(
   studentId: string,
 ): Promise<StudentActivity> {
@@ -187,7 +221,9 @@ export async function getStudentActivity(
 
   const reschedules: RescheduleActivity[] = reschedRows.map((r) => {
     let toLabel = "another session";
+    let undoable = true;
     if (r.targetLessonDate && r.targetLessonStart) {
+      undoable = !hasStarted(r.targetLessonDate, r.targetLessonStart);
       toLabel = `${formatDateLong(r.targetLessonDate)} ${formatTime(r.targetLessonStart)}`;
     } else if (r.targetDate && r.targetStartTime) {
       toLabel = `${formatDateLong(r.targetDate)} ${formatTime(r.targetStartTime)}`;
@@ -200,6 +236,7 @@ export async function getStudentActivity(
       reason: r.reason,
       createdAt: r.createdAt,
       targetLessonId: r.targetLessonId,
+      undoable,
     };
   });
 
@@ -254,6 +291,7 @@ export async function getStudentActivity(
             lessonId: r.redeemLessonId,
             label: `${formatDateLong(r.redeemDate)} ${formatTime(r.redeemStart)}`,
             subjectName: r.redeemSubjectName ?? r.subjectName,
+            undoable: !hasStarted(r.redeemDate, r.redeemStart),
           }
         : null;
     return {
@@ -268,7 +306,46 @@ export async function getStudentActivity(
     };
   });
 
-  return { reschedules, cancellations };
+  // Credits spent on a make-up that no cancellation row holds (those show
+  // nested under their cancellation above).
+  const fromLesson = alias(lessons, "from_lesson");
+  const bookedLesson = alias(lessons, "booked_lesson");
+  const bookingRows = await db
+    .select({
+      creditId: classCredits.id,
+      grantReason: classCredits.grantReason,
+      subjectName: subjects.name,
+      fromDate: fromLesson.date,
+      fromStart: fromLesson.startTime,
+      bookedDate: bookedLesson.date,
+      bookedStart: bookedLesson.startTime,
+    })
+    .from(classCredits)
+    .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
+    .innerJoin(bookedLesson, eq(bookedLesson.id, classCredits.redeemedOnLessonId))
+    .leftJoin(fromLesson, eq(fromLesson.id, classCredits.grantedFromLessonId))
+    .where(
+      and(
+        eq(classCredits.studentId, studentId),
+        sql`${classCredits.status} = 'redeemed'::credit_status`,
+        sql`not exists (select 1 from lesson_cancellations lc where lc.credit_id = ${classCredits.id})`,
+      ),
+    )
+    .orderBy(desc(classCredits.redeemedAt));
+
+  const creditBookings: CreditBookingActivity[] = bookingRows.map((r) => ({
+    creditId: r.creditId,
+    subjectName: r.subjectName,
+    grantReason: r.grantReason,
+    fromLabel:
+      r.fromDate && r.fromStart
+        ? `${formatDateLong(r.fromDate)} ${formatTime(r.fromStart)}`
+        : null,
+    makeupLabel: `${formatDateLong(r.bookedDate)} ${formatTime(r.bookedStart)}`,
+    undoable: !hasStarted(r.bookedDate, r.bookedStart),
+  }));
+
+  return { reschedules, cancellations, creditBookings };
 }
 
 // --- Allowance summary (for the profile card) -------------------------------
@@ -468,6 +545,7 @@ export async function grantAllowance(p: {
  *  allowance automatically (the count is derived from the surviving rows). */
 export async function undoReschedule(p: {
   rescheduleRequestId: string;
+  studentId: string;
   adminId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const [req] = await db
@@ -481,7 +559,7 @@ export async function undoReschedule(p: {
     .from(rescheduleRequests)
     .where(eq(rescheduleRequests.id, p.rescheduleRequestId))
     .limit(1);
-  if (!req) return { ok: false, error: "Reschedule not found." };
+  if (!req || req.studentId !== p.studentId) return { ok: false, error: "Reschedule not found." };
   if (req.status !== "approved") {
     return { ok: false, error: "Only an approved reschedule can be undone." };
   }
@@ -492,12 +570,28 @@ export async function undoReschedule(p: {
       subjectName: subjects.name,
       date: lessons.date,
       startTime: lessons.startTime,
+      tutorId: lessons.tutorId,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(eq(lessons.id, req.originalLessonId))
     .limit(1);
+  const [target] = req.targetLessonId
+    ? await db
+        .select({ date: lessons.date, startTime: lessons.startTime, tutorId: lessons.tutorId })
+        .from(lessons)
+        .where(eq(lessons.id, req.targetLessonId))
+        .limit(1)
+    : [];
+  // Undoing would delete the lesson they moved to (and its notes) or their
+  // mark on it.
+  if (target && hasStarted(target.date, target.startTime)) {
+    return {
+      ok: false,
+      error: "The lesson they moved to has already started, so this can't be undone. Change their mark on that lesson's roll instead.",
+    };
+  }
 
   await db.transaction(async (tx) => {
     if (req.targetLessonId) {
@@ -571,6 +665,7 @@ export async function undoReschedule(p: {
       req.studentId,
       "Reschedule undone",
       `${await studentName(req.studentId)}'s reschedule of the ${orig.subjectName} lesson on ${formatDateLong(orig.date)} at ${formatTime(orig.startTime)} was undone by the office. They're back on the original lesson.`,
+      [orig.tutorId, ...(target ? [target.tutorId] : [])],
     );
   }
   return { ok: true };
@@ -582,6 +677,7 @@ export async function undoReschedule(p: {
  *  for it - that must be undone first). */
 export async function undoCancellation(p: {
   cancellationId: string;
+  studentId: string;
   adminId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const [row] = await db
@@ -602,7 +698,7 @@ export async function undoCancellation(p: {
     .leftJoin(classCredits, eq(classCredits.id, lessonCancellations.creditId))
     .where(eq(lessonCancellations.id, p.cancellationId))
     .limit(1);
-  if (!row) return { ok: false, error: "Cancellation not found." };
+  if (!row || row.studentId !== p.studentId) return { ok: false, error: "Cancellation not found." };
   if (row.creditStatus === "redeemed") {
     return {
       ok: false,
@@ -677,6 +773,7 @@ export async function undoCancellation(p: {
  *  spent. Reverses exactly what `redeemCreditIntoSlot` created. */
 export async function undoRedemption(p: {
   creditId: string;
+  studentId: string;
   adminId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const [credit] = await db
@@ -691,7 +788,7 @@ export async function undoRedemption(p: {
     .innerJoin(subjects, eq(subjects.id, classCredits.subjectId))
     .where(eq(classCredits.id, p.creditId))
     .limit(1);
-  if (!credit) return { ok: false, error: "Credit not found." };
+  if (!credit || credit.studentId !== p.studentId) return { ok: false, error: "Credit not found." };
   if (credit.status !== "redeemed" || !credit.redeemedOnLessonId) {
     return {
       ok: false,
@@ -702,11 +799,19 @@ export async function undoRedemption(p: {
 
   // Label the make-up for the notification before it is deleted.
   const [makeup] = await db
-    .select({ date: lessons.date, startTime: lessons.startTime })
+    .select({ date: lessons.date, startTime: lessons.startTime, tutorId: lessons.tutorId })
     .from(lessons)
     .where(eq(lessons.id, makeupLessonId))
     .limit(1);
+  // Undoing deletes the make-up, and with it the tutor's notes and marks.
+  if (makeup && hasStarted(makeup.date, makeup.startTime)) {
+    return {
+      ok: false,
+      error: "That make-up has already started, so it can't be undone. Change their mark on its roll instead.",
+    };
+  }
 
+  let lessonRemoved = false;
   try {
     await db.transaction(async (tx) => {
       // Flip the credit back to active FIRST, guarded on it still being
@@ -746,6 +851,7 @@ export async function undoRedemption(p: {
         );
       if (!(await othersOnLesson(tx, makeupLessonId, [credit.studentId]))) {
         await tx.delete(lessons).where(eq(lessons.id, makeupLessonId));
+        lessonRemoved = true;
       }
 
       await logAdminAudit(tx, {
@@ -770,10 +876,16 @@ export async function undoRedemption(p: {
   }
 
   if (makeup) {
+    const what = `${await studentName(credit.studentId)}'s ${credit.subjectName} make-up on ${formatDateLong(makeup.date)} at ${formatTime(makeup.startTime)} was undone by the office.`;
     await notifyStudentAndParents(
       credit.studentId,
       "Make-up booking undone",
-      `${await studentName(credit.studentId)}'s ${credit.subjectName} make-up on ${formatDateLong(makeup.date)} at ${formatTime(makeup.startTime)} was undone by the office. The class credit is available again.`,
+      `${what} The class credit is available again.`,
+    );
+    await notifyUsers(
+      [makeup.tutorId],
+      "Make-up booking undone",
+      lessonRemoved ? `${what} The lesson is off your timetable.` : what,
     );
   }
   return { ok: true };

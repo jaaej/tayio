@@ -5,6 +5,7 @@ import { Select } from "@/components/ui/select";
 import { Button, Empty, Pill } from "@/components/admin/ui";
 import { ProfileSection } from "./profile-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import type { CreditGrantReason } from "@/db/schema";
 import {
   grantAllowanceToStudent,
   grantCreditToStudent,
@@ -21,6 +22,7 @@ type RescheduleActivity = {
   fromLabel: string;
   toLabel: string;
   reason: string | null;
+  undoable: boolean;
 };
 
 type Redemption = {
@@ -28,6 +30,16 @@ type Redemption = {
   lessonId: string;
   label: string;
   subjectName: string;
+  undoable: boolean;
+};
+
+type CreditBooking = {
+  creditId: string;
+  subjectName: string;
+  grantReason: CreditGrantReason;
+  fromLabel: string | null;
+  makeupLabel: string;
+  undoable: boolean;
 };
 
 type CancellationActivity = {
@@ -60,8 +72,16 @@ const CREDIT_LABEL: Record<CreditStatus, string> = {
   expired: "Credit expired",
 };
 
-/** Admin management of a student's reschedule/cancellation history and
- *  allowance: undo past moves, grant a class credit, and top up the per-term
+/** Matches the reason column on /admin/reschedules. */
+const GRANT_REASON_LABEL: Record<CreditGrantReason, string> = {
+  cancellation: "Cancellation",
+  reschedule_no_slot: "No slot available",
+  admin_grant: "Admin grant",
+  lesson_cancelled: "Lesson cancelled by Taiyo",
+};
+
+/** Admin management of a student's reschedule/cancellation/make-up history
+ *  and allowance: undo past moves, grant a class credit, and top up the per-term
  *  reschedule/cancellation caps. Money- and entitlement-touching, so every
  *  undo is confirm-gated and blocked undos surface the reason inline. */
 export function CreditManagement({
@@ -74,6 +94,7 @@ export function CreditManagement({
   activity: {
     reschedules: RescheduleActivity[];
     cancellations: CancellationActivity[];
+    creditBookings: CreditBooking[];
   };
   subjects: { id: string; name: string }[];
   summary: Summary;
@@ -86,7 +107,9 @@ export function CreditManagement({
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
 
   const noActivity =
-    activity.reschedules.length === 0 && activity.cancellations.length === 0;
+    activity.reschedules.length === 0 &&
+    activity.cancellations.length === 0 &&
+    activity.creditBookings.length === 0;
 
   async function undoReschedule(id: string, label: string) {
     if (
@@ -128,11 +151,13 @@ export function CreditManagement({
     });
   }
 
-  async function undoRedemption(creditId: string, label: string) {
+  /** `heldByCancellation`: the credit came from a cancellation listed here,
+   *  which can be undone once the make-up is. */
+  async function undoRedemption(creditId: string, label: string, heldByCancellation: boolean) {
     if (
       !(await confirm({
         title: "Undo this make-up booking?",
-        body: `${label}\n\nThe make-up lesson is removed and the class credit becomes available again. You can then undo the cancellation.`,
+        body: `${label}\n\nThe make-up lesson is removed and the class credit becomes available again.${heldByCancellation ? " You can then undo the cancellation." : ""}`,
         confirmLabel: "Undo",
       }))
     )
@@ -182,9 +207,9 @@ export function CreditManagement({
 
   return (
     <>
-      <ProfileSection title="Reschedule and cancellation activity" flush>
+      <ProfileSection title="Reschedules, cancellations and make-ups" flush>
           {noActivity ? (
-            <Empty>No reschedules or cancellations on record.</Empty>
+            <Empty>No reschedules, cancellations or make-ups on record.</Empty>
           ) : (
             <div className="divide-y divide-line">
               {activity.reschedules.map((r) => (
@@ -220,24 +245,29 @@ export function CreditManagement({
                       </div>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() =>
-                      undoReschedule(
-                        r.id,
-                        `${r.subjectName}: ${r.fromLabel} → ${r.toLabel}`,
-                      )
-                    }
-                  >
-                    Undo
-                  </Button>
+                  {r.undoable && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() =>
+                        undoReschedule(
+                          r.id,
+                          `${r.subjectName}: ${r.fromLabel} → ${r.toLabel}`,
+                        )
+                      }
+                    >
+                      Undo
+                    </Button>
+                  )}
                 </div>
               ))}
 
               {activity.cancellations.map((c) => {
                 const blocked = c.creditStatus === "redeemed";
+                // The credit paid for a make-up that has already started:
+                // neither it nor this cancellation can be undone any more.
+                const settled = blocked && c.redemption?.undoable === false;
                 return (
                   <div
                     key={c.id}
@@ -276,10 +306,12 @@ export function CreditManagement({
                               <div className="text-[12px] text-ink-soft tabular-nums">
                                 {c.redemption.label}
                               </div>
-                              <div className="mt-1 text-[12px] text-muted">
-                                Undo this make-up to free the credit, then the
-                                cancellation can be undone.
-                              </div>
+                              {!settled && (
+                                <div className="mt-1 text-[12px] text-muted">
+                                  Undo this make-up to free the credit, then the
+                                  cancellation can be undone.
+                                </div>
+                              )}
                               {rowError?.id === c.redemption.creditId && (
                                 <div
                                   role="alert"
@@ -289,19 +321,22 @@ export function CreditManagement({
                                 </div>
                               )}
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pending}
-                              onClick={() =>
-                                undoRedemption(
-                                  c.redemption!.creditId,
-                                  `${c.redemption!.subjectName} make-up, ${c.redemption!.label}`,
-                                )
-                              }
-                            >
-                              Undo redemption
-                            </Button>
+                            {!settled && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() =>
+                                  undoRedemption(
+                                    c.redemption!.creditId,
+                                    `${c.redemption!.subjectName} make-up, ${c.redemption!.label}`,
+                                    true,
+                                  )
+                                }
+                              >
+                                Undo redemption
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -319,22 +354,78 @@ export function CreditManagement({
                         </div>
                       )}
                     </div>
+                    {!settled && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending || blocked}
+                        onClick={() =>
+                          undoCancellation(
+                            c.id,
+                            `${c.subjectName}: ${c.lessonLabel}`,
+                          )
+                        }
+                      >
+                        Undo
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {activity.creditBookings.map((b) => (
+                <div
+                  key={b.creditId}
+                  className="px-4 py-3.5 flex items-start gap-3 flex-wrap sm:px-5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[14px] font-bold text-ink">
+                        {b.subjectName}
+                      </span>
+                      <Pill tone="mint">Make-up</Pill>
+                    </div>
+                    <div className="mt-0.5 text-[13px] text-ink-soft">
+                      <span className="tabular-nums">
+                        {b.fromLabel ?? GRANT_REASON_LABEL[b.grantReason]}
+                      </span>
+                      <span aria-hidden className="mx-1.5 text-muted">
+                        &rarr;
+                      </span>
+                      <span className="tabular-nums">{b.makeupLabel}</span>
+                    </div>
+                    {b.fromLabel && (
+                      <div className="mt-0.5 text-[12px] text-muted">
+                        Credit: {GRANT_REASON_LABEL[b.grantReason]}
+                      </div>
+                    )}
+                    {rowError?.id === b.creditId && (
+                      <div
+                        role="alert"
+                        className="mt-1.5 text-[12px] font-semibold text-bad"
+                      >
+                        {rowError.text}
+                      </div>
+                    )}
+                  </div>
+                  {b.undoable && (
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={pending || blocked}
+                      disabled={pending}
                       onClick={() =>
-                        undoCancellation(
-                          c.id,
-                          `${c.subjectName}: ${c.lessonLabel}`,
+                        undoRedemption(
+                          b.creditId,
+                          `${b.subjectName} make-up, ${b.makeupLabel}`,
+                          false,
                         )
                       }
                     >
                       Undo
                     </Button>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
           )}
       </ProfileSection>

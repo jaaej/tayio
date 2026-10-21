@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 23 October 2026
+Last updated: 22 October 2026
 
 ## Status key
 
@@ -698,7 +698,7 @@ Still open after the fixes:
   Verified on dev: two temporary topic tests (78% and 91%) and a major quiz (0%) on Year 9 English Term 2: Sarah's PDF reads Analytical Writing Below average (39), Literature Proficient (91), Overall Low average (56), with the results, the attendance squares and legend, and the tutor's three parts written through Review (an empty save refused); the quiz page's Major quiz switch on and off; test data removed. Earlier the same day: the tutor menu, To do, writing, sending and read-only flow (with Term 4's end moved into the window).
   Not checked: the writer side panel's glass shows the page behind it in headless WebKit at 390px, as New class does; check both on a real iPhone or Safari. No topic tests exist on dev or Production yet, so ratings appear once tutors set and score tests.
 
-- [x] A make-up student starts unmarked on the roll (23 October 2026, owner decision: "just make it so that she starts as blank").
+- [x] A make-up student starts unmarked on the roll (22 October 2026, owner decision: "just make it so that she starts as blank").
   Before: booking a make-up (a reschedule, a class credit) or an admin's one-off visit wrote the student's attendance as "Make-up attended" at once, because that mark was how the roll, the timetables and the seat counts found them.
   So a no-show stayed attended unless the tutor changed it, a private make-up lesson never asked for attendance (only for notes), a booked make-up raised the attendance rate before it happened, and a make-up later marked Absent vanished from the student's and parent's timetables.
   Now the booking puts them on the roll (`lessonGuestIdsSql` in `src/lib/class-roster-sql.ts`: an approved reschedule into the lesson, a credit redeemed on it, or `lesson_roll_additions`), with the "Make-up ←" or "One-off visit" tag, unmarked like the class.
@@ -709,7 +709,16 @@ Still open after the fixes:
   Removed: `src/lib/lesson-access.ts` (unused, and it described the old rule). The demo seed books its make-ups with an approved reschedule.
   Verified on dev in Chrome: admin Move lesson for Sarah (31 October to a make-up slot): no mark written, the tutor's roll lists her unmarked with four choices, both timetables show the make-up; dated into the past, it joined admin To mark ("1 to mark") and the tutor's lessons to finish (59; 58 once marked Absent; 59 again marked Present, needing a note); Present reads "Make-up attended" on admin History, the parent's attendance and the tutor's student page; marked Absent it stayed on Sarah's timetable; admin Undo deleted the make-up and cleared the original's absence. A credit booked by the parent: no mark, "Make-up ← Credit" on the roll, both timetables. A one-off visit (Chrome and WebKit, 1440px and 390px): a `lesson_roll_additions` row, no mark, unmarked with four choices; taken off, the row is gone. Test data and notices removed.
   Manual QA: book a make-up as a parent, mark it as its tutor (Present, then Absent) and check the History pages; confirm the old "Make-up" choice is gone in Safari.
-  Gap seen, not changed: an admin-granted credit's booking has no Undo on the student's Credits & activity tab (only a cancellation's credit does).
+  The gap noted here (no Undo for a make-up booked with an admin's credit) is fixed: see the entry below.
+
+- [x] An admin can undo any credit make-up, and no undo deletes a lesson that has started (22 October 2026, owner request: "add undo for admin-granted credit bookings too").
+  Why: families can't cancel or move a make-up booked with a credit, and before this only a make-up paid for by a family cancellation had an Undo (nested under that cancellation). A make-up booked with an admin grant, a "no free slot" credit or a credit for a lesson Taiyo cancelled could only be removed with Cancel lesson, which tells the family Taiyo cancelled it.
+  Admin user profile, Credits & activity: the list is now "Reschedules, cancellations and make-ups" and adds a Make-up row for each of those bookings (the lesson the credit was for, or "Admin grant", to the make-up, and "Credit: …" with the reason as on `/admin/reschedules`), with Undo: the make-up lesson goes (only when nobody else is on it), the credit is available again, and the student, parents and the make-up's tutor are told ("Make-up booking undone"). Data: `creditBookings` in `getStudentActivity` (`src/lib/admin-credits.ts`), redeemed credits no `lesson_cancellations` row holds.
+  Safety: `undoRedemption` and `undoReschedule` now refuse once the make-up (or the lesson they moved to) has started, because undoing deleted that lesson and, by cascade, its notes and marks; the admin is told to change the mark on its roll instead. Undo is hidden on those rows, and on a cancellation whose credit paid for a make-up that has started. Before this, the past reschedules on a profile all showed an Undo that would have deleted lessons that had happened.
+  Also: undoing a reschedule now tells the tutors of both lessons as well as the family; each undo checks the row belongs to the student on the page.
+  Verified on dev: Sarah, an admin-granted credit booked by the parent for Monday 26 October 4:00pm: the Make-up row with Undo (Chrome); with the lesson backdated while the page was open, Undo was refused with the message and nothing changed, and after reload the Undo was gone; Undo in WebKit: credit active, lesson deleted, three notices (student, parent, tutor), an `admin_undo_redemption` audit row. The same credit as a "Taiyo cancelled" credit for 20 October: "Tuesday 20 October 4:00pm → Monday 26 October 4:00pm, Credit: Lesson cancelled by Taiyo", undone. An admin move to Friday 23 October and its Undo in WebKit: request and make-up gone, "Reschedule undone" to student, parent and tutor. Test data and notices removed.
+  Manual QA: in Safari, grant a credit, book it as a parent, undo it from the profile, and check the family's and tutor's notices.
+  Not changed: an admin still can't take back a "no free slot" credit itself (the credit and the absence it came with), only the make-up booked with it.
 
 - [x] Add and take students off a lesson's roll, for that lesson or from it on (21 October 2026, owner request on `/admin/attendance/[lessonId]`).
   Admin roll: "Add a student" in the header (the subject page's search) asks "This lesson only" (a one-off visit, kept in `lesson_roll_additions` since migration 0084, unmarked until the tutor marks them, and tagged "One-off visit") or "This lesson and after" (joins the class from the lesson's date); a person button on each row asks "This lesson only" (they stay in the class, not counted absent) or "This lesson and after" (they leave the class from that date; earlier lessons keep them), and clears their mark on the lesson; a class student taken off one lesson can be put back. Actions: `addStudentToLesson`, `removeStudentFromLesson` (`src/app/admin/_lib/actions-roll.ts`).
@@ -727,9 +736,9 @@ Still open after the fixes:
   Move every student up a year: opens when the final term has ended ("Opens when Term 4 ends on Sunday 22 November." before then); the confirmation lists "Year 9 → Year 10: 2 students" rows and any Year 12s still active (archived as finished); students with no readable level (VCE, a typo, none) stay as they are and are linked on the panel to fix.
   Once per school year: migration `0079_school_year_ends.sql` keeps one row per year with who archived and moved whom and each student's old and new level, and both actions lock it and refuse after the move (`src/app/admin/_lib/school-year.ts`, `actions-school-year.ts`); afterwards the panel only says "8 students moved up a year on …".
   The owner's dashboard To do gains "End the {year} school year" once the final term has ended and the move has not happened.
-  The gate is the end date of the year's last term as saved on the Terms page (owner restated on 23 October 2026: at the end of Term 4, as the admin sets it); changing that date moves it.
+  The gate is the end date of the year's last term as saved on the Terms page (owner restated on 22 October 2026: at the end of Term 4, as the admin sets it); changing that date moves it.
   Production data: Term 4 2026 is saved there as 1 to 30 September, so on Production the move would open at once; correct Term 4's dates there before deploying this.
-  A private make-up lesson booked for an archived student (a move or, since 23 October 2026, a credit) is cancelled when nobody else is booked onto or marked on it (`othersOnLesson`).
+  A private make-up lesson booked for an archived student (a move or, since 22 October 2026, a credit) is cancelled when nobody else is booked onto or marked on it (`othersOnLesson`).
   Verified on dev in Chrome (WebKit for sign-in): a Year 12 test student made through New user with a parent and a class, archived (both inactive, banned to 2126, enrolment withdrawn, sign-in refused with the new message); with Term 4's end moved to yesterday, the panel and the To do row, the confirmation, the move (8 students up, 6 unreadable left), and the done line; dev then restored (levels, the 2026 row, Term 4's end, test accounts deleted).
 
 - [x] Year level is picked from a list (21 October 2026, needed for moving every student up a year).
@@ -755,7 +764,7 @@ Still open after the fixes:
   Bug fixed on the way (found in the test): Escape in a panel's student search closed the whole New class panel and lost what was typed; `SidePanel` now ignores an Escape a control inside it already used (`defaultPrevented`), the search uses it to close its suggestions, and `ConfirmDialog` takes Escape first so cancelling a confirmation raised from a panel leaves the panel open.
   Verified on dev in Chrome (a class created with two students picked and one removed: only the remaining student enrolled, 16 lessons generated; test class and its 3 notifications deleted) and WebKit (pick, remove, Escape).
 
-- [x] Check-ins number the week from Week 200 (23 October 2026, owner request: "we are in week 200, 19/10/26 to 25/10/26, so after it will be week 201").
+- [x] Check-ins number the week from Week 200 (22 October 2026, owner request: "we are in week 200, 19/10/26 to 25/10/26, so after it will be week 201").
   The tutor's Weekly check-in shows the number in the Week tile ("Week" over "200", the dates under it), and the admin Tutor check-ins header leads with "Week 200".
   Rule: `checkinWeekNumber` (`src/lib/checkin-week.ts`, tested): the Monday-to-Sunday week from 19 October 2026 is 200, one more every week, holidays included; no term dates involved.
   This replaced "Term 4, Week 2" from 21 October (the owner meant Taiyo's running week number), and with it `src/lib/term-week.ts` and `getWeekOfTermLabel`.

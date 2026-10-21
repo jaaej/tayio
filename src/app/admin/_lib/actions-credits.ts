@@ -82,6 +82,7 @@ export async function undoRescheduleForStudent(input: {
 
   const res = await undoReschedule({
     rescheduleRequestId: parsed.data.rescheduleRequestId,
+    studentId: parsed.data.studentId,
     adminId: admin.id,
   });
   if (!res.ok) return res;
@@ -101,6 +102,7 @@ export async function undoCancellationForStudent(input: {
 
   const res = await undoCancellation({
     cancellationId: parsed.data.cancellationId,
+    studentId: parsed.data.studentId,
     adminId: admin.id,
   });
   if (!res.ok) return res;
@@ -120,6 +122,7 @@ export async function undoRedemptionForStudent(input: {
 
   const res = await undoRedemption({
     creditId: parsed.data.creditId,
+    studentId: parsed.data.studentId,
     adminId: admin.id,
   });
   if (!res.ok) return res;
