@@ -61,7 +61,8 @@ const SECTIONS: NavSection[] = [
         // Curriculum, quizzes and terms are run from Classes.
         also: ["/admin/subjects", "/admin/quizzes", "/admin/terms"],
       },
-      { label: "Attendance", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
+      // Every lesson and what is done to it: its roll, students, notes, cancelling.
+      { label: "Lessons", href: "/admin/attendance", icon: <ClipboardCheck className={IC} /> },
       // Tutor cover, leave, family class moves and class credits. The URL is
       // kept from when it held parent reschedule approvals.
       { label: "Cover & leave", href: "/admin/reschedules", icon: <CalendarClock className={IC} /> },

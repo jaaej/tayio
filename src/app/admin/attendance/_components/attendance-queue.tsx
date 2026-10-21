@@ -75,7 +75,7 @@ export function AttendanceQueue({
           id="attendance-queue-heading"
           className="text-[20px] font-extrabold leading-tight text-ink"
         >
-          Attendance
+          Lessons
         </Heading>
         {classLabel && (
           <p className="flex min-h-11 items-center justify-between gap-2 rounded-[12px] bg-[#F6F7FA] py-1 pl-3 pr-1 text-[13px] font-bold text-ink">

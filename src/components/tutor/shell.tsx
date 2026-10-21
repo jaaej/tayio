@@ -59,6 +59,8 @@ const SECTIONS: NavSection[] = [
       },
       { label: "Marking", href: "/tutor/homework", icon: <SquarePen className={IC} /> },
       { label: "Resources", href: "/tutor/resources", icon: <FolderOpen className={IC} /> },
+      // Always in the menu so it can be found; the count shows while reports are open.
+      { label: "Term reports", href: "/tutor/reports", icon: <FileText className={IC} /> },
     ],
   },
   {
@@ -103,8 +105,6 @@ export async function TutorShell({
 }) {
   const user = await getCurrentUser();
   const badges = { marking: 0, cover: 0, checkin: 0, messages: 0, notifications: 0, reports: 0 };
-  // Term reports is in the menu only while a term's reports are open.
-  let reportsOpen = false;
   let people: PortalSearchDestination[] = [];
   let profileAvatarKey: string | null = null;
   let profilePhotoUrl: string | null = null;
@@ -133,7 +133,6 @@ export async function TutorShell({
     badges.messages = settled(messages, "message");
     badges.notifications = settled(notifications, "notification");
     if (reports.status === "fulfilled" && reports.value) {
-      reportsOpen = true;
       badges.reports = reports.value.count;
     } else if (reports.status === "rejected") {
       console.error("[tutor-shell] term reports count failed:", reports.reason);
@@ -159,10 +158,7 @@ export async function TutorShell({
   };
   const sections: NavSection[] = SECTIONS.map((s) => ({
     ...s,
-    items: (s.heading === "Teaching" && reportsOpen
-      ? [...s.items, { label: "Term reports", href: "/tutor/reports", icon: <FileText className={IC} /> }]
-      : s.items
-    ).map((item) => {
+    items: s.items.map((item) => {
       if (item.href === "/tutor/notifications") {
         return { ...item, badge: badges.notifications, badgeTone: "danger" as const };
       }
