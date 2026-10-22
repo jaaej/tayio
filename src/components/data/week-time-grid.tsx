@@ -10,6 +10,8 @@ import {
   gridHours,
   hourPxFor,
   placeDay,
+  timeLabel,
+  timeRangeLabel,
   type PlacedEvent,
   type PlacedGroup,
 } from "./week-time-grid-layout";
@@ -60,13 +62,6 @@ function hourLabel(hour: number) {
   const h = hour % 24;
   const suffix = h >= 12 ? "pm" : "am";
   return `${h % 12 === 0 ? 12 : h % 12} ${suffix}`;
-}
-
-function timeLabel(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hr = h % 12 === 0 ? 12 : h % 12;
-  return m === 0 ? `${hr} ${suffix}` : `${hr}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function addDays(iso: string, days: number) {
@@ -167,7 +162,7 @@ function EventBlock({
             <div className="line-clamp-3 text-[12px] font-extrabold leading-[1.25]">{e.label}</div>
             {height >= 44 && (
               <div className="mt-0.5 text-[11px] font-semibold tabular-nums leading-tight">
-                {timeLabel(e.startTime)} – {timeLabel(e.endTime)}
+                {timeRangeLabel(e.startTime, e.endTime)}
               </div>
             )}
             {e.meta && height >= 62 && (
@@ -220,23 +215,26 @@ function GroupCard({
   maxHeight: number;
   noun: string;
 }) {
-  const startLabel = timeLabel(group.events[0].startTime);
+  const range = (e: TimeGridEvent) => timeRangeLabel(e.startTime, e.endTime);
   return (
     <div className="absolute inset-x-0 px-1" style={{ top: top + 2 }}>
       <div
         className="flex flex-col gap-[2px] overflow-y-auto overscroll-contain rounded-[12px] border border-line bg-white/80 p-[6px] shadow-[0_6px_18px_-14px_rgba(60,62,150,0.45)]"
         style={{ maxHeight }}
       >
-        <p className="flex h-[22px] shrink-0 items-center px-1 text-[11px] font-extrabold leading-none tabular-nums text-ink">
-          {startLabel} · {countLabel(group.events.length, noun)}
+        {/* One line: when the column is too narrow for both, the count
+            wraps onto a second line that the fixed height hides. */}
+        <p className="flex h-[22px] shrink-0 flex-wrap content-start items-center overflow-hidden px-1 text-[11px] font-extrabold leading-[22px] tabular-nums text-ink">
+          <span className="min-w-0 truncate">{range(group.events[0])}</span>
+          <span className="whitespace-nowrap font-semibold text-muted">{"\u00a0· "}{countLabel(group.events.length, noun)}</span>
         </p>
         <ul className="m-0 flex list-none flex-col gap-[2px] p-0">
           {group.events.map((e, i) => {
             const tone = subjectTone(e.subject ?? e.label, e.subjectColor);
-            const time = timeLabel(e.startTime);
-            // Lessons starting later than the card's time get one small
-            // time label above them, so the rows keep room for names.
-            const newTime = i > 0 && time !== timeLabel(group.events[i - 1].startTime);
+            const time = range(e);
+            // Lessons at another time than the row above (a later start or
+            // an earlier end) get one small label, so rows keep room for names.
+            const newTime = i > 0 && time !== range(group.events[i - 1]);
             return (
               <li key={e.id} title={eventTooltip(e)}>
                 {newTime && (

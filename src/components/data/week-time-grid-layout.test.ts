@@ -6,6 +6,7 @@ import {
   groupCardHeight,
   hourPxFor,
   placeDay,
+  timeRangeLabel,
 } from "./week-time-grid-layout";
 
 const at = (startTime: string, endTime: string, id = `${startTime}-${endTime}`) => ({ id, startTime, endTime });
@@ -79,6 +80,8 @@ describe("groupCardHeight", () => {
     const together = [at("16:30", "18:30", "a"), at("16:30", "18:30", "b"), at("16:30", "18:30", "c")];
     expect(groupCardHeight(together)).toBe(14 + 24 + 3 * 26 + 2 * 2);
     expect(groupCardHeight([...together, at("17:45", "19:15", "d")])).toBe(14 + 24 + 4 * 26 + 3 * 2 + 20);
+    // Same start, earlier end: its own label too.
+    expect(groupCardHeight([...together, at("16:30", "17:30", "d")])).toBe(14 + 24 + 4 * 26 + 3 * 2 + 20);
   });
 });
 
@@ -117,6 +120,22 @@ describe("hourPxFor", () => {
       at("17:00", "18:00", "i"),
     ]);
     expect(hourPxFor([crowded], 22, 42)).toBe(126);
+  });
+});
+
+describe("timeRangeLabel", () => {
+  // A no-break space keeps each time with its am or pm.
+  const plain = (s: string) => s.replace(/\u00a0/g, " ");
+
+  it("says am or pm once when both times share it", () => {
+    expect(plain(timeRangeLabel("16:30:00", "18:30:00"))).toBe("4:30 - 6:30 pm");
+    expect(plain(timeRangeLabel("16:00", "17:30"))).toBe("4 - 5:30 pm");
+    expect(plain(timeRangeLabel("11:30", "13:00"))).toBe("11:30 am - 1 pm");
+    expect(plain(timeRangeLabel("09:00", "10:30"))).toBe("9 - 10:30 am");
+  });
+
+  it("never breaks a time from its am or pm", () => {
+    expect(timeRangeLabel("11:30", "13:00")).toBe("11:30\u00a0am - 1\u00a0pm");
   });
 });
 

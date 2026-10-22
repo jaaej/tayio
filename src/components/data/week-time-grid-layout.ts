@@ -11,6 +11,26 @@ export function minutesOf(time: string): number {
   return h * 60 + m;
 }
 
+/** "4:30 pm", "7 pm" for "HH:MM" or "HH:MM:SS". */
+export function timeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hr = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${hr} ${suffix}` : `${hr}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+/** "4:30 - 6:30 pm", "11:30 am - 1 pm": am or pm once when both share it.
+ *  A plain hyphen: this font draws an en dash as long as an em dash. Each
+ *  time keeps its am or pm on its line (a no-break space), so a narrow block
+ *  wraps after the hyphen. */
+export function timeRangeLabel(start: string, end: string): string {
+  const from = timeLabel(start);
+  const to = timeLabel(end);
+  const shared = from.slice(-2) === to.slice(-2);
+  const glue = (t: string) => t.replace(" ", "\u00a0");
+  return `${shared ? from.slice(0, -3) : glue(from)} - ${glue(to)}`;
+}
+
 /** "1 class", "3 classes", "2 lessons": a count with its noun (singular given). */
 export function countLabel(n: number, noun: string): string {
   return `${n} ${n === 1 ? noun : `${noun}${noun.endsWith("s") ? "es" : "s"}`}`;
@@ -105,17 +125,18 @@ export function placeDay<E extends GridTime>(events: E[]): Placed<E>[] {
 /**
  * Heights in px inside a folded card (`GroupCard`), fixed in its CSS so the
  * grid can make room for the whole card: border and padding, the
- * "4:30 pm · 3 classes" header with the gap under it, a row per lesson with
- * the gap between rows, a small time label over each later start, and the
- * space kept above and below the card.
+ * "4:30 - 6:30 pm · 3 classes" header with the gap under it, a row per
+ * lesson with the gap between rows, a small time label over each later
+ * start or end, and the space kept above and below the card.
  */
 export const GROUP_CARD_PX = { chrome: 14, header: 24, row: 26, rowGap: 2, timeLabel: 20, margin: 6 };
 
-/** The height of a folded card listing these lessons. */
+/** The height of a folded card listing these lessons: one time label per
+ *  start and end, the first in the header (`GroupCard`). */
 export function groupCardHeight(events: GridTime[]): number {
-  const { chrome, header, row, rowGap, timeLabel } = GROUP_CARD_PX;
-  const starts = new Set(events.map((e) => minutesOf(e.startTime))).size;
-  return chrome + header + events.length * row + (events.length - 1) * rowGap + (starts - 1) * timeLabel;
+  const { chrome, header, row, rowGap, timeLabel: label } = GROUP_CARD_PX;
+  const times = new Set(events.map((e) => `${minutesOf(e.startTime)}-${minutesOf(e.endTime)}`)).size;
+  return chrome + header + events.length * row + (events.length - 1) * rowGap + (times - 1) * label;
 }
 
 /**
