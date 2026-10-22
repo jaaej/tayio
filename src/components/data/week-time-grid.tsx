@@ -8,6 +8,7 @@ import {
   countLabel,
   fullDayDiffers,
   gridHours,
+  hourPxFor,
   placeDay,
   type PlacedEvent,
   type PlacedGroup,
@@ -18,7 +19,8 @@ import {
  * lesson placed and sized by its start and end time. The hours fit the
  * week's lessons (Show full day widens them), days without lessons are
  * narrow columns, two lessons at once sit side by side, and three or more
- * at once fold into one card listing them (`placeDay`). Today's column is
+ * at once fold into one card listing them (`placeDay`); the hours grow
+ * taller when a card needs the room (`hourPxFor`). Today's column is
  * tinted and carries a live "now" line in Melbourne time, matching how
  * lesson times are stored.
  *
@@ -47,7 +49,7 @@ export type TimeGridEvent = {
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-/** Pixels per hour: tall on the classes page, compact on the home pages. */
+/** Pixels per hour at least: tall on the classes page, compact on the home pages. */
 const HOUR_PX = { detailed: 104, compact: 42 };
 const GUTTER_PX = 60;
 const NARROW_DAY_PX = 74;
@@ -177,6 +179,12 @@ function EventBlock({
               </span>
             )}
           </>
+        ) : height < 43 ? (
+          // The time over the name needs 43px; shorter, they share a line.
+          <div className="truncate text-[12px] font-bold leading-[1.2]">
+            <span className="text-[11px] font-extrabold tabular-nums">{timeLabel(e.startTime)}</span>{" "}
+            {e.label}
+          </div>
         ) : (
           <>
             <div className="text-[11px] font-extrabold tabular-nums leading-tight">
@@ -185,8 +193,8 @@ function EventBlock({
             <div
               className={cn(
                 "mt-0.5 text-[12px] font-bold leading-[1.2]",
-                // Under ~45 minutes there is room for one line only.
-                height < 46 ? "line-clamp-1" : "line-clamp-2",
+                // A second line of the name needs 57px.
+                height < 57 ? "line-clamp-1" : "line-clamp-2",
               )}
             >
               {e.label}
@@ -198,7 +206,9 @@ function EventBlock({
   );
 }
 
-/** Three or more lessons at once: one card with a row per lesson. */
+/** Three or more lessons at once: one card with a row per lesson. Its
+ *  heights match `GROUP_CARD_PX`, which the grid uses to make room for it,
+ *  so they are px, not rem (the root font is 17px). */
 function GroupCard({
   group,
   top,
@@ -214,13 +224,13 @@ function GroupCard({
   return (
     <div className="absolute inset-x-0 px-1" style={{ top: top + 2 }}>
       <div
-        className="flex flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-[12px] border border-line bg-white/80 p-1.5 shadow-[0_6px_18px_-14px_rgba(60,62,150,0.45)]"
+        className="flex flex-col gap-[2px] overflow-y-auto overscroll-contain rounded-[12px] border border-line bg-white/80 p-[6px] shadow-[0_6px_18px_-14px_rgba(60,62,150,0.45)]"
         style={{ maxHeight }}
       >
-        <p className="px-1 pb-1 pt-0.5 text-[11px] font-extrabold tabular-nums text-ink">
+        <p className="flex h-[22px] shrink-0 items-center px-1 text-[11px] font-extrabold leading-none tabular-nums text-ink">
           {startLabel} · {countLabel(group.events.length, noun)}
         </p>
-        <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+        <ul className="m-0 flex list-none flex-col gap-[2px] p-0">
           {group.events.map((e, i) => {
             const tone = subjectTone(e.subject ?? e.label, e.subjectColor);
             const time = timeLabel(e.startTime);
@@ -230,14 +240,14 @@ function GroupCard({
             return (
               <li key={e.id} title={eventTooltip(e)}>
                 {newTime && (
-                  <p className="px-1 pb-0.5 pt-1 text-[10px] font-extrabold tabular-nums text-muted">
+                  <p className="flex h-[20px] items-end px-1 pb-0.5 text-[10px] font-extrabold leading-none tabular-nums text-muted">
                     {time}
                   </p>
                 )}
                 <MaybeLink
                   href={e.href}
                   label={eventTooltip(e)}
-                  className="flex min-h-[26px] items-center gap-2 rounded-[7px] px-2 py-1 transition-[filter] duration-150 hover:brightness-[0.97]"
+                  className="flex h-[26px] items-center gap-2 rounded-[7px] px-2 transition-[filter] duration-150 hover:brightness-[0.97]"
                   style={{ backgroundColor: tone.bg, color: tone.fg }}
                 >
                   <span className="min-w-0 flex-1 truncate text-[12px] font-bold leading-tight">
@@ -283,7 +293,6 @@ export function WeekTimeGrid({
     return () => window.clearInterval(timer);
   }, []);
 
-  const hourPx = detailed ? HOUR_PX.detailed : HOUR_PX.compact;
   const byDay = new Map<string, TimeGridEvent[]>();
   for (const e of events) {
     if (!byDay.has(e.date)) byDay.set(e.date, []);
@@ -304,6 +313,8 @@ export function WeekTimeGrid({
   const minWidth = GUTTER_PX + wideDays * WIDE_DAY_MIN_PX + (7 - wideDays) * NARROW_DAY_PX;
 
   const { start: startHour, end: endHour } = gridHours(events, fullDay);
+  const placedByDay = days.map((d) => placeDay(byDay.get(d.iso) ?? []));
+  const hourPx = hourPxFor(placedByDay, endHour, detailed ? HOUR_PX.detailed : HOUR_PX.compact);
   const canToggle = fullDayDiffers(events);
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
   const bodyHeight = (endHour - startHour) * hourPx;
@@ -369,7 +380,7 @@ export function WeekTimeGrid({
               ))}
             </div>
 
-            {days.map((d) => (
+            {days.map((d, dayIndex) => (
               <div
                 key={d.iso}
                 className={cn("relative min-w-0 border-l border-line", d.isToday && "bg-brand-50/70")}
@@ -378,7 +389,7 @@ export function WeekTimeGrid({
                   backgroundImage: `repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px ${hourPx}px)`,
                 }}
               >
-                {placeDay(byDay.get(d.iso) ?? []).map((p) => {
+                {placedByDay[dayIndex].map((p) => {
                   const top = toPx(p.start);
                   if (p.kind === "group") {
                     const limit = p.nextStart === null ? bodyHeight : toPx(p.nextStart);

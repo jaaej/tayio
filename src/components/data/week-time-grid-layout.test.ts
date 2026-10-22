@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { countLabel, fullDayDiffers, gridHours, placeDay } from "./week-time-grid-layout";
+import {
+  countLabel,
+  fullDayDiffers,
+  gridHours,
+  groupCardHeight,
+  hourPxFor,
+  placeDay,
+} from "./week-time-grid-layout";
 
 const at = (startTime: string, endTime: string, id = `${startTime}-${endTime}`) => ({ id, startTime, endTime });
 
@@ -64,6 +71,52 @@ describe("placeDay", () => {
   it("starts a new cluster when a lesson begins as another ends", () => {
     const placed = placeDay([at("16:00", "17:00", "a"), at("17:00", "18:00", "b")]);
     expect(placed.map((p) => p.kind === "event" && p.lanes)).toEqual([1, 1]);
+  });
+});
+
+describe("groupCardHeight", () => {
+  it("adds a row per lesson and a time label per later start", () => {
+    const together = [at("16:30", "18:30", "a"), at("16:30", "18:30", "b"), at("16:30", "18:30", "c")];
+    expect(groupCardHeight(together)).toBe(14 + 24 + 3 * 26 + 2 * 2);
+    expect(groupCardHeight([...together, at("17:45", "19:15", "d")])).toBe(14 + 24 + 4 * 26 + 3 * 2 + 20);
+  });
+});
+
+describe("hourPxFor", () => {
+  // Production's week of 19 October 2026: three classes at 4:30 with the
+  // next class at 7 pm (Tuesday) and 6:30 pm (Thursday).
+  const tuesday = placeDay([
+    at("16:30", "18:30", "a"),
+    at("16:30", "18:30", "b"),
+    at("16:30", "18:30", "c"),
+    at("19:00", "21:00", "d"),
+  ]);
+  const thursday = placeDay([
+    at("16:30", "18:30", "e"),
+    at("16:30", "18:30", "f"),
+    at("16:30", "18:30", "g"),
+    at("18:30", "20:30", "h"),
+  ]);
+
+  it("keeps the base when every card fits", () => {
+    expect(hourPxFor([placeDay([at("16:30", "18:30"), at("19:00", "21:00")])], 22, 42)).toBe(42);
+    // The last card of a day may run on to the end of the grid.
+    expect(hourPxFor([placeDay([at("16:30", "18:30", "a"), at("16:30", "18:30", "b"), at("16:30", "18:30", "c")])], 22, 42)).toBe(42);
+  });
+
+  it("grows so each card ends above the day's next lessons", () => {
+    // 126px of card and margin in 2.5 hours, then in 2 hours.
+    expect(hourPxFor([tuesday], 22, 42)).toBe(51);
+    expect(hourPxFor([tuesday, thursday], 22, 42)).toBe(63);
+    expect(hourPxFor([tuesday, thursday], 22, 104)).toBe(104);
+  });
+
+  it("grows at most threefold", () => {
+    const crowded = placeDay([
+      ...["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => at("16:00", "17:00", id)),
+      at("17:00", "18:00", "i"),
+    ]);
+    expect(hourPxFor([crowded], 22, 42)).toBe(126);
   });
 });
 

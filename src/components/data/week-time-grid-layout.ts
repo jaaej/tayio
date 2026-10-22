@@ -101,3 +101,37 @@ export function placeDay<E extends GridTime>(events: E[]): Placed<E>[] {
     return cluster.items.map((c) => ({ ...c, lanes }));
   });
 }
+
+/**
+ * Heights in px inside a folded card (`GroupCard`), fixed in its CSS so the
+ * grid can make room for the whole card: border and padding, the
+ * "4:30 pm · 3 classes" header with the gap under it, a row per lesson with
+ * the gap between rows, a small time label over each later start, and the
+ * space kept above and below the card.
+ */
+export const GROUP_CARD_PX = { chrome: 14, header: 24, row: 26, rowGap: 2, timeLabel: 20, margin: 6 };
+
+/** The height of a folded card listing these lessons. */
+export function groupCardHeight(events: GridTime[]): number {
+  const { chrome, header, row, rowGap, timeLabel } = GROUP_CARD_PX;
+  const starts = new Set(events.map((e) => minutesOf(e.startTime))).size;
+  return chrome + header + events.length * row + (events.length - 1) * rowGap + (starts - 1) * timeLabel;
+}
+
+/**
+ * Pixels per hour for the week: `base`, or taller when a folded card needs
+ * more room than its time gives it before the day's next lessons (or the end
+ * of the grid), so the card never cuts off its last lessons or runs into the
+ * next ones. At most three times `base`; past that the card scrolls.
+ */
+export function hourPxFor(days: Placed<GridTime>[][], endHour: number, base: number): number {
+  let px = base;
+  for (const day of days) {
+    for (const p of day) {
+      if (p.kind !== "group") continue;
+      const minutes = (p.nextStart ?? endHour * 60) - p.start;
+      px = Math.max(px, Math.ceil(((groupCardHeight(p.events) + GROUP_CARD_PX.margin) * 60) / minutes));
+    }
+  }
+  return Math.min(px, base * 3);
+}
