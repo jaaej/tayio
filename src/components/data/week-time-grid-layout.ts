@@ -111,6 +111,19 @@ export function placeDay<E extends GridTime>(events: E[]): Placed<E>[] {
 }
 
 /**
+ * A day's share of the week's width: the most lessons it shows side by side
+ * (a folded card counts as the most there can be). Sharing the width this
+ * way makes every lesson block the same width whatever day it is on; equal
+ * days made a lone lesson twice as wide as two side by side.
+ */
+export function dayWidthShare<E>(placed: Placed<E>[]): number {
+  return placed.reduce(
+    (most, p) => Math.max(most, p.kind === "group" ? MAX_SIDE_BY_SIDE : p.lanes),
+    1,
+  );
+}
+
+/**
  * Heights in px inside a folded card (`GroupCard`), fixed in its CSS so the
  * grid can make room for the whole card: border and padding, the
  * "4:30 - 6:30 pm · 3 classes" header with the gap under it, a row per

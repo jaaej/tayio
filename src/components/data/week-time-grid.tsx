@@ -11,6 +11,7 @@ import {
   gridHours,
   hourPxFor,
   placeDay,
+  dayWidthShare,
   timeRangeLabel,
   type PlacedEvent,
   type PlacedGroup,
@@ -55,7 +56,10 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOUR_PX = { detailed: 104, compact: 42 };
 const GUTTER_PX = 60;
 const NARROW_DAY_PX = 74;
-/** Narrowest a day with lessons gets before the grid scrolls sideways. */
+/**
+ * Width each day with lessons adds before the grid scrolls sideways. Days
+ * split it by `dayWidthShare`, so a lesson block never gets under half (75px).
+ */
 const WIDE_DAY_MIN_PX = 150;
 
 /** An hour line's label: "3 pm"; the grid's last line may be hour 24. */
@@ -300,17 +304,21 @@ export function WeekTimeGrid({
     const count = byDay.get(iso)?.length ?? 0;
     return { iso, label, dayNum: Number(iso.slice(8)), isToday: iso === todayIso, count };
   });
+  const placedByDay = days.map((d) => placeDay(byDay.get(d.iso) ?? []));
   // Narrow the days without lessons, unless the whole week is empty.
   const narrowEmpty = events.length > 0;
   const columns = days
-    .map((d) => (narrowEmpty && d.count === 0 ? `${NARROW_DAY_PX}px` : "minmax(0,1fr)"))
+    .map((d, i) =>
+      narrowEmpty && d.count === 0
+        ? `${NARROW_DAY_PX}px`
+        : `minmax(0,${dayWidthShare(placedByDay[i])}fr)`,
+    )
     .join(" ");
   const gridTemplateColumns = `${GUTTER_PX}px ${columns}`;
   const wideDays = days.filter((d) => !narrowEmpty || d.count > 0).length;
   const minWidth = GUTTER_PX + wideDays * WIDE_DAY_MIN_PX + (7 - wideDays) * NARROW_DAY_PX;
 
   const { start: startHour, end: endHour } = gridHours(events, fullDay);
-  const placedByDay = days.map((d) => placeDay(byDay.get(d.iso) ?? []));
   const hourPx = hourPxFor(placedByDay, endHour, detailed ? HOUR_PX.detailed : HOUR_PX.compact);
   const canToggle = fullDayDiffers(events);
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
@@ -330,33 +338,34 @@ export function WeekTimeGrid({
             {days.map((d) => (
               <div
                 key={d.iso}
-                className={cn(
-                  "flex min-w-0 items-center gap-2 border-l border-line px-2.5 pb-2.5 pt-3",
-                  d.isToday && "bg-brand-50/70",
-                )}
+                className={cn("min-w-0 border-l border-line px-2.5 pb-2.5 pt-3", d.isToday && "bg-brand-50/70")}
               >
-                <span
-                  className={cn(
-                    "text-[12px] font-extrabold tracking-[0.04em]",
-                    d.isToday ? "text-ink" : "text-muted",
-                  )}
-                >
-                  {d.label}
-                </span>
-                <span
-                  className={cn(
-                    "grid h-[26px] min-w-[26px] place-items-center rounded-full px-1 text-[14px] font-extrabold tabular-nums",
-                    d.isToday ? "bg-ink text-white" : "text-ink",
-                  )}
-                  aria-current={d.isToday ? "date" : undefined}
-                >
-                  {d.dayNum}
-                </span>
-                {d.count > 0 && (
-                  <span className="ml-auto truncate text-[11px] font-semibold tabular-nums text-muted">
-                    {countLabel(d.count, noun)}
+                {/* One 26px line: a count too wide for the day wraps onto a
+                    second line and is clipped, rather than cut to "1 ...". */}
+                <div className="flex h-[26px] flex-wrap items-center gap-x-2 overflow-hidden">
+                  <span
+                    className={cn(
+                      "text-[12px] font-extrabold tracking-[0.04em]",
+                      d.isToday ? "text-ink" : "text-muted",
+                    )}
+                  >
+                    {d.label}
                   </span>
-                )}
+                  <span
+                    className={cn(
+                      "grid h-[26px] min-w-[26px] place-items-center rounded-full px-1 text-[14px] font-extrabold tabular-nums",
+                      d.isToday ? "bg-ink text-white" : "text-ink",
+                    )}
+                    aria-current={d.isToday ? "date" : undefined}
+                  >
+                    {d.dayNum}
+                  </span>
+                  {d.count > 0 && (
+                    <span className="ml-auto whitespace-nowrap text-[11px] font-semibold tabular-nums text-muted">
+                      {countLabel(d.count, noun)}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

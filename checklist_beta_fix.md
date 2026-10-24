@@ -669,6 +669,14 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] The weekly grid gives every lesson block the same width (25 October 2026, owner report: "Scholarship Program" on Tuesday was twice as wide as the two Wednesday classes).
+  Cause: every day with lessons took an equal share of the width, so a day with one lesson at a time drew it as wide as two side by side on another day.
+  Each day now takes one share per lesson it shows side by side, a folded card of three or more counting as two (`dayWidthShare`, `src/components/data/week-time-grid-layout.ts`). A lesson nothing overlaps still fills its own day.
+  The scroll-sideways minimum is unchanged (150px per day with lessons), so a block never gets under 75px, the floor two side-by-side lessons already had; on dev at 1024px and 390px every block is 100px instead of 75px next to 150px.
+  A day header's count ("2 classes") now drops out whole when the day is too narrow for it, as the folded card's count does, instead of reading "1 ...".
+  Shared by the admin dashboard, tutor Today and admin Classes. Verified on dev in Chrome and WebKit: admin dashboard blocks 81px vs 162px before, all 107 to 108px after; admin Classes the same; tutor Today unchanged (no overlaps).
+- [ ] Owner decision: every Production class name repeats its subject and schedule ("Year 7 Maths @ TUESDAY 4:30 - 6:30 PM"), so lists read "Y7 Mathematics · Year 7 Maths @ TUESDAY 4:30 - 6:30 PM" and the name goes stale if the class moves. Proposed: rename the 17 classes to their weekday ("Tuesday"), giving "Y7 Mathematics · Tuesday".
+
 - [x] One way to write times and dates in every portal (25 October 2026, owner request after the Classes-cards change).
   Times read like the weekly grid everywhere: "4 pm", "4:30 pm", "4 - 5:30 pm", "11:30 am - 1 pm". Before, six styles were in use ("4:00 – 5:30 pm", "4:00pm–5:30pm", "4:00pm - 5:30pm", "4:00 pm" and others).
   One formatter each in `src/lib/format.ts`: `formatTime` / `formatTimeRange` for lesson times, `formatClockTime` / `formatDateTime` for moments (messages, "Last saved", announcements, homework "submitted", PDF "Generated"), `formatDateShort` / `formatDayDate` / `formatDueDate` / `formatDayMonth` / `weekRangeLabel` for dates. The copies they replace are deleted: `compactTime` (student dashboard), `timeOptionLabel` (time pickers), `shortTime` (class moves), the grid's `timeLabel`, the leave panel's labels, `weekSpanLabel` (dashboard week panel) and ten page-local Intl formatters.

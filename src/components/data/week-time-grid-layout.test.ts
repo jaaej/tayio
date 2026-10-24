@@ -5,6 +5,7 @@ import {
   gridHours,
   groupCardHeight,
   hourPxFor,
+  dayWidthShare,
   placeDay,
   timeRangeLabel,
 } from "./week-time-grid-layout";
@@ -33,6 +34,23 @@ describe("gridHours", () => {
   it("knows when the full day adds nothing", () => {
     expect(fullDayDiffers([at("16:30", "18:30")])).toBe(true);
     expect(fullDayDiffers([at("07:00", "20:30")])).toBe(false);
+  });
+});
+
+describe("dayWidthShare", () => {
+  it("gives a day one share per lesson side by side, so every block is as wide", () => {
+    expect(dayWidthShare(placeDay([at("16:30", "18:30")]))).toBe(1);
+    expect(dayWidthShare(placeDay([at("16:30", "18:30", "a"), at("16:30", "18:30", "b")]))).toBe(2);
+    expect(dayWidthShare(placeDay([at("16:00", "17:00", "a"), at("17:00", "18:00", "b")]))).toBe(1);
+  });
+
+  it("counts a folded card as the most side by side", () => {
+    const three = [at("16:30", "18:30", "a"), at("16:30", "18:30", "b"), at("16:30", "18:30", "c")];
+    expect(dayWidthShare(placeDay(three))).toBe(2);
+  });
+
+  it("gives an empty day one share", () => {
+    expect(dayWidthShare(placeDay([]))).toBe(1);
   });
 });
 
