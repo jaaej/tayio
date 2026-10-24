@@ -15,7 +15,7 @@ Last updated: 22 October 2026
 
 - [ ] Consistency audit fixes (18 to 20 October 2026): deployed (`48203bf`) and migrations 0065 to 0077 applied to Production on 20 October 2026, with `npm run db:check-rls` passing there.
   Admin: the dashboard To do rows match the queues they link to (Attendance to mark and Notes, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
-  Tutor: Today's "lessons need finishing" equals the Classes cards; Request time away with a handover note, then cancel it from Time away; another tutor's Cover board shows the handover note, not the reason; Week plan shows Class recording and the quiz's Instructions and Changes requested separately; a student's Lessons timeline.
+  Tutor: Request time away with a handover note, then cancel it from Time away; another tutor's Cover board shows the handover note, not the reason; Week plan shows Class recording and the quiz's Instructions and Changes requested separately; a student's Lessons timeline.
   Parent (Safari and a phone): the new shell and menu (Subjects, Timetable), the Overview's Next lesson and "Can't make it?", one subject page with Attendance and Tutor feedback, a homework page and a recap page, Payments overdue by due date, switching children and opening a notification for the second child.
   Student: recap headings now match the tutor editor (Topic covered, Performance, Strengths, Struggled with, Next lesson focus, Comment); homework turns Overdue the day after its due day; Resources lists "Class recordings"; an announcement notification opens the full text.
 
@@ -668,6 +668,11 @@ Still open after the fixes:
 - [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
 
 ## Recently implemented
+
+- [x] The tutor's Classes cards no longer show "N lessons to finish" and "N to mark" (25 October 2026, owner request).
+  `/tutor/classes` cards keep the class, week, When, Where, Enrolled, Week plan and Lessons. The same work stays one tap away: Today's "lessons need finishing" row, each class's Lessons tab, and the Marking badge in the sidebar. `finishingByClass` (only these cards used it) is removed.
+  Verified on dev as Tom in Chrome and WebKit (1440px, and 390px in WebKit): five cards, no chips; Today still reads "59 lessons need finishing".
+  Inconsistency seen, not changed: class cards and most pages show times as "4:00 – 5:30 pm" (`formatTimeRange`, an en dash this font draws as long as an em dash, in 20 files across all four roles), while the weekly grid reads "4 - 5:30 pm" (`timeRangeLabel`) since 22 October 2026.
 
 - [x] A lesson nobody can cover: cover it off the portal, or cancel it with a class credit for each student (21 October 2026, owner request; owner chose: an admin cancels, never automatic; families get a class credit; "Attendance" becomes "Lessons").
   Before: a cover request nobody took went "Expired" at the start time and left the board, while the lesson stayed scheduled, on families' timetables, in the attendance queue, and on the absent tutor's weekly check-in as hours worked.

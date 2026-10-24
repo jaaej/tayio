@@ -17,9 +17,8 @@ export type LessonToFinish = LessonView & {
  * Lessons this tutor taught before today that still need attendance or notes
  * (`describeLesson`), oldest first, with no cut-off: their own classes,
  * make-ups and covers alike. Today's "lessons need finishing" item counts
- * them, and the Classes cards count each class's share (the class Lessons tab
- * rule: the class's own lessons, make-ups left out). A lesson they asked cover
- * for that nobody on the portal took is not theirs to finish.
+ * them. A lesson they asked cover for that nobody on the portal took is not
+ * theirs to finish.
  */
 export async function getLessonsToFinish(
   tutorId: string,

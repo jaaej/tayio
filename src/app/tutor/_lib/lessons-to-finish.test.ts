@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finishingByClass, finishingTodo, type FinishingLesson } from "./lessons-to-finish";
+import { finishingTodo, type FinishingLesson } from "./lessons-to-finish";
 
 const lesson = (over: Partial<FinishingLesson>): FinishingLesson => ({
   id: "l1",
@@ -10,19 +10,6 @@ const lesson = (over: Partial<FinishingLesson>): FinishingLesson => ({
   className: "Year 9 Maths · Monday PM",
   subjectName: "Year 9 Maths",
   ...over,
-});
-
-describe("finishingByClass", () => {
-  it("counts each class's lessons and leaves make-ups out, like the Lessons tab", () => {
-    const counts = finishingByClass([
-      lesson({ id: "a" }),
-      lesson({ id: "b" }),
-      lesson({ id: "c", classId: "c2" }),
-      lesson({ id: "d", status: "makeup" }),
-    ]);
-    expect(counts.get("c1")).toBe(2);
-    expect(counts.get("c2")).toBe(1);
-  });
 });
 
 describe("finishingTodo", () => {

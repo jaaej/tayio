@@ -11,40 +11,24 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { getLessonWeek } from "@/lib/week-plans";
 import { cn } from "@/lib/utils";
 import { getTutorClasses, requireTutor } from "../_data";
-import { getLessonsToFinish } from "../_lib/lesson-finishing";
-import { finishingByClass } from "../_lib/lessons-to-finish";
-import { getToMark } from "../homework/_lib/marking-data";
-import { groupToMarkByClass, submissionHref } from "../homework/_lib/marking-list";
 import { getNextLessonDateByClass } from "./_lib/queries";
 
 export const dynamic = "force-dynamic";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const LINE_BUTTON = buttonVariants({ variant: "outline", size: "md" });
-/** A card's "needs you" link: a tinted pill, 40px tall so it is easy to tap. */
-const NEEDS_LINK =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-full bg-warn-bg px-3 text-[13px] font-extrabold tabular-nums text-warn transition-colors hover:bg-[#FCE7C3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400";
-
-function plural(n: number, one: string, many = `${one}s`) {
-  return `${n} ${n === 1 ? one : many}`;
-}
 
 export default async function TutorClassesPage() {
   const tutor = await requireTutor();
-  const now = new Date();
-  const todayIso = melbourneDate(now);
+  const todayIso = melbourneDate(new Date());
 
-  const [list, nextByClass, toFinish, toMark] = await Promise.all([
+  const [list, nextByClass] = await Promise.all([
     getTutorClasses(tutor.id),
     getNextLessonDateByClass(tutor.id, todayIso),
-    getLessonsToFinish(tutor.id, now),
-    getToMark(tutor.id),
   ]);
 
   const weeks = await Promise.all(list.map((c) => getLessonWeek(c.id, todayIso)));
   const weekByClass = new Map(list.map((c, i) => [c.id, weeks[i]]));
-  const finishing = finishingByClass(toFinish);
-  const marking = new Map(groupToMarkByClass(toMark).map((g) => [g.key, g.items]));
 
   // Classes with a lesson coming up first, soonest first; the rest by name.
   const sorted = [...list].sort((a, b) => {
@@ -97,8 +81,6 @@ export default async function TutorClassesPage() {
                   ? `${WEEKDAY[c.weekday]} · ${formatTimeRange(c.startTime, c.endTime)}`
                   : "-";
               const where = c.location ?? "-";
-              const toFinishCount = finishing.get(c.id) ?? 0;
-              const waiting = marking.get(c.id) ?? [];
               return (
                 <article key={c.id} className="panel flex flex-col gap-3.5 p-4">
                   <div className="flex items-start gap-2.5">
@@ -118,23 +100,6 @@ export default async function TutorClassesPage() {
                       )}
                     </span>
                   </div>
-                  {(toFinishCount > 0 || waiting.length > 0) && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {toFinishCount > 0 && (
-                        <Link href={`/tutor/classes/${c.id}/lessons`} className={NEEDS_LINK}>
-                          {plural(toFinishCount, "lesson")} to finish
-                        </Link>
-                      )}
-                      {waiting.length > 0 && (
-                        <Link
-                          href={submissionHref(waiting[0].homeworkId, waiting[0].studentId, {})}
-                          className={NEEDS_LINK}
-                        >
-                          {waiting.length} to mark
-                        </Link>
-                      )}
-                    </div>
-                  )}
                   <dl className="grid grid-cols-[64px_1fr] gap-y-1.5 text-[13px]">
                     <dt className="font-semibold text-muted">When</dt>
                     <dd className="font-bold text-ink tabular-nums">{when}</dd>
