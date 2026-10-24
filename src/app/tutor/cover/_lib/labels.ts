@@ -36,11 +36,11 @@ const DAY_MONTH = new Intl.DateTimeFormat("en-AU", {
 const format = (formatter: Intl.DateTimeFormat, date: string) =>
   formatter.format(new Date(`${date}T00:00:00.000Z`)).replace(",", "");
 
-/** "Thu 15 Oct", or a range such as "Mon 21 – Thu 24 Dec". */
+/** "Thu 15 Oct", or a range such as "Mon 21 - Thu 24 Dec". */
 export function leaveRangeLabel(startDate: string, endDate: string): string {
   if (startDate === endDate) return format(DAY_MONTH, startDate);
   const sameMonth = startDate.slice(0, 7) === endDate.slice(0, 7);
-  return `${format(sameMonth ? DAY : DAY_MONTH, startDate)} – ${format(DAY_MONTH, endDate)}`;
+  return `${format(sameMonth ? DAY : DAY_MONTH, startDate)} - ${format(DAY_MONTH, endDate)}`;
 }
 
 function classes(count: number) {

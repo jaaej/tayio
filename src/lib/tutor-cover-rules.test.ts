@@ -50,7 +50,7 @@ describe("tutor cover timing", () => {
         startTime: "10:00:00",
         endTime: "11:30:00",
       }),
-    ).toBe("Year 9 Maths · Saturday AM, 12 September 10:00am–11:30am");
+    ).toBe("Year 9 Maths · Saturday AM, 12 September 10 - 11:30 am");
   });
 
   it("sends each deadline escalation once and lets 24h supersede 48h", () => {

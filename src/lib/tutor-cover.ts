@@ -551,7 +551,7 @@ export async function runTutorCoverReminders(now = new Date()) {
           title: "URGENT: Extended leave is still not fully covered",
           body:
             `${leave.tutorFirst} ${leave.tutorLast} is away ` +
-            `${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)}. ` +
+            `${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)}. ` +
             `${leave.openCount} ${leave.openCount === 1 ? "class still needs" : "classes still need"} a replacement.`,
           href: "/admin/reschedules#tutor-cover",
         })),

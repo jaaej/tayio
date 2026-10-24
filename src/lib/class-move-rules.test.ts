@@ -35,7 +35,7 @@ describe("class move labels", () => {
   it("formats a recurring slot without exposing database time formatting", () => {
     expect(
       classScheduleLabel({ weekday: 1, startTime: "16:00:00", endTime: "17:30:00" }),
-    ).toBe("Monday, 4:00pm–5:30pm");
+    ).toBe("Monday, 4 - 5:30 pm");
   });
 
   it("keeps pause state independent and human-readable", () => {

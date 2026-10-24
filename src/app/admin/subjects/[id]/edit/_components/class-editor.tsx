@@ -55,7 +55,7 @@ const CLASS_TYPES = [
   ["one_on_one", "One-on-one"],
 ] as const;
 
-/** "Mon 5:00 – 6:30 pm", or null without a weekly day and time. */
+/** "Mon 5 - 6:30 pm", or null without a weekly day and time. */
 function whenLabel(slot: CardSlot): string | null {
   if (slot.weekday === null || !slot.startTime || !slot.endTime) return null;
   return `${DAY_SHORT.get(slot.weekday)} ${formatTimeRange(slot.startTime, slot.endTime)}`;

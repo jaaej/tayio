@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Empty, PageHeader } from "@/components/admin/ui";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
-import { formatTimeRange } from "@/lib/format";
+import { formatDayDate, formatTimeRange } from "@/lib/format";
 import type { FamilyRecap } from "@/lib/lesson-recap";
 import { recapBlocks, recapPreview } from "@/lib/lesson-recap-rules";
 import { LESSON_STATUS_LABEL } from "@/lib/status";
@@ -15,17 +15,6 @@ import { hostedEmbedUrl } from "@/lib/video-embed";
  * /parent/feedback/[lessonId]); `RecapCard` is one recap in a list (parent
  * Feedback, a subject's feedback).
  */
-
-const dayLabel = new Intl.DateTimeFormat("en-AU", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  timeZone: "UTC",
-});
-
-function lessonDay(date: string): string {
-  return dayLabel.format(new Date(`${date}T00:00:00Z`));
-}
 
 /** The filled family fields as blocks, or nothing when none is written. */
 export function RecapBlocks({ recap }: { recap: FamilyRecap }) {
@@ -80,7 +69,7 @@ export function LessonRecapView({
             <span>
               {[
                 recap.className,
-                lessonDay(recap.date),
+                formatDayDate(recap.date),
                 formatTimeRange(recap.startTime, recap.endTime),
                 recap.tutorName && `with ${recap.tutorName}`,
                 statusNote,
@@ -168,7 +157,7 @@ export function RecapCard({ recap, href }: { recap: FamilyRecap; href?: string }
           )}
         </h2>
         <span className="text-[13px] font-semibold text-ink-soft">
-          {[lessonDay(recap.date), recap.tutorName].filter(Boolean).join(" · ")}
+          {[formatDayDate(recap.date), recap.tutorName].filter(Boolean).join(" · ")}
         </span>
       </div>
       <RecapBlocks recap={recap} />
@@ -199,7 +188,7 @@ export function RecapPreviewList({ items }: { items: Array<{ recap: FamilyRecap;
                 <span className="truncate text-[13px] font-bold text-ink">
                   {[recap.subjectName, recap.tutorName].filter(Boolean).join(" · ")}
                 </span>
-                <span className="shrink-0 text-[12px] text-muted">{lessonDay(recap.date)}</span>
+                <span className="shrink-0 text-[12px] text-muted">{formatDayDate(recap.date)}</span>
               </span>
               <span className="line-clamp-2 text-[13px] leading-relaxed text-ink-soft">
                 {recapPreview(recap.note)}

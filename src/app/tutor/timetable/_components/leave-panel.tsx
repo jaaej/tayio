@@ -21,6 +21,7 @@ import {
   submitTutorLeaveRequest,
 } from "@/app/_actions/tutor-cover";
 import { Button, SidePanel, SubjectDot, type ButtonProps } from "@/components/admin/ui";
+import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /*
@@ -80,10 +81,8 @@ const DAYS = [
 // Whole hours from 6 am to 11 pm, which is what the availability actions accept.
 const TIMES = Array.from({ length: 18 }, (_, index) => {
   const hour = index + 6;
-  return {
-    value: `${String(hour).padStart(2, "0")}:00`,
-    label: `${hour % 12 || 12}:00 ${hour < 12 ? "am" : "pm"}`,
-  };
+  const value = `${String(hour).padStart(2, "0")}:00`;
+  return { value, label: formatTime(value) };
 });
 
 type PanelContext = { open: (tab: LeaveTab) => void };

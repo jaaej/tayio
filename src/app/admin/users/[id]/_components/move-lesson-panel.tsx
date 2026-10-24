@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/admin/ui";
 import { SidePanel } from "@/components/ui/side-panel";
-import { formatDateLong, formatTime } from "@/lib/format";
+import { formatDateLong, formatTimeRange } from "@/lib/format";
 import { isOnLeave, type LeavePeriod } from "@/lib/student-leave";
 import type { AvailableSlot } from "@/lib/availability";
 import {
@@ -144,7 +144,7 @@ export function MoveLessonPanel({
             <div className="mt-1 text-[13px] text-ink-soft">
               {[
                 formatDateLong(lesson.date),
-                `${formatTime(lesson.startTime)}–${formatTime(lesson.endTime)}`,
+                formatTimeRange(lesson.startTime, lesson.endTime),
                 lesson.tutorName,
               ]
                 .filter(Boolean)
@@ -199,7 +199,7 @@ export function MoveLessonPanel({
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-bold text-ink">
-                        {formatDateLong(slot.date)} · {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
+                        {formatDateLong(slot.date)} · {formatTimeRange(slot.startTime, slot.endTime)}
                       </span>
                       <span className="mt-0.5 block text-[12px] text-ink-soft">
                         {slot.tutorName}{slot.isOriginalTutor ? " · current tutor" : ""}

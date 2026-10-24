@@ -61,6 +61,7 @@ export async function GET(
   if (!report) return new NextResponse("Report not found", { status: 404 });
 
   const generatedAtLabel = new Date().toLocaleString("en-AU", {
+    timeZone: "Australia/Melbourne",
     day: "numeric",
     month: "short",
     year: "numeric",

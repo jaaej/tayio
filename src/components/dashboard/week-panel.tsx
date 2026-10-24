@@ -6,8 +6,8 @@ import {
   type TimeGridEvent,
 } from "@/components/data/week-time-grid";
 import { countLabel } from "@/components/data/week-time-grid-layout";
+import { weekRangeLabel } from "@/lib/format";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
-import { weekSpanLabel } from "@/lib/week-nav";
 
 const GLASS_ICON = buttonVariants({ variant: "glass", size: "icon" });
 
@@ -41,7 +41,7 @@ export function WeekPanel({
     <GlassPanel
       className={className}
       title="This week"
-      meta={`${weekSpanLabel(weekStart)} · ${countLabel(events.length, noun)}`}
+      meta={`${weekRangeLabel(weekStart)} · ${countLabel(events.length, noun)}`}
       action={
         <>
           <Link

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { timeOptionLabel, timeOptions } from "./time-options";
+import { timeOptions } from "./time-options";
 
 describe("timeOptions", () => {
   it("steps through the day", () => {
@@ -15,10 +15,3 @@ describe("timeOptions", () => {
   });
 });
 
-describe("timeOptionLabel", () => {
-  it("reads like the schedule", () => {
-    expect(timeOptionLabel("12:30")).toBe("12:30 pm");
-    expect(timeOptionLabel("13:30:00")).toBe("1:30 pm");
-    expect(timeOptionLabel("00:15")).toBe("12:15 am");
-  });
-});

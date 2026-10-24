@@ -7,11 +7,11 @@ describe("leaveRangeLabel", () => {
   });
 
   it("names the month once for a range inside one month", () => {
-    expect(leaveRangeLabel("2026-12-21", "2026-12-24")).toBe("Mon 21 – Thu 24 Dec");
+    expect(leaveRangeLabel("2026-12-21", "2026-12-24")).toBe("Mon 21 - Thu 24 Dec");
   });
 
   it("names both months for a range across months", () => {
-    expect(leaveRangeLabel("2026-12-28", "2027-01-02")).toBe("Mon 28 Dec – Sat 2 Jan");
+    expect(leaveRangeLabel("2026-12-28", "2027-01-02")).toBe("Mon 28 Dec - Sat 2 Jan");
   });
 });
 

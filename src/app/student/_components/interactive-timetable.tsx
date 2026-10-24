@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
+import { formatDateLong, formatDateShort, formatTime, formatTimeRange, formatWeekday } from "@/lib/format";
 import { distinctSubjects } from "@/lib/subject-label";
 import { subjectTone } from "@/lib/subject-tone";
 import {
@@ -479,11 +479,7 @@ export function InteractiveTimetable({
                 {picking.action.type === "credit" ? "Book" : "Move"} {picking.subjectName}{" "}
                 {picking.action.type === "credit" ? "make-up at" : "to"}{" "}
                 <span className="tabular-nums">
-                  {new Date(`${picking.picked.date}T00:00:00`).toLocaleDateString("en-AU", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                  })}{" "}
+                  {formatWeekday(picking.picked.date, "short")} {formatDateShort(picking.picked.date)}{" "}
                   {formatTime(picking.picked.startTime)}
                 </span>
                 ?

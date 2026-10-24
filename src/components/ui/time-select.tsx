@@ -1,6 +1,7 @@
 "use client";
 
-import { timeOptionLabel, timeOptions } from "@/lib/time-options";
+import { formatTime } from "@/lib/format";
+import { timeOptions } from "@/lib/time-options";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,7 +33,7 @@ export function TimeSelect({
       <option value="">{placeholder}</option>
       {timeOptions({ keep: current }).map((t) => (
         <option key={t} value={t} className="text-ink">
-          {timeOptionLabel(t)}
+          {formatTime(t)}
         </option>
       ))}
     </select>

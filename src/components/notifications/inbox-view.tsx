@@ -25,6 +25,7 @@ import {
   type NotificationGroupKey,
   type NotificationWhen,
 } from "@/lib/notification-groups";
+import { formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   finishNavigationLoading,
@@ -70,12 +71,6 @@ const GROUP_STYLE: Record<
   },
   updates: { dot: "bg-muted-2", text: "text-ink-soft", tile: "bg-surface-3 text-ink-soft", Icon: Bell },
 };
-
-const announcementDate = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Melbourne",
-  day: "numeric",
-  month: "short",
-});
 
 const ITEM_LABEL = Object.fromEntries(
   NOTIFICATION_GROUPS.map((group) => [group.key, group.itemLabel]),
@@ -301,7 +296,7 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
               dateTime={olderAnnouncement.publishedAtIso}
               className="shrink-0 whitespace-nowrap text-[12px] tabular-nums text-ink-soft"
             >
-              {announcementDate.format(new Date(olderAnnouncement.publishedAtIso))}
+              {formatDayMonth(new Date(olderAnnouncement.publishedAtIso))}
             </time>
           </div>
         </section>

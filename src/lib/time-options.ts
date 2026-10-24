@@ -14,9 +14,4 @@ export function timeOptions(
   return [...times].sort();
 }
 
-/** "5:00 pm" from "17:00" or "17:00:00". */
-export function timeOptionLabel(t: string): string {
-  const hour = Number(t.slice(0, 2));
-  const suffix = hour >= 12 ? "pm" : "am";
-  return `${hour % 12 === 0 ? 12 : hour % 12}:${t.slice(3, 5)} ${suffix}`;
-}
+

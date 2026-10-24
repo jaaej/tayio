@@ -67,7 +67,7 @@ function weekRange(weekStart: string) {
   const fmt = (iso: string, opts: Intl.DateTimeFormatOptions) =>
     new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", opts);
   const sameMonth = weekStart.slice(0, 7) === end.slice(0, 7);
-  return `${fmt(weekStart, sameMonth ? { day: "numeric" } : { day: "numeric", month: "short" })} – ${fmt(end, { day: "numeric", month: "short", year: "numeric" })}`;
+  return `${fmt(weekStart, sameMonth ? { day: "numeric" } : { day: "numeric", month: "short" })} - ${fmt(end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
 type SearchParams = Promise<{

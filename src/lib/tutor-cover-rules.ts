@@ -1,4 +1,4 @@
-import { formatDateLong, formatTime } from "@/lib/format";
+import { formatDateLong, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 
 export const COVER_TIME_ZONE = "Australia/Melbourne";
@@ -121,7 +121,7 @@ export function tutorCoverLessonDescription(row: {
   const dateLabel = tutorCoverDateLabel(row.date, row.className);
   return (
     `${name}, ${dateLabel} ` +
-    `${formatTime(row.startTime)}–${formatTime(row.endTime)}`
+    formatTimeRange(row.startTime, row.endTime)
   );
 }
 

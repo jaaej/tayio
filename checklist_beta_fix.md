@@ -669,10 +669,23 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] One way to write times and dates in every portal (25 October 2026, owner request after the Classes-cards change).
+  Times read like the weekly grid everywhere: "4 pm", "4:30 pm", "4 - 5:30 pm", "11:30 am - 1 pm". Before, six styles were in use ("4:00 – 5:30 pm", "4:00pm–5:30pm", "4:00pm - 5:30pm", "4:00 pm" and others).
+  One formatter each in `src/lib/format.ts`: `formatTime` / `formatTimeRange` for lesson times, `formatClockTime` / `formatDateTime` for moments (messages, "Last saved", announcements, homework "submitted", PDF "Generated"), `formatDateShort` / `formatDayDate` / `formatDueDate` / `formatDayMonth` / `weekRangeLabel` for dates. The copies they replace are deleted: `compactTime` (student dashboard), `timeOptionLabel` (time pickers), `shortTime` (class moves), the grid's `timeLabel`, the leave panel's labels, `weekSpanLabel` (dashboard week panel) and ten page-local Intl formatters.
+  Ranges use a plain hyphen, never an en dash (this font draws it as long as an em dash); role labels read "Admin - owner".
+  Weeks read "7 - 13 Sept", or "28 Sept - 4 Oct" across a month. Dates have no comma after the weekday ("Tue 30 June"), as most of the portal already did; admin Payments now uses the invoice formatter families see ("Tue 14 July", the year only when it is not this year).
+  Safari fix found on the way: Safari's Intl writes short months as "Jun", "Jul", "Sep" (and "1 Jul at 5:18 pm") where the server writes "June", "July", "Sept", so any date a browser drew differed from the server's. The tutor's lesson notes page failed hydration in Safari on every load ("Last saved"). Short months now come from one fixed list matching the server, and clock times are built from 24h digits, so every engine prints the same text.
+  Timezone fixes found on the way: the student term report PDF dated "Generated" in UTC (the previous day before 11 am Melbourne), the financial report PDF timed it in UTC, and `relativeTime`'s older-date fallback used the server day. All three use Melbourne time now.
+  Admin Payments rows: the actions column is a fixed 136px, so amount, due date and status line up whether a row has "Mark paid" or not (they were up to 85px apart).
+  Not rewritten: notifications already sent keep the wording they were sent with ("4:00pm–5:30pm"); new ones use the new format. Dev-database seed rows (announcement titles, tutor notes) still contain em dashes from an older seed; `scripts/seed-demo.mjs` no longer writes them.
+  Verified: 708 unit tests (formatter outputs pinned, including the Safari month names), typecheck, lint, production build. On dev, 27 pages across admin, tutor, student and parent in Chrome and WebKit, scanned for any old-style time, en or em dash, weekday comma or Safari month spelling: none outside old notifications and seed text. WebKit hydration sweep of 18 client-heavy pages across the four roles: 0 page errors.
+- [ ] Manual QA: in Safari on Production, open a tutor lesson's notes (no reload flash; "Last saved" reads like "1 July, 5:18 pm"), the tutor check-in ("7 - 13 Sept"), a parent's home ("Tue 30 June") and admin Payments (columns aligned).
+- [ ] Open, not changed: the financial report PDF's default month and its `from` / `to` dates are server-local midnight (`src/app/admin/revenue/report/route.ts`), which is UTC on Vercel, so a payment made before 11 am Melbourne time on the 1st is counted in the previous month's report.
+
 - [x] The tutor's Classes cards no longer show "N lessons to finish" and "N to mark" (25 October 2026, owner request).
   `/tutor/classes` cards keep the class, week, When, Where, Enrolled, Week plan and Lessons. The same work stays one tap away: Today's "lessons need finishing" row, each class's Lessons tab, and the Marking badge in the sidebar. `finishingByClass` (only these cards used it) is removed.
   Verified on dev as Tom in Chrome and WebKit (1440px, and 390px in WebKit): five cards, no chips; Today still reads "59 lessons need finishing".
-  Inconsistency seen, not changed: class cards and most pages show times as "4:00 – 5:30 pm" (`formatTimeRange`, an en dash this font draws as long as an em dash, in 20 files across all four roles), while the weekly grid reads "4 - 5:30 pm" (`timeRangeLabel`) since 22 October 2026.
+  The time-format inconsistency noted here was fixed the same day (entry above).
 
 - [x] A lesson nobody can cover: cover it off the portal, or cancel it with a class credit for each student (21 October 2026, owner request; owner chose: an admin cancels, never automatic; families get a class credit; "Attendance" becomes "Lessons").
   Before: a cover request nobody took went "Expired" at the start time and left the board, while the lesson stayed scheduled, on families' timetables, in the attendance queue, and on the absent tutor's weekly check-in as hours worked.

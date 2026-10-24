@@ -57,7 +57,7 @@ export function StudentTrialManager({
               Trial period
             </span>
             <span className="text-ink-soft">
-              {formatDateLong(trial.startDate)} – {formatDateLong(trial.endDate)}
+              {formatDateLong(trial.startDate)} - {formatDateLong(trial.endDate)}
             </span>
           </div>
           {trial.endDate >= TRIAL_WITHDRAW_FROM_END_DATE && (

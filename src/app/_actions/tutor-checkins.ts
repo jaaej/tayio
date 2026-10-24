@@ -266,7 +266,7 @@ export async function adminCorrectTutorCheckin(input: {
   if (result === "outside-week") {
     return {
       ok: false as const,
-      error: "The work date must stay within this Monday–Sunday week.",
+      error: "The work date must stay within this Monday to Sunday week.",
     };
   }
   revalidateCheckinPaths();

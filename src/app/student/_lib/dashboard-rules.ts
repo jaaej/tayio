@@ -3,7 +3,8 @@
  * which subject is on now or next, and the day-by-day week. Dates are
  * Melbourne calendar days (YYYY-MM-DD); "now" is a real instant.
  */
-import { formatScore } from "@/lib/format";
+
+import { formatScore, formatTime } from "@/lib/format";
 import { isHandedIn, isMarked } from "@/lib/homework-rules";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
@@ -113,14 +114,6 @@ export function shortSubject(name: string): string {
   return short || name;
 }
 
-/** "16:00:00" -> "4 pm", "16:30:00" -> "4:30 pm". */
-export function compactTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  const suffix = h >= 12 ? "pm" : "am";
-  return m ? `${hour}:${String(m).padStart(2, "0")} ${suffix}` : `${hour} ${suffix}`;
-}
-
 /** A day relative to today: "today", "tomorrow", "Fri", or "Thu 22 Oct". */
 export function relativeDay(dayIso: string, todayIso: string): string {
   const diff = daysBetween(todayIso, dayIso);
@@ -187,12 +180,12 @@ export function nextLessonLabel(
   todayIso: string,
 ): string {
   if (!lesson) return "No lessons booked";
-  if (lesson.live) return `On now until ${compactTime(lesson.endTime)}`;
+  if (lesson.live) return `On now until ${formatTime(lesson.endTime)}`;
   const day = relativeDay(lesson.date, todayIso);
   if (day === "today" || day === "tomorrow") {
-    return `${capitalise(day)} ${compactTime(lesson.startTime)}`;
+    return `${capitalise(day)} ${formatTime(lesson.startTime)}`;
   }
-  return `Next lesson ${day} ${compactTime(lesson.startTime)}`;
+  return `Next lesson ${day} ${formatTime(lesson.startTime)}`;
 }
 
 function homeworkAction(status: string): string {
@@ -379,7 +372,7 @@ export function buildWeekDays(input: {
           subjectName: lesson.subjectName,
           subjectColor: lesson.subjectColor,
           label: `${shortSubject(lesson.subjectName)} · ${
-            live ? "on now" : compactTime(lesson.startTime)
+            live ? "on now" : formatTime(lesson.startTime)
           }`,
           live,
           past: state === "past",

@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { Empty, GlassPanel, PageHeader, Pill } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
+import { formatDateTime } from "@/lib/format";
 import { audienceLabelMaps, describeAudience } from "@/app/admin/_lib/announcement-audience";
 import { CreateAnnouncementForm } from "./_components/create-announcement-form";
 import { AnnouncementReviewActions } from "./_components/announcement-review-actions";
@@ -222,16 +223,6 @@ type AnnouncementRow = {
   recipientCount: number;
 };
 
-function formatStamp(date: Date) {
-  return new Date(date).toLocaleString("en-AU", {
-    timeZone: "Australia/Melbourne",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 function PendingCard({ row, audience }: { row: AnnouncementRow; audience: string }) {
   return (
     <article
@@ -239,7 +230,7 @@ function PendingCard({ row, audience }: { row: AnnouncementRow; audience: string
       className="panel flex scroll-mt-5 flex-col gap-2.5 p-4"
     >
       <p className="text-[12px] font-semibold text-muted">
-        {row.authorFirst} {row.authorLast} · to {audience} · {formatStamp(row.publishedAt)}
+        {row.authorFirst} {row.authorLast} · to {audience} · {formatDateTime(row.publishedAt)}
       </p>
       <h3 className="text-[15px] font-extrabold text-ink">{row.title}</h3>
       <p className="whitespace-pre-wrap text-[13px] leading-normal text-ink-soft">{row.body}</p>
@@ -261,7 +252,7 @@ function HistoryRow({ row, audience }: { row: AnnouncementRow; audience: string 
         <Pill tone={rejected ? "bad" : "good"}>{rejected ? "Rejected" : "Published"}</Pill>
         {row.isUrgent ? <Pill tone="bad">Urgent + email</Pill> : null}
         <span className="ml-auto text-[12px] tabular-nums text-muted">
-          {formatStamp(row.publishedAt)}
+          {formatDateTime(row.publishedAt)}
         </span>
       </div>
       <details className="group">

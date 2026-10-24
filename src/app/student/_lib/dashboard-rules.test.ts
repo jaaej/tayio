@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildStudentTodo,
   buildWeekDays,
-  compactTime,
   featuredSubjectId,
   nextLessonBySubject,
   nextLessonLabel,
@@ -46,12 +45,6 @@ describe("labels", () => {
     expect(shortSubject("Year 9 Maths")).toBe("Maths");
     expect(shortSubject("VCE Maths Methods")).toBe("Maths Methods");
     expect(shortSubject("Chemistry")).toBe("Chemistry");
-  });
-
-  it("writes compact times", () => {
-    expect(compactTime("16:00:00")).toBe("4 pm");
-    expect(compactTime("09:30:00")).toBe("9:30 am");
-    expect(compactTime("12:00:00")).toBe("12 pm");
   });
 
   it("names days relative to today", () => {

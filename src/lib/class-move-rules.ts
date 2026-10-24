@@ -1,3 +1,5 @@
+import { formatTimeRange } from "@/lib/format";
+
 export const WEEKDAY_LABELS = [
   "Sunday",
   "Monday",
@@ -42,16 +44,6 @@ export function validateClassMove(facts: ClassMoveFacts): string | null {
   return null;
 }
 
-function shortTime(value: string | null): string | null {
-  if (!value) return null;
-  const [hourPart, minute = "00"] = value.split(":");
-  const hour = Number(hourPart);
-  if (!Number.isFinite(hour)) return value;
-  const suffix = hour >= 12 ? "pm" : "am";
-  const shownHour = hour % 12 || 12;
-  return `${shownHour}:${minute}${suffix}`;
-}
-
 export function classScheduleLabel(input: {
   weekday: number | null;
   startTime: string | null;
@@ -61,9 +53,9 @@ export function classScheduleLabel(input: {
     typeof input.weekday === "number"
       ? WEEKDAY_LABELS[input.weekday] ?? "Schedule TBC"
       : "Schedule TBC";
-  const start = shortTime(input.startTime);
-  const end = shortTime(input.endTime);
-  return start && end ? `${day}, ${start}–${end}` : day;
+  return input.startTime && input.endTime
+    ? `${day}, ${formatTimeRange(input.startTime, input.endTime)}`
+    : day;
 }
 
 export function pauseStatusLabel(

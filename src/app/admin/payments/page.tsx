@@ -7,6 +7,7 @@ import { familyLinks, invoices, notifications, profiles } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { relativeTime } from "@/lib/format";
+import { formatInvoiceDay } from "@/lib/invoice-dates";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { AdminPinPrompt } from "@/components/admin/pin-gate";
@@ -55,15 +56,6 @@ function invoiceMoney(amount: string, currency: string) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(
     Number(amount),
   );
-}
-
-function dueLabel(isoDate: string) {
-  return new Date(`${isoDate}T12:00:00`).toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function fullName(first: string | null, last: string | null) {
@@ -342,7 +334,7 @@ export default async function PaymentsPage({
                   return (
                     <li
                       key={r.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-[13px] transition-colors hover:bg-[#F8F9FC] md:grid-cols-[minmax(0,1.6fr)_110px_150px_150px_auto]"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-[13px] transition-colors hover:bg-[#F8F9FC] md:grid-cols-[minmax(0,1.6fr)_110px_150px_150px_136px]"
                     >
                       <div className="min-w-0">
                         <div className="truncate font-bold text-ink">{r.description || "Invoice"}</div>
@@ -360,7 +352,7 @@ export default async function PaymentsPage({
                       </div>
                       <div className={cn("font-semibold tabular-nums", pastDue ? "text-bad" : "text-ink-soft")}>
                         <span className="sr-only">Due </span>
-                        {dueLabel(r.dueDate)}
+                        {formatInvoiceDay(r.dueDate, now, { weekday: true })}
                       </div>
                       <div className="justify-self-end md:justify-self-start">
                         <InvoiceStatusSelect

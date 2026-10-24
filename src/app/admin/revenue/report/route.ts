@@ -6,6 +6,7 @@ import type { UserRole } from "@/db/schema";
 import { getAdminSecurityState } from "@/app/admin/_lib/actions-security";
 import { getFinancialReport } from "@/app/admin/_lib/queries";
 import { FinancialReportPdf } from "@/lib/pdf/financial-report";
+import { formatDateTime } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,13 +56,7 @@ export async function GET(req: NextRequest) {
   }
 
   const report = await getFinancialReport(from, toExclusive);
-  const generatedAtLabel = now.toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const generatedAtLabel = formatDateTime(now, true);
 
   const buffer = await renderToBuffer(
     FinancialReportPdf({ report, generatedAtLabel }),

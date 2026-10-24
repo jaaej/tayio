@@ -14,7 +14,7 @@ import {
 } from "@/lib/admin-lock";
 import { requireUnrestrictedAdmin } from "@/lib/auth";
 
-const pinSchema = z.string().regex(/^\d{6,8}$/, "PIN must be 6–8 digits");
+const pinSchema = z.string().regex(/^\d{6,8}$/, "PIN must be 6 to 8 digits");
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes

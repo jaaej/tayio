@@ -29,14 +29,14 @@ export const STUDENT_TIERS = [
 
 /** Human-readable account labels. Keep storage and permission values internal. */
 export const USER_ROLE_LABELS = {
-  student: "Student – parental access",
-  student_restricted: "Student – parental access",
+  student: "Student - parental access",
+  student_restricted: "Student - parental access",
   student_unrestricted: "Student",
   parent: "Parent",
   tutor: "Tutor",
-  admin: "Admin – owner",
-  admin_restricted: "Admin – reception",
-  admin_unrestricted: "Admin – owner",
+  admin: "Admin - owner",
+  admin_restricted: "Admin - reception",
+  admin_unrestricted: "Admin - owner",
 } as const satisfies Record<UserRole, string>;
 
 export function roleLabel(role: UserRole): string {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Empty, Pill, SubjectDot } from "@/components/admin/ui";
-import { formatTime } from "@/lib/format";
+import { formatTimeRange } from "@/lib/format";
 import {
   tutorCoverClassLabel,
   tutorCoverDateLabel,
@@ -103,8 +103,7 @@ export function CoverCard({
       </div>
       <div className="flex flex-col gap-0.5 text-[13px]">
         <span className="font-bold text-ink">
-          {tutorCoverDateLabel(date, className)} · {formatTime(startTime)} –{" "}
-          {formatTime(endTime)}
+          {tutorCoverDateLabel(date, className)} · {formatTimeRange(startTime, endTime)}
         </span>
         <span className="text-muted">{location ?? "Location TBC"}</span>
       </div>

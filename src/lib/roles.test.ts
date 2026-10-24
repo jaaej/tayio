@@ -15,7 +15,7 @@ describe("roleLabel", () => {
   it("hides internal student tier names from users", () => {
     expect(roleLabel("student_unrestricted")).toBe("Student");
     expect(roleLabel("student_restricted")).toBe(
-      "Student – parental access",
+      "Student - parental access",
     );
   });
 });

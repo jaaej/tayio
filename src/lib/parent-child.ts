@@ -39,7 +39,7 @@ export function withChild(href: string, childId: string): string {
 
 /**
  * A parent's copy of a family notification, led by the children it is about:
- * "Sarah · Year 9 Maths · Thu 4:00pm", "Sarah and Leo · ...".
+ * "Sarah · Year 9 Maths · Thu 4 pm", "Sarah and Leo · ...".
  */
 export function forParent(childNames: readonly string[], body: string): string {
   const names = childNames.filter(Boolean);

@@ -106,7 +106,7 @@ const TH = "px-5 py-2.5 text-[12px] font-bold text-muted";
 function leaveRange(startDate: string, endDate: string) {
   return startDate === endDate
     ? formatDateLong(startDate)
-    : `${formatDateShort(startDate)} – ${formatDateShort(endDate)}`;
+    : `${formatDateShort(startDate)} - ${formatDateShort(endDate)}`;
 }
 
 function classCount(count: number) {

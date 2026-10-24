@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { subjectTone } from "@/lib/subject-tone";
 import {
@@ -10,7 +11,6 @@ import {
   gridHours,
   hourPxFor,
   placeDay,
-  timeLabel,
   timeRangeLabel,
   type PlacedEvent,
   type PlacedGroup,
@@ -58,10 +58,9 @@ const NARROW_DAY_PX = 74;
 /** Narrowest a day with lessons gets before the grid scrolls sideways. */
 const WIDE_DAY_MIN_PX = 150;
 
+/** An hour line's label: "3 pm"; the grid's last line may be hour 24. */
 function hourLabel(hour: number) {
-  const h = hour % 24;
-  const suffix = h >= 12 ? "pm" : "am";
-  return `${h % 12 === 0 ? 12 : h % 12} ${suffix}`;
+  return formatTime(`${hour % 24}:00`);
 }
 
 function addDays(iso: string, days: number) {
@@ -88,7 +87,7 @@ function melbourneNow() {
 }
 
 function eventTooltip(e: TimeGridEvent) {
-  return [e.title ?? e.label, `${timeLabel(e.startTime)} to ${timeLabel(e.endTime)}`, e.meta]
+  return [e.title ?? e.label, `${formatTime(e.startTime)} to ${formatTime(e.endTime)}`, e.meta]
     .filter(Boolean)
     .join(" · ");
 }
@@ -177,13 +176,13 @@ function EventBlock({
         ) : height < 43 ? (
           // The time over the name needs 43px; shorter, they share a line.
           <div className="truncate text-[12px] font-bold leading-[1.2]">
-            <span className="text-[11px] font-extrabold tabular-nums">{timeLabel(e.startTime)}</span>{" "}
+            <span className="text-[11px] font-extrabold tabular-nums">{formatTime(e.startTime)}</span>{" "}
             {e.label}
           </div>
         ) : (
           <>
             <div className="text-[11px] font-extrabold tabular-nums leading-tight">
-              {timeLabel(e.startTime)}
+              {formatTime(e.startTime)}
             </div>
             <div
               className={cn(

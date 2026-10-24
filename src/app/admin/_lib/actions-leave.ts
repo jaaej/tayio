@@ -80,7 +80,7 @@ function leaveNotificationValues(input: {
   const dates =
     input.startDate === input.endDate
       ? formatDateLong(input.startDate)
-      : `${formatDateLong(input.startDate)}–${formatDateLong(input.endDate)}`;
+      : `${formatDateLong(input.startDate)} - ${formatDateLong(input.endDate)}`;
   const title =
     input.event === "added" ? "Student break scheduled" : "Student break removed";
   const body =

@@ -13,7 +13,7 @@ import {
   profiles,
   rescheduleRequests,
 } from "@/db/schema";
-import { formatDateLong, formatTime } from "@/lib/format";
+import { formatDateLong, formatTime, formatTimeRange } from "@/lib/format";
 import {
   expandAvailability,
   getAllTutors,
@@ -123,7 +123,7 @@ export async function rescheduleStudentLesson(
     `${studentName}'s ${original.subjectName} lesson on ` +
     `${formatDateLong(original.date)} at ${formatTime(original.startTime)} ` +
     `→ moved to ${formatDateLong(slot.date)} ` +
-    `${formatTime(slot.startTime)}–${formatTime(slot.endTime)} ` +
+    `${formatTimeRange(slot.startTime, slot.endTime)} ` +
     `with ${newTutorName}.` +
     (reason ? ` Reason: ${reason}` : "");
 

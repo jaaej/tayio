@@ -13,6 +13,7 @@ import {
   SubjectDot,
 } from "@/components/admin/ui";
 import { initialsOf } from "@/components/admin/ui/glass";
+import { formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   MARKING_VIEWS,
@@ -33,18 +34,13 @@ const dayFmt = new Intl.DateTimeFormat("en-AU", {
   timeZone: "Australia/Melbourne",
   weekday: "short",
 });
-const dateFmt = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Melbourne",
-  day: "numeric",
-  month: "short",
-});
 
 /** "Mon" within the last week, otherwise "6 Oct". */
 function shortWhen(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   const ageDays = (Date.now() - d.getTime()) / 86_400_000;
-  return ageDays >= 0 && ageDays < 6 ? dayFmt.format(d) : dateFmt.format(d);
+  return ageDays >= 0 && ageDays < 6 ? dayFmt.format(d) : formatDayMonth(d);
 }
 
 /**
@@ -194,7 +190,7 @@ export function MarkingQueuePane({
                     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
                       {h.subjectName && <SubjectDot subject={h.subjectName} color={h.subjectColor} />}
                       <span className="truncate">
-                        {[h.classLabel, `due ${dateFmt.format(new Date(h.dueDate))}`]
+                        {[h.classLabel, `due ${formatDayMonth(new Date(h.dueDate))}`]
                           .filter(Boolean)
                           .join(" · ")}
                       </span>

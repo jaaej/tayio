@@ -17,7 +17,7 @@ import {
   subjects,
   type UserRole,
 } from "@/db/schema";
-import { formatDateLong, formatTime } from "@/lib/format";
+import { formatDateLong, formatTimeRange } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import {
   TRIAL_WITHDRAW_FROM_END_DATE,
@@ -297,7 +297,7 @@ export async function runFreeTrialSweep(now = new Date()) {
     const body =
       `${studentName} has a free trial today: ` +
       `${classDisplayName(event.subjectName, event.className)}, ` +
-      `${formatTime(event.startTime)}–${formatTime(event.endTime)}, ` +
+      `${formatTimeRange(event.startTime, event.endTime)}, ` +
       `with ${tutorName}.`;
     const dedupeKey = freeTrialTodayDedupeKey(
       event.lessonId,

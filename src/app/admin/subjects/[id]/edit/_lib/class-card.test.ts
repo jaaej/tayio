@@ -21,10 +21,10 @@ describe("changeNotice", () => {
 
   it("names the old day and time when they change", () => {
     expect(changeNotice(THU, { ...THU, weekday: 2 }, people)).toBe(
-      "Time changed from Thursday 4:00 – 5:00 pm. Saving tells Tom Tutor, 6 students and 5 parents.",
+      "Time changed from Thursday 4 - 5 pm. Saving tells Tom Tutor, 6 students and 5 parents.",
     );
     expect(changeNotice(THU, { ...THU, weekday: 2, room: "Room 3" }, people)).toBe(
-      "Time and room changed from Thursday 4:00 – 5:00 pm, Room 2. Saving tells Tom Tutor, 6 students and 5 parents.",
+      "Time and room changed from Thursday 4 - 5 pm, Room 2. Saving tells Tom Tutor, 6 students and 5 parents.",
     );
   });
 

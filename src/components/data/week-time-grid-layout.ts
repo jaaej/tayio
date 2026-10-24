@@ -3,6 +3,8 @@
  * tested: which hours to show, and how a day's lessons share its column.
  */
 
+import { formatTimeRange } from "@/lib/format";
+
 export type GridTime = { startTime: string; endTime: string };
 
 /** Minutes after midnight for "HH:MM" or "HH:MM:SS". */
@@ -11,24 +13,10 @@ export function minutesOf(time: string): number {
   return h * 60 + m;
 }
 
-/** "4:30 pm", "7 pm" for "HH:MM" or "HH:MM:SS". */
-export function timeLabel(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hr = h % 12 === 0 ? 12 : h % 12;
-  return m === 0 ? `${hr} ${suffix}` : `${hr}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-
-/** "4:30 - 6:30 pm", "11:30 am - 1 pm": am or pm once when both share it.
- *  A plain hyphen: this font draws an en dash as long as an em dash. Each
- *  time keeps its am or pm on its line (a no-break space), so a narrow block
- *  wraps after the hyphen. */
+/** `formatTimeRange` ("4:30 - 6:30 pm") with each time kept on one line with
+ *  its am or pm (a no-break space), so a narrow block wraps after the hyphen. */
 export function timeRangeLabel(start: string, end: string): string {
-  const from = timeLabel(start);
-  const to = timeLabel(end);
-  const shared = from.slice(-2) === to.slice(-2);
-  const glue = (t: string) => t.replace(" ", "\u00a0");
-  return `${shared ? from.slice(0, -3) : glue(from)} - ${glue(to)}`;
+  return formatTimeRange(start, end).replace(/ (am|pm)/g, "\u00a0$1");
 }
 
 /** "1 class", "3 classes", "2 lessons": a count with its noun (singular given). */

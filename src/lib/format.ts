@@ -11,22 +11,16 @@ const dateLong = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "long",
 });
-const dateShort = new Intl.DateTimeFormat("en-AU", {
-  day: "numeric",
-  month: "short",
-});
 const melbourneDateLong = new Intl.DateTimeFormat("en-AU", {
   timeZone: "Australia/Melbourne",
   weekday: "long",
   day: "numeric",
   month: "long",
 });
-const melbourneDueDate = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Melbourne",
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+// Short months as the server writes them in a date: "13 June", "15 Sept".
+// Safari writes "Jun" and "Sep", so a date a browser draws with Intl would
+// differ from the server's (and break hydration). Every short date uses this.
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
 
 export function parseLessonDate(date: string): Date {
   // `lessons.date` is a postgres DATE - stringified as YYYY-MM-DD; treat as local.
@@ -40,8 +34,15 @@ export function formatDateLong(date: string | Date) {
     : melbourneDateLong.format(date);
 }
 
+/** A postgres DATE (YYYY-MM-DD) as "13 June". */
 export function formatDateShort(date: string) {
-  return dateShort.format(parseLessonDate(date));
+  const [, m, d] = date.split("-").map(Number);
+  return `${d} ${MONTH_SHORT[m - 1]}`;
+}
+
+/** A postgres DATE as "Tue 30 June": no comma after the weekday, as en-AU would add. */
+export function formatDayDate(date: string) {
+  return `${formatWeekday(date, "short")} ${formatDateShort(date)}`;
 }
 
 export function formatWeekday(date: string, style: "long" | "short" = "long") {
@@ -55,39 +56,33 @@ export function formatMonthShort(date: string) {
   return monthShort.format(parseLessonDate(date));
 }
 
+/**
+ * A postgres TIME ("HH:MM" or "HH:MM:SS", 24h) as the portal writes every
+ * time: "4 pm", "4:30 pm", "12 pm".
+ */
 export function formatTime(t: string) {
-  // postgres TIME comes back as HH:MM:SS - drop seconds, convert to 12h.
-  const [h, m] = t.split(":");
-  const hour = Number(h);
-  const suffix = hour >= 12 ? "pm" : "am";
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${displayHour}:${m}${suffix}`;
+  const [h, m] = t.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${hour}:${String(m).padStart(2, "0")} ${suffix}` : `${hour} ${suffix}`;
 }
 
 /**
- * A lesson's time range from two postgres TIME (24h) values, e.g.
- * "4:00 – 5:30 pm", or "11:30 am – 12:30 pm" when it crosses noon. The
- * meridiem is always written so a mistyped 02:10 can never pass for 14:10.
+ * A time range as the portal writes every one: "4 - 5:30 pm", or
+ * "11:30 am - 12:30 pm" when it crosses noon. The meridiem is always written
+ * so a mistyped 02:10 can never pass for 14:10. A plain hyphen, because the
+ * portal's font draws an en dash as long as an em dash.
  */
 export function formatTimeRange(start: string, end: string) {
-  const parts = (t: string) => {
-    const [h, m] = t.split(":");
-    const hour = Number(h);
-    return {
-      clock: `${hour % 12 === 0 ? 12 : hour % 12}:${m}`,
-      suffix: hour >= 12 ? "pm" : "am",
-    };
-  };
-  const a = parts(start);
-  const b = parts(end);
-  return a.suffix === b.suffix
-    ? `${a.clock} – ${b.clock} ${b.suffix}`
-    : `${a.clock} ${a.suffix} – ${b.clock} ${b.suffix}`;
+  const from = formatTime(start);
+  const to = formatTime(end);
+  const shared = from.slice(-2) === to.slice(-2);
+  return `${shared ? from.slice(0, -3) : from} - ${to}`;
 }
 
 /** A due moment as its Melbourne day: "Fri 24 Oct" (servers run in UTC). */
 export function formatDueDate(d: Date) {
-  return melbourneDueDate.format(d);
+  return `${melbourneWeekday.format(d)} ${formatDayMonth(d)}`;
 }
 
 /** A homework score is a percentage the tutor awards: "85%", "92.5%". */
@@ -113,7 +108,7 @@ export function relativeTime(d: Date, now: Date | number = Date.now()) {
   if (diffHours < 24) return `${diffHours}h ago`;
   const days = Math.floor(diffHours / 24);
   if (days < 14) return `${days}d ago`;
-  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  return formatDayMonth(d);
 }
 
 export function startOfMondayWeek(d: Date): Date {
@@ -139,11 +134,15 @@ export function weekKey(date: string): string {
   return isoDate(monday);
 }
 
+/** A Monday week: "12 - 18 Oct", or "28 Sept - 4 Oct" across a month. */
 export function weekRangeLabel(weekStartIso: string): string {
-  const start = new Date(`${weekStartIso}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  return `${dateShort.format(start)} – ${dateShort.format(end)}`;
+  const endDate = parseLessonDate(weekStartIso);
+  endDate.setDate(endDate.getDate() + 6);
+  const end = isoDate(endDate);
+  const start = weekStartIso.slice(0, 7) === end.slice(0, 7)
+    ? String(Number(weekStartIso.slice(8, 10)))
+    : formatDateShort(weekStartIso);
+  return `${start} - ${formatDateShort(end)}`;
 }
 
 /**
@@ -168,31 +167,27 @@ const melbourneDayKeyFormat = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit",
 });
-const melbourneClock = new Intl.DateTimeFormat("en-AU", {
+const melbourneClock = new Intl.DateTimeFormat("en-GB", {
   timeZone: MELBOURNE_TZ,
-  hour: "numeric",
+  hour: "2-digit",
   minute: "2-digit",
-  hour12: true,
+  hourCycle: "h23",
 });
 const melbourneWeekday = new Intl.DateTimeFormat("en-AU", {
   timeZone: MELBOURNE_TZ,
   weekday: "short",
 });
-const melbourneDayMonth = new Intl.DateTimeFormat("en-AU", {
-  timeZone: MELBOURNE_TZ,
-  day: "numeric",
-  month: "short",
-});
-const melbourneDayMonthYear = new Intl.DateTimeFormat("en-AU", {
-  timeZone: MELBOURNE_TZ,
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 /** Melbourne calendar day of an instant, as YYYY-MM-DD. */
 export function melbourneDayKey(d: Date): string {
-  return melbourneDayKeyFormat.format(d);
+  const parts = melbourneDayKeyFormat.formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** A moment's Melbourne day and month: "25 Oct", or "25 Oct 2026". */
+export function formatDayMonth(d: Date, withYear = false): string {
+  const [y, m, day] = melbourneDayKey(d).split("-").map(Number);
+  return `${day} ${MONTH_SHORT[m - 1]}${withYear ? ` ${y}` : ""}`;
 }
 
 function melbourneDayNumber(d: Date): number {
@@ -200,18 +195,22 @@ function melbourneDayNumber(d: Date): number {
   return Date.UTC(y, m - 1, day) / 86_400_000;
 }
 
-/** Melbourne wall-clock time, e.g. "9:41 am". */
+/**
+ * Melbourne wall-clock time of an instant, written like every other time:
+ * "9:41 am", "4 pm". Built from the 24h digits, so the server and every
+ * browser engine print the same label.
+ */
 export function formatClockTime(d: Date): string {
-  return melbourneClock
-    .format(d)
-    .replace(/[  ]/g, " ")
-    .toLowerCase();
+  return formatTime(melbourneClock.format(d));
+}
+
+/** An instant as its Melbourne date and time: "25 Oct, 4:30 pm", or "25 Oct 2026, 4:30 pm". */
+export function formatDateTime(d: Date, withYear = false): string {
+  return `${formatDayMonth(d, withYear)}, ${formatClockTime(d)}`;
 }
 
 function dayMonth(d: Date, now: Date): string {
-  return melbourneDayKey(d).slice(0, 4) === melbourneDayKey(now).slice(0, 4)
-    ? melbourneDayMonth.format(d)
-    : melbourneDayMonthYear.format(d);
+  return formatDayMonth(d, melbourneDayKey(d).slice(0, 4) !== melbourneDayKey(now).slice(0, 4));
 }
 
 /**
@@ -232,7 +231,7 @@ export function conversationDayLabel(d: Date, now: Date = new Date()): string {
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
   if (days < 7) {
-    return `${melbourneWeekday.format(d)} ${melbourneDayMonth.format(d)}`;
+    return `${melbourneWeekday.format(d)} ${formatDayMonth(d)}`;
   }
   return dayMonth(d, now);
 }

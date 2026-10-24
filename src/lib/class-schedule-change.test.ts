@@ -237,7 +237,7 @@ describe("classChangeTitle", () => {
 
 describe("weeklySlotLabel", () => {
   it("spells out the day and time", () => {
-    expect(weeklySlotLabel(MONDAY_4PM)).toBe("Monday · 4:00 – 5:00 pm");
+    expect(weeklySlotLabel(MONDAY_4PM)).toBe("Monday · 4 - 5 pm");
   });
 
   it("says when there is no weekly time", () => {
@@ -257,10 +257,10 @@ describe("classMoveSentence", () => {
     const after = { ...MONDAY_4PM, weekday: 4, location: "Room 3" };
     expect(
       classMoveSentence("Year 9 Maths", after, { when: true, room: false, tutor: false }, "2026-10-22"),
-    ).toBe("Year 9 Maths moves to Thursday 4:00 – 5:00 pm from Thu 22 Oct.");
+    ).toBe("Year 9 Maths moves to Thursday 4 - 5 pm from Thu 22 Oct.");
     expect(
       classMoveSentence("Year 9 Maths", after, { when: true, room: true, tutor: false }, "2026-10-22"),
-    ).toBe("Year 9 Maths moves to Thursday 4:00 – 5:00 pm in Room 3 from Thu 22 Oct.");
+    ).toBe("Year 9 Maths moves to Thursday 4 - 5 pm in Room 3 from Thu 22 Oct.");
   });
 
   it("says when the room is cleared or there is no later lesson", () => {

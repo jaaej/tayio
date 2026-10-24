@@ -12,7 +12,7 @@ import {
 import { FileViewerButton } from "@/components/ui/file-viewer";
 import { db } from "@/db/client";
 import { classes, subjects } from "@/db/schema";
-import { formatScore } from "@/lib/format";
+import { formatClockTime, formatScore } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
@@ -55,11 +55,6 @@ const dayFmt = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
   day: "numeric",
   month: "short",
-});
-const clockFmt = new Intl.DateTimeFormat("en-AU", {
-  timeZone: MELBOURNE,
-  hour: "numeric",
-  minute: "2-digit",
 });
 
 /** "Sat 10 Oct" - en-AU puts a comma after the weekday; drop it. */
@@ -214,7 +209,7 @@ export default async function HomeworkMarkingPage({
     homework.title,
     classLabel,
     dueLabel +
-      (selected.submittedAt ? `, submitted ${shortDay(selected.submittedAt)} ${clockFmt.format(selected.submittedAt)}` : ""),
+      (selected.submittedAt ? `, submitted ${shortDay(selected.submittedAt)} ${formatClockTime(selected.submittedAt)}` : ""),
   ]
     .filter(Boolean)
     .join(" · ");

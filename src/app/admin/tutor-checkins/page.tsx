@@ -7,7 +7,7 @@ import { requireUnrestrictedAdmin } from "@/lib/auth";
 import { db } from "@/db/client";
 import { classes, profiles, subjects } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateLong, formatTime, weekRangeLabel } from "@/lib/format";
+import { formatDateLong, formatDayDate, formatTimeRange, weekRangeLabel } from "@/lib/format";
 import {
   addIsoDays,
   checkinPay,
@@ -50,12 +50,6 @@ const GLASS_MD = buttonVariants({ variant: "glass", size: "md" });
 const dayShort = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
   day: "numeric",
-  timeZone: "UTC",
-});
-const dayLong = new Intl.DateTimeFormat("en-AU", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
   timeZone: "UTC",
 });
 
@@ -166,7 +160,7 @@ export default async function AdminTutorCheckinsPage({
         .map((entry) => ({
           id: entry.id,
           label: checkinEntryLabel(entry),
-          when: `${formatDateLong(entry.workDate)} · ${formatTime(entry.startTime)} - ${formatTime(entry.endTime)}`,
+          when: `${formatDateLong(entry.workDate)} · ${formatTimeRange(entry.startTime, entry.endTime)}`,
           hours: hoursLabel(entry.minutes),
           payLine: `${money(checkinPay(entry.minutes, entry.hourlyRate))} · ${money(Number(entry.hourlyRate))}/hr`,
           note: entry.note,
@@ -194,7 +188,7 @@ export default async function AdminTutorCheckinsPage({
     return {
       date,
       label: dayShort.format(instant),
-      longLabel: dayLong.format(instant),
+      longLabel: formatDayDate(date),
       isToday: date === today,
     };
   });

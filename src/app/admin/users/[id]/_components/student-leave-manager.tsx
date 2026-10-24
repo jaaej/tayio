@@ -78,7 +78,7 @@ export function StudentLeaveManager({
                 <div className="text-[13px] font-bold text-ink tabular-nums">
                   {formatDateLong(p.startDate)}
                   {p.endDate !== p.startDate
-                    ? ` – ${formatDateLong(p.endDate)}`
+                    ? ` - ${formatDateLong(p.endDate)}`
                     : ""}
                 </div>
                 {p.note && (

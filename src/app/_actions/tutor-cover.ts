@@ -274,7 +274,7 @@ export async function submitTutorLeaveRequest(
       title: "URGENT: Extended tutor leave requires approval",
       body:
         `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} requested ` +
-        `${days} days away (${formatDateLong(startDate)}–${formatDateLong(endDate)}). ` +
+        `${days} days away (${formatDateLong(startDate)} - ${formatDateLong(endDate)}). ` +
         `${affectedLessons.length} ${affectedLessons.length === 1 ? "class needs" : "classes need"} review. Reason: ${reason}`,
     });
     if (adminNotifications.length) {
@@ -333,7 +333,7 @@ export async function withdrawTutorLeaveRequest(
       title: "Tutor leave withdrawn",
       body:
         `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} withdrew their leave ` +
-        `request for ${formatDateLong(changed.startDate)}–${formatDateLong(changed.endDate)}.`,
+        `request for ${formatDateLong(changed.startDate)} - ${formatDateLong(changed.endDate)}.`,
       href: "/admin/reschedules?tab=leave",
     });
     if (adminNotifications.length) {
@@ -507,7 +507,7 @@ export async function decideTutorLeave(input: {
         userId: leave.tutorId,
         channel: "in_app",
         title: "Extended leave request declined",
-        body: `Your leave request for ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)} was not approved. Please contact the office.`,
+        body: `Your leave request for ${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)} was not approved. Please contact the office.`,
         href: TIME_AWAY_HREF,
       });
       return true;
@@ -578,14 +578,14 @@ export async function decideTutorLeave(input: {
       channel: "in_app",
       title: "Extended leave approved",
       body:
-        `Your leave for ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)} was approved. ` +
+        `Your leave for ${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)} was approved. ` +
         `${futureLessons.length} ${futureLessons.length === 1 ? "class is" : "classes are"} now on the cover board.`,
       href: TIME_AWAY_HREF,
     });
     const adminNotifications = adminNotificationValues(adminIds, {
       title: "URGENT: Extended leave approved - coverage needed",
       body:
-        `${leave.tutorFirst} ${leave.tutorLast} is away ${formatDateLong(leave.startDate)}–${formatDateLong(leave.endDate)}. ` +
+        `${leave.tutorFirst} ${leave.tutorLast} is away ${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)}. ` +
         `${futureLessons.length} ${futureLessons.length === 1 ? "class needs" : "classes need"} replacement cover.`,
     });
     if (adminNotifications.length) {

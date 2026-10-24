@@ -6,6 +6,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button, Empty } from "@/components/admin/ui";
 import { ActionSpinner } from "@/components/ui/loading-button";
 import { saveLessonNote } from "@/app/tutor/_actions";
+import { formatDateTime } from "@/lib/format";
 import { LESSON_NOTE_SHARED_FIELDS, NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
 import { cn } from "@/lib/utils";
 
@@ -42,15 +43,6 @@ const EMPTY: NoteValues = {
   parentVisibleComment: "",
   internalNote: "",
 };
-
-// Melbourne time explicitly, so the server render and hydration agree.
-const savedFmt = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Melbourne",
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 const LABEL = Object.fromEntries(
   LESSON_NOTE_SHARED_FIELDS.map((field) => [field.key, field.label]),
@@ -280,7 +272,7 @@ export function LessonNotesEditor({
                 Saved
               </span>
             ) : savedEntry.savedAt ? (
-              `Last saved ${savedFmt.format(new Date(savedEntry.savedAt))}`
+              `Last saved ${formatDateTime(new Date(savedEntry.savedAt))}`
             ) : (
               "No note yet"
             )}

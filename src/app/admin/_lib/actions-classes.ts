@@ -82,7 +82,7 @@ export async function createClass(input: z.input<typeof classSchema>) {
 
 /**
  * What deleting the class would do, for its confirmation: the counts, and the
- * line naming the class ("Year 9 Maths · Saturday 10:00 – 11:00 am · Tom
+ * line naming the class ("Year 9 Maths · Saturday 10 - 11 am · Tom
  * Tutor") with its subject colour.
  */
 export async function getClassDeletionImpact(id: string): Promise<
@@ -117,7 +117,7 @@ export async function getClassDeletionImpact(id: string): Promise<
       ok: true as const,
       impact: await classDeletionImpact(tx, id, new Date()),
       subject: {
-        // The slot already names the class ("Saturday 10:00 – 11:30 am"),
+        // The slot already names the class ("Saturday 10 - 11:30 am"),
         // so the subject is enough before it.
         label: [
           when ? row.subjectName : classDisplayName(row.subjectName, row.name),

@@ -95,7 +95,7 @@ export function slotClassName(slot: ClassSlot, current = ""): string | null {
   return match ? `${match[1]}${dayName}` : null;
 }
 
-/** "Tuesday · 5:00 – 6:00 pm", or "No weekly time". */
+/** "Tuesday · 5 - 6 pm", or "No weekly time". */
 export function weeklySlotLabel(slot: ClassSlot): string {
   const s = weeklySlot(slot);
   if (!s) return "No weekly time";

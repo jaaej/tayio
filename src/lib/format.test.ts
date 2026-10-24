@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   formatDateLong,
+  formatDateShort,
+  formatDayDate,
   formatDueDate,
   formatMonthShort,
   melbourneGreeting,
@@ -8,9 +10,11 @@ import {
   formatTimeRange,
   conversationDayLabel,
   formatClockTime,
+  formatDateTime,
   inboxStamp,
   melbourneDayKey,
   relativeTime,
+  weekRangeLabel,
   yearLevelLabel,
 } from "./format";
 
@@ -49,25 +53,34 @@ describe("yearLevelLabel", () => {
 
 describe("formatTime", () => {
   it("reads postgres 24h times as afternoon, not morning", () => {
-    expect(formatTime("14:10")).toBe("2:10pm");
-    expect(formatTime("14:10:00")).toBe("2:10pm");
-    expect(formatTime("02:10:00")).toBe("2:10am");
+    expect(formatTime("14:10")).toBe("2:10 pm");
+    expect(formatTime("14:10:00")).toBe("2:10 pm");
+    expect(formatTime("02:10:00")).toBe("2:10 am");
+  });
+
+  it("leaves off :00 on the hour", () => {
+    expect(formatTime("16:00:00")).toBe("4 pm");
+    expect(formatTime("09:30:00")).toBe("9:30 am");
   });
 
   it("handles noon and midnight", () => {
-    expect(formatTime("12:00:00")).toBe("12:00pm");
-    expect(formatTime("00:05:00")).toBe("12:05am");
+    expect(formatTime("12:00:00")).toBe("12 pm");
+    expect(formatTime("12:30")).toBe("12:30 pm");
+    expect(formatTime("00:05:00")).toBe("12:05 am");
+    expect(formatTime("00:15")).toBe("12:15 am");
   });
 });
 
 describe("formatTimeRange", () => {
-  it("writes the meridiem once when both ends share it", () => {
-    expect(formatTimeRange("14:10:00", "15:10:00")).toBe("2:10 – 3:10 pm");
-    expect(formatTimeRange("16:00", "17:30")).toBe("4:00 – 5:30 pm");
+  it("writes the meridiem once when both ends share it, with a plain hyphen", () => {
+    expect(formatTimeRange("14:10:00", "15:10:00")).toBe("2:10 - 3:10 pm");
+    expect(formatTimeRange("16:00", "17:30")).toBe("4 - 5:30 pm");
+    expect(formatTimeRange("16:30:00", "18:30:00")).toBe("4:30 - 6:30 pm");
   });
 
   it("writes both meridiems across noon", () => {
-    expect(formatTimeRange("11:30:00", "12:30:00")).toBe("11:30 am – 12:30 pm");
+    expect(formatTimeRange("11:30:00", "12:30:00")).toBe("11:30 am - 12:30 pm");
+    expect(formatTimeRange("11:30", "13:00")).toBe("11:30 am - 1 pm");
   });
 });
 
@@ -82,6 +95,17 @@ describe("inbox timestamps (Melbourne time)", () => {
     expect(formatClockTime(d)).toBe("9:41 am");
     expect(inboxStamp(d, now)).toBe("9:41 am");
     expect(conversationDayLabel(d, now)).toBe("Today");
+  });
+
+  it("writes clock times like schedule times, on the Melbourne clock", () => {
+    // 05:00 UTC is 4 pm in Melbourne; 13:05 UTC is 12:05 am the next day.
+    expect(formatClockTime(new Date("2026-10-25T05:00:00.000Z"))).toBe("4 pm");
+    expect(formatClockTime(new Date("2026-10-25T13:05:00.000Z"))).toBe("12:05 am");
+    expect(formatDateTime(new Date("2026-10-25T05:30:00.000Z"))).toBe("25 Oct, 4:30 pm");
+    expect(formatDateTime(new Date("2026-10-25T13:05:00.000Z"), true)).toBe("26 Oct 2026, 12:05 am");
+    // The server's month names, which Safari would otherwise write as Jul / Sep.
+    expect(formatDateTime(new Date("2026-07-01T07:18:00.000Z"))).toBe("1 July, 5:18 pm");
+    expect(formatDateTime(new Date("2026-09-20T06:14:00.000Z"))).toBe("20 Sept, 4:14 pm");
   });
 
   it("says Yesterday, then the weekday within the last week", () => {
@@ -107,9 +131,7 @@ describe("inbox timestamps (Melbourne time)", () => {
   });
 
   it("treats a slightly future instant (clock skew) as today", () => {
-    expect(inboxStamp(new Date("2026-10-11T01:00:30.000Z"), now)).toBe(
-      "12:00 pm",
-    );
+    expect(inboxStamp(new Date("2026-10-11T01:00:30.000Z"), now)).toBe("12 pm");
   });
 });
 
@@ -139,7 +161,19 @@ describe("dates from a moment read as the Melbourne day on any server", () => {
     process.env.TZ = "UTC";
     // 00:00 on Sat 24 Oct in Melbourne is 13:00 UTC on Fri 23 Oct.
     const due = new Date("2026-10-23T13:00:00Z");
-    expect(formatDueDate(due)).toBe("Sat, 24 Oct");
+    expect(formatDueDate(due)).toBe("Sat 24 Oct");
     expect(formatDateLong(due)).toMatch(/^Saturday,? 24 October$/);
+  });
+});
+
+describe("short dates", () => {
+  // Safari's Intl writes "Jun", "Jul", "Sep"; these must read as the server does.
+  it("write the server's short month names", () => {
+    expect(formatDateShort("2026-06-13")).toBe("13 June");
+    expect(formatDateShort("2026-09-05")).toBe("5 Sept");
+    expect(formatDayDate("2026-06-30")).toBe("Tue 30 June");
+    expect(weekRangeLabel("2026-10-12")).toBe("12 - 18 Oct");
+    expect(weekRangeLabel("2026-09-28")).toBe("28 Sept - 4 Oct");
+    expect(formatDueDate(new Date("2026-07-14T02:00:00.000Z"))).toBe("Tue 14 July");
   });
 });

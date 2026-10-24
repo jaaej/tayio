@@ -20,7 +20,7 @@ import {
   markTakenSlots,
   type AvailableSlot,
 } from "@/lib/availability";
-import { formatDateLong, formatTime, isoDate } from "@/lib/format";
+import { formatDateLong, formatTime, formatTimeRange, isoDate } from "@/lib/format";
 import { isCompatibleRescheduleTarget } from "@/lib/reschedule-rules";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
@@ -417,7 +417,7 @@ export async function executeMakeupReschedule(p: {
       `${studentName}'s ${original.subjectName} lesson on ` +
       `${formatDateLong(original.date)} at ${formatTime(original.startTime)} ` +
       `→ moved to ${formatDateLong(p.date)} ` +
-      `${formatTime(p.startTime)}–${formatTime(p.endTime)}.` +
+      `${formatTimeRange(p.startTime, p.endTime)}.` +
       (p.reason ? ` Reason: ${p.reason}` : "");
     await tx.insert(notifications).values(Array.from(recipients, ([userId, href]) => ({
       userId,
@@ -566,7 +566,7 @@ async function notifyReschedule(o: {
     `${name}'s ${o.original.subjectName} lesson on ` +
     `${formatDateLong(o.original.date)} at ${formatTime(o.original.startTime)} ` +
     `→ moved to ${formatDateLong(o.newDate)} ` +
-    `${formatTime(o.newStart)}–${formatTime(o.newEnd)}.` +
+    `${formatTimeRange(o.newStart, o.newEnd)}.` +
     (o.reason ? ` Reason: ${o.reason}` : "");
   const rows = Array.from(recipients).map((userId) => ({
     userId,
