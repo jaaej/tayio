@@ -23,4 +23,16 @@ describe("viewableFileKind", () => {
   it("uses the separate file fallback for Office documents", () => {
     expect(viewableFileKind("homework/worksheet.docx")).toBe("other");
   });
+
+  it("trusts a stored content type over a missing or wrong extension", () => {
+    expect(viewableFileKind("curriculum/3f2a", "application/pdf")).toBe("pdf");
+    expect(viewableFileKind("curriculum/3f2a", "image/jpeg")).toBe("image");
+    expect(viewableFileKind("curriculum/3f2a", "video/quicktime")).toBe("video");
+    expect(
+      viewableFileKind(
+        "curriculum/3f2a.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe("other");
+  });
 });

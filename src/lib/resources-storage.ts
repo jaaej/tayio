@@ -37,14 +37,23 @@ export async function uploadResourceFile(
   };
 }
 
-/** Short-lived signed URL for a stored resource in any bucket (resource-library or curriculum). */
+/**
+ * Short-lived signed URL for a stored resource in any bucket (resource-library
+ * or curriculum). With `download`, the file saves under that name instead of
+ * opening.
+ */
 export async function signResourceAttachment(
   bucket: string,
   path: string,
+  options: { download?: string } = {},
 ): Promise<string | null> {
   const supabase = createAdminClient();
   const { data } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    .createSignedUrl(
+      path,
+      SIGNED_URL_TTL_SECONDS,
+      options.download ? { download: options.download } : undefined,
+    );
   return data?.signedUrl ?? null;
 }

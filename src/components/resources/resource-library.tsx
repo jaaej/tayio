@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Empty } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { OpenerTrigger, useResourceOpener } from "@/components/resources/resource-opener";
 import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
 import { subjectTone } from "@/lib/subject-tone";
@@ -15,25 +16,19 @@ import type {
   ResourceLibraryTopic,
 } from "@/lib/resource-library";
 
-type OpenResourceAction = (
-  id: string,
-) => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
-
 /**
  * The resource library, the same for a student (their subjects) and a
  * parent (all their children's subjects): type chips above one glass section
  * per subject. The title search lives in the page header and reaches this
- * list through `?q=`. `openAction` signs the file after checking the
- * viewer's own access.
+ * list through `?q=`. A row opens its resource in the portal's viewer
+ * (`useResourceOpener`), as in the tutor and admin libraries.
  */
 export function ResourceLibrary({
   subjects,
   topics,
-  openAction,
 }: {
   subjects: ResourceLibrarySubject[];
   topics: ResourceLibraryTopic[];
-  openAction: OpenResourceAction;
 }) {
   const [type, setType] = useState<ResourceTypeValue | null>(null);
   const [topicId, setTopicId] = useState("");
@@ -122,13 +117,17 @@ export function ResourceLibrary({
               {s.resources.length} resource{s.resources.length === 1 ? "" : "s"}
             </span>
           </div>
-          <div className="panel overflow-hidden">
+          {/* Rows lay out by the panel's width, not the screen's: the student
+              page shares the row with class recordings. */}
+          <div className="panel @container overflow-hidden">
             {s.resources.length === 0 ? (
-              <Empty className="py-7">No resources match your filters.</Empty>
+              <Empty className="py-7">
+                {type || topicId || q ? "No resources match your filters." : "Nothing in this subject yet."}
+              </Empty>
             ) : (
               <ul>
                 {s.resources.map((r) => (
-                  <ResourceRow key={r.id} resource={r} openAction={openAction} />
+                  <ResourceRow key={r.id} resource={r} />
                 ))}
               </ul>
             )}
@@ -165,68 +164,57 @@ function TypeChip({
   );
 }
 
-function ResourceRow({
-  resource,
-  openAction,
-}: {
-  resource: ResourceLibraryItem;
-  openAction: OpenResourceAction;
-}) {
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
-
-  async function open() {
-    setState("loading");
-    try {
-      const res = await openAction(resource.id);
-      if (!res.ok) throw new Error(res.error);
-      window.open(res.url, "_blank", "noopener,noreferrer");
-      setState("idle");
-    } catch {
-      setState("error");
-    }
-  }
+function ResourceRow({ resource }: { resource: ResourceLibraryItem }) {
+  const opener = useResourceOpener(resource);
+  const { state } = opener;
+  const rowClass =
+    "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-ink transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait @md:grid-cols-[100px_minmax(0,1fr)_auto] @2xl:grid-cols-[100px_minmax(0,1fr)_160px_auto]";
+  const content = (
+    <>
+      <span className="hidden @md:block">
+        <ResourceTypeChip type={resource.type} className="max-w-full truncate" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="line-clamp-2 break-words text-[14px] font-bold" title={resource.title}>
+          {resource.title}
+        </span>
+        {/* What the row's own columns don't show yet: the type below the
+            chip column, the meta below the meta column. */}
+        <span className="truncate text-[12px] text-muted">
+          <span className="@md:hidden">
+            {[resourceTypeLabel(resource.type), resource.topicName, resource.meta].filter(Boolean).join(" · ")}
+          </span>
+          <span className="hidden @md:inline @2xl:hidden">
+            {[resource.topicName, resource.meta].filter(Boolean).join(" · ")}
+          </span>
+          {resource.topicName && <span className="hidden @2xl:inline">{resource.topicName}</span>}
+        </span>
+      </span>
+      <span className="hidden text-[12px] text-muted @2xl:block">{resource.meta}</span>
+      <span
+        className={cn(
+          "inline-flex min-w-[84px] items-center justify-end whitespace-nowrap text-[13px] font-bold",
+          state === "error" ? "text-bad" : "text-brand-600",
+        )}
+      >
+        <ActionButtonLabel pending={state === "loading"} pendingLabel="Opening…">
+          {state === "error" ? "Try again" : "Open →"}
+        </ActionButtonLabel>
+      </span>
+    </>
+  );
 
   return (
     <li className="border-b border-line last:border-b-0">
-      <button
-        type="button"
-        onClick={open}
-        disabled={state === "loading"}
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-ink transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait sm:grid-cols-[100px_minmax(0,1fr)_auto] lg:grid-cols-[100px_minmax(0,1fr)_160px_auto]"
-      >
-        <span className="hidden sm:block">
-          <ResourceTypeChip type={resource.type} className="max-w-full truncate" />
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[14px] font-bold">{resource.title}</span>
-          <span className="truncate text-[12px] text-muted">
-            <span className="sm:hidden">{resourceTypeLabel(resource.type)}</span>
-            {resource.topicName && (
-              <>
-                <span className="sm:hidden"> · </span>
-                {resource.topicName}
-              </>
-            )}
-            <span className="lg:hidden"> · {resource.meta}</span>
-          </span>
-        </span>
-        <span className="hidden text-[12px] text-muted lg:block">{resource.meta}</span>
-        <span
-          className={cn(
-            "inline-flex min-w-[84px] items-center justify-end whitespace-nowrap text-[13px] font-bold",
-            state === "error" ? "text-bad" : "text-brand-600",
-          )}
-        >
-          <ActionButtonLabel pending={state === "loading"} pendingLabel="Opening…">
-            {state === "error" ? "Try again" : "Open →"}
-          </ActionButtonLabel>
-        </span>
-      </button>
+      <OpenerTrigger opener={opener} className={rowClass}>
+        {content}
+      </OpenerTrigger>
       {state === "error" && (
         <p role="alert" className="-mt-1 px-4 pb-3 text-[12px] text-bad">
           Couldn&apos;t open this resource. Try again.
         </p>
       )}
+      {opener.viewer}
     </li>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { ExternalLink, Eye, ImageIcon, X } from "lucide-react";
-import { viewableFileKind } from "@/lib/file-viewer";
+import { useState, type ReactNode } from "react";
+import { Download, ExternalLink, Eye, File as FileIcon, ImageIcon } from "lucide-react";
+import { viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
 import { cn } from "@/lib/utils";
-import { PdfViewerButton } from "@/components/ui/pdf-viewer";
-import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { PdfViewerButton, PdfViewerDialog } from "@/components/ui/pdf-viewer";
+import { VideoViewerButton, VideoViewerDialog } from "@/components/ui/video-viewer";
+import { ViewerDialog } from "@/components/ui/viewer-dialog";
 
 export function FileViewerButton({
   url,
@@ -58,6 +58,61 @@ export function FileViewerButton({
   );
 }
 
+/**
+ * The viewer for one file, whatever its kind: PDF, image and video preview
+ * in the portal; anything else (Word, PowerPoint, Excel) shows what it is
+ * and offers Download. Every kind has Download when `downloadUrl` is given.
+ */
+export function FileViewerDialog({
+  open,
+  url,
+  downloadUrl,
+  kind,
+  format,
+  title,
+  onClose,
+}: {
+  open: boolean;
+  url: string | null;
+  downloadUrl: string | null;
+  kind: ViewableFileKind;
+  /** "DOCX", for the no-preview card. */
+  format?: string | null;
+  title: string;
+  onClose: () => void;
+}) {
+  if (kind === "pdf") {
+    return <PdfViewerDialog open={open} url={url} downloadUrl={downloadUrl} title={title} onClose={onClose} />;
+  }
+  if (kind === "video") {
+    return <VideoViewerDialog open={open} url={url} downloadUrl={downloadUrl} title={title} onClose={onClose} />;
+  }
+  if (kind === "image") {
+    return <ImageViewerDialog open={open} url={url} downloadUrl={downloadUrl} title={title} onClose={onClose} />;
+  }
+  return (
+    <ViewerDialog open={open} title={title} icon={FileIcon} noun="file" onClose={onClose} fitContent>
+      <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-surface-3 text-ink-soft">
+          <FileIcon className="h-6 w-6" aria-hidden />
+        </span>
+        <p className="max-w-[360px] text-[14px] text-ink-soft">
+          {format ? `${format} files` : "Files like this"} can&apos;t be previewed in the portal.
+        </p>
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-[14px] font-bold text-white transition-[filter] hover:brightness-110"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Download
+          </a>
+        )}
+      </div>
+    </ViewerDialog>
+  );
+}
+
 function ImageViewerButton({
   url,
   title,
@@ -70,15 +125,6 @@ function ImageViewerButton({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
-
   return (
     <>
       <button
@@ -92,62 +138,41 @@ function ImageViewerButton({
         <Eye className="h-4 w-4" aria-hidden />
         {children}
       </button>
-      {open && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/75 backdrop-blur-sm sm:p-5"
-              role="presentation"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) setOpen(false);
-              }}
-            >
-              <section
-                role="dialog"
-                aria-modal="true"
-                aria-label={title}
-                className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-surface shadow-2xl sm:h-[94vh] sm:rounded-[18px] sm:border sm:border-white/20"
-              >
-                <header className="flex min-h-14 items-center gap-3 border-b border-line px-4 sm:px-5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-brand-50 text-brand-700">
-                    <ImageIcon className="h-4 w-4" aria-hidden />
-                  </span>
-                  <h2 className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-ink sm:text-[16px]">
-                    {title}
-                  </h2>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Open image separately"
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-[12px] font-bold text-ink hover:bg-surface-2"
-                  >
-                    <span className="hidden sm:inline">Open separately</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    aria-label="Close image viewer"
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </header>
-                <div className="grid min-h-0 flex-1 place-items-center overflow-auto bg-ink/95 p-3">
-                  {/* A short-lived signed URL to a private file; the next/image
-                      cache would store it beyond its expiry. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={title}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              </section>
-            </div>,
-            document.body,
-          )
-        : null}
+      <ImageViewerDialog open={open} url={url} title={title} onClose={() => setOpen(false)} />
     </>
+  );
+}
+
+function ImageViewerDialog({
+  open,
+  url,
+  downloadUrl,
+  title,
+  onClose,
+}: {
+  open: boolean;
+  url: string | null;
+  downloadUrl?: string | null;
+  title: string;
+  onClose: () => void;
+}) {
+  if (!url) return null;
+  return (
+    <ViewerDialog
+      open={open}
+      title={title}
+      icon={ImageIcon}
+      noun="image"
+      url={url}
+      downloadUrl={downloadUrl}
+      onClose={onClose}
+    >
+      <div className="grid min-h-0 flex-1 place-items-center overflow-auto bg-ink/95 p-3">
+        {/* A short-lived signed URL to a private file; the next/image
+            cache would store it beyond its expiry. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={title} className="max-h-full max-w-full object-contain" />
+      </div>
+    </ViewerDialog>
   );
 }

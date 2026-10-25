@@ -4,12 +4,15 @@ import { db } from "@/db/client";
 import { subjects, subjectTopics } from "@/db/schema";
 import { listResourcesForSubjects } from "@/lib/resources";
 import { resourceMeta } from "@/lib/resource-meta";
+import { httpHref } from "@/lib/safe-url";
 
 export type ResourceLibraryItem = {
   id: string;
   title: string;
   type: string;
   kind: "file" | "link";
+  /** A link's address; null for a file, which opens through `openResourceFile`. */
+  href: string | null;
   topicId: string | null;
   topicName: string | null;
   /** "PDF · 8 Oct": format and the day it was added. */
@@ -30,7 +33,7 @@ export type ResourceLibraryTopic = { id: string; name: string; subjectName: stri
  * authorised (`enrolledSubjectIds` for a student, `childSubjectIds` for a
  * parent): each subject in the given order with its published resources, plus
  * the topics used by the topic filter. Rows carry only client-safe fields;
- * files are opened through the role's `openResource*` action, never a raw path.
+ * files are opened through `openResourceFile`, never a raw path.
  */
 export async function loadResourceLibrary(subjectIds: string[]): Promise<{
   subjects: ResourceLibrarySubject[];
@@ -74,6 +77,7 @@ export async function loadResourceLibrary(subjectIds: string[]): Promise<{
           title: r.title,
           type: r.type,
           kind: r.kind,
+          href: r.kind === "link" ? httpHref(r.externalUrl) : null,
           topicId: r.topicId,
           topicName: r.topicId ? (topicById.get(r.topicId)?.name ?? null) : null,
           meta: resourceMeta(r),

@@ -91,6 +91,7 @@ export type AdminResourceRow = {
   title: string;
   type: ResourceType;
   kind: "file" | "link";
+  externalUrl: string | null;
   subjectId: string;
   subjectName: string;
   subjectColor: string | null;
@@ -125,6 +126,7 @@ export async function listAllResourcesForAdmin(
       title: resources.title,
       type: resources.type,
       kind: resources.kind,
+      externalUrl: resources.externalUrl,
       subjectId: resources.subjectId,
       subjectName: subjects.name,
       subjectColor: subjects.color,
@@ -147,6 +149,7 @@ export async function listAllResourcesForAdmin(
     title: r.title,
     type: r.type,
     kind: r.kind as "file" | "link",
+    externalUrl: r.externalUrl,
     subjectId: r.subjectId,
     subjectName: r.subjectName,
     subjectColor: r.subjectColor,
@@ -162,6 +165,7 @@ export async function listAllResourcesForAdmin(
 export async function getResourceForViewer(
   id: string,
   allowedSubjectIds: string[],
+  { includeUnpublished = false }: { includeUnpublished?: boolean } = {},
 ): Promise<Resource | null> {
   if (allowedSubjectIds.length === 0) return null;
   const [row] = await db
@@ -171,7 +175,7 @@ export async function getResourceForViewer(
       and(
         eq(resources.id, id),
         inArray(resources.subjectId, allowedSubjectIds),
-        eq(resources.isPublished, true),
+        includeUnpublished ? undefined : eq(resources.isPublished, true),
         isNull(resources.removedAt),
       ),
     )

@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { asc, inArray } from "drizzle-orm";
-import { Download, ExternalLink } from "lucide-react";
 import { Empty, GlassPanel, PageHeader, SubjectDot } from "@/components/admin/ui";
-import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import { db } from "@/db/client";
 import { subjects, subjectTopics, type Resource } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { formatDateShort } from "@/lib/format";
-import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { httpHref } from "@/lib/safe-url";
 import { listResourcesForSubjects, taughtSubjectIds } from "@/lib/resources";
-import { formatBytes, resourceFormatLabel } from "@/lib/resource-format";
-import { signResourceAttachment } from "@/lib/resources-storage";
+import { resourceMeta } from "@/lib/resource-meta";
 import { cn } from "@/lib/utils";
 import {
   AddResourceProvider,
@@ -19,7 +14,7 @@ import {
   AddToSubjectButton,
 } from "./_components/add-resource-panel";
 import { ResourceSearch } from "./_components/resource-search";
-import { ShareToggle } from "./_components/share-toggle";
+import { TutorResourceRow } from "./_components/resource-row";
 import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
@@ -188,7 +183,7 @@ export default async function TutorResourcesPage({
                   {subject.name}
                 </span>
               }
-              meta={`${resources.length} ${resources.length === 1 ? "item" : "items"}`}
+              meta={`${resources.length} ${resources.length === 1 ? "resource" : "resources"}`}
               action={<AddToSubjectButton subjectId={subject.id} subjectName={subject.name} />}
             >
               {resources.length === 0 ? (
@@ -212,56 +207,25 @@ export default async function TutorResourcesPage({
   );
 }
 
-async function ResourceRow({
+function ResourceRow({
   resource: r,
   topicName,
 }: {
   resource: Resource;
   topicName: string | null;
 }) {
-  const href =
-    r.kind === "link"
-      ? httpHref(r.externalUrl)
-      : r.storageBucket && r.storagePath
-        ? await signResourceAttachment(r.storageBucket, r.storagePath)
-        : null;
-
-  const meta = [
-    resourceFormatLabel(r),
-    r.kind === "file" && r.sizeBytes ? formatBytes(r.sizeBytes) : null,
-    formatDateShort(melbourneDate(r.createdAt)),
-  ].filter(Boolean) as string[];
-
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-[#F8F9FC] md:grid-cols-[110px_minmax(0,1fr)_170px_140px_44px]">
-      <span className="col-span-2 md:col-span-1">
-        <ResourceTypeChip type={r.type} />
-      </span>
-      <span className="col-span-2 flex min-w-0 flex-col md:col-span-1">
-        <span className="truncate text-[14px] font-bold text-ink" title={r.title}>
-          {r.title}
-        </span>
-        {topicName && <span className="truncate text-[12px] text-muted">{topicName}</span>}
-      </span>
-      <span className="col-span-2 text-[12px] text-muted md:col-span-1">{meta.join(" · ")}</span>
-      <ShareToggle id={r.id} isShared={r.isPublished} title={r.title} />
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={r.kind === "link" ? `Open ${r.title}` : `Download ${r.title}`}
-          className="grid h-11 w-11 place-items-center justify-self-end rounded-[10px] border border-line-strong bg-surface text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-        >
-          {r.kind === "link" ? (
-            <ExternalLink className="h-[15px] w-[15px]" aria-hidden />
-          ) : (
-            <Download className="h-[15px] w-[15px]" aria-hidden />
-          )}
-        </a>
-      ) : (
-        <span aria-hidden />
-      )}
-    </li>
+    <TutorResourceRow
+      resource={{
+        id: r.id,
+        title: r.title,
+        kind: r.kind,
+        href: r.kind === "link" ? httpHref(r.externalUrl) : null,
+      }}
+      type={r.type}
+      topicName={topicName}
+      meta={resourceMeta(r)}
+      isShared={r.isPublished}
+    />
   );
 }

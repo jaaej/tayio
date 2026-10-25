@@ -19,6 +19,9 @@ import {
   getResourceForViewer,
 } from "@/lib/resources";
 import { uploadResourceFile, signResourceAttachment } from "@/lib/resources-storage";
+import { resourceDownloadName } from "@/lib/resource-format";
+import { resourceFormat } from "@/lib/resource-meta";
+import { viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
 import { httpHref } from "@/lib/safe-url";
 import { withActor } from "@/lib/with-actor";
 import type { UserRole } from "@/db/schema";
@@ -287,33 +290,64 @@ export async function restoreResource(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// openResource  (student browse - re-authorizes before signing)
+// openResourceFile  (every role - re-authorizes before signing)
 // ---------------------------------------------------------------------------
 
-export async function openResource(
-  id: string,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const user = await requireRole("student");
-  const allowed = await enrolledSubjectIds(user.id);
-  const row = await getResourceForViewer(id, allowed);
-  if (!row) return { ok: false, error: "Not found" };
-  if (row.kind === "link") return { ok: true, url: row.externalUrl! };
-  const url = await signResourceAttachment(row.storageBucket!, row.storagePath!);
-  return url ? { ok: true, url } : { ok: false, error: "Could not open" };
+export type OpenedResourceFile =
+  | {
+      ok: true;
+      url: string;
+      downloadUrl: string;
+      kind: ViewableFileKind;
+      format: string | null;
+    }
+  | { ok: false; error: string };
+
+/**
+ * The resource row a signed-in user may open: an admin any (removed ones
+ * too, to moderate them), a tutor any not removed in a subject they teach
+ * (shared or not), a student or parent a published one in their own or
+ * their children's subjects.
+ */
+async function openableResource(id: string) {
+  const user = await requireRole(["admin", "tutor", "student", "parent"]);
+  const role = coarseRole(user.app_metadata?.role as UserRole);
+  if (role === "admin") {
+    const [row] = await db.select().from(resources).where(eq(resources.id, id)).limit(1);
+    return row ?? null;
+  }
+  if (role === "tutor") {
+    return getResourceForViewer(id, await taughtSubjectIds(user.id), { includeUnpublished: true });
+  }
+  const subjectIds =
+    role === "student" ? await enrolledSubjectIds(user.id) : await childSubjectIds(user.id);
+  return getResourceForViewer(id, subjectIds);
 }
 
-// ---------------------------------------------------------------------------
-// openResourceForParent  (parent browse - re-authorizes before signing)
-// ---------------------------------------------------------------------------
-
-export async function openResourceForParent(
-  id: string,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const user = await requireRole("parent");
-  const allowed = await childSubjectIds(user.id);
-  const row = await getResourceForViewer(id, allowed);
-  if (!row) return { ok: false, error: "Not found" };
-  if (row.kind === "link") return { ok: true, url: row.externalUrl! };
-  const url = await signResourceAttachment(row.storageBucket!, row.storagePath!);
-  return url ? { ok: true, url } : { ok: false, error: "Could not open" };
+/**
+ * Signs one uploaded resource for the portal's viewer, and again as a
+ * download under a readable name. Links never come here: the page already
+ * has their address.
+ */
+export async function openResourceFile(id: string): Promise<OpenedResourceFile> {
+  const parsed = idSchema.safeParse({ id });
+  if (!parsed.success) return { ok: false, error: "Not found" };
+  const row = await openableResource(parsed.data.id);
+  if (!row || row.kind !== "file" || !row.storageBucket || !row.storagePath) {
+    return { ok: false, error: "Not found" };
+  }
+  const [url, downloadUrl] = await Promise.all([
+    signResourceAttachment(row.storageBucket, row.storagePath),
+    signResourceAttachment(row.storageBucket, row.storagePath, {
+      download: resourceDownloadName(row),
+    }),
+  ]);
+  if (!url || !downloadUrl) return { ok: false, error: "Could not open" };
+  return {
+    ok: true,
+    url,
+    downloadUrl,
+    kind: viewableFileKind(row.storagePath, row.contentType),
+    format: resourceFormat(row),
+  };
 }

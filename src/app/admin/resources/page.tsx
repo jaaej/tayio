@@ -21,6 +21,8 @@ import {
 import { cn } from "@/lib/utils";
 import { UrlLabelledSelect } from "@/components/admin/ui/labelled-select";
 import { ResourceRowActions } from "./_components/resource-row-actions";
+import { AdminResourceTitle } from "./_components/resource-title";
+import { httpHref } from "@/lib/safe-url";
 import { distinctSubjects } from "@/lib/subject-label";
 
 export const dynamic = "force-dynamic";
@@ -163,7 +165,7 @@ export default async function AdminResourcesPage({
         {rows.length === 0 ? (
           <Empty>No resources match this filter.</Empty>
         ) : (
-          <table className="w-full min-w-[980px] border-collapse text-[13px]">
+          <table className="w-full min-w-[880px] border-collapse text-[13px]">
             <thead>
               <tr className="text-left text-[12px] text-muted">
                 <th scope="col" className="px-4 py-3 font-extrabold">Title</th>
@@ -190,7 +192,14 @@ export default async function AdminResourcesPage({
                           <Icon className="h-4 w-4" aria-hidden />
                         </span>
                         <div className="flex min-w-0 flex-col">
-                          <span className="text-[14px] font-bold text-ink">{r.title}</span>
+                          <AdminResourceTitle
+                            resource={{
+                              id: r.id,
+                              title: r.title,
+                              kind: r.kind,
+                              href: r.kind === "link" ? httpHref(r.externalUrl) : null,
+                            }}
+                          />
                           {r.source === "promoted" ? (
                             <span className="text-[12px] text-muted">Promoted from homework</span>
                           ) : null}

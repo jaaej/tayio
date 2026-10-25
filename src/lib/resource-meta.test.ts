@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { resourceFormat, resourceMeta } from "./resource-meta";
 
 describe("resourceFormat", () => {
-  it("labels links as Link", () => {
-    expect(resourceFormat({ kind: "link", storagePath: null, contentType: null })).toBe("Link");
+  it("shows a link's site, or Link when the address doesn't parse", () => {
+    const link = { kind: "link", storagePath: null, contentType: null } as const;
+    expect(resourceFormat({ ...link, externalUrl: "https://www.desmos.com/calculator" })).toBe("desmos.com");
+    expect(resourceFormat({ ...link, externalUrl: "not a url" })).toBe("Link");
+    expect(resourceFormat(link)).toBe("Link");
   });
 
   it("uses the stored file's extension", () => {
@@ -50,6 +53,18 @@ describe("resourceMeta", () => {
         createdAt: new Date("2026-10-07T14:30:00Z"),
       }),
     ).toBe("PDF · 8 Oct");
+  });
+
+  it("adds a file's size", () => {
+    expect(
+      resourceMeta({
+        kind: "file",
+        storagePath: "a/b.pdf",
+        contentType: null,
+        sizeBytes: 420 * 1024,
+        createdAt: new Date("2026-10-07T14:30:00Z"),
+      }),
+    ).toBe("PDF · 420 KB · 8 Oct");
   });
 
   it("shows only the date when the format is unknown", () => {
