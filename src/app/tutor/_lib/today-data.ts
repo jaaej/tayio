@@ -11,6 +11,7 @@ import {
   subjects,
   subjectWeeks,
 } from "@/db/schema";
+import { classDisplayName } from "@/lib/class-display";
 import { getLessonWeek } from "@/lib/week-plans";
 import type { LessonCounts } from "@/lib/lesson-progress";
 import { lessonCountFields } from "@/lib/lesson-progress-sql";
@@ -257,12 +258,14 @@ export async function getOverdueHomework(tutorId: string, now: Date) {
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       className: classes.name,
+      subjectName: subjects.name,
       dueDate: homework.dueDate,
     })
     .from(homeworkAssignments)
     .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
     .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
     .leftJoin(classes, eq(classes.id, homework.classId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(
       and(
         tutorHomeworkFilter(tutorId),
@@ -283,7 +286,7 @@ export async function getOverdueHomework(tutorId: string, now: Date) {
       studentId: r.studentId,
       firstName: r.firstName,
       lastName: r.lastName,
-      className: r.className,
+      className: r.className ? classDisplayName(r.subjectName, r.className) : null,
       dueIso: melbourneDate(new Date(r.dueDate)),
     }))
     .filter((r) => r.dueIso < today);

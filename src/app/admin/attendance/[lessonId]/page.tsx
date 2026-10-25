@@ -6,7 +6,7 @@ import { classes, lessonNotes, lessonRollExclusions, lessons, profiles, subjects
 import { STUDENT_TIERS } from "@/lib/roles";
 import { requireRole } from "@/lib/auth";
 import { formatDateLong, formatTimeRange, yearLevelLabel } from "@/lib/format";
-import { classDisplayName, classNameDetail } from "@/lib/class-display";
+import { classDisplayName } from "@/lib/class-display";
 import { subjectTone } from "@/lib/subject-tone";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 import { getLessonRoll } from "@/lib/lesson-roll";
@@ -56,8 +56,8 @@ export default async function AdminLessonAttendancePage({
     .where(eq(lessons.id, lessonId))
     .limit(1);
   if (!lesson) notFound();
-  const classDetail = classNameDetail(lesson.subjectName, lesson.className);
-  const lessonTitle = classDetail || lesson.subjectName;
+  // "Y7 Mathematics · Tuesday": a class name alone is often just its weekday.
+  const lessonTitle = classDisplayName(lesson.subjectName, lesson.className);
 
   const editable = !["makeup", "cancelled", "rescheduled"].includes(lesson.status);
   const [queue, roll, noteRows, studentRows, excludedRows] = await Promise.all([
@@ -142,7 +142,6 @@ export default async function AdminLessonAttendancePage({
   const sub = [
     formatDateLong(lesson.date),
     formatTimeRange(lesson.startTime, lesson.endTime),
-    classDetail ? lesson.subjectName : null,
     `${lesson.tutorFirst} ${lesson.tutorLast}`,
     `${students.length} ${students.length === 1 ? "student" : "students"}`,
   ]

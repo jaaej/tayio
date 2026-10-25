@@ -12,7 +12,7 @@ function uniq(values: string[]): string[] {
   return [...new Set(values)];
 }
 
-/** Class names already contain " · " ("Year 9 Maths · Saturday AM"), so classes are comma-separated. */
+/** Class labels already contain " · " ("Year 9 Maths · Saturday AM"), so classes are comma-separated. */
 function withClasses(who: string, classNames: string[]): string {
   const list = uniq(classNames);
   return list.length === 0 ? who : `${who} · ${list.join(", ")}`;

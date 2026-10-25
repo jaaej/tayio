@@ -1,6 +1,8 @@
+import { classNameDetail } from "@/lib/class-display";
 import type { ClassReportRow } from "./reports-metrics";
 
 const HEADER = [
+  "Subject",
   "Class",
   "Tutor",
   "Attendance %",
@@ -31,7 +33,8 @@ export function classReportToCsv(rows: ClassReportRow[]): string {
   for (const row of rows) {
     lines.push(
       [
-        escape(row.className),
+        escape(row.subjectName),
+        escape(classNameDetail(row.subjectName, row.className)),
         escape(row.tutorName),
         num(row.attendancePct),
         num(row.homeworkPct),

@@ -6,8 +6,10 @@ import {
   enrollments,
   familyLinks,
   profiles,
+  subjects,
   type UserRole,
 } from "@/db/schema";
+import { classDisplayName } from "@/lib/class-display";
 import { coarseRole, type CoarseRole } from "@/lib/roles";
 import { conversationContextLabel, type LinkedStudent } from "@/lib/dm-context-label";
 
@@ -41,19 +43,21 @@ async function linkedStudents({
       firstName: profiles.firstName,
       lastName: profiles.lastName,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(profiles)
     .leftJoin(
       enrollments,
       and(eq(enrollments.studentId, profiles.id), isNull(enrollments.withdrawnAt)),
     )
-    .leftJoin(classes, and(...classJoin));
+    .leftJoin(classes, and(...classJoin))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId));
   const rows = parentId
     ? await base
         .innerJoin(familyLinks, eq(familyLinks.studentId, profiles.id))
         .where(eq(familyLinks.parentId, parentId))
-        .orderBy(asc(profiles.firstName), asc(classes.name))
-    : await base.where(eq(profiles.id, studentId!)).orderBy(asc(classes.name));
+        .orderBy(asc(profiles.firstName), asc(subjects.name), asc(classes.name))
+    : await base.where(eq(profiles.id, studentId!)).orderBy(asc(subjects.name), asc(classes.name));
 
   const byId = new Map<string, LinkedStudent>();
   for (const r of rows) {
@@ -63,7 +67,7 @@ async function linkedStudents({
       lastName: r.lastName,
       classNames: [],
     };
-    if (r.className) s.classNames.push(r.className);
+    if (r.className) s.classNames.push(classDisplayName(r.subjectName, r.className));
     byId.set(r.id, s);
   }
   const all = [...byId.values()];
@@ -72,11 +76,12 @@ async function linkedStudents({
 
 async function tutorClassNames(tutorId: string): Promise<string[]> {
   const rows = await db
-    .select({ name: classes.name })
+    .select({ name: classes.name, subjectName: subjects.name })
     .from(classes)
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(eq(classes.tutorId, tutorId))
-    .orderBy(asc(classes.name));
-  return rows.map((r) => r.name);
+    .orderBy(asc(subjects.name), asc(classes.name));
+  return rows.map((r) => classDisplayName(r.subjectName, r.name));
 }
 
 /**

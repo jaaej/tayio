@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { classDisplayName } from "@/lib/class-display";
 import { studentBookedOnLessonSql, studentOnClassRosterSql } from "@/lib/class-roster-sql";
 import { isoDate } from "@/lib/format";
 import { HANDED_IN_STATUSES } from "@/lib/homework-rules";
@@ -574,14 +575,16 @@ export async function getStudentTimetableLessons(
   const refIds = new Set<string>();
   for (const v of movedOut.values()) if (v.lessonId) refIds.add(v.lessonId);
   for (const o of movedInOrigin.values()) refIds.add(o);
+  // The other lesson can be another subject's class, so its label names both.
   const refInfo = new Map<string, { className: string }>();
   if (refIds.size) {
     const rows = await db
-      .select({ id: lessons.id, className: classes.name })
+      .select({ id: lessons.id, className: classes.name, subjectName: subjects.name })
       .from(lessons)
       .innerJoin(classes, eq(classes.id, lessons.classId))
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
       .where(inArray(lessons.id, Array.from(refIds)));
-    for (const r of rows) refInfo.set(r.id, { className: r.className });
+    for (const r of rows) refInfo.set(r.id, { className: classDisplayName(r.subjectName, r.className) });
   }
 
   // Make-up lessons booked by redeeming a class credit are tagged distinctly

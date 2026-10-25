@@ -35,6 +35,8 @@ export type AudienceRow = {
   audienceRole: string | null;
   audienceClassId: string | null;
   className: string | null;
+  /** The legacy audience class's subject. */
+  subjectName: string | null;
   targetRoles: string[];
   targetSubjectIds: string[];
   targetYearLevels: string[];
@@ -50,7 +52,9 @@ export function describeAudience(row: AudienceRow, labels: AudienceLabels): stri
   );
   // Announcements written before targeting rules (migration 0048).
   if (roles.length === 0) {
-    if (row.audienceClassId) return `Class · ${row.className ?? "Unknown class"}`;
+    if (row.audienceClassId) {
+      return `Class · ${row.className ? classDisplayName(row.subjectName, row.className) : "Unknown class"}`;
+    }
     if (row.audienceRole) return `All ${row.audienceRole}s`;
     return "Everyone";
   }

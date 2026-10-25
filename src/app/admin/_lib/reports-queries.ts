@@ -87,7 +87,7 @@ export async function getClassMetricRows(term: {
     .from(classes)
     .innerJoin(profiles, eq(profiles.id, classes.tutorId))
     .innerJoin(subjects, eq(subjects.id, classes.subjectId))
-    .orderBy(asc(classes.name));
+    .orderBy(asc(subjects.name), asc(classes.name));
 
   // Every mark in the term, so the shared rule decides what counts: a moved
   // lesson (approved reschedule or credit) is not an absence.

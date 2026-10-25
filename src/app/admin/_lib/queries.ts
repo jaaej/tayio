@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
+import { classDisplayName } from "@/lib/class-display";
 import { onRosterSql } from "@/lib/class-roster-sql";
 import { ADMIN_TIERS, coarseRole } from "@/lib/roles";
 import { formatDateLong } from "@/lib/format";
@@ -149,12 +150,14 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       studentFirst: student.firstName,
       studentLast: student.lastName,
       className: classes.name,
+      subjectName: subjects.name,
       classId: classes.id,
       subjectId: classes.subjectId,
     })
     .from(enrollments)
     .innerJoin(student, eq(student.id, enrollments.studentId))
     .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .innerJoin(subjects, eq(subjects.id, classes.subjectId))
     .orderBy(desc(enrollments.enrolledAt))
     .limit(limit);
 
@@ -182,6 +185,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       audienceRole: announcements.audienceRole,
       audienceClassId: announcements.audienceClassId,
       className: classes.name,
+      subjectName: subjects.name,
       targetRoles: announcements.targetRoles,
       targetSubjectIds: announcements.targetSubjectIds,
       targetYearLevels: announcements.targetYearLevels,
@@ -191,6 +195,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
@@ -206,7 +211,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEvent[]> {
       kind: "enrolment",
       at: r.at,
       title: `${r.studentFirst} ${r.studentLast} enrolled`,
-      meta: r.className,
+      meta: classDisplayName(r.subjectName, r.className),
       href: classEditHref(r.subjectId, r.classId),
     });
   }
@@ -306,6 +311,7 @@ export async function getRecentAnnouncements(
     })
     .from(announcements)
     .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+    .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .where(eq(announcements.status, "published"))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);

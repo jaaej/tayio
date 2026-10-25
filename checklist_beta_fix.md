@@ -690,7 +690,24 @@ Still open after the fixes:
   The scroll-sideways minimum is unchanged (150px per day with lessons), so a block never gets under 75px, the floor two side-by-side lessons already had; on dev at 1024px and 390px every block is 100px instead of 75px next to 150px.
   A day header's count ("2 classes") now drops out whole when the day is too narrow for it, as the folded card's count does, instead of reading "1 ...".
   Shared by the admin dashboard, tutor Today and admin Classes. Verified on dev in Chrome and WebKit: admin dashboard blocks 81px vs 162px before, all 107 to 108px after; admin Classes the same; tutor Today unchanged (no overlaps).
-- [ ] Owner decision: every Production class name repeats its subject and schedule ("Year 7 Maths @ TUESDAY 4:30 - 6:30 PM"), so lists read "Y7 Mathematics · Year 7 Maths @ TUESDAY 4:30 - 6:30 PM" and the name goes stale if the class moves. Proposed: rename the 17 classes to their weekday ("Tuesday"), giving "Y7 Mathematics · Tuesday".
+- [x] Every place that shows a class names its subject with it (26 October 2026, before renaming the Production classes).
+  Production class names repeat their subject and schedule ("Year 7 Maths @ TUESDAY 4:30 - 6:30 PM"), so lists read "Y7 Mathematics · Year 7 Maths @ TUESDAY 4:30 - 6:30 PM" and the name goes stale if the class moves. Owner approved renaming them to their weekday.
+  Before the rename, 13 places showed a class name without its subject, which a bare weekday name would turn into "Tuesday PM" alone. Each now uses `classDisplayName` ("Y7 Mathematics · Tuesday PM"):
+  - student and parent timetable "Make-up: from" / "Moved →" labels (`src/app/student/_lib/queries.ts`);
+  - "Make-up ←" / "Rescheduled →" on lesson rolls (`lessonFromLabel`, `src/lib/reschedule.ts`);
+  - the recap eyebrow when the title is the topic (`src/components/lessons/lesson-recap.tsx`);
+  - tutor Today "Students to bump" and "Recent notes";
+  - the tutor's student profile attendance tiles and notes timeline;
+  - tutor search results (classes now comma-separated);
+  - the discussion "Asked by" line;
+  - the Messages conversation header in every role (`src/lib/dm-context.ts`);
+  - admin dashboard Recent activity enrolments and old class announcements;
+  - the admin lesson page title (the subject is no longer repeated on the line below);
+  - admin Reports by class (sorted by subject, then class).
+  The Reports CSV export now has separate Subject and Class columns.
+  Left as the class name alone, on purpose: the subject's own curriculum and class editor pages, where the subject is the page heading.
+  Verified on dev with every class renamed to a bare weekday name (names restored after): 18 pages across admin, tutor, student and parent in WebKit, 0 page errors, no weekday label without its subject. 714 unit tests, typecheck, lint.
+- [ ] Rename the 17 Production classes to "<Day> PM" after this deploys (see the dated note below).
 
 - [x] One way to write times and dates in every portal (25 October 2026, owner request after the Classes-cards change).
   Times read like the weekly grid everywhere: "4 pm", "4:30 pm", "4 - 5:30 pm", "11:30 am - 1 pm". Before, six styles were in use ("4:00 – 5:30 pm", "4:00pm–5:30pm", "4:00pm - 5:30pm", "4:00 pm" and others).

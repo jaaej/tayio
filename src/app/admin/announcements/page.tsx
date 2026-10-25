@@ -50,6 +50,7 @@ export default async function AnnouncementsPage() {
           authorFirst: author.firstName,
           authorLast: author.lastName,
           className: classes.name,
+          subjectName: subjects.name,
           recipientCount: sql<number>`(
             select count(*)::int from ${announcementRecipients}
             where ${announcementRecipients.announcementId} = ${announcements.id}
@@ -58,6 +59,7 @@ export default async function AnnouncementsPage() {
         .from(announcements)
         .innerJoin(author, eq(author.id, announcements.authorId))
         .leftJoin(classes, eq(classes.id, announcements.audienceClassId))
+        .leftJoin(subjects, eq(subjects.id, classes.subjectId))
         .orderBy(desc(announcements.publishedAt)),
       db
         .select({ id: subjects.id, name: subjects.name, yearLevel: subjects.yearLevel })

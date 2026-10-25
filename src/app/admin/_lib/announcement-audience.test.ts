@@ -11,6 +11,7 @@ const row = (over: Partial<AudienceRow>): AudienceRow => ({
   audienceRole: null,
   audienceClassId: null,
   className: null,
+  subjectName: null,
   targetRoles: [],
   targetSubjectIds: [],
   targetYearLevels: [],
@@ -29,6 +30,12 @@ describe("describeAudience", () => {
 
   it("reads older announcements from their single audience fields", () => {
     expect(describeAudience(row({ audienceRole: "tutor" }), labels)).toBe("All tutors");
+    expect(
+      describeAudience(
+        row({ audienceClassId: "c1", className: "Tuesday", subjectName: "Y7 Mathematics" }),
+        labels,
+      ),
+    ).toBe("Class · Y7 Mathematics · Tuesday");
     expect(describeAudience(row({}), labels)).toBe("Everyone");
   });
 

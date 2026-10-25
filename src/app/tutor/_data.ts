@@ -20,6 +20,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { getLatestQuizAttempts } from "@/lib/quiz-scores";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
+import { classDisplayName } from "@/lib/class-display";
 import { yearLevelLabel } from "@/lib/format";
 import { tutorHomeworkFilter } from "./_lib/homework-access";
 
@@ -348,10 +349,12 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
       lessonDate: lessons.date,
       lessonTutorId: lessons.tutorId,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(attendance)
     .innerJoin(lessons, eq(attendance.lessonId, lessons.id))
     .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
     .where(
       and(
         eq(attendance.studentId, studentId),
@@ -382,10 +385,12 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
       lessonDate: lessons.date,
       lessonTutorId: lessons.tutorId,
       className: classes.name,
+      subjectName: subjects.name,
     })
     .from(lessonNotes)
     .innerJoin(lessons, eq(lessonNotes.lessonId, lessons.id))
     .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
     .innerJoin(noteAuthor, eq(noteAuthor.id, lessonNotes.tutorId))
     .where(
       and(
@@ -435,7 +440,17 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     sharedSubjects.map((r) => r.id),
   );
 
-  return { student, attendance: attendanceRows, notes, homework: homeworkRows, quizAttempts };
+  // A student can be in two of this tutor's subjects, so each row's class
+  // label names its subject ("Y7 Mathematics · Tuesday").
+  const withClassLabel = <T extends { subjectName: string; className: string }>(rows: T[]) =>
+    rows.map((r) => ({ ...r, className: classDisplayName(r.subjectName, r.className) }));
+  return {
+    student,
+    attendance: withClassLabel(attendanceRows),
+    notes: withClassLabel(notes),
+    homework: homeworkRows,
+    quizAttempts,
+  };
 }
 
 export async function getLessonForTutor(tutorId: string, lessonId: string) {
@@ -556,6 +571,7 @@ export async function getRecentLessonNotes(tutorId: string, limit = 20) {
       internalNote: lessonNotes.internalNote,
       lessonDate: lessons.date,
       className: classes.name,
+      subjectName: subjects.name,
       studentFirstName: profiles.firstName,
       studentLastName: profiles.lastName,
       studentId: lessonNotes.studentId,
@@ -563,6 +579,7 @@ export async function getRecentLessonNotes(tutorId: string, limit = 20) {
     .from(lessonNotes)
     .innerJoin(lessons, eq(lessonNotes.lessonId, lessons.id))
     .innerJoin(classes, eq(lessons.classId, classes.id))
+    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
     .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
     .where(eq(lessonNotes.tutorId, tutorId))
     .orderBy(desc(lessonNotes.createdAt))

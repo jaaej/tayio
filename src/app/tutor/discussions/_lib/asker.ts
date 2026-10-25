@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { classes, enrollments, profiles, type UserRole } from "@/db/schema";
+import { classes, enrollments, profiles, subjects, type UserRole } from "@/db/schema";
+import { classDisplayName } from "@/lib/class-display";
 import { canDM } from "@/lib/dm-permissions";
 import { yearLevelLabel } from "@/lib/format";
 import { coarseRole } from "@/lib/roles";
@@ -34,7 +35,7 @@ export async function getThreadAskerForTutor(
   const year = student?.yearLevel ? yearLevelLabel(student.yearLevel) : null;
   const meta = student
     ? [
-        // Class names usually lead with the year ("Year 9 Maths"); don't say it twice.
+        // Subjects usually lead with the year ("Year 9 Maths"); don't say it twice.
         year && !student.className?.includes(year) ? year : null,
         student.className ?? roleLabel(thread.authorRole),
         student.className ? "your class" : null,
@@ -68,9 +69,10 @@ async function loadStudentContext(
       .where(eq(profiles.id, studentId))
       .limit(1),
     db
-      .select({ name: classes.name, subjectId: classes.subjectId })
+      .select({ name: classes.name, subjectId: classes.subjectId, subjectName: subjects.name })
       .from(enrollments)
       .innerJoin(classes, eq(classes.id, enrollments.classId))
+      .innerJoin(subjects, eq(subjects.id, classes.subjectId))
       .where(
         and(
           eq(enrollments.studentId, studentId),
@@ -86,6 +88,6 @@ async function loadStudentContext(
     taught[0];
   return {
     yearLevel: profile[0]?.yearLevel ?? null,
-    className: cls?.name ?? null,
+    className: cls ? classDisplayName(cls.subjectName, cls.name) : null,
   };
 }

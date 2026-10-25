@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, gt, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { classDisplayName } from "@/lib/class-display";
 import { onRosterSql } from "@/lib/class-roster-sql";
 import { lessonGuestIds, othersOnLesson } from "@/lib/lesson-guests";
 import {
@@ -91,10 +92,12 @@ export async function getReschedulableLesson(
   return { ...rest, tutorName: `${tutorFirst} ${tutorLast}`.trim() };
 }
 
-/** A lesson as a make-up or move label: "<class> · <date> <time>". */
+/** A lesson as a make-up or move label: "<subject · class> · <date> <time>". */
 export async function lessonFromLabel(lessonId: string): Promise<string> {
   const t = await getReschedulableLesson(lessonId);
-  return t ? `${t.className} · ${formatDateLong(t.date)} ${formatTime(t.startTime)}` : "another session";
+  return t
+    ? `${classDisplayName(t.subjectName, t.className)} · ${formatDateLong(t.date)} ${formatTime(t.startTime)}`
+    : "another session";
 }
 
 /**

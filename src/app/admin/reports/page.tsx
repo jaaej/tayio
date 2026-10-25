@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
+import { classDisplayName } from "@/lib/class-display";
 import { formatScore } from "@/lib/format";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import {
@@ -247,7 +248,7 @@ export default async function ReportsPage({
                         className="flex items-center gap-2 font-bold text-ink hover:text-brand-600"
                       >
                         <SubjectDot subject={r.subjectName} color={r.subjectColor} />
-                        {r.className}
+                        {classDisplayName(r.subjectName, r.className)}
                       </Link>
                     </td>
                     <td className="px-2.5 py-3 text-ink-soft">{r.tutorName}</td>

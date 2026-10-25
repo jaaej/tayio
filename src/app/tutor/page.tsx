@@ -381,7 +381,7 @@ export default async function TutorToday({
                         <span className="truncate text-[14px] font-bold text-ink">
                           {n.studentFirstName} {n.studentLastName}
                         </span>
-                        <span className="truncate text-[12px] text-muted">{n.className}</span>
+                        <span className="truncate text-[12px] text-muted">{classDisplayName(n.subjectName, n.className)}</span>
                         <span className="ml-auto shrink-0 text-[12px] text-muted">
                           {nearDayLabel(n.lessonDate, todayIso)}
                         </span>

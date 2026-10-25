@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Empty, PageHeader } from "@/components/admin/ui";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
+import { classDisplayName, classNameDetail } from "@/lib/class-display";
 import { formatDayDate, formatTimeRange } from "@/lib/format";
 import type { FamilyRecap } from "@/lib/lesson-recap";
 import { recapBlocks, recapPreview } from "@/lib/lesson-recap-rules";
@@ -50,6 +51,7 @@ export function LessonRecapView({
   emptyText: string;
 }) {
   const embedSrc = recap.recordingUrl ? hostedEmbedUrl(recap.recordingUrl) : null;
+  const topic = recap.note?.topicCovered?.trim();
   const statusNote =
     recap.status === "cancelled" || recap.status === "missed"
       ? LESSON_STATUS_LABEL[recap.status]
@@ -68,7 +70,9 @@ export function LessonRecapView({
             />
             <span>
               {[
-                recap.className,
+                // The title is the topic when there is one; then the subject
+                // has to be named here.
+                topic ? classDisplayName(recap.subjectName, recap.className) : classNameDetail(recap.subjectName, recap.className),
                 formatDayDate(recap.date),
                 formatTimeRange(recap.startTime, recap.endTime),
                 recap.tutorName && `with ${recap.tutorName}`,
@@ -79,7 +83,7 @@ export function LessonRecapView({
             </span>
           </>
         }
-        title={recap.note?.topicCovered?.trim() || recap.subjectName}
+        title={topic || recap.subjectName}
       />
 
       {recap.recordingUrl && (
