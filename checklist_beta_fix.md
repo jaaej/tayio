@@ -669,6 +669,19 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Tutor Weekly check-in: one block for the week's lessons, hours and approval (26 October 2026, owner request: "it says we are in week 198 (5-11 oct), but today is 25/10").
+  Cause of the report: the clock was right. The page opens on the oldest week still waiting for the tutor's approval (5 - 11 Oct was Week 198), and nothing said that this was not the current week.
+  `/tutor/checkin` now:
+  - The header names the week under the title ("Week 198 · 5 - 11 Oct"), with "· This week" added only on the current week.
+  - The Week, Worked hours, Estimated pay and Status tiles are gone.
+  - The table's total row reads "Hours worked this week" (hours and pay). The status pill stays on the "Lessons this week" title row.
+  - Approve these hours, "Something is wrong with these hours" and the earlier/next week still to approve ("Earlier week to approve: 14 - 20 Sept") moved into the same block; the "Confirm this week" block is gone.
+  - On a phone the table no longer scrolls sideways (the date and notes sit under the lesson), so the hours total stays on screen.
+  - A week with no lessons says "No lessons this week, so there are no hours to approve." and offers "A lesson I taught is missing" to report one.
+  How the rules work (unchanged): a week with no lessons never asks for approval (no reminder, not counted in the sidebar badge, "no lessons" on admin Tutor check-ins). A forgotten week stays waiting: Saturday and Sunday 7 am reminders, a Sunday 7 am admin alert, then nothing more; the sidebar badge counts it, the page opens on it, and admin Tutor check-ins keeps its pay under pending, not approved pay owed. Admins cannot approve for a tutor (owner decision, 12 October 2026).
+  Verified on dev as Tom in WebKit (1280px and 390px) and Chrome: opens on Week 195 (his oldest waiting week), this week reads "Week 201 · 26 Oct - 1 Nov · This week" with "Week in progress", an empty week shows the no-lessons line; no page errors. Approve was not clicked (its code is unchanged). 714 unit tests, typecheck, lint.
+- [ ] Owner decision: the admin "Tutor check-in not approved" alert fires at 7 am on Sunday, the same morning tutors are told hours are due that day (and before any Sunday lesson has finished), so it flags tutors who have not missed anything yet. Proposed: send it on Monday morning for the week just gone.
+
 - [x] Every role opens a library resource in the portal's viewer, with Download (26 October 2026, owner report: "in admin/resources, i cant actually click on the resource to view the file").
   Before: admin Resources titles were plain text; the tutor library had only a download icon that opened the raw file in a new tab; the student and parent library signed the file and then called `window.open`, which Safari blocks after a server round trip, so a click did nothing there.
   Now one opener in every role (`useResourceOpener` / `OpenerTrigger`, `src/components/resources/resource-opener.tsx`): a file is signed by `openResourceFile` (`src/app/_actions/resources.ts`, re-checks access per role: admin any, including removed; tutor the subjects they teach, shared or not; student enrolled subjects; parent their children's) and opens in `FileViewerDialog`. PDFs, images and videos preview; Word, PowerPoint and Excel show "DOCX files can't be previewed in the portal." with a Download button. YouTube, Vimeo, Drive and Loom links play in the video viewer; any other link opens its site in a new tab, since outside sites can't be shown inside the portal.

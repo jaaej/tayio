@@ -10,6 +10,7 @@ import {
 } from "@/app/_actions/tutor-checkins";
 import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
+import { cn } from "@/lib/utils";
 
 export function TutorCheckinActions({
   weekStart,
@@ -69,12 +70,9 @@ export function TutorCheckinActions({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {!hasEntries ? (
-        // Nothing to approve, but a missing lesson can still be reported.
-        <p className="text-[14px] text-ink-soft">
-          There are no lessons to approve this week.
-        </p>
-      ) : status === "approved" ? (
+      {/* With no lessons the page says there is nothing to approve; a
+          missing lesson can still be reported below. */}
+      {!hasEntries ? null : status === "approved" ? (
         <div className="flex items-start gap-3 rounded-[12px] bg-good-bg p-3.5 text-good">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <div>
@@ -112,14 +110,14 @@ export function TutorCheckinActions({
 
       <details
         open={status === "disputed" || undefined}
-        className="group border-t border-line pt-3"
+        className={cn("group", hasEntries && "border-t border-line pt-3")}
       >
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-[8px] text-[13px] font-bold text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [&::-webkit-details-marker]:hidden">
           <ChevronDown
             className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
             aria-hidden
           />
-          Something is wrong with these hours
+          {hasEntries ? "Something is wrong with these hours" : "A lesson I taught is missing"}
         </summary>
         <div className="flex flex-col gap-2 pt-1">
           <label htmlFor="checkin-report" className="text-[13px] text-ink-soft">
