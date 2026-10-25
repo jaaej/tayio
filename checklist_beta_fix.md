@@ -669,6 +669,12 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] A term report PDF opens for a parent or student only after an admin sends it (26 October 2026, found while answering "how does the report building for the tutors work? i cant view it").
+  Before: `/reports/[studentId]/[termId]` let a linked parent open an unsent report, including half-written comments; only the list link waited for Send. Now non-admins get 404 until a `term_report_issues` row exists (`security-checklist.md` C8).
+  Verified on dev with Sarah's unsent 2026 Term 4 report: parent 200 before, 404 after; 200 with a sent row (test row removed); admin 200 throughout; malformed ids 404.
+- [ ] Open, owner decision (term reports on Production, 26 October 2026): the only term is 2026 Term 4, 1 - 30 Sept, and all 28 enrolments were created 19 - 22 Oct, after it ended. A student counts for a term only if enrolled by its end date (`src/lib/term-enrolment-sql.ts`), so every tutor sees "You had no classes with students this term." and admin Reports > Term reports shows "No classes had students this term." The tutor window for that term closes 28 Oct. Term 4 dates were not changed (owner instruction).
+- [ ] Open, found on the way (not changed): saving a correction as admin makes the admin the comment's author on the PDF (`writtenBy`, `src/app/_actions/term-report-entries.ts`); after a tutor's window closes the page still says reports "open three weeks before a term ends"; `createTerm` / `updateTerm` don't check start before end or overlapping terms; there are no parent accounts on Production yet, so Send would reach only unrestricted students.
+
 - [x] Tutor Weekly check-in: one block for the week's lessons, hours and approval (26 October 2026, owner request: "it says we are in week 198 (5-11 oct), but today is 25/10").
   Cause of the report: the clock was right. The page opens on the oldest week still waiting for the tutor's approval (5 - 11 Oct was Week 198), and nothing said that this was not the current week.
   `/tutor/checkin` now:
@@ -720,7 +726,10 @@ Still open after the fixes:
   The Reports CSV export now has separate Subject and Class columns.
   Left as the class name alone, on purpose: the subject's own curriculum and class editor pages, where the subject is the page heading.
   Verified on dev with every class renamed to a bare weekday name (names restored after): 18 pages across admin, tutor, student and parent in WebKit, 0 page errors, no weekday label without its subject. 714 unit tests, typecheck, lint.
-- [ ] Rename the 17 Production classes to "<Day> PM" after this deploys (see the dated note below).
+- [x] Renamed the 17 Production classes to their weekday and AM/PM (26 October 2026, after the label fix above was live; 17 `audit_logs` rows, actor NULL as it was run as SQL).
+  "Tuesday PM", not "Tuesday": it is the portal's own naming rule (`slotClassName`, `src/lib/class-schedule-change.ts`), and a name in that form follows the class when an admin moves it to another day or time, which a bare "Tuesday" would not.
+  Old names, for the record: Scholarship Program @ TUESDAY 4:30 - 6:30 PM; Scholarship Program (Year 7 Below's Wednesday class); VCE English 1/2 @ MONDAY 4:30 - 6:30 PM; VCE English 1/2 @ 4:30 - 6:30 PM (Thursday); VCE Methods 1/2 @ Wednesday 4:30 - 6:30 PM; Year 10 Maths @ WEDNESDAY 4:30 - 6:30 PM; Year10 Maths @ Thursday 6:30 - 8:30 PM; Year 5/6 English & Maths @ MONDAY 4:30 - 6:30 PM; Year 7 Maths @ TUESDAY / Wednesday / Thursday 4:30 - 6:30 PM; Y7/8 English @ TUESDAY / WEDNESDAY 4:30 - 6:30 PM; Year 8 Maths @ 4:30 - 6:30 PM (Thursday); Y9 English @ TUESDAY 7:00 - 9:00; Year 9 English @ 6:30 - 8:30 PM (Thursday); Y9 Maths @ WEDNESDAY 4:30 - 6:30 PM.
+  Lists now read "Y7 Mathematics · Tuesday PM". Production Term 4 dates were not touched (owner instruction).
 
 - [x] One way to write times and dates in every portal (25 October 2026, owner request after the Classes-cards change).
   Times read like the weekly grid everywhere: "4 pm", "4:30 pm", "4 - 5:30 pm", "11:30 am - 1 pm". Before, six styles were in use ("4:00 – 5:30 pm", "4:00pm–5:30pm", "4:00pm - 5:30pm", "4:00 pm" and others).

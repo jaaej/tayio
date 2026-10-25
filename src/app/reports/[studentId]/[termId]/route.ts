@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db/client";
-import { familyLinks } from "@/db/schema";
+import { familyLinks, termReportIssues } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { coarseRole, isUnrestrictedStudent } from "@/lib/roles";
@@ -26,19 +26,35 @@ async function isParentOf(parentId: string, studentId: string): Promise<boolean>
   return Boolean(row);
 }
 
+/** Has an admin sent this student's report for this term? */
+async function isSent(studentId: string, termId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ studentId: termReportIssues.studentId })
+    .from(termReportIssues)
+    .where(and(eq(termReportIssues.studentId, studentId), eq(termReportIssues.termId, termId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Downloadable student term report PDF. Access is role-aware:
- *  - any admin, always;
+ *  - any admin, always (they review it before sending);
  *  - the student themselves, but only if unrestricted (student_restricted
  *    cannot view their own report, per the visibility gate);
  *  - a parent of the student.
- * Anyone else gets 403.
+ * Anyone else gets 403. A student or parent gets it only once an admin has
+ * sent it: until then it can hold comments a tutor is still writing.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ studentId: string; termId: string }> },
 ) {
   const { studentId, termId } = await params;
+  if (!UUID.test(studentId) || !UUID.test(termId)) {
+    return new NextResponse("Report not found", { status: 404 });
+  }
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.redirect(new URL("/login", req.url));
@@ -56,6 +72,9 @@ export async function GET(
     allowed = await isParentOf(user.id, studentId);
   }
   if (!allowed) return new NextResponse("Forbidden", { status: 403 });
+  if (coarse !== "admin" && !(await isSent(studentId, termId))) {
+    return new NextResponse("Report not found", { status: 404 });
+  }
 
   const report = await getStudentTermReport(studentId, termId);
   if (!report) return new NextResponse("Report not found", { status: 404 });
