@@ -103,9 +103,15 @@ export default async function TutorCheckinPage({
         title="Weekly check-in"
         // The page opens on the oldest week still waiting for approval, so
         // say which week is the current one rather than leave it to guess.
-        sub={[checkinWeekLabel(week), weekRangeLabel(week), week === thisWeek ? "This week" : null]
-          .filter(Boolean)
-          .join(" · ")}
+        sub={
+          <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="text-[18px] font-extrabold tracking-[-0.01em] text-ink">
+              {checkinWeekLabel(week)}
+            </span>
+            <span className="text-[16px] font-bold text-ink-soft">{weekRangeLabel(week)}</span>
+            {week === thisWeek && <Pill tone="info">This week</Pill>}
+          </span>
+        }
         actions={
           <div className="flex items-center gap-1">
             <Link
@@ -159,7 +165,8 @@ export default async function TutorCheckinPage({
               <tbody>
                 {view.entries.map((entry) => {
                   const label = checkinEntryLabel(entry);
-                  const when = `${formatWeekday(entry.workDate, "short")} ${formatDateShort(entry.workDate)} · ${formatTimeRange(entry.startTime, entry.endTime)}`;
+                  const day = `${formatWeekday(entry.workDate, "short")} ${formatDateShort(entry.workDate)}`;
+                  const time = formatTimeRange(entry.startTime, entry.endTime);
                   const notes = (entry.isManualOverride || entry.isRemoved) && (
                     <span className="inline-flex flex-wrap justify-end gap-1.5">
                       {entry.isManualOverride && <Pill tone="info">Corrected by admin</Pill>}
@@ -181,13 +188,19 @@ export default async function TutorCheckinPage({
                           <SubjectDot subject={entry.subjectName} color={entry.subjectColor} className="h-2 w-2" />
                           {label}
                         </span>
-                        <span className="mt-0.5 block pl-4 text-[12px] text-muted sm:hidden">{when}</span>
+                        {/* Wraps between the day and the time, never inside either. */}
+                        <span className="mt-0.5 block pl-4 text-[12px] text-muted sm:hidden">
+                          <span className="whitespace-nowrap">{day} ·</span>{" "}
+                          <span className="whitespace-nowrap">{time}</span>
+                        </span>
                         {entry.note && (
                           <span className="mt-0.5 block pl-4 text-[12px] text-muted">{entry.note}</span>
                         )}
                         {notes && <span className="mt-1.5 block pl-4 sm:hidden">{notes}</span>}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 text-muted sm:table-cell">{when}</td>
+                      <td className="hidden whitespace-nowrap px-3 py-3 text-muted sm:table-cell">
+                        {day} · {time}
+                      </td>
                       <td
                         className={cn(
                           "whitespace-nowrap px-3 py-3 text-right font-extrabold tabular-nums",

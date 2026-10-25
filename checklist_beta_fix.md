@@ -678,7 +678,7 @@ Still open after the fixes:
 - [x] Tutor Weekly check-in: one block for the week's lessons, hours and approval (26 October 2026, owner request: "it says we are in week 198 (5-11 oct), but today is 25/10").
   Cause of the report: the clock was right. The page opens on the oldest week still waiting for the tutor's approval (5 - 11 Oct was Week 198), and nothing said that this was not the current week.
   `/tutor/checkin` now:
-  - The header names the week under the title ("Week 198 · 5 - 11 Oct"), with "· This week" added only on the current week.
+  - The header names the week under the title in large type ("Week 198" 18px extrabold, "5 - 11 Oct" 16px), with a "This week" pill only on the current week (owner follow-up: "make the week and dates bigger, so its more noticable").
   - The Week, Worked hours, Estimated pay and Status tiles are gone.
   - The table's total row reads "Hours worked this week" (hours and pay). The status pill stays on the "Lessons this week" title row.
   - Approve these hours, "Something is wrong with these hours" and the earlier/next week still to approve ("Earlier week to approve: 14 - 20 Sept") moved into the same block; the "Confirm this week" block is gone.
