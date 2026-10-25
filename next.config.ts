@@ -12,11 +12,15 @@ try {
 }
 const supabaseWs = supabaseOrigin.replace(/^https/, "wss");
 
-// Video hosts we embed lesson recordings from (link-based recorded lessons).
-// Kept to the specific player origins so frame-src stays tight; any other host
-// falls back to a plain "Watch recording" link, no framing involved.
+// Players the video viewer embeds (`hostedEmbedUrl`, src/lib/video-embed.ts):
+// YouTube, Vimeo, Google Drive and Loom. Kept to the specific player origins
+// so frame-src stays tight; any other host opens as a plain link instead.
 const videoFrameSrc =
-  "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com";
+  "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://drive.google.com https://www.loom.com";
+
+// Microsoft's web viewer for Word, PowerPoint and Excel library resources
+// (`officeViewerUrl`, src/lib/file-viewer.ts).
+const officeFrameSrc = "https://view.officeapps.live.com";
 
 // NOTE: script-src still allows 'unsafe-inline' because Next.js injects inline
 // bootstrap/hydration scripts. Turning that into real XSS protection requires a
@@ -35,7 +39,7 @@ const csp = [
   `style-src 'self' 'unsafe-inline'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws:" : ""}`.trim(),
-  `frame-src 'self' ${supabaseOrigin} ${videoFrameSrc}`.trim(),
+  `frame-src 'self' ${supabaseOrigin} ${videoFrameSrc} ${officeFrameSrc}`.trim(),
   `worker-src 'self' blob:`,
   // Only force HTTPS upgrades in production; localhost dev is http.
   ...(isDev ? [] : [`upgrade-insecure-requests`]),

@@ -4,6 +4,7 @@ import {
   checkinApprovalTimingError,
   checkinMinutes,
   checkinPay,
+  checkinOverdueWeek,
   checkinReminderDay,
   weekStartForIsoDate,
 } from "./tutor-checkin-rules";
@@ -48,5 +49,13 @@ describe("tutor check-in rules", () => {
     expect(checkinReminderDay("2026-09-19")).toBe("saturday");
     expect(checkinReminderDay("2026-09-20")).toBe("sunday");
     expect(checkinReminderDay("2026-09-21")).toBeNull();
+  });
+
+  it("chases last week's hours from 5pm on Monday only", () => {
+    expect(checkinOverdueWeek("2026-10-26", "16:59:59")).toBeNull();
+    expect(checkinOverdueWeek("2026-10-26", "17:00:00")).toBe("2026-10-19");
+    expect(checkinOverdueWeek("2026-10-26", "23:59:00")).toBe("2026-10-19");
+    expect(checkinOverdueWeek("2026-10-25", "18:00:00")).toBeNull();
+    expect(checkinOverdueWeek("2026-10-27", "17:30:00")).toBeNull();
   });
 });

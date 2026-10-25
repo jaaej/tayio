@@ -96,6 +96,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | E6 | Virus / malware scanning on uploads | ☐ | P2 | Real concern once external parents upload; defer |
 | E7 | `discussion-attachments` private bucket exists | ⚠ | P1 | Created and verified in dev on 2026-07-22. Upload/signing use the service client after `requireRole` + board visibility checks. Confirm the Production bucket is private in the dashboard and run an allowed/denied live attachment test. |
 | E8 | `resource-library` private bucket exists + storage policies | ⚠ | P1 | Created in dev; resource and quiz flows use randomized paths, server-side authorization, signed URLs, size/count limits, MIME/magic-byte validation, and staged-object cleanup. Confirm Production bucket privacy and one allowed/denied live download. |
+| E9 | Office previews send a signed address to Microsoft | ✓ | P1 | **Decided 2026-10-26.** Word, PowerPoint and Excel library resources (tutor and admin uploads) preview in Microsoft's Office web viewer (`view.officeapps.live.com`, allowed in CSP `frame-src`). It is given the file's 1-hour signed address (`signResourceAttachment`, `src/lib/resources-storage.ts`) only after `openResourceFile` has checked the viewer's role and subject access, so Microsoft fetches that one file while the address lasts. Homework attachments, submissions and other student work are never sent there (`FileViewerButton` keeps Open separately). Microsoft belongs on the H6 subprocessor list. |
 
 ## F. Network / Headers
 
@@ -131,7 +132,7 @@ Full RLS detail lives in `docs/SECURITY.md`. This file is the broader checklist.
 | H3 | Parental consent flow on minor signup (COPPA / Australian Privacy Act equivalent) | ☐ | P0 | Legal advice needed for your jurisdiction |
 | H4 | Data retention + deletion policy | ☐ | P1 | GDPR-style right-to-be-forgotten |
 | H5 | Data export feature (parent requests child's data) | ☐ | P1 | GDPR right-to-portability |
-| H6 | Subprocessor list (Supabase, Vercel, Stripe later, etc.) | ☐ | P1 | Document for parents/legal |
+| H6 | Subprocessor list (Supabase, Vercel, Stripe later, etc.) | ☐ | P1 | Document for parents/legal. Include Microsoft (Office web viewer for library resources, E9). |
 | H7 | DPA with Supabase + Vercel signed | ☐ | P1 | Available on their websites |
 | H8 | Cookie consent banner (if EU users) | ☐ | P1 | If targeting any EU-resident user |
 

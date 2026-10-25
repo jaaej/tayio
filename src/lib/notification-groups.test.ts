@@ -124,6 +124,18 @@ describe("notificationGroupFor", () => {
     }
   });
 
+  it("routes admin check-in follow-ups to action needed", () => {
+    for (const title of [
+      "Tutor check-in not approved",
+      "Tutor check-in still not approved",
+      "Tutor reported incorrect hours",
+    ]) {
+      expect(
+        notificationGroupFor({ title, href: "/admin/tutor-checkins?week=2026-10-19" }),
+      ).toBe("action");
+    }
+  });
+
   it("keeps an approved tutor announcement in announcements", () => {
     expect(
       notificationGroupFor({

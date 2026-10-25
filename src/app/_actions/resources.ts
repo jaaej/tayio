@@ -21,7 +21,7 @@ import {
 import { uploadResourceFile, signResourceAttachment } from "@/lib/resources-storage";
 import { resourceDownloadName } from "@/lib/resource-format";
 import { resourceFormat } from "@/lib/resource-meta";
-import { viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
+import { officePreviewFits, viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
 import { httpHref } from "@/lib/safe-url";
 import { withActor } from "@/lib/with-actor";
 import type { UserRole } from "@/db/schema";
@@ -300,6 +300,8 @@ export type OpenedResourceFile =
       downloadUrl: string;
       kind: ViewableFileKind;
       format: string | null;
+      /** An Office file over the web viewer's size limit: Download only. */
+      tooLarge: boolean;
     }
   | { ok: false; error: string };
 
@@ -343,11 +345,14 @@ export async function openResourceFile(id: string): Promise<OpenedResourceFile> 
     }),
   ]);
   if (!url || !downloadUrl) return { ok: false, error: "Could not open" };
+  const kind = viewableFileKind(row.storagePath, row.contentType);
+  const tooLarge = kind === "office" && !officePreviewFits(row.storagePath, row.contentType, row.sizeBytes);
   return {
     ok: true,
     url,
     downloadUrl,
-    kind: viewableFileKind(row.storagePath, row.contentType),
+    kind: tooLarge ? "other" : kind,
     format: resourceFormat(row),
+    tooLarge,
   };
 }

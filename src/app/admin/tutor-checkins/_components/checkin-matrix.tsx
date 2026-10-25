@@ -164,17 +164,17 @@ export function CheckinMatrix({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] table-fixed border-collapse text-[13px]">
+              <table className="w-full min-w-[920px] table-fixed border-collapse text-[13px]">
                 <thead>
                   <tr className="text-[12px] text-muted">
                     <th
                       scope="col"
-                      className="sticky left-0 z-10 w-[170px] bg-surface px-4 py-3 text-left font-extrabold"
+                      className="sticky left-0 z-10 w-[160px] bg-surface px-4 py-3 text-left font-extrabold"
                     >
                       Tutor
                     </th>
                     {days.map((day) => (
-                      <th key={day.date} scope="col" className="px-1.5 py-3 text-center font-extrabold">
+                      <th key={day.date} scope="col" className="whitespace-nowrap px-1 py-3 text-center font-extrabold">
                         <span
                           aria-current={day.isToday ? "date" : undefined}
                           className={cn(
@@ -186,10 +186,10 @@ export function CheckinMatrix({
                         </span>
                       </th>
                     ))}
-                    <th scope="col" className="w-[120px] px-2.5 py-3 text-right font-extrabold">
+                    <th scope="col" className="w-[104px] px-2.5 py-3 text-right font-extrabold">
                       Week total
                     </th>
-                    <th scope="col" className="w-[190px] px-4 py-3 text-right font-extrabold">
+                    <th scope="col" className="w-[160px] px-4 py-3 text-right font-extrabold">
                       Status
                     </th>
                   </tr>
@@ -270,7 +270,7 @@ export function CheckinMatrix({
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          <span className="inline-flex items-center gap-2">
+                          <span className="flex flex-wrap items-center justify-end gap-2">
                             <Pill tone={pill.tone}>{pill.label}</Pill>
                             {tutor.matrix.status === "issue" && (
                               <Button size="sm" onClick={() => reviewWeek(tutor)}>

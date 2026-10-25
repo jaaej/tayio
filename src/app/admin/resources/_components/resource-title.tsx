@@ -15,7 +15,8 @@ export function AdminResourceTitle({ resource }: { resource: OpenableResource })
         opener={opener}
         className="text-left text-[14px] font-bold text-ink underline-offset-2 hover:text-brand-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-wait"
       >
-        {opener.state === "loading" ? `${resource.title} · Opening…` : resource.title}
+        {resource.title}
+        {opener.state === "loading" && <span className="font-semibold text-muted"> · Opening…</span>}
       </OpenerTrigger>
       {opener.state === "error" && (
         <span role="alert" className="text-[12px] text-bad">

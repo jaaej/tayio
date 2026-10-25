@@ -53,6 +53,9 @@ export function notificationGroupFor(
     title.includes("needs cover") ||
     title.includes("hours due") ||
     title.startsWith("check your hours") ||
+    // An admin chases or corrects a tutor's weekly hours.
+    title.startsWith("tutor check-in") ||
+    title.includes("incorrect hours") ||
     title.includes("cover needed") ||
     title.includes("cover request") ||
     title.includes("relocate class time") ||

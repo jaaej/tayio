@@ -17,12 +17,19 @@ export type OpenableResource = {
 
 export type ResourceOpenState = "idle" | "loading" | "error";
 
-type OpenedFile = { url: string; downloadUrl: string; kind: ViewableFileKind; format: string | null };
+type OpenedFile = {
+  url: string;
+  downloadUrl: string;
+  kind: ViewableFileKind;
+  format: string | null;
+  tooLarge: boolean;
+};
 
 /**
  * Opens a library resource the same way in every role. A file is signed by
  * `openResourceFile` (which re-checks the viewer's access) and shows in the
- * portal's viewer with Download; a YouTube, Vimeo or Drive link plays in the
+ * portal's viewer with Download (Word, PowerPoint and Excel through
+ * Microsoft's web viewer); a YouTube, Vimeo, Drive or Loom link plays in the
  * video viewer; any other link opens its site in a new tab, since sites
  * can't be shown inside the portal. Nothing opens a pop-up after waiting on
  * the server, which Safari blocks.
@@ -63,6 +70,7 @@ export function useResourceOpener(resource: OpenableResource) {
           downloadUrl={file.downloadUrl}
           kind={file.kind}
           format={file.format}
+          tooLarge={file.tooLarge}
           title={resource.title}
           onClose={() => setFile(null)}
         />
@@ -84,35 +92,22 @@ export function useResourceOpener(resource: OpenableResource) {
 export type ResourceOpenerHandle = ReturnType<typeof useResourceOpener>;
 
 /**
- * What the viewer clicks to open a resource: a new-tab link for a website,
- * otherwise a button. Several triggers can share one `opener` (a clickable
- * title beside "Open →"); render `opener.viewer` once beside them.
+ * What the viewer clicks to open a resource (its title, or the whole row): a
+ * new-tab link for a website, otherwise a button. Render `opener.viewer`
+ * once beside it.
  */
 export function OpenerTrigger({
   opener,
   className,
-  label,
-  tabIndex,
   children,
 }: {
   opener: ResourceOpenerHandle;
   className?: string;
-  /** The accessible name, when the visible content is not enough. */
-  label?: string;
-  /** -1 for a second trigger beside the main one. */
-  tabIndex?: number;
   children: ReactNode;
 }) {
   if (opener.websiteHref) {
     return (
-      <a
-        href={opener.websiteHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={label}
-        tabIndex={tabIndex}
-        className={className}
-      >
+      <a href={opener.websiteHref} target="_blank" rel="noopener noreferrer" className={className}>
         {children}
       </a>
     );
@@ -122,8 +117,6 @@ export function OpenerTrigger({
       type="button"
       onClick={opener.open}
       disabled={opener.state === "loading"}
-      aria-label={label}
-      tabIndex={tabIndex}
       className={className}
     >
       {children}

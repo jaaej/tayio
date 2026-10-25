@@ -13,11 +13,13 @@ import {
   tutorWeeklyCheckins,
 } from "@/db/schema";
 import { classDisplayName } from "@/lib/class-display";
-import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { weekRangeLabel } from "@/lib/format";
+import { melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
 import { tutorAwayFromLessonSql } from "@/lib/cover-away-sql";
 import {
   addIsoDays,
   checkinMinutes,
+  checkinOverdueWeek,
   checkinPay,
   checkinReminderDay,
   weekStartForIsoDate,
@@ -444,8 +446,82 @@ export async function getTutorCheckinMonthSummary(
   );
 }
 
+/** Active tutors whose week still waits on them: not approved, with at least
+ * one lesson still counted. Loading the views also creates missing snapshots. */
+async function tutorsWithUnapprovedWeek(weekStart: string) {
+  const tutors = await db
+    .select({ id: profiles.id, firstName: profiles.firstName, lastName: profiles.lastName })
+    .from(profiles)
+    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)));
+  const views = await getTutorCheckinWeeks(
+    tutors.map((tutor) => tutor.id),
+    weekStart,
+  );
+  return tutors.filter((_, index) => {
+    const view = views[index];
+    return (
+      view &&
+      view.status !== "approved" &&
+      !view.entries.every((entry) => entry.isRemoved)
+    );
+  });
+}
+
+async function activeAdminIds() {
+  const rows = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(
+      and(
+        inArray(profiles.role, ["admin", "admin_unrestricted"]),
+        eq(profiles.isActive, true),
+      ),
+    );
+  return rows.map((row) => row.id);
+}
+
+const ADMIN_ALERT_KEY = "tutor-checkin-admin:";
+
+function adminCheckinAlerts(
+  tutor: { id: string; firstName: string; lastName: string },
+  adminIds: string[],
+  weekStart: string,
+  marker: "sunday" | "monday",
+): Array<typeof notifications.$inferInsert> {
+  const tutorName = `${tutor.firstName} ${tutor.lastName}`.trim();
+  const week = weekRangeLabel(weekStart);
+  return adminIds.map((userId) => ({
+    userId,
+    channel: "in_app",
+    title:
+      marker === "sunday"
+        ? "Tutor check-in not approved"
+        : "Tutor check-in still not approved",
+    body:
+      marker === "sunday"
+        ? `${tutorName} has not approved their hours for ${week}.`
+        : `${tutorName} still hasn't approved their hours for ${week}.`,
+    href: `/admin/tutor-checkins?week=${weekStart}&tutor=${tutor.id}`,
+    dedupeKey: `${ADMIN_ALERT_KEY}${tutor.id}:${weekStart}:${marker}`,
+  }));
+}
+
+async function insertCheckinNotifications(
+  values: Array<typeof notifications.$inferInsert>,
+) {
+  if (values.length === 0) return { tutorNotifications: 0, adminNotifications: 0 };
+  const inserted = await db
+    .insert(notifications)
+    .values(values)
+    .onConflictDoNothing()
+    .returning({ dedupeKey: notifications.dedupeKey });
+  const admin = inserted.filter((row) => row.dedupeKey?.startsWith(ADMIN_ALERT_KEY)).length;
+  return { tutorNotifications: inserted.length - admin, adminNotifications: admin };
+}
+
 /** Creates missing current-week snapshots and sends retry-safe Saturday/Sunday
- * reminders. This shares the existing authenticated daily cron. */
+ * reminders, plus the first admin alert on Sunday. This shares the existing
+ * authenticated daily cron. */
 export async function runTutorCheckinReminders(now = new Date()) {
   const today = melbourneDate(now);
   const reminderDay = checkinReminderDay(today);
@@ -453,35 +529,11 @@ export async function runTutorCheckinReminders(now = new Date()) {
     return { day: "none" as const, tutorNotifications: 0, adminNotifications: 0 };
   }
   const weekStart = weekStartForIsoDate(today);
-  const tutors = await db
-    .select({ id: profiles.id, firstName: profiles.firstName, lastName: profiles.lastName })
-    .from(profiles)
-    .where(and(eq(profiles.role, "tutor"), eq(profiles.isActive, true)));
-  const owners =
-    reminderDay === "sunday"
-      ? await db
-          .select({ id: profiles.id })
-          .from(profiles)
-          .where(
-            and(
-              inArray(profiles.role, ["admin", "admin_unrestricted"]),
-              eq(profiles.isActive, true),
-            ),
-          )
-      : [];
-  const views = await getTutorCheckinWeeks(
-    tutors.map((tutor) => tutor.id),
-    weekStart,
-  );
+  const tutors = await tutorsWithUnapprovedWeek(weekStart);
+  const adminIds = reminderDay === "sunday" ? await activeAdminIds() : [];
 
   const values: Array<typeof notifications.$inferInsert> = [];
-  for (const [index, tutor] of tutors.entries()) {
-    const view = views[index];
-    if (!view) continue;
-    if (view.status === "approved" || view.entries.every((entry) => entry.isRemoved)) {
-      continue;
-    }
-    const marker = reminderDay;
+  for (const tutor of tutors) {
     values.push({
       userId: tutor.id,
       channel: "in_app",
@@ -491,39 +543,29 @@ export async function runTutorCheckinReminders(now = new Date()) {
           : "Weekly hours due today",
       body: "Review this week's lessons and approve your tutor check-in, or report anything that is wrong.",
       href: `/tutor/checkin?week=${weekStart}`,
-      dedupeKey: `tutor-checkin:${tutor.id}:${weekStart}:${marker}`,
+      dedupeKey: `tutor-checkin:${tutor.id}:${weekStart}:${reminderDay}`,
     });
     if (reminderDay === "sunday") {
-      const tutorName = `${tutor.firstName} ${tutor.lastName}`.trim();
-      for (const owner of owners) {
-        values.push({
-          userId: owner.id,
-          channel: "in_app",
-          title: "Tutor check-in not approved",
-          body: `${tutorName} has not approved their hours for the week starting ${weekStart}.`,
-          href: `/admin/tutor-checkins?week=${weekStart}&tutor=${tutor.id}`,
-          dedupeKey: `tutor-checkin-admin:${tutor.id}:${weekStart}:sunday`,
-        });
-      }
+      values.push(...adminCheckinAlerts(tutor, adminIds, weekStart, "sunday"));
     }
   }
-  let inserted: Array<{ title: string }> = [];
-  if (values.length > 0) {
-    inserted = await db
-      .insert(notifications)
-      .values(values)
-      .onConflictDoNothing()
-      .returning({ title: notifications.title });
-  }
-  return {
-    day: reminderDay,
-    tutorNotifications: inserted.filter(
-      (row) => row.title !== "Tutor check-in not approved",
-    ).length,
-    adminNotifications: inserted.filter(
-      (row) => row.title === "Tutor check-in not approved",
-    ).length,
-  };
+  return { day: reminderDay, ...(await insertCheckinNotifications(values)) };
+}
+
+/** The second admin alert: at 5pm Monday, every tutor whose last week is still
+ * not approved. Its cron runs at 06:00 and 07:00 UTC, which is 5pm in AEDT and
+ * AEST respectively; the other run lands at 4pm or 6pm, where the time check
+ * or the dedupe key makes it a no-op. */
+export async function runTutorCheckinOverdueAlerts(now = new Date()) {
+  const weekStart = checkinOverdueWeek(melbourneDate(now), melbourneTime(now));
+  if (!weekStart) return { weekStart: null, adminNotifications: 0 };
+  const tutors = await tutorsWithUnapprovedWeek(weekStart);
+  const adminIds = tutors.length > 0 ? await activeAdminIds() : [];
+  const values = tutors.flatMap((tutor) =>
+    adminCheckinAlerts(tutor, adminIds, weekStart, "monday"),
+  );
+  const { adminNotifications } = await insertCheckinNotifications(values);
+  return { weekStart, adminNotifications };
 }
 
 export function checkinEntryLabel(entry: {

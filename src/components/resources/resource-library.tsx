@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Empty } from "@/components/admin/ui";
-import { ActionButtonLabel } from "@/components/ui/loading-button";
 import { OpenerTrigger, useResourceOpener } from "@/components/resources/resource-opener";
 import { ResourceTypeChip } from "@/components/resources/resource-type-chip";
 import { RESOURCE_TYPES, resourceTypeLabel, type ResourceTypeValue } from "@/lib/resource-types";
@@ -168,15 +167,20 @@ function ResourceRow({ resource }: { resource: ResourceLibraryItem }) {
   const opener = useResourceOpener(resource);
   const { state } = opener;
   const rowClass =
-    "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-ink transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait @md:grid-cols-[100px_minmax(0,1fr)_auto] @2xl:grid-cols-[100px_minmax(0,1fr)_160px_auto]";
+    "group grid w-full grid-cols-[minmax(0,1fr)] items-center gap-3 px-4 py-3 text-left text-ink transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 disabled:cursor-wait @md:grid-cols-[100px_minmax(0,1fr)] @2xl:grid-cols-[100px_minmax(0,1fr)_160px]";
   const content = (
     <>
       <span className="hidden @md:block">
         <ResourceTypeChip type={resource.type} className="max-w-full truncate" />
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="line-clamp-2 break-words text-[14px] font-bold" title={resource.title}>
+        {/* The title is what to click, as on the tutor and admin pages. */}
+        <span
+          className="line-clamp-2 break-words text-[14px] font-bold underline-offset-2 group-hover:text-brand-600 group-hover:underline"
+          title={resource.title}
+        >
           {resource.title}
+          {state === "loading" && <span className="font-semibold text-muted"> · Opening…</span>}
         </span>
         {/* What the row's own columns don't show yet: the type below the
             chip column, the meta below the meta column. */}
@@ -191,16 +195,6 @@ function ResourceRow({ resource }: { resource: ResourceLibraryItem }) {
         </span>
       </span>
       <span className="hidden text-[12px] text-muted @2xl:block">{resource.meta}</span>
-      <span
-        className={cn(
-          "inline-flex min-w-[84px] items-center justify-end whitespace-nowrap text-[13px] font-bold",
-          state === "error" ? "text-bad" : "text-brand-600",
-        )}
-      >
-        <ActionButtonLabel pending={state === "loading"} pendingLabel="Opening…">
-          {state === "error" ? "Try again" : "Open →"}
-        </ActionButtonLabel>
-      </span>
     </>
   );
 

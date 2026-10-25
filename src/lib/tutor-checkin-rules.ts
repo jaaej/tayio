@@ -68,6 +68,16 @@ export function checkinReminderDay(
   return null;
 }
 
+/**
+ * The week whose unapproved hours earn admins a second alert: last week, once
+ * it is 5pm on Monday (Melbourne date and HH:MM:SS time). Null at any other
+ * time.
+ */
+export function checkinOverdueWeek(date: string, time: string): string | null {
+  if (parseIsoDate(date).getUTCDay() !== 1 || time < "17:00") return null;
+  return addIsoDays(date, -7);
+}
+
 function parseIsoDate(value: string): Date {
   if (!ISO_DATE.test(value)) throw new Error("Use a valid date.");
   const date = new Date(`${value}T00:00:00.000Z`);

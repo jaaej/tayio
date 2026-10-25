@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Download, ExternalLink, Eye, File as FileIcon, ImageIcon } from "lucide-react";
-import { viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
+import { Download, ExternalLink, Eye, File as FileIcon, FileText, ImageIcon } from "lucide-react";
+import { officeViewerUrl, viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
 import { cn } from "@/lib/utils";
 import { PdfViewerButton, PdfViewerDialog } from "@/components/ui/pdf-viewer";
 import { VideoViewerButton, VideoViewerDialog } from "@/components/ui/video-viewer";
@@ -42,6 +42,9 @@ export function FileViewerButton({
     );
   }
 
+  // Office files here (homework, submissions, week plans) open separately,
+  // not in Microsoft's web viewer: that would hand students' own work to a
+  // third party. Library resources use it (`FileViewerDialog`).
   return (
     <a
       href={url}
@@ -59,9 +62,10 @@ export function FileViewerButton({
 }
 
 /**
- * The viewer for one file, whatever its kind: PDF, image and video preview
- * in the portal; anything else (Word, PowerPoint, Excel) shows what it is
- * and offers Download. Every kind has Download when `downloadUrl` is given.
+ * The viewer for one library file, whatever its kind: PDF, image and video
+ * preview in the portal, Word, PowerPoint and Excel through Microsoft's web
+ * viewer; anything else shows what it is and offers Download. Every kind has
+ * Download when `downloadUrl` is given.
  */
 export function FileViewerDialog({
   open,
@@ -69,6 +73,7 @@ export function FileViewerDialog({
   downloadUrl,
   kind,
   format,
+  tooLarge = false,
   title,
   onClose,
 }: {
@@ -78,6 +83,8 @@ export function FileViewerDialog({
   kind: ViewableFileKind;
   /** "DOCX", for the no-preview card. */
   format?: string | null;
+  /** An Office file over the web viewer's size limit. */
+  tooLarge?: boolean;
   title: string;
   onClose: () => void;
 }) {
@@ -90,6 +97,25 @@ export function FileViewerDialog({
   if (kind === "image") {
     return <ImageViewerDialog open={open} url={url} downloadUrl={downloadUrl} title={title} onClose={onClose} />;
   }
+  if (kind === "office" && url) {
+    return (
+      <ViewerDialog
+        open={open}
+        title={title}
+        icon={FileText}
+        noun="document"
+        url={officeViewerUrl(url, "view")}
+        downloadUrl={downloadUrl}
+        onClose={onClose}
+      >
+        <iframe
+          src={officeViewerUrl(url, "embed")}
+          title={title}
+          className="min-h-0 w-full flex-1 border-0 bg-surface-2"
+        />
+      </ViewerDialog>
+    );
+  }
   return (
     <ViewerDialog open={open} title={title} icon={FileIcon} noun="file" onClose={onClose} fitContent>
       <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
@@ -97,7 +123,9 @@ export function FileViewerDialog({
           <FileIcon className="h-6 w-6" aria-hidden />
         </span>
         <p className="max-w-[360px] text-[14px] text-ink-soft">
-          {format ? `${format} files` : "Files like this"} can&apos;t be previewed in the portal.
+          {tooLarge
+            ? "This file is too large to preview in the portal."
+            : `${format ? `${format} files` : "Files like this"} can't be previewed in the portal.`}
         </p>
         {downloadUrl && (
           <a

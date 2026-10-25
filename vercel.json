@@ -5,6 +5,14 @@
     {
       "path": "/api/cron/tutor-cover-reminders",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/tutor-checkin-overdue",
+      "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/cron/tutor-checkin-overdue",
+      "schedule": "0 7 * * 1"
     }
   ]
 }
