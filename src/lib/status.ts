@@ -27,7 +27,8 @@ export const HOMEWORK_STATUS_LABEL: Record<string, string> = {
   submitted: "Submitted",
   late: "Late",
   marked: "Marked",
-  returned: "Returned",
+  // Retired choice that meant the same as Marked (removed 26 October 2026).
+  returned: "Marked",
   resubmission_requested: "Resubmit",
 };
 

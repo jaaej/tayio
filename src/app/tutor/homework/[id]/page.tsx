@@ -15,9 +15,10 @@ import { classes, subjects } from "@/db/schema";
 import { formatClockTime, formatScore } from "@/lib/format";
 import { classDisplayName } from "@/lib/class-display";
 import { HOMEWORK_STATUS_LABEL } from "@/lib/status";
-import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { HOMEWORK_BUCKET, signHomeworkAttachment } from "@/app/student/homework/_storage";
+import { signHomeworkAttachment, signHomeworkSubmission } from "@/app/student/homework/_storage";
+import { MarkupFileButton } from "@/components/markup/markup-file-button";
+import { markupFileKind } from "@/lib/markup/doc";
 import { getHomeworkDetail, requireTutor } from "../../_data";
 import { getToMark } from "../_lib/marking-data";
 import {
@@ -60,18 +61,14 @@ const dayFmt = new Intl.DateTimeFormat("en-AU", {
 /** "Sat 10 Oct" - en-AU puts a comma after the weekday; drop it. */
 const shortDay = (d: Date) => dayFmt.format(d).replace(",", "");
 
-async function signSubmissionUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  const supabase = await createClient();
-  const { data } = await supabase.storage.from(HOMEWORK_BUCKET).createSignedUrl(path, 3600);
-  return data?.signedUrl ?? null;
-}
-
 function fileNameOf(path: string): string {
   const last = decodeURIComponent(path.split("?")[0].split("/").pop() ?? "");
-  // Uploads are stored as "<uuid>-<original name>"; show the original name.
-  return last.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[-_]/i, "") || "Submission";
+  // Submissions are stored as "<timestamp>-<original name>" (older ones
+  // "<uuid>-<original name>"); show the original name.
+  return (
+    last.replace(/^(?:\d{10,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[-_]/i, "") ||
+    "Submission"
+  );
 }
 
 /**
@@ -203,7 +200,12 @@ export default async function HomeworkMarkingPage({
   const name = `${selected.firstName} ${selected.lastName}`.trim();
   const queue = await getToMark(tutor.id);
   const next = nextToMark(queue, { homeworkId: homework.id, studentId: selected.studentId });
-  const signedUrl = await signSubmissionUrl(selected.submissionUrl);
+  // getHomeworkDetail only returns this tutor's homework, so the server signs it.
+  const signedUrl = await signHomeworkSubmission(selected.submissionUrl);
+  const markable =
+    selected.submissionUrl && !selected.submissionUrl.startsWith("http")
+      ? markupFileKind(selected.submissionUrl)
+      : null;
   const hasSubmission = Boolean(selected.submissionText || selected.submissionUrl);
   const sub = [
     homework.title,
@@ -260,7 +262,16 @@ export default async function HomeworkMarkingPage({
               <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink">
                 {fileNameOf(selected.submissionUrl)}
               </span>
-              {signedUrl ? (
+              {markable ? (
+                <MarkupFileButton
+                  target={{ kind: "submission", homeworkId: homework.id, studentId: selected.studentId }}
+                  title={`${name} submission`}
+                  fileKind={markable === "pdf" ? "pdf" : "image"}
+                  className="shrink-0 rounded-[10px]"
+                >
+                  View and mark
+                </MarkupFileButton>
+              ) : signedUrl ? (
                 <FileViewerButton
                   url={signedUrl}
                   title={`${name} submission`}

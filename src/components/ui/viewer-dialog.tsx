@@ -12,7 +12,8 @@ const HEADER_ACTION =
  * The frame every in-portal viewer shares (PDF, image, video, other files):
  * a full-screen sheet on phones, a card up to 94vh on larger screens, closed
  * by Escape, the backdrop or the close button. `downloadUrl` adds Download;
- * `url` adds "Open separately".
+ * `url` adds "Open separately"; `actions` go before them (the writing
+ * viewer's Save).
  */
 export function ViewerDialog({
   open,
@@ -21,6 +22,7 @@ export function ViewerDialog({
   noun,
   url,
   downloadUrl,
+  actions,
   onClose,
   fitContent = false,
   children,
@@ -32,6 +34,7 @@ export function ViewerDialog({
   noun: string;
   url?: string | null;
   downloadUrl?: string | null;
+  actions?: ReactNode;
   onClose: () => void;
   /** Size to the content (a 16:9 player, a details card) instead of 94vh. */
   fitContent?: boolean;
@@ -72,6 +75,7 @@ export function ViewerDialog({
           <h2 className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-ink sm:text-[16px]">
             {title}
           </h2>
+          {actions}
           {downloadUrl && (
             <a href={downloadUrl} aria-label={`Download ${noun}`} className={HEADER_ACTION}>
               <Download className="h-3.5 w-3.5" aria-hidden />

@@ -1,4 +1,5 @@
 "use server";
+
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
@@ -22,6 +23,7 @@ import { uploadResourceFile, signResourceAttachment } from "@/lib/resources-stor
 import { resourceDownloadName } from "@/lib/resource-format";
 import { resourceFormat } from "@/lib/resource-meta";
 import { officePreviewFits, viewableFileKind, type ViewableFileKind } from "@/lib/file-viewer";
+import { markupFileKind } from "@/lib/markup/doc";
 import { httpHref } from "@/lib/safe-url";
 import { withActor } from "@/lib/with-actor";
 import type { UserRole } from "@/db/schema";
@@ -302,6 +304,8 @@ export type OpenedResourceFile =
       format: string | null;
       /** An Office file over the web viewer's size limit: Download only. */
       tooLarge: boolean;
+      /** A student's PDF or picture, opened in the writing viewer to take notes on. */
+      writable: "pdf" | "image" | null;
     }
   | { ok: false; error: string };
 
@@ -316,14 +320,17 @@ async function openableResource(id: string) {
   const role = coarseRole(user.app_metadata?.role as UserRole);
   if (role === "admin") {
     const [row] = await db.select().from(resources).where(eq(resources.id, id)).limit(1);
-    return row ?? null;
+    return { role, row: row ?? null };
   }
   if (role === "tutor") {
-    return getResourceForViewer(id, await taughtSubjectIds(user.id), { includeUnpublished: true });
+    return {
+      role,
+      row: await getResourceForViewer(id, await taughtSubjectIds(user.id), { includeUnpublished: true }),
+    };
   }
   const subjectIds =
     role === "student" ? await enrolledSubjectIds(user.id) : await childSubjectIds(user.id);
-  return getResourceForViewer(id, subjectIds);
+  return { role, row: await getResourceForViewer(id, subjectIds) };
 }
 
 /**
@@ -334,7 +341,7 @@ async function openableResource(id: string) {
 export async function openResourceFile(id: string): Promise<OpenedResourceFile> {
   const parsed = idSchema.safeParse({ id });
   if (!parsed.success) return { ok: false, error: "Not found" };
-  const row = await openableResource(parsed.data.id);
+  const { role, row } = await openableResource(parsed.data.id);
   if (!row || row.kind !== "file" || !row.storageBucket || !row.storagePath) {
     return { ok: false, error: "Not found" };
   }
@@ -354,5 +361,10 @@ export async function openResourceFile(id: string): Promise<OpenedResourceFile> 
     kind: tooLarge ? "other" : kind,
     format: resourceFormat(row),
     tooLarge,
+    writable: role === "student" ? writableKind(markupFileKind(row.storagePath, row.contentType)) : null,
   };
+}
+
+function writableKind(kind: ReturnType<typeof markupFileKind>): "pdf" | "image" | null {
+  return kind === "pdf" ? "pdf" : kind ? "image" : null;
 }

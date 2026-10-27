@@ -75,6 +75,7 @@ export function SubjectWeekBody({
         subjectColor={subjectColor}
         tutorFirstName={tutorFirstName}
         now={now}
+        writable={!parent}
       />
     </div>
   );

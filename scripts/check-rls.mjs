@@ -43,6 +43,7 @@ const ALLOW_NO_RLS = new Set([
   "lesson_roll_exclusions", // admin roll edits for one lesson, migration 0080
   "lesson_roll_additions", // one-off visits to one lesson, migration 0084
   "term_report_entries", // tutor-written term report parts, migration 0081
+  "file_markups", // marks written on files in the viewer, migration 0085
   "schema_migrations", // migration ledger, created by scripts/migration-ledger.mjs
 ]);
 

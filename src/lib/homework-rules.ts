@@ -15,6 +15,20 @@ export function isMarked(status: string): boolean {
   return status === "marked" || status === "returned";
 }
 
+/**
+ * Can the student hand in (or hand in again)? Before handing in, yes; when
+ * the tutor asked for a resubmission, yes; while waiting for marking, only if
+ * the homework allows resubmission; once marked, no. The submit route and the
+ * page both use this, so the page never offers what the route refuses.
+ */
+export function canSubmitHomework(status: string, allowResubmission: boolean): boolean {
+  if (status === "not_started" || status === "viewed" || status === "resubmission_requested") {
+    return true;
+  }
+  if (isAwaitingMarking(status)) return allowResubmission;
+  return false;
+}
+
 /** Handed in and waiting for the tutor. */
 export function isAwaitingMarking(status: string): boolean {
   return status === "submitted" || status === "late";

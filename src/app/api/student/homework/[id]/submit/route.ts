@@ -4,13 +4,10 @@ import { db } from "@/db/client";
 import { homework, homeworkAssignments, type UserRole } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
-import { createClient } from "@/lib/supabase/server";
-import { HOMEWORK_BUCKET } from "@/app/student/homework/_storage";
+import { recordSubmission, storeSubmissionFile, submissionClosedReason } from "@/lib/homework-submission";
+import { SUBMISSION_POLICY, typeFromFileName, validateUpload } from "@/lib/upload-validation";
 
 export const runtime = "nodejs";
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
-const SAFE_NAME = /[^a-zA-Z0-9._-]/g;
 
 export async function POST(
   request: NextRequest,
@@ -32,7 +29,6 @@ export async function POST(
   const existing = await db
     .select({
       status: homeworkAssignments.status,
-      dueDate: homework.dueDate,
       allowResubmission: homework.allowResubmission,
     })
     .from(homeworkAssignments)
@@ -49,11 +45,9 @@ export async function POST(
     return failRedirect(detailUrl, "Assignment not found.");
   }
 
-  const { status, dueDate, allowResubmission } = existing[0];
-  const alreadySubmitted = status === "submitted" || status === "marked" || status === "returned";
-  if (alreadySubmitted && !allowResubmission) {
-    return failRedirect(detailUrl, "Resubmission isn't allowed for this homework.");
-  }
+  const { status, allowResubmission } = existing[0];
+  const closed = submissionClosedReason(status, allowResubmission);
+  if (closed) return failRedirect(detailUrl, closed);
 
   let formData: FormData;
   try {
@@ -74,44 +68,30 @@ export async function POST(
   let submissionPath: string | null = null;
 
   if (file) {
-    if (file.size > MAX_FILE_BYTES) {
+    if (file.size > SUBMISSION_POLICY.maxBytes) {
       return failRedirect(detailUrl, "File too large (10 MB max).");
     }
-    const safeName = file.name.replace(SAFE_NAME, "_") || "submission";
-    const stamp = Date.now();
-    submissionPath = `${user.id}/${homeworkId}/${stamp}-${safeName}`;
-
-    const supabase = await createClient();
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { error: uploadErr } = await supabase.storage
-      .from(HOMEWORK_BUCKET)
-      .upload(submissionPath, buffer, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-
-    if (uploadErr) {
-      return failRedirect(detailUrl, `Upload failed: ${uploadErr.message}`);
+    // A browser that doesn't know the file sends it untyped; its extension then says what it claims to be.
+    const untyped = !file.type || file.type === "application/octet-stream";
+    const declared = untyped ? typeFromFileName(file.name, SUBMISSION_POLICY) : file.type;
+    const checked = await validateUpload(new Blob([file], { type: declared ?? "" }), SUBMISSION_POLICY);
+    if (!checked.ok) {
+      return failRedirect(detailUrl, "Upload a PDF, photo, Word document or text file.");
     }
+    // The stored name keeps the student's own name, with the extension its content proved.
+    const baseName = file.name.replace(/\.[^.]*$/, "") || "submission";
+    submissionPath = await storeSubmissionFile(
+      user.id,
+      homeworkId,
+      `${baseName}.${checked.file.ext}`,
+      new Uint8Array(await file.arrayBuffer()),
+      checked.file.contentType,
+    );
+    if (!submissionPath) return failRedirect(detailUrl, "The upload didn't go through. Try again.");
   }
 
-  const now = new Date();
-  const isLate = now > dueDate;
-
-  await db
-    .update(homeworkAssignments)
-    .set({
-      status: isLate ? "late" : "submitted",
-      submittedAt: now,
-      ...(submissionPath ? { submissionUrl: submissionPath } : {}),
-      ...(text ? { submissionText: text } : {}),
-    })
-    .where(
-      and(
-        eq(homeworkAssignments.homeworkId, homeworkId),
-        eq(homeworkAssignments.studentId, user.id),
-      ),
-    );
+  const recorded = await recordSubmission(homeworkId, user.id, { path: submissionPath, text: text || null });
+  if (!recorded.ok) return failRedirect(detailUrl, recorded.error);
 
   const successUrl = new URL(detailUrl);
   successUrl.searchParams.set("submitted", "1");

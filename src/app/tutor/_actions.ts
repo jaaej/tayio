@@ -13,7 +13,8 @@ import {
   enrollments,
   homework,
   homeworkAssignments,
-  homeworkStatusEnum,
+  familyLinks,
+  fileMarkups,
   lessonNotes,
   lessons,
   notifications,
@@ -52,13 +53,14 @@ import type { UserRole } from "@/db/schema";
 import { randomUUID } from "node:crypto";
 import { requireTutor } from "./_data";
 import { tutorHomeworkFilter } from "./_lib/homework-access";
+import { homeworkResultNotifications } from "@/lib/homework-result-notifications";
+import { HOMEWORK_BUCKET as SUBMISSION_BUCKET } from "@/app/student/homework/_storage";
 
 const HOMEWORK_BUCKET = "homework-attachments";
 const TUTOR_HOMEWORK_UPLOAD_PURPOSE = "tutor-homework-attachment";
 const TUTOR_HOMEWORK_EDIT_UPLOAD_PURPOSE = "tutor-homework-edit-attachment";
 
 const attendanceStatusSchema = z.enum(ROLL_STATUSES);
-const homeworkStatusSchema = z.enum(homeworkStatusEnum.enumValues);
 const directFileSchema = z.object({
   classId: z.string().uuid(),
   subjectWeekId: z.string().uuid(),
@@ -729,26 +731,28 @@ export async function updateHomework(formData: FormData) {
   revalidatePath("/tutor");
 }
 
+const markResultSchema = z.enum(["marked", "resubmission_requested"]);
+
+/**
+ * Save a mark: the result (Marked, or Request resubmit), score and feedback.
+ * The student and their linked parents are told when the result changes
+ * (first marking, or a switch between the two), not on every re-save.
+ */
 export async function markSubmission(formData: FormData) {
   const tutor = await requireTutor();
   const homeworkId = String(formData.get("homeworkId") ?? "");
   const studentId = String(formData.get("studentId") ?? "");
-  const status = String(formData.get("status") ?? "marked");
   const scoreRaw = String(formData.get("score") ?? "").trim();
   const feedback = optionalText(formData.get("feedback"), 5000);
 
   if (!homeworkId || !studentId) throw new Error("Missing ids");
   await assertOwnsHomework(tutor.id, homeworkId);
 
-  const parsedStatus = homeworkStatusSchema.safeParse(status);
+  const parsedStatus = markResultSchema.safeParse(formData.get("status") ?? "marked");
   if (!parsedStatus.success) throw new Error("Invalid status");
+  const result = parsedStatus.data;
 
-  const update: Record<string, unknown> = {
-    status: parsedStatus.data,
-    feedback: feedback || null,
-    markedAt: new Date(),
-    markedBy: tutor.id,
-  };
+  let score: string | null = null;
   if (scoreRaw) {
     // A score is the percentage the tutor awards (0-100); averages and the
     // term report read it that way.
@@ -756,20 +760,73 @@ export async function markSubmission(formData: FormData) {
     if (!Number.isFinite(n) || n < 0 || n > 100) {
       throw new Error("Score must be a percentage from 0 to 100");
     }
-    update.score = String(Math.round(n * 100) / 100);
-  } else {
-    update.score = null;
+    score = String(Math.round(n * 100) / 100);
   }
 
-  await db
-    .update(homeworkAssignments)
-    .set(update)
-    .where(
-      and(
-        eq(homeworkAssignments.homeworkId, homeworkId),
-        eq(homeworkAssignments.studentId, studentId),
-      ),
-    );
+  const markedAt = new Date();
+  await db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({
+        status: homeworkAssignments.status,
+        title: homework.title,
+        firstName: profiles.firstName,
+        hasMarkup: sql<boolean>`exists (
+          select 1 from ${fileMarkups}
+          where ${fileMarkups.layer} = 'feedback'
+            and ${fileMarkups.ownerId} = ${homeworkAssignments.studentId}
+            and ${fileMarkups.fileBucket} = ${SUBMISSION_BUCKET}
+            and ${fileMarkups.filePath} = ${homeworkAssignments.submissionUrl}
+            and jsonb_array_length(${fileMarkups.data} -> 'items') > 0
+        )`,
+      })
+      .from(homeworkAssignments)
+      .innerJoin(homework, eq(homework.id, homeworkAssignments.homeworkId))
+      .innerJoin(profiles, eq(profiles.id, homeworkAssignments.studentId))
+      .where(
+        and(
+          eq(homeworkAssignments.homeworkId, homeworkId),
+          eq(homeworkAssignments.studentId, studentId),
+        ),
+      )
+      .for("update", { of: homeworkAssignments })
+      .limit(1);
+    if (!before) throw new Error("Assignment not found");
+
+    await tx
+      .update(homeworkAssignments)
+      .set({ status: result, score, feedback: feedback || null, markedAt, markedBy: tutor.id })
+      .where(
+        and(
+          eq(homeworkAssignments.homeworkId, homeworkId),
+          eq(homeworkAssignments.studentId, studentId),
+        ),
+      );
+
+    // "returned" is the retired name for marked: switching it to marked is
+    // not news to the family.
+    const wasResult = before.status === "returned" ? "marked" : before.status;
+    if (wasResult === result) return;
+    const parents = await tx
+      .select({ parentId: familyLinks.parentId })
+      .from(familyLinks)
+      .where(eq(familyLinks.studentId, studentId));
+    await tx
+      .insert(notifications)
+      .values(
+        homeworkResultNotifications({
+          homeworkId,
+          homeworkTitle: before.title,
+          studentId,
+          studentFirstName: before.firstName,
+          parentIds: parents.map((p) => p.parentId),
+          result,
+          score,
+          hasFeedback: Boolean(feedback) || before.hasMarkup,
+          markedAt,
+        }),
+      )
+      .onConflictDoNothing();
+  });
 
   revalidatePath(`/tutor/homework/${homeworkId}`);
   revalidatePath("/tutor");

@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 const RESULTS = [
   { value: "marked", label: "Marked", tone: "text-good" },
   { value: "resubmission_requested", label: "Request resubmit", tone: "text-warn" },
-  { value: "returned", label: "Returned", tone: "text-info" },
 ] as const;
 
 type Result = (typeof RESULTS)[number]["value"];

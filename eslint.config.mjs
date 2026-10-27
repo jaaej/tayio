@@ -27,6 +27,8 @@ const eslintConfig = [
       "next-env.d.ts",
       // Local browser-check scratch scripts (git-excluded), not app source.
       ".pw/**",
+      // pdf.js files copied from node_modules at predev/prebuild (gitignored).
+      "public/pdfjs/**",
     ],
   },
 ];

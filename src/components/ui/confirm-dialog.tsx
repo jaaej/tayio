@@ -129,6 +129,7 @@ function ConfirmDialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         onCancel();
       }
       if (e.key === "Enter" && ready) onConfirm(choice);
@@ -279,9 +280,11 @@ function ConfirmDialog({
         createPortal(
           // Inline layout beats the `body > *` stacking rule in globals.css;
           // the transparent background stops a theme class from painting.
+          // Above side panels (90) and the file viewer (120), which raise
+          // confirmations too.
           <div
             className={theme}
-            style={{ position: "fixed", inset: 0, zIndex: 100, background: "transparent" }}
+            style={{ position: "fixed", inset: 0, zIndex: 130, background: "transparent" }}
           >
             {dialog}
           </div>,

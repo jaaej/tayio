@@ -79,6 +79,7 @@ export default async function HomeworkDetailPage({
       <HomeworkSubmission
         hw={hw}
         viewer={viewer}
+        studentId={user.id}
         submissionHref={submissionHref}
         note={
           !canSubmit && !marked

@@ -123,6 +123,19 @@ export function validateUploadMetadata(
   return { ok: true, file: { ext: entry.ext, contentType: entry.mime } };
 }
 
+/**
+ * The type a policy gives a file name's extension, for a file the browser
+ * sent with no type of its own: it does that when the computer has no app
+ * for the file (a HEIC photo, or a Word file on a PC without Office). Only
+ * the declared type comes from the name; `validateUpload` still checks the
+ * content against it.
+ */
+export function typeFromFileName(name: string, policy: UploadPolicy): string | null {
+  const ext = name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  const canonical = ext === "jpeg" ? "jpg" : ext === "heif" ? "heic" : ext;
+  return Object.keys(policy.allowed).find((type) => policy.allowed[type].ext === canonical) ?? null;
+}
+
 export async function validateUpload(
   file: Blob,
   policy: UploadPolicy,
@@ -202,6 +215,27 @@ export const QUIZ_ATTACHMENT_POLICY: UploadPolicy = {
 
 /** Homework attachments use the same allowlist as tutor attachments. */
 export const HOMEWORK_POLICY: UploadPolicy = ATTACHMENT_POLICY;
+
+/**
+ * A student's homework upload (the submit form's `accept` list): PDF, photo,
+ * Word document or text, up to 10 MB. iPhone photos can arrive as HEIC, an
+ * ISO base media file like MP4, so it is checked as that family.
+ */
+export const SUBMISSION_POLICY: UploadPolicy = {
+  maxBytes: 10 * 1024 * 1024,
+  allowed: {
+    "application/pdf": DOC_IMAGE_ALLOWED["application/pdf"],
+    "image/png": DOC_IMAGE_ALLOWED["image/png"],
+    "image/jpeg": DOC_IMAGE_ALLOWED["image/jpeg"],
+    "image/jpg": DOC_IMAGE_ALLOWED["image/jpg"],
+    "image/heic": { family: "mp4", ext: "heic", mime: "image/heic" },
+    "image/heif": { family: "mp4", ext: "heic", mime: "image/heic" },
+    "application/msword": DOC_IMAGE_ALLOWED["application/msword"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      DOC_IMAGE_ALLOWED["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    "text/plain": DOC_IMAGE_ALLOWED["text/plain"],
+  },
+};
 
 /** Tutor profile photos: static raster images only, up to 5 MB. */
 export const PROFILE_PHOTO_POLICY: UploadPolicy = {

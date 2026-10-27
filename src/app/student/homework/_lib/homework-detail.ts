@@ -4,9 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { homeworkAssignments } from "@/db/schema";
 import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
-import { createClient } from "@/lib/supabase/server";
+import { canSubmitHomework } from "@/lib/homework-rules";
 import { getHomeworkDetail, getStudentTestRank } from "../../_lib/queries";
-import { HOMEWORK_BUCKET, signHomeworkAttachment } from "../_storage";
+import { signHomeworkAttachment, signHomeworkSubmission } from "../_storage";
 
 /**
  * Everything the detail pane needs for one homework, or null when it is not
@@ -38,7 +38,9 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
   });
 
   const [submissionHref, attachmentHref, solutionHref, testRank] = await Promise.all([
-    signedSubmissionLink(hw.submissionUrl),
+    // Signed by the server: the bucket has no client read policies, and the
+    // query above already limited this to the student's own work.
+    signHomeworkSubmission(hw.submissionUrl),
     signHomeworkAttachment(hw.attachmentUrl),
     solutionAvailable ? signHomeworkAttachment(hw.solutionUrl) : Promise.resolve(null),
     // Only for a test the student has been marked on. Anonymous: rank and
@@ -46,11 +48,7 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
     hw.isTest && hw.score !== null ? getStudentTestRank(studentId, homeworkId) : Promise.resolve(null),
   ]);
 
-  // status is "viewed" rather than "not_started" by now.
-  const canSubmit =
-    status === "viewed" ||
-    status === "resubmission_requested" ||
-    ((status === "submitted" || status === "late") && hw.allowResubmission);
+  const canSubmit = canSubmitHomework(status, hw.allowResubmission);
 
   return {
     hw,
@@ -66,11 +64,3 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
 }
 
 export type HomeworkDetail = NonNullable<Awaited<ReturnType<typeof loadHomeworkDetail>>>;
-
-async function signedSubmissionLink(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  const supabase = await createClient();
-  const { data } = await supabase.storage.from(HOMEWORK_BUCKET).createSignedUrl(path, 3600);
-  return data?.signedUrl ?? null;
-}

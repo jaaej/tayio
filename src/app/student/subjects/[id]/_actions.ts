@@ -9,7 +9,6 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { canStudentAccessCurriculumWeek } from "@/lib/curriculum-access";
-import { signCurriculumUrl } from "@/lib/curriculum-storage";
 
 async function upsertProgress(
   studentId: string,
@@ -39,6 +38,7 @@ export async function markVideoWatched(subjectWeekId: string) {
   return { ok: true as const };
 }
 
+/** Records that the student opened the week booklet (it opens in the writing viewer). */
 export async function markBookletOpened(subjectWeekId: string) {
   const user = await requireRole("student");
   if (!(await canStudentAccessCurriculumWeek(user.id, subjectWeekId))) {
@@ -49,11 +49,9 @@ export async function markBookletOpened(subjectWeekId: string) {
     .from(subjectWeeks)
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
-  const path = tpl?.path ?? null;
-  const url = await signCurriculumUrl(path);
-  if (!url) return { ok: false as const, error: "Booklet unavailable" };
+  if (!tpl?.path) return { ok: false as const, error: "Booklet unavailable" };
 
   await upsertProgress(user.id, subjectWeekId, "bookletOpenedAt");
   revalidatePath("/student/subjects/[id]", "page");
-  return { ok: true as const, url };
+  return { ok: true as const };
 }

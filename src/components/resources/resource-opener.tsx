@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { openResourceFile } from "@/app/_actions/resources";
+import { MarkupViewer } from "@/components/markup/markup-viewer";
 import { FileViewerDialog } from "@/components/ui/file-viewer";
 import { VideoViewerDialog } from "@/components/ui/video-viewer";
 import type { ViewableFileKind } from "@/lib/file-viewer";
@@ -23,13 +24,15 @@ type OpenedFile = {
   kind: ViewableFileKind;
   format: string | null;
   tooLarge: boolean;
+  writable: "pdf" | "image" | null;
 };
 
 /**
  * Opens a library resource the same way in every role. A file is signed by
  * `openResourceFile` (which re-checks the viewer's access) and shows in the
  * portal's viewer with Download (Word, PowerPoint and Excel through
- * Microsoft's web viewer); a YouTube, Vimeo, Drive or Loom link plays in the
+ * Microsoft's web viewer; a student's PDFs and pictures in the writing
+ * viewer, to take notes on); a YouTube, Vimeo, Drive or Loom link plays in the
  * video viewer; any other link opens its site in a new tab, since sites
  * can't be shown inside the portal. Nothing opens a pop-up after waiting on
  * the server, which Safari blocks.
@@ -63,7 +66,16 @@ export function useResourceOpener(resource: OpenableResource) {
 
   const viewer = (
     <>
-      {file && (
+      {file?.writable && (
+        <MarkupViewer
+          target={{ kind: "resource", resourceId: resource.id }}
+          title={resource.title}
+          fileKind={file.writable}
+          onClose={() => setFile(null)}
+          onSubmitted={() => setFile(null)}
+        />
+      )}
+      {file && !file.writable && (
         <FileViewerDialog
           open
           url={file.url}

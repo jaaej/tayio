@@ -689,6 +689,43 @@ export const homeworkAssignments = pgTable(
   (t) => [primaryKey({ columns: [t.homeworkId, t.studentId] })],
 );
 
+/** Whose marks a `file_markups` row holds (migration 0085). */
+export const markupLayerEnum = pgEnum("markup_layer", ["notes", "feedback"]);
+
+/**
+ * What someone wrote, drew or highlighted on a file in the portal's viewer,
+ * kept apart from the file (`src/lib/markup/doc.ts` describes `data`).
+ * `notes`: a student's own marks on a worksheet, booklet or resource,
+ * `ownerId` the student, seen by nobody else. `feedback`: a tutor's marks on
+ * a student's submitted file, `ownerId` the student whose work it is, seen by
+ * the student and their parents once the work is marked. `fileVersion` is the
+ * storage object's version, so a file replaced at the same path starts clean
+ * instead of showing marks in the wrong places. `version` counts saves, so a
+ * save made from an older copy is refused rather than overwriting a newer one.
+ */
+export const fileMarkups = pgTable(
+  "file_markups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    layer: markupLayerEnum("layer").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    fileBucket: text("file_bucket").notNull(),
+    filePath: text("file_path").notNull(),
+    fileVersion: text("file_version").notNull().default(""),
+    data: jsonb("data").notNull(),
+    version: integer("version").notNull().default(1),
+    updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("file_markups_unique").on(t.layer, t.ownerId, t.fileBucket, t.filePath, t.fileVersion),
+    index("file_markups_file_idx").on(t.fileBucket, t.filePath),
+  ],
+);
+
 export const progressTopics = pgTable("progress_topics", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id")

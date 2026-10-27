@@ -60,6 +60,7 @@ export default async function ParentHomeworkDetailPage({
         <HomeworkSubmission
           hw={hw}
           viewer={viewer}
+          studentId={child.id}
           submissionHref={submissionHref}
           note={
             isMarked(hw.status)

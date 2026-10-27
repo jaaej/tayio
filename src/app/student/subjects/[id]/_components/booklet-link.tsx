@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { PdfViewerDialog } from "@/components/ui/pdf-viewer";
+import { useState } from "react";
+import { MarkupViewer } from "@/components/markup/markup-viewer";
 import { markBookletOpened } from "../_actions";
 
 /**
- * Opens the week booklet in the PDF viewer and records that the student
- * opened it. The signed URL is fetched on the first click, so the booklet
- * only counts as opened when the student actually opens it.
+ * Opens the week booklet in the writing viewer, where the student can take
+ * notes on it, and records that they opened it.
  */
 export function BookletLink({
   subjectWeekId,
@@ -20,40 +19,30 @@ export function BookletLink({
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [url, setUrl] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         type="button"
-        disabled={pending}
-        aria-busy={pending || undefined}
         onClick={() => {
-          if (url) {
-            setOpen(true);
-            return;
-          }
-          startTransition(async () => {
-            const res = await markBookletOpened(subjectWeekId);
-            if (res.ok) {
-              setUrl(res.url);
-              setOpen(true);
-            } else alert(res.error);
-          });
+          setOpen(true);
+          void markBookletOpened(subjectWeekId);
         }}
         className={className}
         style={style}
       >
         {children}
       </button>
-      <PdfViewerDialog
-        open={open}
-        url={url}
-        title="Week booklet"
-        onClose={() => setOpen(false)}
-      />
+      {open && (
+        <MarkupViewer
+          target={{ kind: "booklet", subjectWeekId }}
+          title="Week booklet"
+          fileKind="pdf"
+          onClose={() => setOpen(false)}
+          onSubmitted={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

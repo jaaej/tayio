@@ -2,9 +2,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, Lock, Trophy } from "lucide-react";
 import { buttonVariants } from "@/components/admin/ui";
+import { MarkupFileButton } from "@/components/markup/markup-file-button";
 import { FileViewerButton } from "@/components/ui/file-viewer";
 import { formatClockTime, formatScore } from "@/lib/format";
 import { isMarked } from "@/lib/homework-rules";
+import { markupFileKind } from "@/lib/markup/doc";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
 import {
@@ -31,7 +33,8 @@ const STATUS_LABEL: Record<string, string> = {
   submitted: "Submitted",
   late: "Submitted late",
   marked: "Marked",
-  returned: "Returned",
+  // Retired choice that meant the same as Marked.
+  returned: "Marked",
 };
 
 /** Where a homework stands, in a family's words ("Submitted late"). */
@@ -49,6 +52,16 @@ function relativeDue(due: Date, now: Date): string {
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
   return `in ${days} days`;
+}
+
+/**
+ * "pdf" or "image" when a stored file opens in the writing viewer (a PDF,
+ * PNG or JPEG in portal storage), else null for the plain viewer.
+ */
+function writable(path: string | null): "pdf" | "image" | null {
+  if (!path || path.startsWith("http")) return null;
+  const kind = markupFileKind(path);
+  return kind === "pdf" ? "pdf" : kind ? "image" : null;
 }
 
 /** File type badge text from a stored path ("PDF", "DOCX"), or "FILE". */
@@ -162,6 +175,10 @@ export function HomeworkInstructions({
   solutionLocked: boolean;
 }) {
   const tutor = viewer.kind === "student" ? "your tutor" : "the tutor";
+  // A student writes on the worksheet and solution (and can hand the
+  // worksheet in from there); a parent only looks.
+  const worksheetKind = viewer.kind === "student" ? writable(hw.attachmentUrl) : null;
+  const solutionKind = viewer.kind === "student" ? writable(hw.solutionUrl) : null;
   return (
     <div className="flex flex-col gap-3 border-b border-[#EFF0F5] p-4">
       <h3 className="text-[13px] font-extrabold text-muted">Instructions</h3>
@@ -172,16 +189,40 @@ export function HomeworkInstructions({
         <div className="flex flex-wrap gap-2">
           {attachmentHref && (
             <FileTile kind={fileKind(hw.attachmentUrl)} title="Worksheet" detail={`Worksheet from ${tutor}`}>
-              <FileViewerButton url={attachmentHref} title={`${hw.title} worksheet`} className={LINE_BTN}>
-                View file
-              </FileViewerButton>
+              {worksheetKind ? (
+                <MarkupFileButton
+                  target={{ kind: "homework-sheet", homeworkId: hw.homeworkId, sheet: "worksheet" }}
+                  title={`${hw.title} worksheet`}
+                  fileKind={worksheetKind}
+                  resubmit={Boolean(hw.submittedAt)}
+                  submittedHref={`/student/homework/${hw.homeworkId}?submitted=1`}
+                  className={LINE_BTN}
+                >
+                  View file
+                </MarkupFileButton>
+              ) : (
+                <FileViewerButton url={attachmentHref} title={`${hw.title} worksheet`} className={LINE_BTN}>
+                  View file
+                </FileViewerButton>
+              )}
             </FileTile>
           )}
           {solutionHref && (
             <FileTile kind={fileKind(hw.solutionUrl)} title="Solution" detail="Check your answers">
-              <FileViewerButton url={solutionHref} title={`${hw.title} solution`} className={LINE_BTN}>
-                View file
-              </FileViewerButton>
+              {solutionKind ? (
+                <MarkupFileButton
+                  target={{ kind: "homework-sheet", homeworkId: hw.homeworkId, sheet: "solution" }}
+                  title={`${hw.title} solution`}
+                  fileKind={solutionKind}
+                  className={LINE_BTN}
+                >
+                  View file
+                </MarkupFileButton>
+              ) : (
+                <FileViewerButton url={solutionHref} title={`${hw.title} solution`} className={LINE_BTN}>
+                  View file
+                </FileViewerButton>
+              )}
             </FileTile>
           )}
           {solutionLocked && (
@@ -240,18 +281,22 @@ export function HomeworkFeedback({
 
 /**
  * The submission: when it came in, the uploaded file and the written answer.
+ * A PDF or picture opens with the tutor's marking on it once it is marked.
  * `note` is shown when nothing more can be handed in ("Waiting for ... to
  * mark this.").
  */
 export function HomeworkSubmission({
   hw,
   viewer,
+  studentId,
   submissionHref,
   note,
   divider = false,
 }: {
   hw: HomeworkDetailData;
   viewer: HomeworkViewer;
+  /** Whose work this is: the student, or the parent's child. */
+  studentId: string;
   submissionHref: string | null;
   note?: string | null;
   /** Rule under the section, when the submit form follows it. */
@@ -260,6 +305,7 @@ export function HomeworkSubmission({
   if (!hw.submittedAt && !hw.submissionText && !hw.submissionUrl && !note) return null;
   const whose = viewer.kind === "student" ? "Your" : `${viewer.childFirstName}'s`;
   const whoseInTitle = viewer.kind === "student" ? "your" : whose;
+  const submissionKind = writable(hw.submissionUrl);
   return (
     <div className={cn("flex flex-col gap-3 p-4", divider && "border-b border-[#EFF0F5]")}>
       <h3 className="text-[13px] font-extrabold text-muted">{whose} submission</h3>
@@ -274,7 +320,16 @@ export function HomeworkSubmission({
           title={submissionFileName(hw.submissionUrl)}
           detail={`${whose} upload`}
         >
-          {submissionHref ? (
+          {submissionKind ? (
+            <MarkupFileButton
+              target={{ kind: "submission", homeworkId: hw.homeworkId, studentId }}
+              title={`${hw.title} - ${whoseInTitle} submission`}
+              fileKind={submissionKind}
+              className={LINE_BTN}
+            >
+              View file
+            </MarkupFileButton>
+          ) : submissionHref ? (
             <FileViewerButton
               url={submissionHref}
               title={`${hw.title} - ${whoseInTitle} submission`}

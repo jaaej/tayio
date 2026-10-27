@@ -143,7 +143,7 @@ export function SidePanel({
   // globals.css targets. That rule now lives in `@layer base`, so utilities
   // would also win; the inline layout is kept as a belt-and-braces guarantee.
   // `background: transparent` keeps the full-screen root from painting.
-  // z-index 90 sits below ConfirmDialog's z-[100]: a confirmation raised from
+  // z-index 90 sits below ConfirmDialog's z-index 130: a confirmation raised from
   // inside the panel is the higher-priority interruption and must cover it.
   return createPortal(
     <div

@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 22 October 2026
+Last updated: 28 October 2026
 
 ## Status key
 
@@ -12,6 +12,12 @@ Last updated: 22 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, once migration 0085 and the deploy are on Production.
+  As a student, open a homework worksheet: write with the pencil, highlight, type an answer (the page must not zoom when the keyboard opens), erase and undo; close and reopen and check it all came back; then Submit this file and see "Submission received".
+  As that homework's tutor, open the submission with View and mark, write in red and save it as Marked.
+  As the student and as the parent, check the notification arrived and the red marks show, read only.
+  As a student, write on a week booklet and a library PDF, then reopen them.
 
 - [ ] Consistency audit fixes (18 to 20 October 2026): deployed (`48203bf`) and migrations 0065 to 0077 applied to Production on 20 October 2026, with `npm run db:check-rls` passing there.
   Admin: the dashboard To do rows match the queues they link to (Attendance to mark and Notes, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
@@ -671,6 +677,47 @@ Still open after the fixes:
 - [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
 
 ## Recently implemented
+
+- [x] Writing on files in the portal: students write, highlight and type on worksheets, booklets and library files, and hand a worksheet in with "Submit this file"; tutors write feedback on a submission (26 to 28 October 2026, owner request: "if a student submits a worksheet, i want it so that when i open the preview on the web, i can edit the file by annotating, typing words, or drawing for feedback purposes ... allow students to "submit this file" after annotating ... everytime they leave the opened file on the web, it should save, and should also have a saved button").
+  - Where: a PDF, PNG or JPEG opens in the writing viewer (`MarkupViewer`, `src/components/markup/`) instead of the plain viewer.
+    Student: the homework worksheet and released solution, their own submission (tutor marks only, read only), the week booklet, week-plan files, and library PDFs and pictures.
+    Tutor: "View and mark" on a PDF or picture submission (`/tutor/homework/[id]?student=`), red pen first.
+    Parent: the child's submission with the tutor's marks, read only; worksheets keep the plain viewer.
+    Admin: unchanged.
+  - Tools: Scroll, Pen (four colours, three sizes), Highlighter (four colours), Text (three sizes, the "Taiyo Markup Sans" font in `public/fonts/`), Eraser, Undo and Redo (also Cmd or Ctrl+Z and Shift+Cmd+Z or Ctrl+Y), zoom buttons on a computer and pinch on a phone or iPad.
+    On a phone or iPad a finger writes until a pencil is used, then a finger scrolls (a finger tap still places text); two fingers pan and pinch.
+  - Saving: a moment after each change, with the Save button (Saving..., Saved, Not saved, retry) and Cmd or Ctrl+S; on close, when the tab is hidden, and when the page closes (`src/components/markup/use-markup-save.ts`).
+    A copy saved in another tab is not overwritten: the viewer offers "Keep this version" or "Load the other version".
+  - Who sees what (`resolveMarkupTarget`, `src/lib/markup/targets.ts`; `security-checklist.md` C9): a student's writing is private to them; a tutor's marks show to the student and linked parents once the work is Marked or sent back for a resubmission, never before.
+  - Submit this file: on an open homework worksheet, after a confirm ("Submit this worksheet?"), the server draws the student's writing into the worksheet (`flattenMarkup`, `src/lib/markup/flatten.ts`, pdf-lib) and hands it in as "<homework title>.pdf", exactly like an upload (late after the due time; replaces earlier work when resubmission is allowed).
+    Route: `/api/student/homework/[id]/submit-markup`. The page then shows "Submission received".
+  - Storage: marks are kept apart from the file in `file_markups` (migration `0085_file_markups.sql`), in page units, tied to the file's storage version; a worksheet a tutor replaces opens clean and says so.
+    The pdf.js renderer's worker, fonts and character maps are copied from `pdfjs-dist` into `public/pdfjs` by `npm run dev` and `npm run build` (`scripts/copy-pdfjs-assets.mjs`; the folder is not in git).
+  - Verified on dev in Chrome and WebKit: Tom marked Sarah's submission in red, the marks saved and came back after reopening, Sarah and her parent saw none before the mark and read-only marks after it. Isla used every tool on a worksheet, Escape while typing kept the viewer open, closing by X saved the last stroke, and Submit this file handed in a PDF that matches the screen when rendered with pdftoppm. Noah wrote on and saved a booklet, a week-plan PNG and a library PDF and PNG; a library Word file still opens in the Office viewer.
+    iPhone 13 emulation in WebKit (synthetic touch): no sideways scroll at 390px, one-finger pan with momentum, pinch zoom, finger and pencil writing as described, text at 16px or more so iOS doesn't zoom, two-row toolbar, the Submit footer on screen.
+    Production build (`next build` and `next start`): in WebKit the worksheet, booklet and library PDF draw, save and use the font, and Submit lands on "Submission received"; in Chrome the worksheet does the same (after the fix below, Submit worked in 5 of 5 Chrome runs and 2 of 2 WebKit runs; one more was refused by the route's own limit of 10 submissions in 10 minutes); no CSP violations in either. The booklet and library PDF were not rerun in Chrome on that build.
+    758 unit tests (marks validation, geometry, undo history, the drawn PDF read back with pdf.js on a rotated page, photo orientation, locked PDFs), typecheck, lint.
+  - Known limits: typed characters the markup font lacks (it is a cut-down DejaVu Sans, so for example Chinese or emoji) show as boxes in the submitted PDF. A locked (password-protected) PDF can be written on but not submitted; the message says to download it and upload the work. Not tried on a real iPad with Apple Pencil or with the iOS keyboard (manual QA below).
+  - Differs by role on purpose: library files open in the writing viewer only for students; tutors, admins and parents get the same viewer frame without tools, since only students keep notes there. Parents see but never write.
+  - Fixed on the way:
+    - Submit after writing never reached "Submission received" in the production build (the dev server hid it): the refresh sent straight after the move to `?submitted=1` aborted it. One navigation now (`markup-file-button.tsx`).
+    - A locked PDF got "could not be read" instead of the locked message: pdf-lib's `EncryptedPDFError` fails `instanceof`, so `flatten.ts` checks `isEncrypted` instead.
+    - Highlighter made after pen writing covered it in the submitted PDF; it is drawn underneath, as on screen.
+    - The confirm dialog opened under the viewer (z-index 130 now, `confirm-dialog.tsx`).
+    - Zod 4 logged a CSP `eval` violation on every page in production; `src/instrumentation-client.ts` turns its probe off.
+    - Lint scanned the copied pdf.js files (9 errors, about 2,000 warnings; `public/pdfjs/**` is ignored now), and every test run warned about `vitest.config.ts` (renamed `.mts`).
+- [x] "Returned" removed, and marking tells the student and their parents (26 October 2026, owner: "[screenshot] here, what does returned mean?", then "remove returned, notify both student and parent").
+  Returned did the same as Marked everywhere (`isMarked`); the tutor's choices are now Marked and Request resubmit (`mark-form.tsx`). Older rows saved as returned show as Marked.
+  Before, marking sent no notification. Now a first mark, or a switch between Marked and Request resubmit, notifies the student and every linked parent (`homeworkResultNotifications`, `src/lib/homework-result-notifications.ts`, tested; `markSubmission`, `src/app/tutor/_actions.ts`): "Homework marked" with "<title> · 80%" under Learning, or "Resubmission requested" with "<title> needs to be done again." under Action needed; a parent's copy leads with the child's name and opens that child's homework. Saving the same result again sends nothing new.
+  The page and the submit route now share one rule for when work can be handed in (`canSubmitHomework`, `src/lib/homework-rules.ts`, tested).
+  Verified on dev: marking Sarah's homework 80% created "Homework marked" for Sarah (/student/homework/...) and for her parent ("Sarah · adsfasdf · 80%", ?child=). "Resubmission requested" was checked by unit tests only.
+- [x] Fixed: every student homework file upload failed (found 26 October 2026 while testing Submit this file).
+  Cause: the upload route wrote to storage with the student's own session, and the bucket has no client upload policies (`security-checklist.md` A5), so it answered "Upload failed: new row violates row-level security policy". Production has the same buckets without client policies, so hand-ins with a file fail there too (not tried on Production). Typed answers were unaffected.
+  Now the server stores the file with the service client after its checks (`storeSubmissionFile`, `src/lib/homework-submission.ts`), and records the hand-in under a row lock, so a tutor marking during the upload wins and the stored file is removed.
+  The content is checked now too (`SUBMISSION_POLICY`, `src/lib/upload-validation.ts`: PDF, PNG, JPEG, HEIC, Word, text, up to 10 MB); before, any file was stored with whatever type the browser claimed. A file the browser sends with no type (a HEIC photo, or a Word file on a PC without Office) is judged by its extension and still content-checked.
+  Also fixed: the student's own submission and the tutor's link showed "File unavailable" (signed with the user's session; now `signHomeworkSubmission`), and tutor file names showed the upload timestamp.
+  Verified through the real form on dev in Chrome: a JPEG, a text file and a Word file with no type went in; an HTML file renamed .docx was refused with "Upload a PDF, photo, Word document or text file."
+- [ ] Open, found on the way (not changed): tutor and admin uploads that go straight to storage (`createDirectUploadGrant`, `src/lib/direct-upload.ts`) still refuse a file the browser sends with no type ("Unsupported file type: unknown"). The fix above is only in the student submit route, because the direct-upload ticket binds the content type and needs its own change.
 
 - [x] A second admin alert at 5 pm Monday when a tutor's week is still not approved (26 October 2026, owner decision: "admin alert should stay on sunday, and if still not done by 5pm monday, send another alert").
   The Sunday 7 am alert stays. At 5 pm Monday every active admin gets "Tutor check-in still not approved" ("Tom Tutor still hasn't approved their hours for 19 - 25 Oct.") for each tutor whose week just gone is waiting or disputed and still has a counted lesson; it links to that tutor's week on admin Tutor check-ins.
@@ -2228,6 +2275,9 @@ Still open after the fixes:
 - [ ] Confirm production loading improvements using Vercel/Supabase timing data.
 
 ## Deployment required for the next larger workflow batch
+
+- [ ] Apply `supabase/migrations/0085_file_markups.sql` to Production before pushing the writing-on-files batch (28 October 2026).
+  Opening a PDF or picture in the writing viewer, saving, View and mark, and marking itself read `file_markups`, so without the table they fail. The migration only adds a table and a type. Then push, and on Production open a worksheet as a student and confirm `/pdfjs/pdf.worker.min.mjs` loads (the build copies it; it is not in git). Then run `npm run db:check-rls` against Production.
 
 - [x] Apply `supabase/migrations/0064_subject_names_not_unique.sql` to Production before pushing the duplicate subject names commit (17 October 2026).
   Applied first (ledger up to date, RLS check green on all 54 tables; subjects, classes, users, curriculum weeks and enrolments the same counts before and after: 4, 3, 27, 3, 0), then `main` was pushed for the Vercel deploy, with the admin curriculum, tutor class page and subject-page class merge commits from the same day. The migration ran with the Production URLs passed to that one command, so `.env.local` stayed on dev.

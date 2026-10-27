@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homeworkState, isHandedIn, isHomeworkOverdue } from "./homework-rules";
+import { canSubmitHomework, homeworkState, isHandedIn, isHomeworkOverdue } from "./homework-rules";
 
 const today = "2026-10-12";
 
@@ -32,5 +32,19 @@ describe("homeworkState", () => {
     expect(homeworkState("not_started", "2026-10-11", today)).toBe("overdue");
     expect(homeworkState("viewed", "2026-10-12", today)).toBe("due_today");
     expect(homeworkState("resubmission_requested", "2026-10-13", today)).toBe("open");
+  });
+});
+
+describe("canSubmitHomework", () => {
+  it("lets a student hand in until the work is marked", () => {
+    expect(canSubmitHomework("not_started", false)).toBe(true);
+    expect(canSubmitHomework("viewed", false)).toBe(true);
+    expect(canSubmitHomework("resubmission_requested", false)).toBe(true);
+    expect(canSubmitHomework("submitted", false)).toBe(false);
+    expect(canSubmitHomework("late", false)).toBe(false);
+    expect(canSubmitHomework("submitted", true)).toBe(true);
+    expect(canSubmitHomework("late", true)).toBe(true);
+    expect(canSubmitHomework("marked", true)).toBe(false);
+    expect(canSubmitHomework("returned", true)).toBe(false);
   });
 });

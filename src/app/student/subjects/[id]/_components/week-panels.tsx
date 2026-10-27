@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { MarkupFileButton } from "@/components/markup/markup-file-button";
 import { PdfViewerButton } from "@/components/ui/pdf-viewer";
+import { markupFileKind } from "@/lib/markup/doc";
 import { httpHref } from "@/lib/safe-url";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
@@ -141,19 +143,25 @@ export function WeeklyQuiz({
   );
 }
 
-/** "From {tutor}": the tutor's "For students this week" plan field. */
+/**
+ * "From {tutor}": the tutor's "For students this week" plan field. A student
+ * opens its PDFs and pictures in the writing viewer to take notes on them
+ * (`writable`); a parent's copy only views them.
+ */
 export function TutorNote({
   week,
   subjectName,
   subjectColor,
   tutorFirstName,
   now,
+  writable = false,
 }: {
   week: StudentCurriculumWeek;
   subjectName: string;
   subjectColor: string | null;
   tutorFirstName: string | null;
   now: Date;
+  writable?: boolean;
 }) {
   if (!week.tutorNote && week.tutorAttachments.length === 0) return null;
   const tone = subjectTone(subjectName, subjectColor);
@@ -182,6 +190,21 @@ export function TutorNote({
             {week.tutorAttachments.map((att) => {
               const href = httpHref(att.url);
               const style = { background: tone.bg, color: tone.fg };
+              const markup = writable && href && att.kind === "file" ? markupFileKind(att.fileName) : null;
+              if (markup) {
+                return (
+                  <span key={att.id} className={`inline-flex max-w-full rounded-[12px] ${POP}`} style={style}>
+                    <MarkupFileButton
+                      target={{ kind: "plan-file", attachmentId: att.id }}
+                      title={att.fileName}
+                      fileKind={markup === "pdf" ? "pdf" : "image"}
+                      className="h-[38px] min-h-0 max-w-full rounded-[12px] border-0 bg-transparent px-3.5 text-[13px] font-extrabold text-inherit hover:bg-transparent"
+                    >
+                      <span className="truncate">{att.fileName}</span>
+                    </MarkupFileButton>
+                  </span>
+                );
+              }
               if (href && att.kind === "file" && att.fileName.toLowerCase().endsWith(".pdf")) {
                 return (
                   <span key={att.id} className={`inline-flex max-w-full rounded-[12px] ${POP}`} style={style}>

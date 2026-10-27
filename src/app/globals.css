@@ -1,6 +1,18 @@
 @import "tailwindcss";
 
 /*
+ * Text typed onto a worksheet in the writing viewer. The same file is drawn
+ * into the PDF on "Submit this file" (src/lib/markup/flatten.ts), so typed
+ * text looks the same in both. A subset of DejaVu Sans, renamed as its
+ * licence requires (public/fonts/markup-sans-LICENSE.txt).
+ */
+@font-face {
+  font-family: "Taiyo Markup Sans";
+  src: url("/fonts/markup-sans.ttf") format("truetype");
+  font-display: swap;
+}
+
+/*
  * Taiyo Tuition design tokens - periwinkle + navy palette
  * matched to the Taiyo Tuition logo (soft periwinkle field, deep navy torii).
  */

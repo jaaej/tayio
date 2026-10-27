@@ -70,6 +70,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "32mb",
     },
   },
+  // "Submit this file" reads the markup font from disk to draw typed text
+  // into the PDF (src/lib/markup/flatten.ts); public/ is not traced by default.
+  outputFileTracingIncludes: {
+    "/api/student/homework/*/submit-markup": ["./public/fonts/markup-sans.ttf"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
