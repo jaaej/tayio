@@ -13,7 +13,7 @@ Last updated: 29 October 2026
 
 ## Manual QA required
 
-- [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, once migration 0085 and the deploy are on Production.
+- [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, on Production (migration 0085 applied and `64dd5ad` pushed on 29 October 2026).
   As a student, open a homework worksheet: write with the pencil, highlight, type an answer (the page must not zoom when the keyboard opens), erase and undo; close and reopen and check it all came back; then Submit this file and see "Submission received".
   As that homework's tutor, open the submission with View and mark, write in red and save it as Marked.
   As the student and as the parent, check the "Feedback given" notification arrived, the homework says Feedback given, and Feedback shows "Your tutor wrote on your work" (parent: "The tutor wrote on <child>'s work") with View marks opening the red marks, read only.
@@ -691,7 +691,7 @@ Still open after the fixes:
     The menu still highlights Classes there, because the profile belongs under Classes.
   - "Homework settings" on a submission is now "Edit homework" (`homework-settings.tsx`): it edits the homework for every student it is set for.
   - Verified on dev in Chrome and WebKit: Sarah's marked homework (chip, Feedback line, View marks opening the tutor's 4 marks, a 60px tile) as the student and as her parent; the Done board; Marking labels; Student, Homework tab, Back to marking. Through the real form: a requested resubmission past due stored "submitted", a normal past-due hand-in "late".
-  - Dev data, not changed: the 14 To mark rows for tutor@taiyo.com are seeded with no file or text, and some seed rows contradict themselves (Daniel Kim's quiz handed in late but stored on time; a "submitted" row with a score and a mark date). Production has no homework yet.
+  - Dev data: the 14 To mark rows for tutor@taiyo.com were seeded with no file or text, and some contradicted themselves (a "submitted" row with a score and a mark date). With the owner's go-ahead they were reset to not started on 29 October 2026 (status, hand-in, score, feedback and mark cleared), with a JSON backup in `.pw/empty-handins-backup-2026-10-29.json` (git-excluded). 18 more empty seeded hand-ins in other tutors' queues were left as they are. Production has no homework yet.
 
 - [x] Writing on files in the portal: students write, highlight and type on worksheets, booklets and library files, and hand a worksheet in with "Submit this file"; tutors write feedback on a submission (26 to 28 October 2026, owner request: "if a student submits a worksheet, i want it so that when i open the preview on the web, i can edit the file by annotating, typing words, or drawing for feedback purposes ... allow students to "submit this file" after annotating ... everytime they leave the opened file on the web, it should save, and should also have a saved button").
   - Where: a PDF, PNG or JPEG opens in the writing viewer (`MarkupViewer`, `src/components/markup/`) instead of the plain viewer.
@@ -2291,8 +2291,13 @@ Still open after the fixes:
 
 ## Deployment required for the next larger workflow batch
 
-- [ ] Apply `supabase/migrations/0085_file_markups.sql` to Production before pushing the writing-on-files batch (28 October 2026).
-  Opening a PDF or picture in the writing viewer, saving, View and mark, and marking itself read `file_markups`, so without the table they fail. The migration only adds a table and a type. Then push, and on Production open a worksheet as a student and confirm `/pdfjs/pdf.worker.min.mjs` loads (the build copies it; it is not in git). Then run `npm run db:check-rls` against Production.
+- [x] Apply `supabase/migrations/0085_file_markups.sql` to Production before pushing the writing-on-files batch (28 October 2026).
+  Opening a PDF or picture in the writing viewer, saving, View and mark, and marking itself read `file_markups`, so without the table they fail. The migration only adds a table and a type.
+  Done 29 October 2026: 0085 was the only pending migration on Production; applied with only the Production database URLs exported for that command, then `npm run db:check-rls` passed on all 60 tables.
+  `file_markups` on Production matches dev in columns, constraints, indexes, RLS (on, no client policies), the `markup_layer` values and grants.
+  Then `main` was pushed (`d76562a`, `adaabe0`, `65f523f`, `64dd5ad`) and Vercel reported the deploy complete.
+  The live site serves `/pdfjs/pdf.worker.min.mjs` (not in git, so the build's copy step ran) and `/fonts/markup-sans.ttf`, and signed-out `/student` still redirects to login.
+  Still to do on Production: open a worksheet as a student (no homework exists there yet), which is part of the Writing on files manual QA above.
 
 - [x] Apply `supabase/migrations/0064_subject_names_not_unique.sql` to Production before pushing the duplicate subject names commit (17 October 2026).
   Applied first (ledger up to date, RLS check green on all 54 tables; subjects, classes, users, curriculum weeks and enrolments the same counts before and after: 4, 3, 27, 3, 0), then `main` was pushed for the Vercel deploy, with the admin curriculum, tutor class page and subject-page class merge commits from the same day. The migration ran with the Production URLs passed to that one command, so `.env.local` stayed on dev.
