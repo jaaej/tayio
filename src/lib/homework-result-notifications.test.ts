@@ -18,7 +18,7 @@ describe("homeworkResultNotifications", () => {
     const rows = homeworkResultNotifications({ ...base, result: "marked" });
     expect(rows.map((r) => r.userId)).toEqual(["stu-1", "par-1", "par-2"]);
     expect(rows[0]).toMatchObject({
-      title: "Homework marked",
+      title: "Feedback given",
       body: "Request letter · 70%",
       href: "/student/homework/hw-1",
     });

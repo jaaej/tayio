@@ -118,7 +118,7 @@ function homeworkTask(
   };
   if (isMarked(hw.status)) {
     const score = hw.score === null ? null : `${Math.round(Number(hw.score) * 10) / 10}%`;
-    return { ...base, state: "done", meta: score ? `Marked · ${score}` : "Marked" };
+    return { ...base, state: "done", meta: score ? `Feedback given · ${score}` : "Feedback given" };
   }
   if (isAwaitingMarking(hw.status)) {
     return { ...base, state: "done", meta: "Submitted · waiting for marking" };

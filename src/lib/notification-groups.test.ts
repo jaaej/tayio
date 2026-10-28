@@ -111,8 +111,8 @@ describe("notificationGroupFor", () => {
     ).toBe("learning");
   });
 
-  it("files a homework mark under learning and a resubmission under action needed", () => {
-    expect(notificationGroupFor({ title: "Homework marked", href: "/student/homework/hw-1" })).toBe("learning");
+  it("files feedback on homework under learning and a resubmission under action needed", () => {
+    expect(notificationGroupFor({ title: "Feedback given", href: "/student/homework/hw-1" })).toBe("learning");
     expect(
       notificationGroupFor({ title: "Resubmission requested", href: "/parent/homework/hw-1?child=stu-1" }),
     ).toBe("action");

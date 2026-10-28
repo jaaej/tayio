@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { homework, homeworkAssignments } from "@/db/schema";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 import { HOMEWORK_BUCKET } from "@/app/student/homework/_storage";
-import { canSubmitHomework, isMarked } from "@/lib/homework-rules";
+import { canSubmitHomework, handInStatus, isMarked } from "@/lib/homework-rules";
 
 /*
  * Handing in homework, shared by the upload form and "Submit this file" (the
@@ -42,7 +42,7 @@ export async function storeSubmissionFile(
 }
 
 /**
- * Marks the assignment handed in (late after the due time). Checks again
+ * Marks the assignment handed in (`handInStatus` decides late). Checks again
  * under a row lock that it is still open, since a tutor may have marked it
  * while the file uploaded; when it is not, the stored file is removed and the
  * reason returned.
@@ -71,7 +71,7 @@ export async function recordSubmission(
     await tx
       .update(homeworkAssignments)
       .set({
-        status: now > row.dueDate ? "late" : "submitted",
+        status: handInStatus(row.status, row.dueDate, now),
         submittedAt: now,
         ...(work.path ? { submissionUrl: work.path } : {}),
         ...(work.text ? { submissionText: work.text } : {}),

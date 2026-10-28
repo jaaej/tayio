@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { fileMarkups } from "@/db/schema";
+import { HOMEWORK_BUCKET } from "@/app/student/homework/_storage";
 import { EMPTY_DOC, readMarkupDoc, type MarkupDoc } from "./doc";
 import type { MarkupLayerKey } from "./targets";
 
@@ -40,6 +41,29 @@ export async function hasMarkupOnOlderFile(layer: MarkupLayerKey, file: FileKey)
         eq(fileMarkups.fileBucket, file.bucket),
         eq(fileMarkups.filePath, file.path),
         ne(fileMarkups.fileVersion, file.version),
+        sql`jsonb_array_length(${fileMarkups.data} -> 'items') > 0`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * Has the tutor written on this submitted file? A new submission is stored
+ * under a new path, never over the old one, so any version of it counts.
+ * Whether the family may see it yet is the caller's check (`isFeedbackReleased`).
+ */
+export async function hasSubmissionFeedback(studentId: string, submissionPath: string | null): Promise<boolean> {
+  if (!submissionPath) return false;
+  const [row] = await db
+    .select({ id: fileMarkups.id })
+    .from(fileMarkups)
+    .where(
+      and(
+        eq(fileMarkups.layer, "feedback"),
+        eq(fileMarkups.ownerId, studentId),
+        eq(fileMarkups.fileBucket, HOMEWORK_BUCKET),
+        eq(fileMarkups.filePath, submissionPath),
         sql`jsonb_array_length(${fileMarkups.data} -> 'items') > 0`,
       ),
     )

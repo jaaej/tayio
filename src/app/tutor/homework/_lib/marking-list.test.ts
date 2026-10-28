@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   groupToMarkByClass,
+  lateLabel,
   listHref,
   matchesQuery,
   nextToMark,
@@ -31,6 +32,29 @@ describe("sortToMark", () => {
     const input = [item("a", "submitted", "2"), item("b", "late", "1")];
     sortToMark(input);
     expect(input.map((i) => i.studentId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("lateLabel", () => {
+  // Due Fri 16 Oct 2026, 11 pm in Melbourne (AEDT, UTC+11).
+  const dueDate = "2026-10-16T12:00:00.000Z";
+  const late = (submittedAt: string | null, status = "late") => lateLabel({ status, dueDate, submittedAt });
+
+  it("counts Melbourne calendar days after the due day", () => {
+    // Sat 17 Oct, 9 am Melbourne: still the 16th in UTC.
+    expect(late("2026-10-16T22:00:00.000Z")).toBe("1 day late");
+    // Mon 19 Oct, 4 pm Melbourne.
+    expect(late("2026-10-19T05:00:00.000Z")).toBe("3 days late");
+  });
+
+  it("is plain Late for work in after the due time on the due day", () => {
+    // Fri 16 Oct, 11:40 pm Melbourne.
+    expect(late("2026-10-16T12:40:00.000Z")).toBe("Late");
+    expect(late(null)).toBe("Late");
+  });
+
+  it("is null for work handed in on time", () => {
+    expect(late("2026-10-16T10:00:00.000Z", "submitted")).toBeNull();
   });
 });
 

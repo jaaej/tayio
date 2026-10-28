@@ -23,7 +23,8 @@ export function homeworkResultNotifications(input: {
   markedAt: Date;
 }) {
   const marked = input.result === "marked";
-  const title = marked ? "Homework marked" : "Resubmission requested";
+  // The family's word for a mark (the homework page says "Feedback given" too).
+  const title = marked ? "Feedback given" : "Resubmission requested";
   const body = marked
     ? input.score === null
       ? input.homeworkTitle

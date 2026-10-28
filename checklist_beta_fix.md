@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 28 October 2026
+Last updated: 29 October 2026
 
 ## Status key
 
@@ -16,7 +16,7 @@ Last updated: 28 October 2026
 - [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, once migration 0085 and the deploy are on Production.
   As a student, open a homework worksheet: write with the pencil, highlight, type an answer (the page must not zoom when the keyboard opens), erase and undo; close and reopen and check it all came back; then Submit this file and see "Submission received".
   As that homework's tutor, open the submission with View and mark, write in red and save it as Marked.
-  As the student and as the parent, check the notification arrived and the red marks show, read only.
+  As the student and as the parent, check the "Feedback given" notification arrived, the homework says Feedback given, and Feedback shows "Your tutor wrote on your work" (parent: "The tutor wrote on <child>'s work") with View marks opening the red marks, read only.
   As a student, write on a week booklet and a library PDF, then reopen them.
 
 - [ ] Consistency audit fixes (18 to 20 October 2026): deployed (`48203bf`) and migrations 0065 to 0077 applied to Production on 20 October 2026, with `npm run db:check-rls` passing there.
@@ -678,6 +678,21 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Families see "Feedback given", tutors see what the Marking dates mean, and the student profile's back button returns where it came from (29 October 2026, owner: "for students, after the tutor provides feedback, it should show as status "Feedback given" or something like that", "on the tutor marking page, what counts as "late"? ... the date that it shows (what does it even mean)", and "where is this page from?" about the tutor student profile).
+  - Student and parent wording: Marked is "Feedback given" on the homework page chip, the Done board heading, the week checklist, the dashboard and the notification title (`homework-detail.tsx`, `homework-board.tsx`, `week-checklist.ts`, `dashboard-rules.ts`, `homework-result-notifications.ts`).
+    Tutors and admins keep "Marked". A row with no score on the Done board shows the day feedback was given.
+    "Feedback given" shows for any marked homework, even when the tutor left no score, comment or marks.
+  - Marks on the file are findable: when the tutor wrote on the submitted file, Feedback shows "Your tutor wrote on your work" (parent: "The tutor wrote on Sarah's work") with View marks (`hasSubmissionFeedback`, `src/lib/markup/store.ts`; `isFeedbackReleased`, `src/lib/homework-rules.ts`, the same rule `resolveMarkupTarget` uses).
+    Before, a tutor who only wrote on the file left the family a page with no Feedback section at all.
+  - Fixed: the submission file tile filled a tall empty box on the student and parent homework pages (its flex basis became a height inside a column; pre-existing since `2919964`).
+  - Marking list (`/tutor/homework`): To mark rows say "Handed in 18 June" and Marked rows "Marked today"; the late pill says "2 days late", counted in Melbourne days after the due day, or "Late" for later on the due day (`lateLabel`, `marking-list.ts`, tested).
+    Late means handed in after the due time, stored at hand-in. A resubmission the tutor asked for is never late now (`handInStatus`, `src/lib/homework-rules.ts`, tested): before, nearly every requested resubmission came after the due date and would have shown red.
+  - Tutor student profile (`/tutor/students/[id]`): the back button follows `profileBack` (`student-list.ts`, tested): "Back to marking" (to the same submission and Marking view), "Back to lesson", "Back to Today", "Back to class", else Classes. The origin survives tab changes.
+    The menu still highlights Classes there, because the profile belongs under Classes.
+  - "Homework settings" on a submission is now "Edit homework" (`homework-settings.tsx`): it edits the homework for every student it is set for.
+  - Verified on dev in Chrome and WebKit: Sarah's marked homework (chip, Feedback line, View marks opening the tutor's 4 marks, a 60px tile) as the student and as her parent; the Done board; Marking labels; Student, Homework tab, Back to marking. Through the real form: a requested resubmission past due stored "submitted", a normal past-due hand-in "late".
+  - Dev data, not changed: the 14 To mark rows for tutor@taiyo.com are seeded with no file or text, and some seed rows contradict themselves (Daniel Kim's quiz handed in late but stored on time; a "submitted" row with a score and a mark date). Production has no homework yet.
+
 - [x] Writing on files in the portal: students write, highlight and type on worksheets, booklets and library files, and hand a worksheet in with "Submit this file"; tutors write feedback on a submission (26 to 28 October 2026, owner request: "if a student submits a worksheet, i want it so that when i open the preview on the web, i can edit the file by annotating, typing words, or drawing for feedback purposes ... allow students to "submit this file" after annotating ... everytime they leave the opened file on the web, it should save, and should also have a saved button").
   - Where: a PDF, PNG or JPEG opens in the writing viewer (`MarkupViewer`, `src/components/markup/`) instead of the plain viewer.
     Student: the homework worksheet and released solution, their own submission (tutor marks only, read only), the week booklet, week-plan files, and library PDFs and pictures.
@@ -708,7 +723,7 @@ Still open after the fixes:
     - Lint scanned the copied pdf.js files (9 errors, about 2,000 warnings; `public/pdfjs/**` is ignored now), and every test run warned about `vitest.config.ts` (renamed `.mts`).
 - [x] "Returned" removed, and marking tells the student and their parents (26 October 2026, owner: "[screenshot] here, what does returned mean?", then "remove returned, notify both student and parent").
   Returned did the same as Marked everywhere (`isMarked`); the tutor's choices are now Marked and Request resubmit (`mark-form.tsx`). Older rows saved as returned show as Marked.
-  Before, marking sent no notification. Now a first mark, or a switch between Marked and Request resubmit, notifies the student and every linked parent (`homeworkResultNotifications`, `src/lib/homework-result-notifications.ts`, tested; `markSubmission`, `src/app/tutor/_actions.ts`): "Homework marked" with "<title> · 80%" under Learning, or "Resubmission requested" with "<title> needs to be done again." under Action needed; a parent's copy leads with the child's name and opens that child's homework. Saving the same result again sends nothing new.
+  Before, marking sent no notification. Now a first mark, or a switch between Marked and Request resubmit, notifies the student and every linked parent (`homeworkResultNotifications`, `src/lib/homework-result-notifications.ts`, tested; `markSubmission`, `src/app/tutor/_actions.ts`): "Homework marked" (since 29 October 2026 "Feedback given") with "<title> · 80%" under Learning, or "Resubmission requested" with "<title> needs to be done again." under Action needed; a parent's copy leads with the child's name and opens that child's homework. Saving the same result again sends nothing new.
   The page and the submit route now share one rule for when work can be handed in (`canSubmitHomework`, `src/lib/homework-rules.ts`, tested).
   Verified on dev: marking Sarah's homework 80% created "Homework marked" for Sarah (/student/homework/...) and for her parent ("Sarah · adsfasdf · 80%", ?child=). "Resubmission requested" was checked by unit tests only.
 - [x] Fixed: every student homework file upload failed (found 26 October 2026 while testing Submit this file).

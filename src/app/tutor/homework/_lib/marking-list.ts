@@ -2,6 +2,8 @@
 // search, the "Save & next" target and the URL contract. Kept free of server
 // imports so the client list pane and the server detail page share them.
 
+import { melbourneDayKey } from "@/lib/format";
+
 export type MarkingView = "to-mark" | "marked" | "homework";
 
 export const MARKING_VIEWS: { value: MarkingView; label: string }[] = [
@@ -25,6 +27,7 @@ export type SubmissionItem = {
   classLabel: string | null;
   status: string;
   /** ISO timestamps, so the list can cross the server/client boundary. */
+  dueDate: string;
   submittedAt: string | null;
   markedAt: string | null;
 };
@@ -40,6 +43,25 @@ export type HomeworkItem = {
   marked: number;
   total: number;
 };
+
+function melbourneDayNumber(iso: string): number {
+  const [y, m, d] = melbourneDayKey(new Date(iso)).split("-").map(Number);
+  return Date.UTC(y, m - 1, d) / 86_400_000;
+}
+
+/**
+ * How late a hand-in was, counted in Melbourne calendar days after the due
+ * day ("3 days late"), or "Late" when it came in after the due time on the
+ * due day. Null unless the work was recorded as late when it was handed in.
+ */
+export function lateLabel(item: Pick<SubmissionItem, "status" | "dueDate" | "submittedAt">): string | null {
+  if (item.status !== "late") return null;
+  const days = item.submittedAt
+    ? melbourneDayNumber(item.submittedAt) - melbourneDayNumber(item.dueDate)
+    : 0;
+  if (days <= 0) return "Late";
+  return days === 1 ? "1 day late" : `${days} days late`;
+}
 
 /** Late work first (it has waited longest), then oldest submission first. */
 export function sortToMark<T extends Pick<SubmissionItem, "status" | "submittedAt" | "studentName">>(

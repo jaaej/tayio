@@ -45,7 +45,7 @@ export default async function LessonDetailPage({
 
   // The class's own students link to their profile; anyone else on the roll
   // (a make-up attendee) is not one of this tutor's students.
-  const rollStudents = roll.map((s) => (s.inClass ? { ...s, href: `/tutor/students/${s.id}` } : s));
+  const rollStudents = roll.map((s) => (s.inClass ? { ...s, href: `/tutor/students/${s.id}?from=lesson&lesson=${lesson.id}` } : s));
 
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
   const noteStudents: NoteStudent[] = rollStudents.map((s) => {

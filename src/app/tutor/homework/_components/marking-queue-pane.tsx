@@ -13,11 +13,12 @@ import {
   SubjectDot,
 } from "@/components/admin/ui";
 import { initialsOf } from "@/components/admin/ui/glass";
-import { formatDayMonth } from "@/lib/format";
+import { formatDayMonth, melbourneDayKey } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   MARKING_VIEWS,
   groupToMarkByClass,
+  lateLabel,
   listHref,
   matchesQuery,
   parseMarkingView,
@@ -35,10 +36,11 @@ const dayFmt = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
 });
 
-/** "Mon" within the last week, otherwise "6 Oct". */
+/** "today", "Mon" within the last week, otherwise "6 Oct". */
 function shortWhen(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
+  if (melbourneDayKey(d) === melbourneDayKey(new Date())) return "today";
   const ageDays = (Date.now() - d.getTime()) / 86_400_000;
   return ageDays >= 0 && ageDays < 6 ? dayFmt.format(d) : formatDayMonth(d);
 }
@@ -146,7 +148,7 @@ export function MarkingQueuePane({
                 <li key={`${i.homeworkId}:${i.studentId}`}>
                   <SubmissionRow
                     item={i}
-                    when={shortWhen(i.submittedAt)}
+                    when={i.submittedAt ? `Handed in ${shortWhen(i.submittedAt)}` : ""}
                     href={submissionHref(i.homeworkId, i.studentId, list)}
                     selected={i.homeworkId === selectedHomework && i.studentId === selectedStudent}
                   />
@@ -165,7 +167,7 @@ export function MarkingQueuePane({
               <li key={`${i.homeworkId}:${i.studentId}`}>
                 <SubmissionRow
                   item={i}
-                  when={shortWhen(i.markedAt)}
+                  when={i.markedAt ? `Marked ${shortWhen(i.markedAt)}` : ""}
                   href={submissionHref(i.homeworkId, i.studentId, list)}
                   selected={i.homeworkId === selectedHomework && i.studentId === selectedStudent}
                 />
@@ -225,6 +227,7 @@ function SubmissionRow({
   href: string;
   selected: boolean;
 }) {
+  const late = lateLabel(item);
   return (
     <ListPaneRow href={href} selected={selected}>
       <span
@@ -241,9 +244,9 @@ function SubmissionRow({
         </span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
-        {item.status === "late" && (
-          <span className="inline-flex h-5 items-center rounded-full bg-bad-bg px-[7px] text-[11px] font-extrabold text-bad">
-            Late
+        {late && (
+          <span className="inline-flex h-5 items-center whitespace-nowrap rounded-full bg-bad-bg px-[7px] text-[11px] font-extrabold text-bad">
+            {late}
           </span>
         )}
         {when && (

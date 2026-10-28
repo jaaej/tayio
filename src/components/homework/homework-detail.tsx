@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronLeft, Lock, Trophy } from "lucide-react";
+import { ChevronLeft, Lock, PenLine, Trophy } from "lucide-react";
 import { buttonVariants } from "@/components/admin/ui";
 import { MarkupFileButton } from "@/components/markup/markup-file-button";
 import { FileViewerButton } from "@/components/ui/file-viewer";
@@ -32,9 +32,10 @@ const STATUS_LABEL: Record<string, string> = {
   resubmission_requested: "Resubmission requested",
   submitted: "Submitted",
   late: "Submitted late",
-  marked: "Marked",
+  // A family hears that the tutor has responded; tutors and admins keep "Marked".
+  marked: "Feedback given",
   // Retired choice that meant the same as Marked.
-  returned: "Marked",
+  returned: "Feedback given",
 };
 
 /** Where a homework stands, in a family's words ("Submitted late"). */
@@ -245,15 +246,28 @@ export function HomeworkInstructions({
   );
 }
 
-/** The tutor's score, the anonymous test rank and the written feedback. */
+/**
+ * The tutor's score, the anonymous test rank, the written feedback, and a
+ * way into the marks the tutor wrote on the submitted file.
+ */
 export function HomeworkFeedback({
   hw,
+  viewer,
+  studentId,
   testRank,
+  fileFeedback,
 }: {
   hw: HomeworkDetailData;
+  viewer: HomeworkViewer;
+  /** Whose work this is: the student, or the parent's child. */
+  studentId: string;
   testRank: { rank: number; total: number } | null;
+  /** The tutor wrote on the submitted file and the family may see it. */
+  fileFeedback: boolean;
 }) {
-  if (!hw.feedback && hw.score === null && !testRank) return null;
+  const marksKind = fileFeedback ? writable(hw.submissionUrl) : null;
+  if (!hw.feedback && hw.score === null && !testRank && !marksKind) return null;
+  const whose = viewer.kind === "student" ? "your" : `${viewer.childFirstName}'s`;
   return (
     <div className="flex flex-col gap-3 border-b border-[#EFF0F5] p-4">
       <h3 className="text-[13px] font-extrabold text-muted">Feedback</h3>
@@ -274,6 +288,29 @@ export function HomeworkFeedback({
       )}
       {hw.feedback && (
         <p className="whitespace-pre-wrap text-[14px] leading-[1.6] text-ink">{hw.feedback}</p>
+      )}
+      {marksKind && (
+        <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-[1_1_240px] items-center gap-3 rounded-[12px] bg-[#F8F9FC] px-3 py-2.5">
+            <span
+              aria-hidden
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-good-bg text-good"
+            >
+              <PenLine className="h-4 w-4" strokeWidth={2.2} />
+            </span>
+            <span className="min-w-0 flex-1 text-[14px] font-bold text-ink">
+              {viewer.kind === "student" ? "Your tutor" : "The tutor"} wrote on {whose} work
+            </span>
+            <MarkupFileButton
+              target={{ kind: "submission", homeworkId: hw.homeworkId, studentId }}
+              title={`${hw.title} - ${whose} submission`}
+              fileKind={marksKind}
+              className={LINE_BTN}
+            >
+              View marks
+            </MarkupFileButton>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -315,6 +352,9 @@ export function HomeworkSubmission({
         </p>
       )}
       {hw.submissionUrl && (
+        // A row like the worksheet tiles: alone in this column, the tile's
+        // flex basis would become its height.
+        <div className="flex flex-wrap gap-2">
         <FileTile
           kind={fileKind(hw.submissionUrl)}
           title={submissionFileName(hw.submissionUrl)}
@@ -341,6 +381,7 @@ export function HomeworkSubmission({
             <span className="shrink-0 text-[12px] text-muted">File unavailable</span>
           )}
         </FileTile>
+        </div>
       )}
       {hw.submissionText && (
         <p className="whitespace-pre-wrap rounded-[12px] bg-[#F8F9FC] px-4 py-3 text-[14px] leading-[1.6] text-ink">

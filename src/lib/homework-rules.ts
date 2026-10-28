@@ -15,6 +15,11 @@ export function isMarked(status: string): boolean {
   return status === "marked" || status === "returned";
 }
 
+/** The tutor's marks on a submitted file reach the family once the work is marked or sent back. */
+export function isFeedbackReleased(status: string): boolean {
+  return isMarked(status) || status === "resubmission_requested";
+}
+
 /**
  * Can the student hand in (or hand in again)? Before handing in, yes; when
  * the tutor asked for a resubmission, yes; while waiting for marking, only if
@@ -27,6 +32,16 @@ export function canSubmitHomework(status: string, allowResubmission: boolean): b
   }
   if (isAwaitingMarking(status)) return allowResubmission;
   return false;
+}
+
+/**
+ * The status a hand-in is stored with: late when it comes in after the due
+ * time, except a resubmission the tutor asked for, which answers their
+ * request rather than the due date.
+ */
+export function handInStatus(previous: string, dueDate: Date, now: Date): "submitted" | "late" {
+  if (previous === "resubmission_requested") return "submitted";
+  return now > dueDate ? "late" : "submitted";
 }
 
 /** Handed in and waiting for the tutor. */

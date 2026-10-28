@@ -232,7 +232,9 @@ export default async function HomeworkMarkingPage({
           <>
             {settings}
             <Link
-              href={`/tutor/students/${selected.studentId}`}
+              href={`/tutor/students/${selected.studentId}?from=marking&homework=${id}${
+                list.view === "to-mark" ? "" : `&view=${list.view}`
+              }`}
               className={cn(buttonVariants({ variant: "glass" }), "h-[38px] rounded-[11px] px-3")}
             >
               <UserRound className="h-4 w-4" aria-hidden />

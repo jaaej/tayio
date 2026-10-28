@@ -27,6 +27,7 @@ function submissionsQuery(tutorId: string, statuses: ("submitted" | "late" | "ma
       classId: homework.classId,
       className: classes.name,
       status: homeworkAssignments.status,
+      dueDate: homework.dueDate,
       submittedAt: homeworkAssignments.submittedAt,
       markedAt: homeworkAssignments.markedAt,
     })
@@ -54,6 +55,7 @@ function toItem(r: Row): SubmissionItem {
       ? classDisplayName(r.subjectName, r.className)
       : null,
     status: r.status,
+    dueDate: r.dueDate.toISOString(),
     submittedAt: r.submittedAt?.toISOString() ?? null,
     markedAt: r.markedAt?.toISOString() ?? null,
   };

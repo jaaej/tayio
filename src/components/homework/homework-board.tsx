@@ -276,7 +276,7 @@ function DoneView({
         </Frame>
       )}
       {marked.length > 0 && (
-        <Frame title="Marked">
+        <Frame title="Feedback given">
           <div className="panel overflow-hidden">
             <ul className="divide-y divide-[#EFF0F5]">
               {marked.map((item) => (
@@ -288,10 +288,10 @@ function DoneView({
                       item.score !== null ? (
                         <span className="text-good">{formatScore(item.score)}</span>
                       ) : (
-                        "Marked"
+                        formatHomeworkDate(new Date(item.markedAt ?? item.dueDate))
                       )
                     }
-                    rightLabel={item.score !== null ? "Score" : undefined}
+                    rightLabel={item.score !== null ? "Score" : "Feedback given"}
                   />
                 </li>
               ))}

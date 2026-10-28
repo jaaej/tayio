@@ -249,7 +249,7 @@ export function buildStudentTodo(input: {
         key: `marked-${hw.homeworkId}`,
         kind: "marked",
         title: hw.title,
-        detail: [subject, hw.score !== null ? `marked ${formatScore(hw.score)}` : "marked"]
+        detail: [subject, "feedback given", hw.score !== null ? formatScore(hw.score) : null]
           .filter(Boolean)
           .join(" · "),
         href,

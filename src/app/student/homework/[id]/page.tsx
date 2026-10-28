@@ -34,8 +34,17 @@ export default async function HomeworkDetailPage({
   const detail = await loadHomeworkDetail(user.id, id);
   if (!detail) notFound();
 
-  const { hw, status, canSubmit, submissionHref, attachmentHref, solutionHref, solutionLocked, testRank } =
-    detail;
+  const {
+    hw,
+    status,
+    canSubmit,
+    submissionHref,
+    attachmentHref,
+    solutionHref,
+    solutionLocked,
+    testRank,
+    fileFeedback,
+  } = detail;
   const classLabel = hw.subjectName || hw.className ? classDisplayName(hw.subjectName, hw.className) : "Independent task";
   const marked = isMarked(status);
   const viewer = { kind: "student" } as const;
@@ -75,7 +84,13 @@ export default async function HomeworkDetailPage({
         solutionHref={solutionHref}
         solutionLocked={solutionLocked}
       />
-      <HomeworkFeedback hw={hw} testRank={testRank} />
+      <HomeworkFeedback
+        hw={hw}
+        viewer={viewer}
+        studentId={user.id}
+        testRank={testRank}
+        fileFeedback={fileFeedback}
+      />
       <HomeworkSubmission
         hw={hw}
         viewer={viewer}

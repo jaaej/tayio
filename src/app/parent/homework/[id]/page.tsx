@@ -34,7 +34,8 @@ export default async function ParentHomeworkDetailPage({
   const detail = await loadParentHomeworkDetail(children, selected?.id ?? null, id);
   if (!detail) notFound();
 
-  const { child, hw, submissionHref, attachmentHref, solutionHref, solutionLocked, testRank } = detail;
+  const { child, hw, submissionHref, attachmentHref, solutionHref, solutionLocked, testRank, fileFeedback } =
+    detail;
   const viewer = { kind: "parent", childFirstName: child.firstName } as const;
   const classLabel =
     hw.subjectName || hw.className ? classDisplayName(hw.subjectName, hw.className) : "Independent task";
@@ -56,7 +57,13 @@ export default async function ParentHomeworkDetailPage({
           solutionHref={solutionHref}
           solutionLocked={solutionLocked}
         />
-        <HomeworkFeedback hw={hw} testRank={testRank} />
+        <HomeworkFeedback
+          hw={hw}
+          viewer={viewer}
+          studentId={child.id}
+          testRank={testRank}
+          fileFeedback={fileFeedback}
+        />
         <HomeworkSubmission
           hw={hw}
           viewer={viewer}

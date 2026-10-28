@@ -107,7 +107,7 @@ describe("weekChecklist", () => {
     const byKey = Object.fromEntries(tasks.map((t) => [t.key, t]));
     expect(byKey["homework-sub"]).toMatchObject({ state: "done", meta: "Submitted · waiting for marking" });
     expect(byKey["homework-late"]).toMatchObject({ state: "done" });
-    expect(byKey["homework-mark"]).toMatchObject({ state: "done", meta: "Marked · 92.5%" });
+    expect(byKey["homework-mark"]).toMatchObject({ state: "done", meta: "Feedback given · 92.5%" });
     expect(byKey["homework-over"]).toMatchObject({ state: "overdue", meta: "Overdue · was due Sat 10 Oct" });
     expect(byKey["homework-re"]).toMatchObject({ state: "todo", meta: "Resubmit · due Thu 15 Oct" });
   });

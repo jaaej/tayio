@@ -4,7 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { homeworkAssignments } from "@/db/schema";
 import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
-import { canSubmitHomework } from "@/lib/homework-rules";
+import { canSubmitHomework, isFeedbackReleased } from "@/lib/homework-rules";
+import { hasSubmissionFeedback } from "@/lib/markup/store";
 import { getHomeworkDetail, getStudentTestRank } from "../../_lib/queries";
 import { signHomeworkAttachment, signHomeworkSubmission } from "../_storage";
 
@@ -37,7 +38,7 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
     dueDate: hw.dueDate,
   });
 
-  const [submissionHref, attachmentHref, solutionHref, testRank] = await Promise.all([
+  const [submissionHref, attachmentHref, solutionHref, testRank, fileFeedback] = await Promise.all([
     // Signed by the server: the bucket has no client read policies, and the
     // query above already limited this to the student's own work.
     signHomeworkSubmission(hw.submissionUrl),
@@ -46,6 +47,7 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
     // Only for a test the student has been marked on. Anonymous: rank and
     // cohort size only.
     hw.isTest && hw.score !== null ? getStudentTestRank(studentId, homeworkId) : Promise.resolve(null),
+    isFeedbackReleased(status) ? hasSubmissionFeedback(studentId, hw.submissionUrl) : Promise.resolve(false),
   ]);
 
   const canSubmit = canSubmitHomework(status, hw.allowResubmission);
@@ -60,6 +62,8 @@ export async function loadHomeworkDetail(studentId: string, homeworkId: string) 
     /** A solution exists but stays locked until the due date. */
     solutionLocked: Boolean(hw.solutionUrl) && !solutionAvailable,
     testRank,
+    /** The tutor wrote on the submitted file, and the student may see it now. */
+    fileFeedback,
   };
 }
 

@@ -355,7 +355,7 @@ export default async function TutorToday({
               context: b.className,
               reason: b.reason,
               tone: b.tone,
-              href: `/tutor/students/${b.studentId}`,
+              href: `/tutor/students/${b.studentId}?from=today`,
               action: <BumpMessageButton studentId={b.studentId} />,
             }))}
           />
@@ -374,7 +374,7 @@ export default async function TutorToday({
                 return (
                   <li key={n.id}>
                     <Link
-                      href={`/tutor/students/${n.studentId}`}
+                      href={`/tutor/students/${n.studentId}?from=today`}
                       className="block px-4 py-3 transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
                     >
                       <span className="flex items-baseline gap-2">

@@ -155,7 +155,7 @@ describe("buildStudentTodo", () => {
       title: "Watch Week 2: Simultaneous equations",
       href: "/student/subjects/s-maths?week=w2",
     });
-    expect(todo[6]).toMatchObject({ detail: "Maths · marked 91.7%", action: "See feedback" });
+    expect(todo[6]).toMatchObject({ detail: "Maths · feedback given · 91.7%", action: "See feedback" });
   });
 
   it("collapses more than two overdue items into one row", () => {

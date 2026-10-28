@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSubmitHomework, homeworkState, isHandedIn, isHomeworkOverdue } from "./homework-rules";
+import { canSubmitHomework, handInStatus, homeworkState, isHandedIn, isHomeworkOverdue } from "./homework-rules";
 
 const today = "2026-10-12";
 
@@ -32,6 +32,23 @@ describe("homeworkState", () => {
     expect(homeworkState("not_started", "2026-10-11", today)).toBe("overdue");
     expect(homeworkState("viewed", "2026-10-12", today)).toBe("due_today");
     expect(homeworkState("resubmission_requested", "2026-10-13", today)).toBe("open");
+  });
+});
+
+describe("handInStatus", () => {
+  const due = new Date("2026-10-16T12:00:00.000Z");
+  const before = new Date("2026-10-16T11:59:00.000Z");
+  const after = new Date("2026-10-16T12:01:00.000Z");
+
+  it("is late only after the due time", () => {
+    expect(handInStatus("viewed", due, before)).toBe("submitted");
+    expect(handInStatus("not_started", due, after)).toBe("late");
+    // Handing in again (where resubmission is allowed) after the due time.
+    expect(handInStatus("submitted", due, after)).toBe("late");
+  });
+
+  it("never counts a resubmission the tutor asked for as late", () => {
+    expect(handInStatus("resubmission_requested", due, after)).toBe("submitted");
   });
 });
 

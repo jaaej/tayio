@@ -18,7 +18,7 @@ import { HOMEWORK_ATTACHMENT_BUCKET, HOMEWORK_BUCKET } from "@/app/student/homew
 import { tutorHomeworkFilter } from "@/app/tutor/_lib/homework-access";
 import { BUCKET as CURRICULUM_BUCKET } from "@/lib/curriculum-storage";
 import { canStudentAccessCurriculumWeek } from "@/lib/curriculum-access";
-import { canSubmitHomework, isMarked } from "@/lib/homework-rules";
+import { canSubmitHomework, isFeedbackReleased } from "@/lib/homework-rules";
 import { homeworkSolutionIsAvailable } from "@/lib/homework-solution";
 import { enrolledSubjectIds, getResourceForViewer } from "@/lib/resources";
 import { coarseRole } from "@/lib/roles";
@@ -155,7 +155,7 @@ export async function resolveMarkupTarget(
         if (!owns) return null;
         return { file, edit: feedback, show: [], canSubmit: false, defaultPen: "red" };
       }
-      const released = isMarked(row.status) || row.status === "resubmission_requested";
+      const released = isFeedbackReleased(row.status);
       if (role === "student") {
         if (viewer.id !== target.studentId) return null;
       } else if (role === "parent") {

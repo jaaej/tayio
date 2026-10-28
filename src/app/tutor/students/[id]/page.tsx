@@ -23,6 +23,7 @@ import {
   attendanceSummary,
   homeworkState,
   lessonTimeline,
+  profileBack,
   withListQuery,
   type LessonTimelineEntry,
 } from "../_lib/student-list";
@@ -64,13 +65,11 @@ const ATTENDANCE_PILL: Record<string, PillTone> = {
   makeup_attended: "info",
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 type Profile = Awaited<ReturnType<typeof getStudentProfile>>;
 
 /**
- * A student's profile, opened from a class's Students roster (`?class=` sends
- * the back button there), Marking, lessons, Today, discussions or messages:
+ * A student's profile, opened from a class's Students roster, Marking,
+ * lessons, Today, discussions or messages (`profileBack` reads where from):
  * the header, quick facts, and their attendance, homework and lesson notes as
  * tabs. Everything is limited to the classes,
  * homework and notes of this tutor (getStudentProfile runs
@@ -81,7 +80,14 @@ export default async function TutorStudentProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; class?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    class?: string;
+    from?: string;
+    homework?: string;
+    lesson?: string;
+    view?: string;
+  }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const tab = parseTab(sp.tab);
@@ -127,10 +133,7 @@ export default async function TutorStudentProfilePage({
   const primaryParent = context.parents[0] ?? null;
 
   const basePath = `/tutor/students/${id}`;
-  const fromClass = sp.class && UUID.test(sp.class) ? sp.class : null;
-  const back = fromClass
-    ? { href: `/tutor/classes/${fromClass}/students`, label: "Back to class" }
-    : { href: "/tutor/classes", label: "Classes" };
+  const back = profileBack(id, sp);
 
   const panels: Record<Tab, ReactNode> = {
     overview: (
