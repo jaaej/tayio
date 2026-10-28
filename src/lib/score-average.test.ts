@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { averageScore, scoreAverageBasis } from "./score-average";
+import { averageScore } from "./score-average";
 
 describe("averageScore", () => {
   it("weighs each homework and quiz equally", () => {
@@ -20,14 +20,5 @@ describe("averageScore", () => {
 
   it("rounds to a whole percent", () => {
     expect(averageScore([], [{ correctCount: 2, total: 3 }]).percent).toBe(67);
-  });
-});
-
-describe("scoreAverageBasis", () => {
-  it("names only what was counted", () => {
-    expect(scoreAverageBasis({ percent: 80, homeworkCount: 2, quizCount: 1 })).toBe(
-      "2 homework · 1 quiz",
-    );
-    expect(scoreAverageBasis({ percent: 80, homeworkCount: 0, quizCount: 3 })).toBe("3 quizzes");
   });
 });

@@ -3,16 +3,15 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import {
   Empty,
-  MetricTile,
   Pill,
   TabLinks,
   buttonVariants,
   type PillTone,
 } from "@/components/admin/ui";
+import { ProfileSection } from "@/components/ui/profile-section";
 import { attendanceLabel, isMovedAbsence } from "@/lib/attendance-rules";
 import { formatDateLong, formatDateShort, formatWeekday, formatScore } from "@/lib/format";
 import { NOTE_VISIBILITY, sharedNoteFields } from "@/lib/lesson-note-fields";
-import { averageScore, scoreAverageBasis } from "@/lib/score-average";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { getStudentProfile, requireTutor } from "../../_data";
@@ -20,7 +19,6 @@ import { getStudentHeaderContext } from "../_lib/student-data";
 import {
   HOMEWORK_STATE,
   RECENT_LESSONS,
-  attendanceSummary,
   homeworkState,
   lessonTimeline,
   profileBack,
@@ -70,8 +68,9 @@ type Profile = Awaited<ReturnType<typeof getStudentProfile>>;
 /**
  * A student's profile, opened from a class's Students roster, Marking,
  * lessons, Today, discussions or messages (`profileBack` reads where from):
- * the header, quick facts, and their attendance, homework and lesson notes as
- * tabs. Everything is limited to the classes,
+ * the header, then their attendance, homework and lesson notes as tabs, with
+ * no quick-fact tiles (the owner removed them on 29 October 2026, as on the
+ * admin student profile). Everything is limited to the classes,
  * homework and notes of this tutor (getStudentProfile runs
  * assertTutorTeachesStudent first and 404s for anyone else's student).
  */
@@ -95,7 +94,7 @@ export default async function TutorStudentProfilePage({
   const tutor = await requireTutor();
   const profile = await getStudentProfile(tutor.id, id);
   const context = await getStudentHeaderContext(tutor.id, id);
-  const { student, attendance, notes, homework, quizAttempts } = profile;
+  const { student, attendance, notes, homework } = profile;
   const { today } = context;
 
   const name = `${student.firstName} ${student.lastName}`.trim();
@@ -104,22 +103,12 @@ export default async function TutorStudentProfilePage({
     notes.map((n) => ({ ...n, note: { ...n, mine: n.authorId === tutor.id } })),
     tutor.id,
   );
-  const latestWithNote = timeline.find((entry) => entry.notes.length > 0) ?? null;
   const recent = attendance.slice(0, RECENT_LESSONS);
-  const att = attendanceSummary(recent);
 
   const homeworkRows = homework.map((h) => {
     const dueDate = melbourneDate(h.dueDate);
     return { ...h, dueDate, state: homeworkState(h.status, dueDate, today) };
   });
-  const dueSoFar = homeworkRows.filter((h) => h.dueDate <= today);
-  const handedIn = dueSoFar.filter((h) => h.state === "marked" || h.state === "to_mark");
-  const overdue = homeworkRows.filter((h) => h.state === "overdue").length;
-  const toMark = homeworkRows.filter((h) => h.state === "to_mark").length;
-  const avg = averageScore(
-    homework.filter((h) => h.status === "marked" || h.status === "returned").map((h) => h.score),
-    quizAttempts,
-  );
 
   const parentLabel =
     context.parents.length === 0
@@ -136,31 +125,23 @@ export default async function TutorStudentProfilePage({
   const back = profileBack(id, sp);
 
   const panels: Record<Tab, ReactNode> = {
+    // Flat sections with hairline dividers, as on the admin student profile.
     overview: (
-      <div className="flex flex-col gap-[18px] p-4">
-        <Section title="Last lessons">
+      <div className="divide-y divide-line">
+        <ProfileSection title="Last lessons">
           <RecentLessons rows={recent} />
-        </Section>
-        <Section title="Homework">
-          <HomeworkList rows={homeworkRows.slice(0, 3)} studentId={student.id} />
-        </Section>
-        <Section title="Latest lesson note">
-          {latestWithNote ? (
-            <div className="-mx-4">
-              <TimelineEntry entry={latestWithNote} studentId={student.id} />
-            </div>
-          ) : (
-            <p className="text-[13px] text-muted">No lesson notes yet.</p>
-          )}
-        </Section>
+        </ProfileSection>
+        <ProfileSection title="Homework" flush>
+          <HomeworkList
+            rows={homeworkRows.slice(0, 3)}
+            studentId={student.id}
+            className="border-t border-line"
+          />
+        </ProfileSection>
       </div>
     ),
     lessons: <LessonsTimeline entries={timeline} studentId={student.id} />,
-    homework: (
-      <div className="p-4">
-        <HomeworkList rows={homeworkRows} studentId={student.id} />
-      </div>
-    ),
+    homework: <HomeworkList rows={homeworkRows} studentId={student.id} />,
   };
 
   return (
@@ -233,39 +214,6 @@ export default async function TutorStudentProfilePage({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-        <MetricTile
-          label="Attendance"
-          value={att.percent === null ? "-" : `${att.percent}%`}
-          sub={
-            att.total === 0
-              ? "no lessons marked yet"
-              : `${att.attended} of ${att.total} lessons`
-          }
-          tone={att.percent === null ? "default" : att.percent < 75 ? "bad" : att.percent < 90 ? "warn" : "good"}
-        />
-        <MetricTile
-          label="Homework"
-          value={dueSoFar.length === 0 ? "-" : `${handedIn.length} of ${dueSoFar.length}`}
-          sub={
-            [overdue > 0 ? `${overdue} overdue` : null, toMark > 0 ? `${toMark} to mark` : null]
-              .filter(Boolean)
-              .join(" · ") || (dueSoFar.length === 0 ? "nothing due yet" : "all handed in")
-          }
-          tone={overdue > 0 ? "bad" : "default"}
-        />
-        <MetricTile
-          label="Average score"
-          value={avg.percent === null ? "-" : `${avg.percent}%`}
-          sub={avg.percent === null ? "nothing marked yet" : scoreAverageBasis(avg)}
-        />
-        <MetricTile
-          label="Lesson notes"
-          value={notes.length}
-          sub={notes[0] ? `latest ${formatDateShort(notes[0].lessonDate)}` : "none yet"}
-        />
-      </div>
-
       <div className="panel min-w-0 overflow-hidden">
         <TabLinks
           label="Student sections"
@@ -278,15 +226,6 @@ export default async function TutorStudentProfilePage({
         />
         {panels[tab]}
       </div>
-    </section>
-  );
-}
-
-function Section({ title, children }: { title: ReactNode; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-[13px] font-extrabold text-ink">{title}</h3>
-      {children}
     </section>
   );
 }
@@ -325,19 +264,26 @@ type HomeworkRow = Omit<Profile["homework"][number], "dueDate"> & {
   state: keyof typeof HOMEWORK_STATE;
 };
 
-function HomeworkList({ rows, studentId }: { rows: HomeworkRow[]; studentId: string }) {
-  if (rows.length === 0) {
-    return <p className="text-[13px] text-muted">No homework assigned yet.</p>;
-  }
+/** Edge-to-edge rows split by hairlines, like the shared history lists. */
+function HomeworkList({
+  rows,
+  studentId,
+  className,
+}: {
+  rows: HomeworkRow[];
+  studentId: string;
+  className?: string;
+}) {
+  if (rows.length === 0) return <Empty>No homework assigned yet.</Empty>;
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className={cn("divide-y divide-line", className)}>
       {rows.map((h) => {
         const state = HOMEWORK_STATE[h.state];
         return (
           <li key={h.homeworkId}>
             <Link
               href={`/tutor/homework/${h.homeworkId}?student=${studentId}`}
-              className="flex min-h-12 items-center gap-2.5 rounded-[12px] bg-surface-2 px-3 py-2.5 text-ink transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 sm:px-5"
             >
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[14px] font-bold">{h.title}</span>

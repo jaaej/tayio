@@ -31,13 +31,3 @@ export function averageScore(
     quizCount: quizzes.length,
   };
 }
-
-/** "3 homework · 2 quizzes", naming only what the average includes. */
-export function scoreAverageBasis({ homeworkCount, quizCount }: ScoreAverage): string {
-  return [
-    homeworkCount > 0 ? `${homeworkCount} homework` : null,
-    quizCount > 0 ? `${quizCount} ${quizCount === 1 ? "quiz" : "quizzes"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}

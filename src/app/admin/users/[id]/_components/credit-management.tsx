@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/select";
 import { Button, Empty, Pill } from "@/components/admin/ui";
-import { ProfileSection } from "./profile-section";
+import { ProfileSection } from "@/components/ui/profile-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { CreditGrantReason } from "@/db/schema";
 import {

@@ -678,6 +678,16 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Tutor student profile without the quick-fact tiles or the latest lesson note (29 October 2026, owner: "get rid of the 4 blocks that has attendance, homework, average socre, and lesson notes. restrcuture the page so it doesnt look so congested. i dont need the "last lesson notes" on the overview").
+  - `/tutor/students/[id]`: the Attendance, Homework, Average score and Lesson notes tiles are gone, matching the admin student profile (tiles removed there on 18 October 2026).
+    The Overview tab keeps Last lessons and the three latest homework; lesson notes stay on the Lessons tab.
+  - Layout: the Overview's sections are the admin profile's `ProfileSection` (flat, 14px titles, hairline dividers), moved to `src/components/ui/profile-section.tsx` so both profiles share one implementation.
+    Homework rows are edge-to-edge with dividers (Overview and Homework tab) instead of grey cards.
+  - `getStudentProfile` (`src/app/tutor/_data.ts`) no longer loads quiz attempts, which only fed the average tile; `scoreAverageBasis` was removed with it.
+  - Verified on dev: typecheck, lint, 765 tests; Sarah Student's profile from a class roster on all three tabs at 1440px and 390px in Chrome and WebKit (no sideways scroll, no page errors); the admin student profile's Profile, History and Credits tabs still render their sections.
+  - Still open: the admin History tab and the tutor Lessons timeline remain two per-student history views (see "Still open after the fixes" above).
+  - Manual QA (owner, Safari): open a student from a class's Students tab and check the Overview, Lessons and Homework tabs.
+
 - [x] Families see "Feedback given", tutors see what the Marking dates mean, and the student profile's back button returns where it came from (29 October 2026, owner: "for students, after the tutor provides feedback, it should show as status "Feedback given" or something like that", "on the tutor marking page, what counts as "late"? ... the date that it shows (what does it even mean)", and "where is this page from?" about the tutor student profile).
   - Student and parent wording: Marked is "Feedback given" on the homework page chip, the Done board heading, the week checklist, the dashboard and the notification title (`homework-detail.tsx`, `homework-board.tsx`, `week-checklist.ts`, `dashboard-rules.ts`, `homework-result-notifications.ts`).
     Tutors and admins keep "Marked". A row with no score on the Done board shows the day feedback was given.

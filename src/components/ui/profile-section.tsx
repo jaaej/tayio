@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * One titled section inside the profile's white tab panel. Sections stack
+ * One titled section inside a profile's white tab panel (the admin user
+ * profile and the tutor's student profile). Sections stack
  * flat with hairline dividers (set by the caller), so there is never a card
  * inside the panel. `flush` lets row lists run edge to edge.
  */

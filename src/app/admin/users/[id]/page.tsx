@@ -75,7 +75,7 @@ import { StudentTrialManager } from "./_components/student-trial-manager";
 import { AdminStudentTimetable } from "./_components/student-timetable";
 import { ClassMoveManager } from "./_components/class-move-manager";
 import { CurriculumAccessManager } from "./_components/curriculum-access-manager";
-import { ProfileSection } from "./_components/profile-section";
+import { ProfileSection } from "@/components/ui/profile-section";
 
 export const dynamic = "force-dynamic";
 
