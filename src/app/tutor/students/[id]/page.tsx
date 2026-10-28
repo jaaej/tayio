@@ -12,6 +12,7 @@ import { ProfileSection } from "@/components/ui/profile-section";
 import { attendanceLabel, isMovedAbsence } from "@/lib/attendance-rules";
 import { formatDateLong, formatDateShort, formatWeekday, formatScore } from "@/lib/format";
 import { NOTE_VISIBILITY, sharedNoteFields } from "@/lib/lesson-note-fields";
+import { averageScore, scoreAverageBasis } from "@/lib/score-average";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { cn } from "@/lib/utils";
 import { getStudentProfile, requireTutor } from "../../_data";
@@ -19,6 +20,7 @@ import { getStudentHeaderContext } from "../_lib/student-data";
 import {
   HOMEWORK_STATE,
   RECENT_LESSONS,
+  attendanceSummary,
   homeworkState,
   lessonTimeline,
   profileBack,
@@ -68,9 +70,9 @@ type Profile = Awaited<ReturnType<typeof getStudentProfile>>;
 /**
  * A student's profile, opened from a class's Students roster, Marking,
  * lessons, Today, discussions or messages (`profileBack` reads where from):
- * the header, then their attendance, homework and lesson notes as tabs, with
- * no quick-fact tiles (the owner removed them on 29 October 2026, as on the
- * admin student profile). Everything is limited to the classes,
+ * the header, then their attendance, homework and lesson notes as tabs. The
+ * Overview opens with their key numbers as one row inside the panel, not as
+ * separate tiles (owner, 29 October 2026). Everything is limited to the classes,
  * homework and notes of this tutor (getStudentProfile runs
  * assertTutorTeachesStudent first and 404s for anyone else's student).
  */
@@ -94,7 +96,7 @@ export default async function TutorStudentProfilePage({
   const tutor = await requireTutor();
   const profile = await getStudentProfile(tutor.id, id);
   const context = await getStudentHeaderContext(tutor.id, id);
-  const { student, attendance, notes, homework } = profile;
+  const { student, attendance, notes, homework, quizAttempts } = profile;
   const { today } = context;
 
   const name = `${student.firstName} ${student.lastName}`.trim();
@@ -104,11 +106,48 @@ export default async function TutorStudentProfilePage({
     tutor.id,
   );
   const recent = attendance.slice(0, RECENT_LESSONS);
+  const att = attendanceSummary(recent);
 
   const homeworkRows = homework.map((h) => {
     const dueDate = melbourneDate(h.dueDate);
     return { ...h, dueDate, state: homeworkState(h.status, dueDate, today) };
   });
+  const dueSoFar = homeworkRows.filter((h) => h.dueDate <= today);
+  const handedIn = dueSoFar.filter((h) => h.state === "marked" || h.state === "to_mark");
+  const overdue = homeworkRows.filter((h) => h.state === "overdue").length;
+  const toMark = homeworkRows.filter((h) => h.state === "to_mark").length;
+  const avg = averageScore(
+    homework.filter((h) => h.status === "marked" || h.status === "returned").map((h) => h.score),
+    quizAttempts,
+  );
+
+  const stats: Stat[] = [
+    {
+      label: "Attendance",
+      value: att.percent === null ? "-" : `${att.percent}%`,
+      sub: att.total === 0 ? "no lessons marked yet" : `${att.attended} of ${att.total} lessons`,
+      tone: att.percent === null ? undefined : att.percent < 75 ? "bad" : att.percent < 90 ? "warn" : "good",
+    },
+    {
+      label: "Homework",
+      value: dueSoFar.length === 0 ? "-" : `${handedIn.length} of ${dueSoFar.length}`,
+      sub:
+        [overdue > 0 ? `${overdue} overdue` : null, toMark > 0 ? `${toMark} to mark` : null]
+          .filter(Boolean)
+          .join(" · ") || (dueSoFar.length === 0 ? "nothing due yet" : "all handed in"),
+      tone: overdue > 0 ? "bad" : undefined,
+    },
+    {
+      label: "Average score",
+      value: avg.percent === null ? "-" : `${avg.percent}%`,
+      sub: avg.percent === null ? "nothing marked yet" : scoreAverageBasis(avg),
+    },
+    {
+      label: "Lesson notes",
+      value: String(notes.length),
+      sub: notes[0] ? `latest ${formatDateShort(notes[0].lessonDate)}` : "none yet",
+    },
+  ];
 
   const parentLabel =
     context.parents.length === 0
@@ -128,6 +167,7 @@ export default async function TutorStudentProfilePage({
     // Flat sections with hairline dividers, as on the admin student profile.
     overview: (
       <div className="divide-y divide-line">
+        <OverviewStats stats={stats} />
         <ProfileSection title="Last lessons">
           <RecentLessons rows={recent} />
         </ProfileSection>
@@ -227,6 +267,32 @@ export default async function TutorStudentProfilePage({
         {panels[tab]}
       </div>
     </section>
+  );
+}
+
+type Stat = { label: string; value: string; sub: string; tone?: "good" | "warn" | "bad" };
+
+const STAT_TONE = { good: "text-good", warn: "text-warn", bad: "text-bad" } as const;
+
+/** The student's key numbers as one flat row at the top of the Overview. */
+function OverviewStats({ stats }: { stats: Stat[] }) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-5 sm:grid-cols-4 sm:px-5">
+      {stats.map((stat) => (
+        <div key={stat.label} className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-[12px] font-bold text-muted">{stat.label}</dt>
+          <dd
+            className={cn(
+              "text-[22px] font-extrabold leading-tight tabular-nums",
+              stat.tone ? STAT_TONE[stat.tone] : "text-ink",
+            )}
+          >
+            {stat.value}
+          </dd>
+          <dd className="text-[12px] text-muted">{stat.sub}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

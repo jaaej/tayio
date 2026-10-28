@@ -18,6 +18,7 @@ import {
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { getLatestQuizAttempts } from "@/lib/quiz-scores";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
 import { classDisplayName } from "@/lib/class-display";
 import { yearLevelLabel } from "@/lib/format";
@@ -422,6 +423,23 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     )
     .orderBy(desc(homework.dueDate));
 
+  // Quizzes count in the subjects this tutor teaches the student.
+  const sharedSubjects = await db
+    .selectDistinct({ id: classes.subjectId })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(classes.tutorId, tutorId),
+        isNull(enrollments.withdrawnAt),
+      ),
+    );
+  const quizAttempts = await getLatestQuizAttempts(
+    studentId,
+    sharedSubjects.map((r) => r.id),
+  );
+
   // A student can be in two of this tutor's subjects, so each row's class
   // label names its subject ("Y7 Mathematics · Tuesday").
   const withClassLabel = <T extends { subjectName: string; className: string }>(rows: T[]) =>
@@ -431,6 +449,7 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     attendance: withClassLabel(attendanceRows),
     notes: withClassLabel(notes),
     homework: homeworkRows,
+    quizAttempts,
   };
 }
 

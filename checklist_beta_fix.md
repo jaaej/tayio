@@ -678,13 +678,14 @@ Still open after the fixes:
 
 ## Recently implemented
 
-- [x] Tutor student profile without the quick-fact tiles or the latest lesson note (29 October 2026, owner: "get rid of the 4 blocks that has attendance, homework, average socre, and lesson notes. restrcuture the page so it doesnt look so congested. i dont need the "last lesson notes" on the overview").
-  - `/tutor/students/[id]`: the Attendance, Homework, Average score and Lesson notes tiles are gone, matching the admin student profile (tiles removed there on 18 October 2026).
-    The Overview tab keeps Last lessons and the three latest homework; lesson notes stay on the Lessons tab.
+- [x] Tutor student profile: the four numbers inside the Overview, no latest lesson note (29 October 2026, owner: "get rid of the 4 blocks that has attendance, homework, average socre, and lesson notes. restrcuture the page so it doesnt look so congested. i dont need the "last lesson notes" on the overview", then "the information in the 4 blocks should be within the overview blcok instead of 4 different blocks").
+  - `/tutor/students/[id]`: the Attendance, Homework, Average score and Lesson notes tiles above the tabs are gone.
+    The same numbers (same rules) now open the Overview tab as one flat row inside the white panel (`OverviewStats`, four columns, two by two on a phone), then Last lessons and the three latest homework.
+    The latest lesson note is off the Overview; notes stay on the Lessons tab.
   - Layout: the Overview's sections are the admin profile's `ProfileSection` (flat, 14px titles, hairline dividers), moved to `src/components/ui/profile-section.tsx` so both profiles share one implementation.
     Homework rows are edge-to-edge with dividers (Overview and Homework tab) instead of grey cards.
-  - `getStudentProfile` (`src/app/tutor/_data.ts`) no longer loads quiz attempts, which only fed the average tile; `scoreAverageBasis` was removed with it.
-  - Verified on dev: typecheck, lint, 765 tests; Sarah Student's profile from a class roster on all three tabs at 1440px and 390px in Chrome and WebKit (no sideways scroll, no page errors); the admin student profile's Profile, History and Credits tabs still render their sections.
+  - Verified on dev: typecheck, lint, the test suite; Sarah Student's profile from a class roster on all three tabs at 1440px and 390px in Chrome and WebKit (no sideways scroll, no page errors; 100%, 2 of 13, 65%, 4 as before); the admin student profile's Profile, History and Credits tabs still render their sections.
+  - Cross-role: the admin student profile shows no key numbers (its tiles were removed on 18 October 2026; attendance shows only in its History tab's Attendance heading). Owner to decide whether admin gets the same row.
   - Still open: the admin History tab and the tutor Lessons timeline remain two per-student history views (see "Still open after the fixes" above).
   - Manual QA (owner, Safari): open a student from a class's Students tab and check the Overview, Lessons and Homework tabs.
 
