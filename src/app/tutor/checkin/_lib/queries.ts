@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { tutorCheckinEntries, tutorWeeklyCheckins } from "@/db/schema";
+import { lessons, tutorCheckinEntries, tutorWeeklyCheckins } from "@/db/schema";
+import type { ScheduledLesson } from "./corrections";
 import { pendingCheckinWeeks } from "./pending-weeks";
 
 /**
@@ -37,4 +38,16 @@ export async function getPendingCheckinWeeks(tutorId: string, now = new Date()) 
     })),
     now,
   );
+}
+
+/** The lessons' own date and times, the "before" of an admin correction. */
+export async function getScheduledLessons(
+  lessonIds: string[],
+): Promise<Map<string, ScheduledLesson>> {
+  if (lessonIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: lessons.id, date: lessons.date, startTime: lessons.startTime, endTime: lessons.endTime })
+    .from(lessons)
+    .where(inArray(lessons.id, lessonIds));
+  return new Map(rows.map((r) => [r.id, { date: r.date, startTime: r.startTime, endTime: r.endTime }]));
 }

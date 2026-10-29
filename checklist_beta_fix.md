@@ -13,6 +13,20 @@ Last updated: 29 October 2026
 
 ## Manual QA required
 
+- [ ] Discussion threads and check-in redesign (29 October 2026), on Production in Safari at 1440px and on a phone: open a thread as a student, a tutor and an admin; switch All / Unanswered and fold Other questions; post a reply with a file; as a tutor, approve a week and report one through Something's wrong; check a week admin corrected shows the change in the footer.
+
+- [ ] Tutor fixes from the demo rehearsal (29 October 2026): on dev, then on Production after deploy, in Safari at 1440px and on a phone, as `tutor@taiyo.com`.
+  Lesson page: notes are one optional Comment (green) and an optional Internal note (amber); save one, reload, then empty both and save to remove it; **Week N plan** opens that week.
+  Today: a past lesson without attendance is the "needs finishing" row; saving attendance clears it with no note written. This week: the circled date is readable and lesson blocks are about 140px wide at 1440px.
+  Classes: no Enrolled row and no Schedule & availability button; a class's Week plan has no "For students this week", and the Term menu opens one portal-styled list (also on the student, parent and admin course pages).
+  Resources: no subject filters and no Add resource at the top; a subject's **+** opens the panel with that subject; the Source buttons choose upload or link.
+  Messages: switching conversations keeps the list and frame still, with no flash, and an unread thread clears when opened.
+  Notifications, Weekly check-in and Term reports fill the page width.
+  As Ethan and as Grace: a recap shows the comment with no "Comment" label, and the subject week page has no "From your tutor" panel. As admin: Attendance has To mark, Marked and Upcoming (no Notes tab).
+
+- [ ] Tutor demo rehearsal (29 October 2026): run `node scripts/tutor-demo/seed.mjs`, then follow `docs/demo/tutor-demo.md` end to end as `tutor@taiyo.com` on a local production build in Chrome, and re-run the seed afterwards.
+  After the next deploy, on Production in Safari: each role's greeting and menu chip show the first name, not the email prefix; a tutor's reply to a student's discussion thread sends a notification that opens the thread in the student portal.
+
 - [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, on Production (migration 0085 applied and `64dd5ad` pushed on 29 October 2026).
   As a student, open a homework worksheet: write with the pencil, highlight, type an answer (the page must not zoom when the keyboard opens), erase and undo; close and reopen and check it all came back; then Submit this file and see "Submission received".
   As that homework's tutor, open the submission with View and mark, write in red and save it as Marked.
@@ -20,10 +34,10 @@ Last updated: 29 October 2026
   As a student, write on a week booklet and a library PDF, then reopen them.
 
 - [ ] Consistency audit fixes (18 to 20 October 2026): deployed (`48203bf`) and migrations 0065 to 0077 applied to Production on 20 October 2026, with `npm run db:check-rls` passing there.
-  Admin: the dashboard To do rows match the queues they link to (Attendance to mark and Notes, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
+  Admin: the dashboard To do rows match the queues they link to (Attendance to mark, Cover & leave, Class moves, Quizzes, Payments overdue); a student's History tab and Lessons tab (the same timetable the student sees, with Move lesson and Open roll); Reports > Term reports sends one report and shows Sent; the menu says Cover & leave.
   Tutor: Request time away with a handover note, then cancel it from Time away; another tutor's Cover board shows the handover note, not the reason; Week plan shows Class recording and the quiz's Instructions and Changes requested separately; a student's Lessons timeline.
   Parent (Safari and a phone): the new shell and menu (Subjects, Timetable), the Overview's Next lesson and "Can't make it?", one subject page with Attendance and Tutor feedback, a homework page and a recap page, Payments overdue by due date, switching children and opening a notification for the second child.
-  Student: recap headings now match the tutor editor (Topic covered, Performance, Strengths, Struggled with, Next lesson focus, Comment); homework turns Overdue the day after its due day; Resources lists "Class recordings"; an announcement notification opens the full text.
+  Student: a recap shows the tutor's comment (since 29 October 2026 the only family field); homework turns Overdue the day after its due day; Resources lists "Class recordings"; an announcement notification opens the full text.
 
 - [ ] Subject edit page restyle (18 October 2026, handoff `taiyo-admin-classes-edit-2.zip`): sign in as admin at 1440px, 390px and on a touch device.
   Open a subject's pencil: the subject is one row (name, level, colour swatches, Open curriculum); one class is open and the rest are one-line rows (name, day and time, tutor, room, "n of capacity"); clicking a row opens it and closes the other; a link to a class (`#class-<id>`) opens that class.
@@ -58,7 +72,7 @@ Last updated: 29 October 2026
 
 - [ ] Tutor class page in the student layout (17 October 2026): sign in as a tutor at 1440px and 390px and open a class from Classes.
   On each tab (Week plan, Lessons, Students, Announcements) confirm the coloured hero: back button, the tabs as pills with the Lessons and Announcements counts in yellow, and "Today ... Open lesson" on a lesson day.
-  On Week plan, pick weeks in the rail and confirm the hero title follows the week; open an uploaded booklet and video; edit "For students this week" and attach a file; add homework; open a week with a requested quiz and press Write quiz.
+  On Week plan, pick weeks in the rail and confirm the hero title follows the week; open an uploaded booklet and video; add homework; open a week with a requested quiz and press Write quiz.
 
 - [ ] Admin curriculum in the student layout (17 October 2026): sign in as admin at 1440px and 390px and open a subject's Curriculum from Classes.
   Confirm the hero is in the subject colour with "Back to classes" (returns to Classes), "<Subject> · Week N", the week title and a white Edit week button, and that the weeks rail starts open with the selected week filled in the subject colour.
@@ -95,10 +109,9 @@ Last updated: 29 October 2026
 
 - [ ] Tutor glass redesign (12 October 2026): sign in as a tutor at 1440px and
   390px and walk every sidebar item. Today: each To do row opens the right
-  place (the single "missing a note" row opens the oldest lesson without a
-  note), "Send reminder" on Students to bump, and week arrows. Classes: each
-  card's Week plan and Lessons. Class page tabs: Week plan autosave plus
-  file upload and "Add to library", Lessons tab buckets, Students tab,
+  place (the single "lessons need finishing" row opens the oldest lesson
+  without attendance), "Send reminder" on Students to bump, and week arrows. Classes: each
+  card's Week plan and Lessons. Class page tabs: Week plan homework, Lessons tab buckets, Students tab,
   Announcements submit, admin reject, then "Edit & resubmit". Lesson page:
   All present, Save attendance, notes with "Save & next student", recording
   link. Marking: Save & next through the queue and Homework settings panel.
@@ -120,12 +133,6 @@ Last updated: 29 October 2026
 - [ ] Admin Users internal notes (12 October 2026): a person with an internal
   note shows it as a third line under their name in the list (full text on
   hover); people without one are unchanged. Check at 1440px and 390px.
-- [ ] "For students this week" (12 October 2026): as tutor, write the week
-  plan for a class and attach a file and a link; confirm the class's students
-  and parents see it on that week of `/student/subjects/[id]` and
-  `/parent/subjects/[id]`, that another class of the same subject does not,
-  and that removing a migrated attachment shared by two classes keeps the
-  other class's copy working.
 
 - [ ] Admin glass redesign (12 October 2026): sign in as owner and as
   reception, at 1440px and 390px; walk every sidebar item, open and close the
@@ -681,8 +688,52 @@ Still open after the fixes:
   Verified on dev in Chrome and WebKit at 1440px and 390px: Sarah's 100% is green on the tutor roster, both records, the parent home and the parent attendance panel (before: plain on the parent pages); the Year 9 English roll of 30 June shows Noah's and Sarah's notes in the shared card, "Written by Daniel Lee"; no sideways scroll.
   Amber and red were not seen in a browser (no dev student is under 90% once moved lessons are left out); the rule is unit tested and uses the tones the roster and record already drew.
 - [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
+- [ ] Dev console only: every admin roll (`/admin/attendance/[lessonId]`) logs React's "Each child in a list should have a unique key prop" for `MarkingPane` (found 29 October 2026).
+  Reproduced with a bare `<span>` in either slot: any element the server page passes as a lone `headerAction` or `notesButton` prop warns, and the same element wrapped in a fragment does not; the pane renders both slots in fixed positions, not lists.
+  A React 19.2 dev-mode false positive, not a missing key; production builds never print it. Left as is rather than wrapping each slot in a fragment to quiet it.
+- [ ] Retired data still in the database (29 October 2026): the six old lesson-note columns (`topic_covered`, `key_concepts`, `performance`, `strengths`, `struggles`, `next_lesson_focus`) and the `class_week_plans` / `class_week_plan_attachments` tables, with their RLS helpers.
+  Nothing reads or writes them (comments in `src/db/schema.ts`); Production held 0 lesson notes, 0 week plans and 0 promoted resources on 29 October 2026, so a migration dropping them loses nothing there.
+  Dev keeps older seed and QA rows; the tutor demo seed's wipe still clears old week plan files and goes with the drop.
 
 ## Recently implemented
+
+- [x] Discussion threads and the tutor weekly check-in redesigned (29 October 2026, owner mockups "Thread · version A, questions on the right" and a check-in screenshot; owner: "share across all roles", "make the other questions collapsable").
+  Threads, the same in student, tutor and admin (`DiscussionThreadDetail`): one frame with the question (back, board, Answered or Unanswered pill, title, author line, body), Replies with staff answers tinted green and tagged, and a one-line reply box (paperclip, "Write your answer" / "Post answer" for tutors, "reply" for others).
+  Beside it, **Other questions**: the board's questions with the open one highlighted, All / Unanswered with the count, a collapse toggle, and "All N questions" past 8. Each role's own card sits under it (student next steps, tutor Asked by without its tagline, admin controls).
+  Older dates in thread times now use the fixed month list (`relativeShort`), since Safari's "Sep" against the server's "Sept" could break hydration in the client reply list.
+  Check-in (`/tutor/checkin`): the week range between arrows in the header, a banner for the next week still to confirm, then one card with the pay, hours, lessons and hourly rate, the status pill, the week on the shared grid (each day's hours under its name, "Corrected" lessons outlined), and a footer naming each admin change ("Admin changed Friday's end time to 6:30 pm") beside **Something's wrong** (opens the report to admin) and **Approve these hours**.
+  The running "Week 200" label and the "This week" button are gone from the tutor header, as in the mockup; admin's check-in page still shows the week number.
+  Verified on dev in Chrome and WebKit at 1440px and 390px: tutor, student and admin threads, the filter and collapse, posting and removing a reply, and the check-in with a correction (made on dev and undone), an approved week and the current week, with no errors or sideways scroll. Typecheck, lint, 778 unit tests.
+
+- [x] Tutor fixes from the demo rehearsal (29 October 2026, owner's list while preparing the tutor demo).
+  Lesson notes are an optional **Comment** for the family plus an optional **Internal note** (`LESSON_NOTE_FIELDS`, `src/lib/lesson-note-fields.ts`); topic covered, performance, strengths, struggled with and next lesson focus are gone from the editor, the recaps, the admin roll card and the student record. Saving both boxes empty deletes the note (`saveLessonNote`).
+  A notes row written only in the old fields counts as no note anywhere. Family recaps (`RecapBlocks`) drop the "Comment" label: it was the only field.
+  Owner decision: a lesson is finished once its attendance is saved, so `describeLesson` ignores notes; "Finish notes", the admin Attendance **Notes** tab, the dashboard's "lessons without notes" and the class Lessons tab's notes column are removed.
+  "For students this week" is retired for every role: the tutor editor and lesson card, the student and parent "From your tutor" panel, `getClassWeekPlans`, the `*WeekPlan*` actions, `promoteAttachment` and the `plan-file` markup target. Tutors add homework on top of the admin's from the Week plan, as before; the lesson page header gained a **Week N plan** link.
+  The Term menu on the course rail is one portal-styled list (`MenuSelect`, `src/components/ui/menu-select.tsx`) instead of the browser's native picker drawn under a custom one; tutor, student, parent and admin share it.
+  The week grid: the circled date is no longer squashed (88px minimum day column), and compact blocks (tutor Today, admin dashboard) are sized by side-by-side lessons, 140px at 1440px instead of 223px (`week-time-grid.tsx`).
+  Tutor Resources: no subject filter pills or header Add resource; each subject's add button is a labelled **+**. The form's "File" and "Link" labels went: "Source" already chooses between upload and link, so the field said the same thing twice.
+  Messages: each role's `messages/layout.tsx` now renders the list and the frame (`MessagesLayout`, using `useSelectedLayoutSegment`), so switching threads swaps only the conversation; opening an unread thread refreshes the list's badge.
+  Notifications (all four roles), Weekly check-in and Term reports fill the content width. The bank-details notification names the week ("for 19 - 25 Oct") instead of an ISO date.
+  Tutor Classes cards: the Enrolled bar and count, and the header's Schedule & availability button, are gone (it stays in the sidebar).
+  Answered for the owner: a claimed cover moves the lesson to the claiming tutor (`lessons.tutor_id`), so it shows on their timetable; the Cover board lists every other tutor's open covers in every subject, with no claim button on one that clashes with the tutor's own lessons.
+  Seeds (`scripts/tutor-demo/seed.mjs`, `scripts/seed-demo.mjs`) write only the two note fields and no week plans; the tutor demo was re-seeded on dev on 29 October 2026.
+  Verified on dev: typecheck, lint, 774 unit tests; in Chrome and WebKit the tutor, admin, student and parent pages above load with no retired field or panel showing, a note saves, reloads and is removed by a blank save, and the message switch, resources, widths and week grid were checked earlier the same day.
+
+- [x] Greetings and the menu's name chip show the account's first name in every role (29 October 2026, found while building the tutor demo: "Good afternoon, tutor").
+  All four layouts and home pages read `user_metadata.first_name`, but admin-created accounts carry the name in `app_metadata` only (`createUser` and `updateUser` in `src/app/admin/_lib/actions-users.ts`), so they fell back to the email prefix.
+  Production check on 29 October 2026: all 39 accounts have an `app_metadata` first name matching their profile and none has a `user_metadata` one, so every Production user saw their email prefix.
+  One helper, `accountFirstName` in `src/lib/account-name.ts` (tested): `app_metadata`, then `user_metadata`, then the email prefix, then the role's fallback.
+  Verified on dev in Chrome and WebKit: tutor "Good afternoon, Tom", student "Hey Ethan", parent "Hello, Grace", admin "Good afternoon, Admin", each with the same name in the menu chip.
+
+- [x] A reply notification opens the discussion in the thread author's own portal (29 October 2026).
+  `postReply` in `src/app/_actions/discussions.ts` built the link from the replier's role, so a tutor's reply sent the student to `/tutor/discussions/...`, which the middleware bounced to `/student`.
+  Reproduced on dev: Tom replied to Ethan's thread, and Ethan's notification landed on his dashboard. Now the link uses the author's role (`coarseRole(profiles.role)`), and Ethan's notification opens the thread.
+  Notifications already sent keep their old link.
+
+- [x] Tutor demo data and runthrough on dev (29 October 2026): `node scripts/tutor-demo/seed.mjs` rebuilds a full week for `tutor@taiyo.com` (Tom Tutor) around the day it runs; re-running is the reset. Runthrough: `docs/demo/tutor-demo.md`.
+  Dev only: the script refuses to run when `.env.local` points at the Production Supabase project. It touches only accounts tagged `app_metadata.demo = "tutor-demo"`, the three demo subjects and rows that belong to them.
+  The first run moved the old dev `tutor@taiyo.com`, with its QA classes and history, to `qa.tutor@taiyo.com` (password unchanged).
 
 - [x] Admin Users list rows no longer carry how a student is doing (29 October 2026, owner: "why does the users list have homework count showing?").
   The rows showed the dashboard's Students to watch flags ("HW due" for 2 or more overdue tasks, "N absent" for 2 or more absences in the last four lessons), so on dev nearly every demo student read "HW due".
@@ -1335,6 +1386,7 @@ Still open after the fixes:
   this week" on their week view; the old "What's coming up" banner and the
   lesson-page plan editor were removed. Publishing an attachment to the
   library now requires the class's own tutor.
+  Retired on 29 October 2026 (owner); see "Tutor fixes from the demo rehearsal" under Recently implemented.
 
 - [x] Admin glass redesign foundation (12 October 2026, from the
   `taiyo-admin-design` handoff). Admin only while it is reviewed; tutor,

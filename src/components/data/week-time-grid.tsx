@@ -21,14 +21,15 @@ import {
  * Week view on a time axis: hours down the side, one column per day, each
  * lesson placed and sized by its start and end time. The hours fit the
  * week's lessons (Show full day widens them), days without lessons are
- * narrow columns, two lessons at once sit side by side, and three or more
+ * narrow columns on the detailed grid (the compact one keeps every day the
+ * same width), two lessons at once sit side by side, and three or more
  * at once fold into one card listing them (`placeDay`); the hours grow
  * taller when a card needs the room (`hourPxFor`). Today's column is
  * tinted and carries a live "now" line in Melbourne time, matching how
  * lesson times are stored.
  *
- * Used by the admin classes page (detailed), the admin dashboard and tutor
- * Today.
+ * Used by the admin classes page and the tutor weekly check-in (detailed),
+ * the admin dashboard and tutor Today.
  */
 export type TimeGridEvent = {
   id: string;
@@ -48,19 +49,38 @@ export type TimeGridEvent = {
   meta?: string;
   /** Small chip in detailed mode, e.g. "3/8" enrolled. */
   badge?: string;
+  /** A short status beside the chip in detailed mode, e.g. "Corrected"; it outlines the block. */
+  flag?: string;
   href?: string;
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-/** Pixels per hour at least: tall on the classes page, compact on the home pages. */
-const HOUR_PX = { detailed: 104, compact: 42 };
+/**
+ * Pixels per hour at least: tall on the classes page, compact on the home
+ * pages. Compact still gives an hour-long lesson the 43px that puts its time
+ * over its name, so a day-wide block never cuts the name short on one line.
+ */
+const HOUR_PX = { detailed: 104, compact: 48 };
 const GUTTER_PX = 60;
-const NARROW_DAY_PX = 74;
+/**
+ * A day without lessons still has to fit its header on one line: the widest
+ * label ("Wed", 27.5px) + the 8px gap + the date circle (27px) is 62.5px,
+ * inside 20px of padding and a 1px border. At 74px the date wrapped onto the
+ * clipped second line and vanished.
+ */
+const NARROW_DAY_PX = 88;
 /**
  * Width each day with lessons adds before the grid scrolls sideways. Days
  * split it by `dayWidthShare`, so a lesson block never gets under half (75px).
  */
 const WIDE_DAY_MIN_PX = 150;
+/**
+ * Width each day of a compact grid keeps before it scrolls sideways: its
+ * header on one line, with room for "Mathematics" in a lone lesson's block.
+ * Small enough that a whole week fits the home page on a 1100px-wide laptop.
+ * Lessons side by side keep the detailed grid's 75px each.
+ */
+const COMPACT_DAY_MIN_PX = 100;
 
 /** An hour line's label: "3 pm"; the grid's last line may be hour 24. */
 function hourLabel(hour: number) {
@@ -146,6 +166,8 @@ function EventBlock({
   const e = placed.event;
   const tone = subjectTone(e.subject ?? e.label, e.subjectColor);
   const width = 100 / placed.lanes;
+  // The chip row needs 62px under the name and time, 96px with a meta line too.
+  const chipRow = (e.badge || e.flag) && height >= (e.meta ? 96 : 62);
   return (
     <div
       className="absolute px-1"
@@ -155,7 +177,10 @@ function EventBlock({
       <MaybeLink
         href={e.href}
         label={eventTooltip(e)}
-        className="flex h-full flex-col overflow-hidden rounded-[10px] px-2 py-1.5 transition-shadow duration-150 hover:shadow-[0_6px_16px_-10px_rgba(60,62,150,0.5)]"
+        className={cn(
+          "flex h-full flex-col overflow-hidden rounded-[10px] px-2 py-1.5 transition-shadow duration-150 hover:shadow-[0_6px_16px_-10px_rgba(60,62,150,0.5)]",
+          e.flag && "ring-[1.5px] ring-inset ring-info",
+        )}
         style={{ backgroundColor: tone.bg, color: tone.fg }}
       >
         {detailed ? (
@@ -171,10 +196,19 @@ function EventBlock({
             {e.meta && height >= 62 && (
               <div className="mt-0.5 line-clamp-2 text-[11px] leading-tight opacity-85">{e.meta}</div>
             )}
-            {e.badge && height >= 96 && (
-              <span className="mt-auto inline-flex self-start rounded-[6px] bg-white/75 px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums">
-                {e.badge}
-              </span>
+            {chipRow && (
+              <div className="mt-auto flex min-w-0 items-center gap-1">
+                {e.badge && (
+                  <span className="inline-flex shrink-0 rounded-[6px] bg-white/75 px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums">
+                    {e.badge}
+                  </span>
+                )}
+                {e.flag && (
+                  <span className="ml-auto min-w-0 truncate rounded-[6px] bg-white/90 px-1.5 py-0.5 text-[10px] font-extrabold text-info">
+                    {e.flag}
+                  </span>
+                )}
+              </div>
             )}
           </>
         ) : height < 43 ? (
@@ -191,8 +225,11 @@ function EventBlock({
             <div
               className={cn(
                 "mt-0.5 text-[12px] font-bold leading-[1.2]",
-                // A second line of the name needs 57px.
-                height < 57 ? "line-clamp-1" : "line-clamp-2",
+                // A second line of the name needs 57px. One line cuts off
+                // mid-word, so a narrow day still shows most of the name;
+                // two lines break a word too long for the block rather than
+                // clip it with no ellipsis.
+                height < 57 ? "truncate" : "line-clamp-2 break-words",
               )}
             >
               {e.label}
@@ -273,8 +310,17 @@ export function WeekTimeGrid({
   todayIso,
   detailed = false,
   noun = "class",
+  hourPx: baseHourPx,
+  dayCaptions,
+  fullDayToggle = true,
 }: {
   events: TimeGridEvent[];
+  /** Pixels per hour at least, instead of the mode's default. */
+  hourPx?: number;
+  /** A second header line per day (ISO date to text), in place of the count. */
+  dayCaptions?: Record<string, string>;
+  /** Offer "Show full day" when the lessons don't fill it. */
+  fullDayToggle?: boolean;
   /** What one event is called in the day and card counts, singular. */
   noun?: string;
   /** Show the time range, meta line, and badge where the block has room. */
@@ -305,22 +351,32 @@ export function WeekTimeGrid({
     return { iso, label, dayNum: Number(iso.slice(8)), isToday: iso === todayIso, count };
   });
   const placedByDay = days.map((d) => placeDay(byDay.get(d.iso) ?? []));
-  // Narrow the days without lessons, unless the whole week is empty.
-  const narrowEmpty = events.length > 0;
+  const shares = placedByDay.map((placed) => dayWidthShare(placed));
+  // The detailed grid narrows the days without lessons (unless the whole week
+  // is empty) to give its busy days the room. The compact one keeps every day
+  // in the week, so a lesson block is as wide as a day there and no wider:
+  // handing the empty days' width to the rest stretched a lone lesson right
+  // across the panel.
+  const narrowEmpty = detailed && events.length > 0;
   const columns = days
     .map((d, i) =>
-      narrowEmpty && d.count === 0
-        ? `${NARROW_DAY_PX}px`
-        : `minmax(0,${dayWidthShare(placedByDay[i])}fr)`,
+      narrowEmpty && d.count === 0 ? `${NARROW_DAY_PX}px` : `minmax(0,${shares[i]}fr)`,
     )
     .join(" ");
   const gridTemplateColumns = `${GUTTER_PX}px ${columns}`;
   const wideDays = days.filter((d) => !narrowEmpty || d.count > 0).length;
-  const minWidth = GUTTER_PX + wideDays * WIDE_DAY_MIN_PX + (7 - wideDays) * NARROW_DAY_PX;
+  const minWidth = detailed
+    ? GUTTER_PX + wideDays * WIDE_DAY_MIN_PX + (7 - wideDays) * NARROW_DAY_PX
+    : GUTTER_PX +
+      shares.reduce((sum, share) => sum + Math.max(COMPACT_DAY_MIN_PX, (share * WIDE_DAY_MIN_PX) / 2), 0);
 
   const { start: startHour, end: endHour } = gridHours(events, fullDay);
-  const hourPx = hourPxFor(placedByDay, endHour, detailed ? HOUR_PX.detailed : HOUR_PX.compact);
-  const canToggle = fullDayDiffers(events);
+  const hourPx = hourPxFor(
+    placedByDay,
+    endHour,
+    baseHourPx ?? (detailed ? HOUR_PX.detailed : HOUR_PX.compact),
+  );
+  const canToggle = fullDayToggle && fullDayDiffers(events);
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
   const bodyHeight = (endHour - startHour) * hourPx;
   const toPx = (minutes: number) => ((minutes - startHour * 60) / 60) * hourPx;
@@ -341,8 +397,10 @@ export function WeekTimeGrid({
                 className={cn("min-w-0 border-l border-line px-2.5 pb-2.5 pt-3", d.isToday && "bg-brand-50/70")}
               >
                 {/* One 26px line: a count too wide for the day wraps onto a
-                    second line and is clipped, rather than cut to "1 ...". */}
-                <div className="flex h-[26px] flex-wrap items-center gap-x-2 overflow-hidden">
+                    second line and is clipped, rather than cut to "1 ...".
+                    content-start keeps the first line at full height; without
+                    it the two lines split the 26px and squash the date. */}
+                <div className="flex h-[26px] flex-wrap content-start items-center gap-x-2 overflow-hidden">
                   <span
                     className={cn(
                       "text-[12px] font-extrabold tracking-[0.04em]",
@@ -360,12 +418,22 @@ export function WeekTimeGrid({
                   >
                     {d.dayNum}
                   </span>
-                  {d.count > 0 && (
+                  {d.count > 0 && !dayCaptions && (
                     <span className="ml-auto whitespace-nowrap text-[11px] font-semibold tabular-nums text-muted">
                       {countLabel(d.count, noun)}
                     </span>
                   )}
                 </div>
+                {dayCaptions?.[d.iso] && (
+                  <p
+                    className={cn(
+                      "truncate text-[11px] font-bold tabular-nums",
+                      d.count > 0 ? "text-ink" : "text-muted",
+                    )}
+                  >
+                    {dayCaptions[d.iso]}
+                  </p>
+                )}
               </div>
             ))}
           </div>

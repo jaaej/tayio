@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import {
   canSeeBoard,
   getThreadWithReplies,
+  listThreadsForBoard,
 } from "@/lib/discussions-queries";
 import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { AskedByCard } from "@/components/discussions/asked-by-card";
@@ -20,7 +21,10 @@ export default async function TutorThreadPage({
   if (!board) notFound();
   if (!(await canSeeBoard(user.id, "tutor", board))) notFound();
 
-  const thread = await getThreadWithReplies(threadId);
+  const [thread, others] = await Promise.all([
+    getThreadWithReplies(threadId),
+    listThreadsForBoard(board),
+  ]);
   if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   const asker = await getThreadAskerForTutor(user.id, thread);
@@ -30,12 +34,10 @@ export default async function TutorThreadPage({
       thread={thread}
       boardId={boardId}
       rolePrefix="tutor"
+      others={others}
       aside={
         asker && (
-          <AskedByCard
-            person={asker}
-            note="Your replies show a “Tutor answer” tag so students know they can rely on them."
-          />
+          <AskedByCard person={asker} />
         )
       }
     />

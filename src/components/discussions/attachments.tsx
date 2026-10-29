@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Paperclip } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { DiscussionAttachmentView } from "@/lib/discussions-queries";
 
 export const ATTACHMENT_ACCEPT =
@@ -83,28 +84,63 @@ export function AttachmentList({
  * list of chosen filenames. Server enforces the type/size/count limits; this
  * is the affordance + a soft client-side warning past the max.
  */
-export function AttachmentPicker({ accent = "var(--brand-600)" }: { accent?: string }) {
+export function AttachmentPicker({
+  accent = "var(--brand-600)",
+  iconOnly = false,
+}: {
+  accent?: string;
+  /** A paperclip button for a one-line composer; the files it holds show as a count. */
+  iconOnly?: boolean;
+}) {
   const [names, setNames] = useState<string[]>([]);
   const tooMany = names.length > MAX_ATTACHMENTS;
+  const input = (
+    <input
+      name="files"
+      type="file"
+      multiple
+      accept={ATTACHMENT_ACCEPT}
+      className="sr-only"
+      onChange={(e) => setNames(Array.from(e.target.files ?? []).map((f) => f.name))}
+    />
+  );
+
+  if (iconOnly) {
+    const label = names.length
+      ? `${names.length} ${names.length === 1 ? "file" : "files"} attached: ${names.join(", ")}${tooMany ? ` (max ${MAX_ATTACHMENTS})` : ""}`
+      : `Attach files: images or PDF, up to ${MAX_ATTACHMENTS}, 10 MB each`;
+    return (
+      <label
+        title={label}
+        className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-[10px] text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400"
+      >
+        <Paperclip className="h-[18px] w-[18px]" aria-hidden />
+        <span className="sr-only">{label}</span>
+        {input}
+        {names.length > 0 && (
+          <span
+            aria-hidden
+            className={cn(
+              "absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-extrabold text-white",
+              tooMany ? "bg-bad" : "bg-ink",
+            )}
+          >
+            {names.length}
+          </span>
+        )}
+      </label>
+    );
+  }
 
   return (
     <div className="space-y-1.5">
       <label
-        className="inline-flex items-center gap-1.5 cursor-pointer rounded-full border px-3 py-1.5 text-[12px] font-bold transition-colors hover:bg-surface-2"
+        className="inline-flex items-center gap-1.5 cursor-pointer rounded-full border px-3 py-1.5 text-[12px] font-bold transition-colors hover:bg-surface-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-400"
         style={{ borderColor: accent, color: accent }}
       >
         <Paperclip className="h-3.5 w-3.5" />
         Attach files
-        <input
-          name="files"
-          type="file"
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          className="hidden"
-          onChange={(e) =>
-            setNames(Array.from(e.target.files ?? []).map((f) => f.name))
-          }
-        />
+        {input}
       </label>
       {names.length > 0 && (
         <div className="text-[11px] text-muted">

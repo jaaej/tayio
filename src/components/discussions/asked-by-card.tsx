@@ -21,13 +21,7 @@ export type AskedByPerson = {
  * links to their profile and a direct message. The tutor's thread view uses
  * it where admin sees moderation controls.
  */
-export function AskedByCard({
-  person,
-  note,
-}: {
-  person: AskedByPerson;
-  note?: string;
-}) {
+export function AskedByCard({ person }: { person: AskedByPerson }) {
   const actions = [
     person.profileHref && { href: person.profileHref, label: "View student" },
     person.messageHref && { href: person.messageHref, label: "Message" },
@@ -70,7 +64,6 @@ export function AskedByCard({
           ))}
         </div>
       )}
-      {note && <p className="text-[12px] leading-[1.45] text-muted">{note}</p>}
     </GlassPanel>
   );
 }

@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import {
   canSeeBoard,
   getThreadWithReplies,
+  listThreadsForBoard,
 } from "@/lib/discussions-queries";
 import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
@@ -24,7 +25,10 @@ export default async function StudentThreadPage({
   if (!board) notFound();
   if (!(await canSeeBoard(user.id, "student", board))) notFound();
 
-  const thread = await getThreadWithReplies(threadId);
+  const [thread, others] = await Promise.all([
+    getThreadWithReplies(threadId),
+    listThreadsForBoard(board),
+  ]);
   if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   // Where to go next: the subject's week page and the student's tutor for it
@@ -57,6 +61,7 @@ export default async function StudentThreadPage({
       thread={thread}
       boardId={boardId}
       rolePrefix="student"
+      others={others}
       aside={links.length > 0 ? <StuckPanel links={links} /> : undefined}
     />
   );

@@ -1,42 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import {
   approveTutorCheckin,
   disputeTutorCheckin,
 } from "@/app/_actions/tutor-checkins";
 import { Button } from "@/components/admin/ui";
 import { ActionButtonLabel } from "@/components/ui/loading-button";
-import { cn } from "@/lib/utils";
 
+/**
+ * The check-in card's footer: what admin corrected, then "Something's wrong"
+ * (which opens the report to admin) and "Approve these hours".
+ */
 export function TutorCheckinActions({
   weekStart,
   status,
   hasEntries,
   hasMissingRate,
-  correctedCount,
   notFinished,
+  corrections,
   initialMessage,
 }: {
   weekStart: string;
   status: "pending" | "approved" | "disputed";
   hasEntries: boolean;
   hasMissingRate: boolean;
-  /** Lessons admin corrected, which the tutor should check before approving. */
-  correctedCount: number;
   /** Some lessons this week have not finished yet, so approval must wait. */
   notFinished: boolean;
+  /** What admin changed, one sentence each (`correctionLines`). */
+  corrections: string[];
   initialMessage: string | null;
 }) {
   const router = useRouter();
+  const reportId = useId();
   const [message, setMessage] = useState(initialMessage ?? "");
+  const [reporting, setReporting] = useState(status === "disputed");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [action, setAction] = useState<"approve" | "report" | null>(null);
+  const canApprove = hasEntries && status !== "approved";
 
   function approve() {
     setError(null);
@@ -68,97 +74,115 @@ export function TutorCheckinActions({
     });
   }
 
+  // Why approval is unavailable, or that it is done.
+  const state =
+    status === "approved" && hasEntries
+      ? "You approved these hours."
+      : !canApprove
+        ? null
+        : hasMissingRate
+          ? "Approval opens once admin sets your hourly rate."
+          : notFinished
+            ? "You can approve these hours once the week's last lesson has finished."
+            : null;
+
   return (
-    <div className="flex flex-col gap-3.5">
-      {/* With no lessons the page says there is nothing to approve; a
-          missing lesson can still be reported below. */}
-      {!hasEntries ? null : status === "approved" ? (
-        <div className="flex items-start gap-3 rounded-[12px] bg-good-bg p-3.5 text-good">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-          <div>
-            <p className="text-[14px] font-extrabold">You approved this week</p>
-            <p className="mt-0.5 text-[13px] leading-relaxed">
-              If something is still wrong, report it below. Admin can correct the
-              record and send it back for approval.
+    <div className="border-t border-line bg-[#FAFBFD]">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 sm:px-5">
+        <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1.5">
+          {corrections.map((line) => (
+            <p key={line} className="flex items-baseline gap-2 text-[13px] font-semibold text-info">
+              <span className="inline-flex shrink-0 rounded-[6px] bg-info-bg px-1.5 py-0.5 text-[11px] font-extrabold">
+                Corrected
+              </span>
+              <span className="min-w-0">{line}</span>
             </p>
-          </div>
+          ))}
+          {state && (
+            <p
+              className={
+                status === "approved"
+                  ? "flex items-center gap-1.5 text-[13px] font-bold text-good"
+                  : "text-[13px] text-ink-soft"
+              }
+            >
+              {status === "approved" && <CheckCircle2 className="h-4 w-4" aria-hidden />}
+              {state}
+            </p>
+          )}
         </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 flex-[1_1_300px] text-[14px] leading-normal text-ink">
-            {hasMissingRate
-              ? "Approval is unavailable until admin sets your hourly rate."
-              : notFinished
-                ? "You can approve these hours once the week's last lesson has finished."
-                : "Approving tells admin these hours are right so they can go into payroll."}
-            {correctedCount > 0 &&
-              ` Admin corrected ${correctedCount === 1 ? "1 lesson" : `${correctedCount} lessons`} - check ${correctedCount === 1 ? "it matches" : "they match"} what you worked.`}
-          </p>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
-            size="lg"
-            variant="primary"
-            disabled={pending || hasMissingRate || notFinished}
-            onClick={approve}
+            variant="outline"
+            aria-expanded={reporting}
+            aria-controls={reportId}
+            onClick={() => setReporting((v) => !v)}
+            className="h-11 rounded-[11px] px-4 text-[14px]"
           >
-            <ActionButtonLabel pending={pending && action === "approve"} pendingLabel="Saving…">
-              Approve these hours
-            </ActionButtonLabel>
+            {hasEntries ? "Something's wrong" : "A lesson I taught is missing"}
           </Button>
+          {canApprove && (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={pending || hasMissingRate || notFinished}
+              onClick={approve}
+              className="h-11 rounded-[11px] px-4 text-[14px]"
+            >
+              <ActionButtonLabel pending={pending && action === "approve"} pendingLabel="Saving…">
+                Approve these hours
+              </ActionButtonLabel>
+            </Button>
+          )}
         </div>
-      )}
+      </div>
 
-      <details
-        open={status === "disputed" || undefined}
-        className={cn("group", hasEntries && "border-t border-line pt-3")}
-      >
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-[8px] text-[13px] font-bold text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [&::-webkit-details-marker]:hidden">
-          <ChevronDown
-            className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
-            aria-hidden
-          />
-          {hasEntries ? "Something is wrong with these hours" : "A lesson I taught is missing"}
-        </summary>
-        <div className="flex flex-col gap-2 pt-1">
-          <label htmlFor="checkin-report" className="text-[13px] text-ink-soft">
+      {reporting && (
+        <div id={reportId} className="flex flex-col gap-2 border-t border-line px-4 py-3.5 sm:px-5">
+          <label htmlFor={`${reportId}-text`} className="text-[13px] text-ink-soft">
             Explain which class, date or time is wrong. Admin is notified and can
-            correct the record, or you can use{" "}
+            correct it, or you can use{" "}
             <Link href="/tutor/messages" className="font-bold text-ink underline underline-offset-2">
               Messages
             </Link>
             .
           </label>
           <textarea
-            id="checkin-report"
+            id={`${reportId}-text`}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder="What’s wrong? For example: Tuesday ran 30 minutes over"
+            autoFocus={status !== "disputed"}
+            placeholder="For example: Tuesday ran 30 minutes over"
             className="w-full resize-y rounded-[12px] border border-line-field bg-surface p-3 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
           />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending || message.trim().length < 5}
-            onClick={report}
-            className="h-10 self-end"
-          >
-            <ActionButtonLabel pending={pending && action === "report"} pendingLabel="Sending…">
-              Report to admin
-            </ActionButtonLabel>
-          </Button>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setReporting(false)} className="h-10">
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || message.trim().length < 5}
+              onClick={report}
+              className="h-10"
+            >
+              <ActionButtonLabel pending={pending && action === "report"} pendingLabel="Sending…">
+                Send to admin
+              </ActionButtonLabel>
+            </Button>
+          </div>
         </div>
-      </details>
-
-      {error && (
-        <p role="alert" className="text-[13px] font-semibold text-bad">
-          {error}
-        </p>
       )}
-      {saved && (
-        <p role="status" className="text-[13px] font-semibold text-good">
-          {saved}
+
+      {(error || saved) && (
+        <p
+          role={error ? "alert" : "status"}
+          className={`px-4 pb-3.5 text-right text-[13px] font-semibold sm:px-5 ${error ? "text-bad" : "text-good"}`}
+        >
+          {error ?? saved}
         </p>
       )}
     </div>

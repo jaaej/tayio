@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import {
   canSeeBoard,
   getThreadWithReplies,
+  listThreadsForBoard,
 } from "@/lib/discussions-queries";
 import { resolveBoardId, threadIsOnBoard } from "@/lib/discussions";
 import { DiscussionThreadDetail } from "@/components/discussions/thread-detail";
@@ -21,7 +22,10 @@ export default async function AdminThreadPage({
   if (!board) notFound();
   if (!(await canSeeBoard(user.id, "admin", board))) notFound();
 
-  const thread = await getThreadWithReplies(threadId);
+  const [thread, others] = await Promise.all([
+    getThreadWithReplies(threadId),
+    listThreadsForBoard(board),
+  ]);
   if (!thread || !threadIsOnBoard(thread.subjectId, board)) notFound();
 
   const liveReplies = thread.replies.filter((r) => !r.deletedAt);
@@ -31,6 +35,7 @@ export default async function AdminThreadPage({
       thread={thread}
       boardId={boardId}
       rolePrefix="admin"
+      others={others}
       aside={
         <GlassPanel
           as="aside"

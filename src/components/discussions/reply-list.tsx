@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { BadgeCheck, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import type { UserRole } from "@/db/schema";
 import type { ThreadDetail } from "@/lib/discussions-queries";
 import { postReply } from "@/app/_actions/discussions";
@@ -14,7 +14,6 @@ import {
   isStaffRole,
   relativeShort,
   replyRoleLabel,
-  roleLabel,
   roleTone,
   type DiscussionRole,
 } from "./role-tone";
@@ -45,18 +44,19 @@ export function RoleAvatar({
   );
 }
 
-/** Role chip beside an author's name; staff get a check so answers stand out. */
-function RolePill({ role, removed }: { role: UserRole; removed: boolean }) {
-  const staff = isStaffRole(role) && !removed;
+/**
+ * The tag beside a staff author's name ("Tutor answer", "Admin"); students
+ * go untagged.
+ */
+function RolePill({ role }: { role: UserRole }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-extrabold",
+        "inline-flex h-5 items-center rounded-full px-2 text-[11px] font-extrabold",
         roleTone(role),
       )}
     >
-      {staff && <BadgeCheck className="h-3 w-3" aria-hidden />}
-      {removed ? roleLabel(role) : replyRoleLabel(role)}
+      {replyRoleLabel(role)}
     </span>
   );
 }
@@ -82,24 +82,30 @@ export function ReplyList({
 
   if (topLevel.length === 0) {
     return (
-      <p className="panel px-4 py-5 text-[14px] text-muted">
+      <p className="border-b border-line px-4 py-5 text-[14px] text-muted">
         No replies yet - be the first to chime in.
       </p>
     );
   }
 
   return (
-    <ol className="flex flex-col gap-1.5">
-      {topLevel.map((r) => (
-        <li key={r.id} className="panel p-4">
-          <ReplyRow
-            reply={r}
-            childReplies={childrenByParent.get(r.id) ?? []}
-            threadId={threadId}
-            rolePrefix={rolePrefix}
-          />
-        </li>
-      ))}
+    <ol className="divide-y divide-line border-b border-line">
+      {topLevel.map((r) => {
+        const answer = isStaffRole(r.authorRole) && !r.deletedAt;
+        return (
+          <li
+            key={r.id}
+            className={cn("px-4 py-3.5", answer && "border-l-[3px] border-l-good bg-[#F2FAF6] pl-[13px]")}
+          >
+            <ReplyRow
+              reply={r}
+              childReplies={childrenByParent.get(r.id) ?? []}
+              threadId={threadId}
+              rolePrefix={rolePrefix}
+            />
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -112,8 +118,8 @@ function ReplyBody({ reply, size }: { reply: Reply; size: "md" | "sm" }) {
         <span className={cn("font-extrabold text-ink", size === "md" ? "text-[14px]" : "text-[13px]")}>
           {reply.authorName}
         </span>
-        <RolePill role={reply.authorRole} removed={removed} />
-        <span className="text-[12px] tabular-nums text-muted">
+        {!removed && isStaffRole(reply.authorRole) && <RolePill role={reply.authorRole} />}
+        <span className="ml-auto text-[12px] tabular-nums text-muted">
           {relativeShort(reply.createdAt)}
         </span>
       </span>
@@ -123,7 +129,7 @@ function ReplyBody({ reply, size }: { reply: Reply; size: "md" | "sm" }) {
         <p
           className={cn(
             "whitespace-pre-wrap break-words text-ink",
-            size === "md" ? "text-[14px] leading-[1.55]" : "text-[13px] leading-[1.5]",
+            size === "md" ? "text-[14px] leading-[1.6]" : "text-[13px] leading-[1.5]",
           )}
         >
           {reply.body}
@@ -153,9 +159,7 @@ function ReplyRow({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-3">
-        <RoleAvatar name={reply.authorName} role={reply.authorRole} size={32} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1">
           <ReplyBody reply={reply} size="md" />
           {!reply.deletedAt && (
             <button
@@ -167,14 +171,12 @@ function ReplyRow({
               {showComposer ? "Cancel" : "Reply"}
             </button>
           )}
-        </div>
       </div>
 
       {childReplies.length > 0 && (
-        <ol className="ml-[44px] flex flex-col gap-3 border-l-2 border-line pl-4">
+        <ol className="ml-1 flex flex-col gap-3 border-l-2 border-line pl-4">
           {childReplies.map((c) => (
-            <li key={c.id} className="flex gap-2.5">
-              <RoleAvatar name={c.authorName} role={c.authorRole} size={28} />
+            <li key={c.id} className="flex">
               <ReplyBody reply={c} size="sm" />
             </li>
           ))}
@@ -194,7 +196,7 @@ function ReplyRow({
               setShowComposer(false);
             });
           }}
-          className="ml-[44px] flex flex-col gap-2.5 rounded-[12px] bg-surface-2 p-3"
+          className="flex flex-col gap-2.5 rounded-[12px] bg-surface-2 p-3"
         >
           <textarea
             name="body"

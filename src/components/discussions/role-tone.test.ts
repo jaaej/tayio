@@ -38,5 +38,7 @@ describe("discussion role helpers", () => {
     expect(relativeShort(new Date("2026-10-10T09:00:00Z"), now)).toBe("Yesterday");
     expect(relativeShort(new Date("2026-10-07T10:00:00Z"), now)).toBe("4d ago");
     expect(relativeShort(new Date("2026-09-27T10:00:00Z"), now)).toBe("2w ago");
+    // Melbourne's date, past midnight there while still the 31st in UTC.
+    expect(relativeShort(new Date("2026-08-31T15:00:00Z"), now)).toBe("1 Sept");
   });
 });

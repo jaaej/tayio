@@ -79,7 +79,7 @@ Conventions referenced throughout:
 
 ### Discussions
 1. **What it is** - Per-subject and general "Admin/Tech" Q&A boards where students ask homework questions and read tutor/peer answers.
-2. **How it works** - `/student/discussions`, `/student/discussions/[boardId]`, `/student/discussions/[boardId]/[threadId]`. Tables: `discussionThreads`, `discussionReplies`, `discussionAttachments`. Shared actions in `src/app/_actions/discussions.ts` (`createThread`, `postReply`). Board visibility scoped via `enrollments → classes → subjects`. Guard: `requireRole` + board-membership check (`canSeeBoard`).
+2. **How it works** - `/student/discussions`, `/student/discussions/[boardId]`, `/student/discussions/[boardId]/[threadId]`. Tables: `discussionThreads`, `discussionReplies`, `discussionAttachments`. Shared actions in `src/app/_actions/discussions.ts` (`createThread`, `postReply`). Board visibility scoped via `enrollments → classes → subjects`. Guard: `requireRole` + board-membership check (`canSeeBoard`). A thread renders through the shared `DiscussionThreadDetail` (`src/components/discussions/thread-detail.tsx`) in every role: the question with an Answered / Unanswered pill, the replies (staff answers tinted green) with a one-line reply box, and the board's other questions beside it (`other-questions.tsx`: All / Unanswered filter, collapsible), then the role's own card (student next steps, tutor "Asked by", admin controls). Redesigned 29 October 2026.
 3. **Rationale:** A "board" is a row in the existing `subjects` table (no separate boards table); the shared "Admin/Tech" board is modeled as `subject_id IS NULL` (sentinel-null) - avoids a redundant table given subjects already encode year level (per `docs/superpowers/specs/2026-05-27-discussions-design.md`). Authors cannot delete their own posts; only admins soft-delete (sets `deletedAt`, renders `[removed by admin]`) - keeps an oversight/safeguarding trail (same spec).
 
 ### Direct messaging
@@ -151,7 +151,7 @@ Conventions referenced throughout:
 
 ### Tutor feedback feed
 1. **What it is** - The child's lesson recaps.
-2. **How it works** - `/parent/feedback` lists recaps and `/parent/feedback/[lessonId]` opens one, through the shared `LessonRecap` (`src/components/lessons/lesson-recap.tsx`) and `src/lib/lesson-recap.ts`, which selects only the family fields of `src/lib/lesson-note-fields.ts` (Topic covered, Performance, Strengths, Struggled with, Next lesson focus, Comment). A note counts as a recap when any of those is filled. Guard: `requireRole("parent")`.
+2. **How it works** - `/parent/feedback` lists recaps and `/parent/feedback/[lessonId]` opens one, through the shared `LessonRecap` (`src/components/lessons/lesson-recap.tsx`) and `src/lib/lesson-recap.ts`, which selects only the family field of `src/lib/lesson-note-fields.ts`, the tutor's Comment. A note counts as a recap when the comment is filled. Guard: `requireRole("parent")`.
 3. **Rationale:** The same recap the student sees, in the tutor editor's words; before, parents saw only notes with a comment (consistency audit item 11). `internal_note` is never selected.
 
 ### Progress page
@@ -212,7 +212,7 @@ Conventions referenced throughout:
 
 ### Weekly check-in and payroll
 1. **What it is** - A weekly record of scheduled work that tutors approve or dispute, with owner-only correction and pay reconciliation.
-2. **How it works** - `/tutor/checkin` opens on the oldest week still to confirm (`pendingCheckinWeeks`, tested), with a nav badge and a Today row pointing there; it creates one `tutorWeeklyCheckins` row per tutor/week and synchronizes lesson-backed `tutorCheckinEntries` until approval. `/admin/tutor-checkins` is owner-only and filters by week, tutor, and class.
+2. **How it works** - `/tutor/checkin` opens on the oldest week still to confirm (`pendingCheckinWeeks`, tested), with a nav badge and a Today row pointing there; it creates one `tutorWeeklyCheckins` row per tutor/week and synchronizes lesson-backed `tutorCheckinEntries` until approval. `/admin/tutor-checkins` is owner-only and filters by week, tutor, and class. Since 29 October 2026 the tutor page shows the week's pay and hours over the shared week grid (`WeekTimeGrid` with day captions and a "Corrected" flag), a banner for another week still to confirm, and a footer that says what admin changed (`correctionLines`, `src/app/tutor/checkin/_lib/corrections.ts`, tested against the lesson's own times) beside Something's wrong and Approve these hours.
 3. **Rationale:** Payroll uses an auditable snapshot rather than recalculating already approved pay from mutable schedules or rates. The page used to open on the current week, so missed weeks went unnoticed (consistency audit item 26).
 
 ### Homework marking
@@ -228,7 +228,7 @@ Conventions referenced throughout:
 
 ### Lesson notes (parent-visible + internal split)
 1. **What it is** - Per-student lesson notes with a strict split between a parent-visible comment and an internal-only note.
-2. **How it works** - `/tutor/notes`, `/tutor/lessons/[id]`. Table: `lessonNotes` (`parentVisibleComment` vs `internalNote`, plus `topicCovered`/`strengths`/`struggles`/`nextLessonFocus`). Students/parents read via the `lesson_notes_safe` view. Guard: `requireRole("tutor")`.
+2. **How it works** - `/tutor/notes`, `/tutor/lessons/[id]`. Table: `lessonNotes`: an optional `parentVisibleComment` and an optional `internalNote` (owner decision, 29 October 2026; the older topic, performance, strengths, struggles, next-focus and key-concepts columns are no longer read or written). Saving both empty deletes the note. A lesson is finished once attendance is saved; notes are optional (`describeLesson`, `src/lib/lesson-progress.ts`). Students/parents read via the `lesson_notes_safe` view. Guard: `requireRole("tutor")`.
 3. **Rationale:** The parent-visible/internal split is enforced at the database layer: the `lesson_notes_safe` view (migration 0003) omits `internal_note`, so students/parents structurally cannot read it (per security-checklist A3). Lesson-notes split is a PRD cross-cutting non-negotiable.
 
 ### Attendance marking
@@ -276,13 +276,12 @@ Conventions referenced throughout:
    The shared tutor shell renders the photo first, then the selected icon or initials as fallback.
 3. **Rationale:** Staff can use a recognisable photo while private storage, server-side role checks, strict image validation, and replacement cleanup prevent public or abandoned uploads.
 
-### Resource Library (author + promote)
-1. **What it is** - Add a resource (booklet, past paper, worksheet, video) to the subject-wide library by direct file upload or link, plus a "promote" toggle that publishes an existing weekly curriculum attachment straight into the library.
-2. **How it works** - `/tutor/resources`; promote toggle lives on the weekly curriculum section editor (`/tutor/classes/[id]/curriculum`). `addResource` uploads to the private `resource-library` bucket (`uploadResourceFile`, `src/lib/resources-storage.ts`, validated by `RESOURCE_POLICY` in `src/lib/upload-validation.ts`) or validates a link via `httpHref` (`src/lib/safe-url.ts`); `promoteAttachment` creates a `resources` row referencing the existing `tutorWeekAttachments` object (`sourceAttachmentId`) rather than re-uploading it. Both actions are in `src/app/_actions/resources.ts`, scoped to `taughtSubjectIds(tutorId)` via `assertCanAuthor`. Guard: `requireRole(["tutor","admin"])` + taught-subject check for tutors (admins pass unconditionally).
-3. **Rationale:** Promoted resources reference the source attachment instead of copying it, so `removeTutorWeekAttachment` (`src/app/tutor/_actions.ts`) blocks deleting a weekly attachment that's been promoted to the library - otherwise the published resource would silently 404 (per `docs/superpowers/specs/2026-07-23-resource-library-design.md` §Add / promote flow, "File-lifecycle rule"). Instant-publish (no pre-approval queue) was chosen over gating every tutor upload behind admin sign-off, trading a moderation step for tutor velocity - admin oversight happens after the fact via unpublish/remove (same spec §Decisions).
+### Resource Library (author)
+1. **What it is** - Add a resource (booklet, past paper, worksheet, video) to the subject-wide library by direct file upload or link, from the **+** beside each subject.
+2. **How it works** - `/tutor/resources`. `addResource` uploads to the private `resource-library` bucket (`uploadResourceFile`, `src/lib/resources-storage.ts`, validated by `RESOURCE_POLICY` in `src/lib/upload-validation.ts`) or validates a link via `httpHref` (`src/lib/safe-url.ts`), in `src/app/_actions/resources.ts`, scoped to `taughtSubjectIds(tutorId)` via `assertCanAuthor`. Guard: `requireRole(["tutor","admin"])` + taught-subject check for tutors (admins pass unconditionally). The promote toggle and `promoteAttachment` were removed with the week plan on 29 October 2026.
+3. **Rationale:** Instant-publish (no pre-approval queue) was chosen over gating every tutor upload behind admin sign-off, trading a moderation step for tutor velocity - admin oversight happens after the fact via unpublish/remove (`docs/superpowers/specs/2026-07-23-resource-library-design.md` §Decisions).
 
 ### Planned / not yet built (tutor)
-- **Forward-looking lesson plan** - only retroactive `lesson_notes.nextLessonFocus` exists (checklist ⬜).
 - **Class-recording auto-upload pipeline** - no upload pipeline or Storage bucket for automatically capturing class recordings; resource library video entries are added manually (checklist ⬜ "Upload videos").
 
 ---
@@ -472,7 +471,7 @@ Conventions referenced throughout:
      A rate is green from 90%, amber from 75% and red below on every page that shows one (tutor class roster, student record, parent home and attendance panel).
    - Invoices: `src/lib/invoice-rules.ts`. Overdue means money owed and the due date passed; nothing has to set the status.
    - Homework: `src/lib/homework-rules.ts`. Handed in means submitted (on time or late), marked or returned; overdue means not handed in after the due day.
-   - Lessons: `src/lib/lesson-progress.ts` (`describeLesson`) and `src/lib/lesson-progress-sql.ts` (`lessonRanSql`, `unmarkedOnRollSql`, `notesMissingSql`, `lessonCountFields`) for "ran", "to mark", "notes missing" and "needs finishing". `src/lib/lesson-roll.ts` decides who is on a lesson's roll for both rolls and both save actions, and shows a move's reason from its record.
+   - Lessons: `src/lib/lesson-progress.ts` (`describeLesson`) and `src/lib/lesson-progress-sql.ts` (`lessonRanSql`, `unmarkedOnRollSql`, `lessonCountFields`) for "ran", "to mark" and "needs finishing" (attendance only). `src/lib/lesson-roll.ts` decides who is on a lesson's roll for both rolls and both save actions, and shows a move's reason from its record.
    - Lesson notes: `src/lib/lesson-note-fields.ts` holds each field, its label and who sees it; the editor, the staff note card (`src/components/lessons/lesson-note-card.tsx`, on the student record and the admin roll) and the family recap read it.
    - Mastery: `src/lib/topic-mastery.ts` from quiz and homework marks.
    - Time: lesson starts are Melbourne wall times (`lessonStartInstant`), never `new Date(\`${date}T${time}\`)`, which reads the server's time zone (production runs in UTC); `formatDueDate` and `formatDateLong` of a moment format the Melbourne day; `?month=` uses `src/lib/month-param.ts`. Class times are picked with `TimeSelect` (`src/components/ui/time-select.tsx`), not typed time boxes, which lose their value in Safari.

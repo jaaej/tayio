@@ -1,5 +1,7 @@
 import type { UserRole } from "@/db/schema";
+import { formatDateShort } from "@/lib/format";
 import { coarseRole, type CoarseRole } from "@/lib/roles";
+import { melbourneDate } from "@/lib/tutor-cover-rules";
 
 // Avatar / role-pill colours per author role, as token classes so each
 // portal's own theme still applies. Tiered roles (admin_unrestricted,
@@ -49,11 +51,9 @@ export function relativeShort(d: Date, now: Date = new Date()): string {
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days}d ago`;
   if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  return d.toLocaleDateString("en-AU", {
-    timeZone: "Australia/Melbourne",
-    day: "numeric",
-    month: "short",
-  });
+  // Fixed month names: Safari's Intl writes "Sep" where the server writes
+  // "Sept", which broke hydration in the client reply list.
+  return formatDateShort(melbourneDate(d));
 }
 
 // Discussions exist for students, tutors and admins (parents have no board).
