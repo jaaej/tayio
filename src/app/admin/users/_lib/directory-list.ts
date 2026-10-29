@@ -24,7 +24,7 @@ export type NameSort = "asc" | "desc";
 
 export type RowFlag = {
   label: string;
-  tone: "bad" | "warn" | "info" | "good";
+  tone: "info" | "good";
 };
 
 export type DirectoryListItem = SearchableDirectoryEntry & {

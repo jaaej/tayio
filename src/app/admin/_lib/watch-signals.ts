@@ -9,8 +9,7 @@ import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { RECENT_MARKS, watchSignalsFrom, type WatchSignals } from "./watch-rules";
 
 /**
- * The warning signs behind the dashboard's "Students to watch" and the user
- * directory's row flags, so both always name the same students: 2+ absences
+ * The warning signs behind the dashboard's "Students to watch": 2+ absences
  * in the last four counted lessons (a moved lesson is not an absence), or 2+
  * homework tasks overdue (not handed in after the due date; a late hand-in
  * is handed in).

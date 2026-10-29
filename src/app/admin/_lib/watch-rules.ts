@@ -1,8 +1,8 @@
 import { attendanceSummary, type AttendanceMark } from "@/lib/attendance-rules";
 
 /*
- * Pure rules for "Students to watch" (admin dashboard) and the matching row
- * flags in the user directory. `watch-signals.ts` loads the rows.
+ * Pure rules for "Students to watch" (admin dashboard). `watch-signals.ts`
+ * loads the rows.
  */
 
 /** How many of a student's latest counted lessons the absence check reads. */

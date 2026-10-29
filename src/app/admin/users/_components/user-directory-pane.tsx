@@ -31,8 +31,6 @@ import { UserDirectoryControls } from "./user-directory-controls";
 import { ROLE_AVATAR } from "./role-style";
 
 const FLAG = {
-  bad: "bg-bad-bg text-bad",
-  warn: "bg-warn-bg text-warn",
   info: "bg-info-bg text-info",
   good: "bg-good-bg text-good",
 } as const satisfies Record<RowFlag["tone"], string>;

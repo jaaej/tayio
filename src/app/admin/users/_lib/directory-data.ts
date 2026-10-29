@@ -13,20 +13,13 @@ import {
 } from "@/lib/account-schedule-status";
 import { getSubjectSearchAliases } from "@/lib/subject-search-aliases";
 import type { SubjectAlias } from "@/lib/directory-search";
-import { getWatchSignals } from "@/app/admin/_lib/watch-signals";
-import type { WatchSignals } from "@/app/admin/_lib/watch-rules";
 import type { DirectoryListItem, RowFlag } from "./directory-list";
 
-function rowFlag(
-  u: DirectoryUser,
-  today: string,
-  signals: WatchSignals,
-): RowFlag | null {
-  // The same signals as the dashboard's "Students to watch".
-  const absent = signals.absences.get(u.id);
-  if (absent) return { label: `${absent.absent} absent`, tone: "bad" };
-  const overdue = signals.overdueHomework.get(u.id);
-  if (overdue) return { label: `${overdue} HW overdue`, tone: "warn" };
+/**
+ * The account's state today. How a student is doing (absences, overdue
+ * homework) is the dashboard's Students to watch and their History tab.
+ */
+function rowFlag(u: DirectoryUser, today: string): RowFlag | null {
   if (u.schedulePeriod) {
     const label = accountScheduleStatusLabel(u.schedulePeriod, today);
     // Only states that are true today; future breaks live on the profile.
@@ -64,10 +57,9 @@ export type DirectoryPaneData = {
 
 /** Everything the list pane needs, shaped once on the server. */
 export async function getDirectoryPaneData(): Promise<DirectoryPaneData> {
-  const [directory, aliasRows, signals] = await Promise.all([
+  const [directory, aliasRows] = await Promise.all([
     getUserDirectory(),
     getSubjectSearchAliases(),
-    getWatchSignals(),
   ]);
   const today = melbourneDate(new Date());
 
@@ -83,7 +75,7 @@ export async function getDirectoryPaneData(): Promise<DirectoryPaneData> {
     sub: subLine(u),
     note: u.adminNote?.trim() || null,
     flag: coarseRole(u.role) === "student" || coarseRole(u.role) === "tutor"
-      ? rowFlag(u, today, signals)
+      ? rowFlag(u, today)
       : null,
     classInfo: u.classInfo.map((c) => ({
       name: c.name,

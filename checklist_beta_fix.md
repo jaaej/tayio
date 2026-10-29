@@ -684,10 +684,11 @@ Still open after the fixes:
 
 ## Recently implemented
 
-- [x] Admin Users list: the homework flag read "HW due", which looks like "has homework due"; it means 2 or more tasks not handed in after their due date (the dashboard's Students to watch rule, `getWatchSignals`).
-  It now reads like the absence flag, with the count: "19 HW overdue" (`rowFlag`, `src/app/admin/users/_lib/directory-data.ts`) (29 October 2026, owner: "why does it say homework due in admin/users?").
-  On dev nearly every demo student carries it because their seeded homework (due 22 May to 12 September) was never handed in: 8 to 29 tasks each. On Production no student has an overdue task, so no flag shows.
-  Verified on dev in Chrome and WebKit at 1440px and 390px: ten students flagged "8 HW overdue" to "29 HW overdue", matching a direct count; no sideways scroll.
+- [x] Admin Users list rows no longer carry how a student is doing (29 October 2026, owner: "why does the users list have homework count showing?").
+  The rows showed the dashboard's Students to watch flags ("HW due" for 2 or more overdue tasks, "N absent" for 2 or more absences in the last four lessons), so on dev nearly every demo student read "HW due".
+  The list finds and manages accounts, so a row's flag is now only the account's state today: On break, On leave, Trial (`rowFlag`, `src/app/admin/users/_lib/directory-data.ts`); absences and overdue homework stay on the dashboard's Students to watch, which links into the student's History tab.
+  The list no longer loads `getWatchSignals`, one query fewer per Users page.
+  Verified on dev in Chrome and WebKit at 1440px and 390px: no homework or absence flags on the list (no dev student is on a trial, break or leave today, so no flag shows at all); the dashboard's Students to watch unchanged; no sideways scroll.
 
 - [x] One student record for admins and tutors (29 October 2026, owner: "all the information that tutors can see, admins should be able to aswell", and "what i dont want is to make the navigation of the portal difficult ... having 2 user profile information pages, is just not intuitive").
   - Rule: each portal keeps one page per student; nothing new in the menu, no new tabs, no switch inside a tab, no new page.
