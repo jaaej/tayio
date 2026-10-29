@@ -1,32 +1,18 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import {
-  Empty,
-  Pill,
-  TabLinks,
-  buttonVariants,
-  type PillTone,
-} from "@/components/admin/ui";
+import { Pill, TabLinks, buttonVariants } from "@/components/admin/ui";
+import { HomeworkList } from "@/components/student-history/homework-list";
+import { KeyNumbers } from "@/components/student-history/key-numbers";
+import { LessonTimeline, type TimelineAction } from "@/components/student-history/lesson-timeline";
 import { ProfileSection } from "@/components/ui/profile-section";
-import { attendanceLabel, isMovedAbsence } from "@/lib/attendance-rules";
-import { formatDateLong, formatDateShort, formatWeekday, formatScore } from "@/lib/format";
-import { NOTE_VISIBILITY, sharedNoteFields } from "@/lib/lesson-note-fields";
-import { averageScore, scoreAverageBasis } from "@/lib/score-average";
-import { melbourneDate } from "@/lib/tutor-cover-rules";
+import { formatDateLong, formatDateShort } from "@/lib/format";
+import { RECENT_LESSONS, type HistoryTone, type LessonTimelineEntry } from "@/lib/student-history";
+import type { RecordNote } from "@/lib/student-record";
 import { cn } from "@/lib/utils";
 import { getStudentProfile, requireTutor } from "../../_data";
 import { getStudentHeaderContext } from "../_lib/student-data";
-import {
-  HOMEWORK_STATE,
-  RECENT_LESSONS,
-  attendanceSummary,
-  homeworkState,
-  lessonTimeline,
-  profileBack,
-  withListQuery,
-  type LessonTimelineEntry,
-} from "../_lib/student-list";
+import { profileBack, withListQuery } from "../_lib/student-list";
 import { StudentAvatar } from "../_components/student-avatar";
 
 export const dynamic = "force-dynamic";
@@ -47,34 +33,24 @@ function parseTab(value: string | undefined): Tab {
   return TABS.some((t) => t.key === value) ? (value as Tab) : "overview";
 }
 
-const MOVED_TONE = "bg-surface-3 text-ink-soft";
-
-const ATTENDANCE_TONE: Record<string, string> = {
-  present: "bg-good-bg text-good",
-  late: "bg-warn-bg text-warn",
-  left_early: "bg-warn-bg text-warn",
-  absent: "bg-bad-bg text-bad",
-  makeup_attended: "bg-info-bg text-info",
+/** Last lessons tiles, coloured by the timeline's tone. */
+const TILE_TONE: Record<HistoryTone, string> = {
+  good: "bg-good-bg text-good",
+  warn: "bg-warn-bg text-warn",
+  bad: "bg-bad-bg text-bad",
+  info: "bg-info-bg text-info",
+  default: "bg-surface-3 text-ink-soft",
 };
-
-const ATTENDANCE_PILL: Record<string, PillTone> = {
-  present: "good",
-  late: "warn",
-  left_early: "warn",
-  absent: "bad",
-  makeup_attended: "info",
-};
-
-type Profile = Awaited<ReturnType<typeof getStudentProfile>>;
 
 /**
  * A student's profile, opened from a class's Students roster, Marking,
  * lessons, Today, discussions or messages (`profileBack` reads where from):
- * the header, then their attendance, homework and lesson notes as tabs. The
- * Overview opens with their key numbers as one row inside the panel, not as
- * separate tiles (owner, 29 October 2026). Everything is limited to the classes,
- * homework and notes of this tutor (getStudentProfile runs
- * assertTutorTeachesStudent first and 404s for anyone else's student).
+ * the header, then their record in three tabs, the Overview opening with
+ * the key numbers inside the panel (owner, 29 October 2026). The record and
+ * its parts are the same as on the admin's History tab (`getStudentRecord`,
+ * `src/components/student-history`), limited to this tutor's classes;
+ * getStudentProfile runs assertTutorTeachesStudent first and 404s for
+ * anyone else's student.
  */
 export default async function TutorStudentProfilePage({
   params,
@@ -94,60 +70,10 @@ export default async function TutorStudentProfilePage({
   const tab = parseTab(sp.tab);
 
   const tutor = await requireTutor();
-  const profile = await getStudentProfile(tutor.id, id);
+  const { student, record } = await getStudentProfile(tutor.id, id);
   const context = await getStudentHeaderContext(tutor.id, id);
-  const { student, attendance, notes, homework, quizAttempts } = profile;
-  const { today } = context;
 
   const name = `${student.firstName} ${student.lastName}`.trim();
-  const timeline = lessonTimeline(
-    attendance,
-    notes.map((n) => ({ ...n, note: { ...n, mine: n.authorId === tutor.id } })),
-    tutor.id,
-  );
-  const recent = attendance.slice(0, RECENT_LESSONS);
-  const att = attendanceSummary(recent);
-
-  const homeworkRows = homework.map((h) => {
-    const dueDate = melbourneDate(h.dueDate);
-    return { ...h, dueDate, state: homeworkState(h.status, dueDate, today) };
-  });
-  const dueSoFar = homeworkRows.filter((h) => h.dueDate <= today);
-  const handedIn = dueSoFar.filter((h) => h.state === "marked" || h.state === "to_mark");
-  const overdue = homeworkRows.filter((h) => h.state === "overdue").length;
-  const toMark = homeworkRows.filter((h) => h.state === "to_mark").length;
-  const avg = averageScore(
-    homework.filter((h) => h.status === "marked" || h.status === "returned").map((h) => h.score),
-    quizAttempts,
-  );
-
-  const stats: Stat[] = [
-    {
-      label: "Attendance",
-      value: att.percent === null ? "-" : `${att.percent}%`,
-      sub: att.total === 0 ? "no lessons marked yet" : `${att.attended} of ${att.total} lessons`,
-      tone: att.percent === null ? undefined : att.percent < 75 ? "bad" : att.percent < 90 ? "warn" : "good",
-    },
-    {
-      label: "Homework",
-      value: dueSoFar.length === 0 ? "-" : `${handedIn.length} of ${dueSoFar.length}`,
-      sub:
-        [overdue > 0 ? `${overdue} overdue` : null, toMark > 0 ? `${toMark} to mark` : null]
-          .filter(Boolean)
-          .join(" · ") || (dueSoFar.length === 0 ? "nothing due yet" : "all handed in"),
-      tone: overdue > 0 ? "bad" : undefined,
-    },
-    {
-      label: "Average score",
-      value: avg.percent === null ? "-" : `${avg.percent}%`,
-      sub: avg.percent === null ? "nothing marked yet" : scoreAverageBasis(avg),
-    },
-    {
-      label: "Lesson notes",
-      value: String(notes.length),
-      sub: notes[0] ? `latest ${formatDateShort(notes[0].lessonDate)}` : "none yet",
-    },
-  ];
 
   const parentLabel =
     context.parents.length === 0
@@ -162,26 +88,34 @@ export default async function TutorStudentProfilePage({
 
   const basePath = `/tutor/students/${id}`;
   const back = profileBack(id, sp);
+  const homeworkHref = (row: { homeworkId: string }) =>
+    `/tutor/homework/${row.homeworkId}?student=${student.id}`;
 
   const panels: Record<Tab, ReactNode> = {
-    // Flat sections with hairline dividers, as on the admin student profile.
+    // Flat sections with hairline dividers, as on the admin's History tab.
     overview: (
       <div className="divide-y divide-line">
-        <OverviewStats stats={stats} />
+        <KeyNumbers items={record.keyNumbers} />
         <ProfileSection title="Last lessons">
-          <RecentLessons rows={recent} />
+          <RecentLessons entries={record.timeline.slice(0, RECENT_LESSONS)} />
         </ProfileSection>
         <ProfileSection title="Homework" flush>
           <HomeworkList
-            rows={homeworkRows.slice(0, 3)}
-            studentId={student.id}
+            rows={record.homework.slice(0, 3)}
+            rowHref={homeworkHref}
             className="border-t border-line"
           />
         </ProfileSection>
       </div>
     ),
-    lessons: <LessonsTimeline entries={timeline} studentId={student.id} />,
-    homework: <HomeworkList rows={homeworkRows} studentId={student.id} />,
+    lessons: (
+      <LessonTimeline
+        entries={record.timeline}
+        viewer={{ kind: "tutor", id: tutor.id }}
+        action={(entry) => lessonAction(entry, tutor.id, student.id)}
+      />
+    ),
+    homework: <HomeworkList rows={record.homework} rowHref={homeworkHref} />,
   };
 
   return (
@@ -270,224 +204,47 @@ export default async function TutorStudentProfilePage({
   );
 }
 
-type Stat = { label: string; value: string; sub: string; tone?: "good" | "warn" | "bad" };
-
-const STAT_TONE = { good: "text-good", warn: "text-warn", bad: "text-bad" } as const;
-
-/** The student's key numbers as one flat row at the top of the Overview. */
-function OverviewStats({ stats }: { stats: Stat[] }) {
-  return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-5 sm:grid-cols-4 sm:px-5">
-      {stats.map((stat) => (
-        <div key={stat.label} className="flex min-w-0 flex-col gap-0.5">
-          <dt className="text-[12px] font-bold text-muted">{stat.label}</dt>
-          <dd
-            className={cn(
-              "text-[22px] font-extrabold leading-tight tabular-nums",
-              stat.tone ? STAT_TONE[stat.tone] : "text-ink",
-            )}
-          >
-            {stat.value}
-          </dd>
-          <dd className="text-[12px] text-muted">{stat.sub}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+/**
+ * The tutor's button on a lesson they teach: mark the roll, or add or edit
+ * their note. A lesson they did not teach, or that Taiyo cancelled, has none.
+ */
+function lessonAction(
+  entry: LessonTimelineEntry<RecordNote>,
+  tutorId: string,
+  studentId: string,
+): TimelineAction | null {
+  if (entry.tutorId !== tutorId || entry.cancelled) return null;
+  const label =
+    entry.status === null
+      ? "Mark attendance"
+      : entry.notes.some((note) => note.authorId === tutorId)
+        ? "Edit note"
+        : entry.status === "absent"
+          ? null
+          : "Add note";
+  return label ? { href: `/tutor/lessons/${entry.lessonId}?from=student&student=${studentId}`, label } : null;
 }
 
-/** The last few marked lessons as tiles, oldest on the left. */
-function RecentLessons({ rows }: { rows: Profile["attendance"] }) {
-  if (rows.length === 0) {
-    return <p className="text-[13px] text-muted">No attendance recorded yet.</p>;
+/** The last few lessons as tiles, oldest on the left. */
+function RecentLessons({ entries }: { entries: LessonTimelineEntry<RecordNote>[] }) {
+  if (entries.length === 0) {
+    return <p className="text-[13px] text-muted">No lessons yet.</p>;
   }
   return (
     <ol className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
-      {[...rows].reverse().map((a) => {
-        const label = attendanceLabel(a);
-        return (
-          <li
-            key={a.lessonId}
-            title={`${formatDateShort(a.lessonDate)} · ${a.className} · ${label}`}
-            className={cn(
-              "flex flex-col items-center gap-0.5 rounded-[10px] px-1 py-2 text-center",
-              isMovedAbsence(a) ? MOVED_TONE : (ATTENDANCE_TONE[a.status] ?? "bg-surface-3 text-ink"),
-            )}
-          >
-            <span className="text-[11px] font-extrabold tabular-nums">
-              {formatDateShort(a.lessonDate)}
-            </span>
-            <span className="text-[10px] font-extrabold uppercase leading-tight">{label}</span>
-          </li>
-        );
-      })}
+      {[...entries].reverse().map((entry) => (
+        <li
+          key={entry.lessonId}
+          title={`${formatDateShort(entry.date)} · ${entry.className} · ${entry.label}`}
+          className={cn(
+            "flex flex-col items-center gap-0.5 rounded-[10px] px-1 py-2 text-center",
+            TILE_TONE[entry.tone],
+          )}
+        >
+          <span className="text-[11px] font-extrabold tabular-nums">{formatDateShort(entry.date)}</span>
+          <span className="text-[10px] font-extrabold uppercase leading-tight">{entry.label}</span>
+        </li>
+      ))}
     </ol>
-  );
-}
-
-type HomeworkRow = Omit<Profile["homework"][number], "dueDate"> & {
-  dueDate: string;
-  state: keyof typeof HOMEWORK_STATE;
-};
-
-/** Edge-to-edge rows split by hairlines, like the shared history lists. */
-function HomeworkList({
-  rows,
-  studentId,
-  className,
-}: {
-  rows: HomeworkRow[];
-  studentId: string;
-  className?: string;
-}) {
-  if (rows.length === 0) return <Empty>No homework assigned yet.</Empty>;
-  return (
-    <ul className={cn("divide-y divide-line", className)}>
-      {rows.map((h) => {
-        const state = HOMEWORK_STATE[h.state];
-        return (
-          <li key={h.homeworkId}>
-            <Link
-              href={`/tutor/homework/${h.homeworkId}?student=${studentId}`}
-              className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 sm:px-5"
-            >
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14px] font-bold">{h.title}</span>
-                <span className="text-[12px] text-muted">
-                  Due {formatWeekday(h.dueDate, "short")} {formatDateShort(h.dueDate)}
-                </span>
-              </span>
-              {h.score !== null && (
-                <span className="shrink-0 text-[13px] font-extrabold tabular-nums">
-                  {formatScore(h.score)}
-                  <span className="sr-only"> score</span>
-                </span>
-              )}
-              <Pill tone={state.tone as PillTone} className="shrink-0">
-                {state.label}
-              </Pill>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function LessonsTimeline({
-  entries,
-  studentId,
-}: {
-  entries: LessonTimelineEntry<Note>[];
-  studentId: string;
-}) {
-  if (entries.length === 0) return <Empty>No lessons recorded yet.</Empty>;
-  return (
-    <div className="divide-y divide-line">
-      {entries.map((entry) => (
-        <TimelineEntry key={entry.lessonId} entry={entry} studentId={studentId} />
-      ))}
-    </div>
-  );
-}
-
-type Note = Profile["notes"][number] & { mine: boolean };
-
-/**
- * One lesson: when, which class, how the student was marked (with the roll
- * note), every note written on it under the editor's two visibility labels
- * and its author, and a link to the lesson when this tutor teaches it.
- */
-function TimelineEntry({
-  entry,
-  studentId,
-}: {
-  entry: LessonTimelineEntry<Note>;
-  studentId: string;
-}) {
-  const mark = entry.mark;
-  const absent = mark?.status === "absent";
-  const action = entry.canEdit
-    ? entry.hasOwnNote
-      ? "Edit note"
-      : absent
-        ? null
-        : "Add note"
-    : null;
-  return (
-    <article className="flex flex-col gap-2.5 px-4 py-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="w-[84px] shrink-0 text-[12px] font-semibold tabular-nums text-muted">
-          {formatWeekday(entry.date, "short")} {formatDateShort(entry.date)}
-        </span>
-        <span className="min-w-0 flex-1 basis-[160px] text-[13px] font-bold text-ink">
-          {entry.className}
-        </span>
-        {mark && (
-          <Pill tone={isMovedAbsence(mark) ? "default" : (ATTENDANCE_PILL[mark.status] ?? "default")}>
-            {attendanceLabel(mark)}
-          </Pill>
-        )}
-        {action && (
-          <Link
-            href={`/tutor/lessons/${entry.lessonId}?from=student&student=${studentId}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9 rounded-[10px]")}
-          >
-            {action}
-          </Link>
-        )}
-      </div>
-      {mark?.note?.trim() && (
-        <p className="text-[13px] leading-normal text-ink-soft sm:pl-[96px]">
-          <span className="font-bold text-ink">Attendance note:</span> {mark.note}
-        </p>
-      )}
-      {entry.notes.map((note) => (
-        <NoteCard key={note.id} note={note} />
-      ))}
-      {entry.notes.length === 0 && mark && !absent && (
-        <p className="text-[13px] text-muted sm:pl-[96px]">No note written.</p>
-      )}
-    </article>
-  );
-}
-
-/** A note's fields under the same two labels the editor uses, then its author. */
-function NoteCard({ note }: { note: Note }) {
-  const shared = sharedNoteFields(note);
-  const internal = note.internalNote?.trim() ?? "";
-  const author = note.mine ? "you" : `${note.authorFirstName} ${note.authorLastName}`.trim();
-  return (
-    <div className="flex flex-col gap-2 sm:pl-[96px]">
-      <div className="flex flex-wrap gap-2">
-        {shared.length > 0 && (
-          <div className="min-w-0 flex-[999_1_300px] rounded-[12px] bg-good-bg/60 p-3 text-[13px] leading-normal text-ink">
-            <strong className="mb-1.5 block text-[12px] font-extrabold text-good">
-              {NOTE_VISIBILITY.shared}
-            </strong>
-            <dl className="flex flex-col gap-1.5">
-              {shared.map((field) => (
-                <div key={field.key}>
-                  <dt className="text-[12px] font-bold text-ink-soft">{field.label}</dt>
-                  <dd className="whitespace-pre-wrap [overflow-wrap:anywhere]">{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
-        {internal && (
-          <div className="min-w-0 flex-[1_1_200px] rounded-[12px] bg-warn-bg/60 p-3 text-[13px] leading-normal text-ink">
-            <strong className="mb-1.5 block text-[12px] font-extrabold text-warn">
-              {NOTE_VISIBILITY.internal}
-            </strong>
-            <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{internal}</p>
-          </div>
-        )}
-        {shared.length === 0 && !internal && (
-          <p className="text-[13px] text-muted">The note is empty.</p>
-        )}
-      </div>
-      <p className="text-[12px] text-muted">Written by {author}</p>
-    </div>
   );
 }

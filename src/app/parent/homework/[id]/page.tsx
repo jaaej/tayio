@@ -4,10 +4,10 @@ import {
   HomeworkFeedback,
   HomeworkInstructions,
   HomeworkSubmission,
+  submissionNote,
 } from "@/components/homework/homework-detail";
 import { requireRole } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
-import { isAwaitingMarking, isMarked } from "@/lib/homework-rules";
 import { resolveSelectedChild } from "../../_data";
 import { loadParentHomeworkDetail } from "../_lib/homework-detail";
 
@@ -69,15 +69,7 @@ export default async function ParentHomeworkDetailPage({
           viewer={viewer}
           studentId={child.id}
           submissionHref={submissionHref}
-          note={
-            isMarked(hw.status)
-              ? null
-              : isAwaitingMarking(hw.status)
-                ? "Waiting for the tutor to mark this."
-                : hw.status === "resubmission_requested"
-                  ? `The tutor asked ${child.firstName} to resubmit this.`
-                  : `${child.firstName} hasn't handed this in yet.`
-          }
+          note={submissionNote(hw.status, child.firstName)}
         />
       </HomeworkDetailFrame>
     </div>

@@ -32,6 +32,8 @@ export type LessonNoteSharedKey = (typeof LESSON_NOTE_SHARED_FIELDS)[number]["ke
 export const NOTE_VISIBILITY = {
   shared: "Parent and student will see this",
   internal: "Only you and admin see this",
+  /** The internal label as an admin reads it, where "you" would be wrong. */
+  internalForAdmin: "Only the tutor and admins see this",
 } as const;
 
 type NoteValues = Partial<Record<LessonNoteKey, string | null>>;

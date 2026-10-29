@@ -5,7 +5,7 @@ import { buttonVariants } from "@/components/admin/ui";
 import { MarkupFileButton } from "@/components/markup/markup-file-button";
 import { FileViewerButton } from "@/components/ui/file-viewer";
 import { formatClockTime, formatScore } from "@/lib/format";
-import { isMarked } from "@/lib/homework-rules";
+import { isAwaitingMarking, isMarked } from "@/lib/homework-rules";
 import { markupFileKind } from "@/lib/markup/doc";
 import { subjectTone } from "@/lib/subject-tone";
 import { cn } from "@/lib/utils";
@@ -20,11 +20,31 @@ import {
  * parent sees their child's on /parent/homework/[id]: the header with the
  * due date and status, the instructions and files, the tutor's mark and
  * feedback, and the submission. The student page adds the submit form; the
- * parent page is read only. `viewer` picks the wording ("Your submission"
- * or "Sarah's submission").
+ * parent page is read only. An admin reads the feedback and submission on a
+ * student's History tab. `viewer` picks the wording ("Your submission" or
+ * "Sarah's submission").
  */
 
-export type HomeworkViewer = { kind: "student" } | { kind: "parent"; childFirstName: string };
+export type HomeworkViewer =
+  | { kind: "student" }
+  | { kind: "parent"; childFirstName: string }
+  | { kind: "admin"; studentFirstName: string };
+
+/** Whose work a parent or an admin is reading: "Sarah". */
+function ownerName(viewer: Exclude<HomeworkViewer, { kind: "student" }>): string {
+  return viewer.kind === "parent" ? viewer.childFirstName : viewer.studentFirstName;
+}
+
+/**
+ * The line under someone else's submission while there is no mark yet:
+ * waiting for marking, sent back, or not handed in. Null once marked.
+ */
+export function submissionNote(status: string, firstName: string): string | null {
+  if (isMarked(status)) return null;
+  if (isAwaitingMarking(status)) return "Waiting for the tutor to mark this.";
+  if (status === "resubmission_requested") return `The tutor asked ${firstName} to resubmit this.`;
+  return `${firstName} hasn't handed this in yet.`;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not started",
@@ -88,6 +108,12 @@ export type HomeworkDetailData = {
   subjectName: string | null;
   subjectColor: string | null;
 };
+
+/** What the feedback and submission sections read: the hand-in and the mark. */
+export type HomeworkWork = Pick<
+  HomeworkDetailData,
+  "homeworkId" | "title" | "submittedAt" | "submissionUrl" | "submissionText" | "score" | "feedback"
+>;
 
 /** The glass frame: back button, class, title, due date and status chips. */
 export function HomeworkDetailFrame({
@@ -257,7 +283,7 @@ export function HomeworkFeedback({
   testRank,
   fileFeedback,
 }: {
-  hw: HomeworkDetailData;
+  hw: HomeworkWork;
   viewer: HomeworkViewer;
   /** Whose work this is: the student, or the parent's child. */
   studentId: string;
@@ -267,7 +293,7 @@ export function HomeworkFeedback({
 }) {
   const marksKind = fileFeedback ? writable(hw.submissionUrl) : null;
   if (!hw.feedback && hw.score === null && !testRank && !marksKind) return null;
-  const whose = viewer.kind === "student" ? "your" : `${viewer.childFirstName}'s`;
+  const whose = viewer.kind === "student" ? "your" : `${ownerName(viewer)}'s`;
   return (
     <div className="flex flex-col gap-3 border-b border-[#EFF0F5] p-4">
       <h3 className="text-[13px] font-extrabold text-muted">Feedback</h3>
@@ -330,7 +356,7 @@ export function HomeworkSubmission({
   note,
   divider = false,
 }: {
-  hw: HomeworkDetailData;
+  hw: HomeworkWork;
   viewer: HomeworkViewer;
   /** Whose work this is: the student, or the parent's child. */
   studentId: string;
@@ -340,7 +366,7 @@ export function HomeworkSubmission({
   divider?: boolean;
 }) {
   if (!hw.submittedAt && !hw.submissionText && !hw.submissionUrl && !note) return null;
-  const whose = viewer.kind === "student" ? "Your" : `${viewer.childFirstName}'s`;
+  const whose = viewer.kind === "student" ? "Your" : `${ownerName(viewer)}'s`;
   const whoseInTitle = viewer.kind === "student" ? "your" : whose;
   const submissionKind = writable(hw.submissionUrl);
   return (

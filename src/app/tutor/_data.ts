@@ -1,8 +1,6 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { and, eq, inArray, sql, desc, isNull, asc, or } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
-import { attendanceMovedSql, attendanceStatusShownSql } from "@/lib/attendance-moved";
+import { and, eq, inArray, sql, desc, isNull, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   announcements,
@@ -10,7 +8,6 @@ import {
   enrollments,
   lessons,
   lessonNotes,
-  attendance,
   homework,
   homeworkAssignments,
   familyLinks,
@@ -18,13 +15,10 @@ import {
   subjects,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { getLatestQuizAttempts } from "@/lib/quiz-scores";
+import { getStudentRecord } from "@/lib/student-record";
 import { ADMIN_TIERS, STUDENT_TIERS } from "@/lib/roles";
-import { classDisplayName } from "@/lib/class-display";
 import { yearLevelLabel } from "@/lib/format";
 import { tutorHomeworkFilter } from "./_lib/homework-access";
-
-const noteAuthor = alias(profiles, "note_author");
 
 export async function requireTutor() {
   const user = await requireRole("tutor");
@@ -335,122 +329,10 @@ export async function getStudentProfile(tutorId: string, studentId: string) {
     .limit(1);
   if (!student) notFound();
 
-  // Limit attendance/notes/homework to lessons/classes this tutor teaches -
-  // a tutor shouldn't see what other tutors said about the student.
-  const classIds = await getTutorClassIds(tutorId);
-
-  const attendanceRows = await db
-    .select({
-      lessonId: attendance.lessonId,
-      status: attendanceStatusShownSql,
-      moved: attendanceMovedSql,
-      note: attendance.note,
-      markedAt: attendance.markedAt,
-      lessonDate: lessons.date,
-      lessonTutorId: lessons.tutorId,
-      className: classes.name,
-      subjectName: subjects.name,
-    })
-    .from(attendance)
-    .innerJoin(lessons, eq(attendance.lessonId, lessons.id))
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .where(
-      and(
-        eq(attendance.studentId, studentId),
-        inArray(classes.id, classIds.length ? classIds : ["__none__"]),
-      ),
-    )
-    .orderBy(desc(lessons.date));
-
-  // Notes on the lessons of this tutor's classes, whoever wrote them (a
-  // class taken over from another tutor keeps its history), plus the notes
-  // this tutor wrote. Another tutor's internal note is not sent: the editor
-  // promised its author "Only you and admin see this".
-  const notes = await db
-    .select({
-      id: lessonNotes.id,
-      lessonId: lessonNotes.lessonId,
-      topicCovered: lessonNotes.topicCovered,
-      performance: lessonNotes.performance,
-      strengths: lessonNotes.strengths,
-      struggles: lessonNotes.struggles,
-      nextLessonFocus: lessonNotes.nextLessonFocus,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      internalNote: sql<string | null>`case when ${lessonNotes.tutorId} = ${tutorId} then ${lessonNotes.internalNote} end`,
-      createdAt: lessonNotes.createdAt,
-      authorId: lessonNotes.tutorId,
-      authorFirstName: noteAuthor.firstName,
-      authorLastName: noteAuthor.lastName,
-      lessonDate: lessons.date,
-      lessonTutorId: lessons.tutorId,
-      className: classes.name,
-      subjectName: subjects.name,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessonNotes.lessonId, lessons.id))
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .innerJoin(noteAuthor, eq(noteAuthor.id, lessonNotes.tutorId))
-    .where(
-      and(
-        eq(lessonNotes.studentId, studentId),
-        or(
-          inArray(classes.id, classIds.length ? classIds : ["__none__"]),
-          eq(lessonNotes.tutorId, tutorId),
-        ),
-      ),
-    )
-    .orderBy(desc(lessons.date), desc(lessonNotes.createdAt));
-
-  const homeworkRows = await db
-    .select({
-      homeworkId: homework.id,
-      title: homework.title,
-      dueDate: homework.dueDate,
-      status: homeworkAssignments.status,
-      score: homeworkAssignments.score,
-      submittedAt: homeworkAssignments.submittedAt,
-      feedback: homeworkAssignments.feedback,
-    })
-    .from(homeworkAssignments)
-    .innerJoin(homework, eq(homeworkAssignments.homeworkId, homework.id))
-    .where(
-      and(
-        eq(homeworkAssignments.studentId, studentId),
-        tutorHomeworkFilter(tutorId),
-      ),
-    )
-    .orderBy(desc(homework.dueDate));
-
-  // Quizzes count in the subjects this tutor teaches the student.
-  const sharedSubjects = await db
-    .selectDistinct({ id: classes.subjectId })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        eq(classes.tutorId, tutorId),
-        isNull(enrollments.withdrawnAt),
-      ),
-    );
-  const quizAttempts = await getLatestQuizAttempts(
-    studentId,
-    sharedSubjects.map((r) => r.id),
-  );
-
-  // A student can be in two of this tutor's subjects, so each row's class
-  // label names its subject ("Y7 Mathematics · Tuesday").
-  const withClassLabel = <T extends { subjectName: string; className: string }>(rows: T[]) =>
-    rows.map((r) => ({ ...r, className: classDisplayName(r.subjectName, r.className) }));
-  return {
-    student,
-    attendance: withClassLabel(attendanceRows),
-    notes: withClassLabel(notes),
-    homework: homeworkRows,
-    quizAttempts,
-  };
+  // Only the lessons, notes, homework and quizzes of this tutor's classes,
+  // and never another tutor's internal note (see `RecordScope`).
+  const record = await getStudentRecord(studentId, { kind: "tutor", tutorId });
+  return { student, record };
 }
 
 export async function getLessonForTutor(tutorId: string, lessonId: string) {

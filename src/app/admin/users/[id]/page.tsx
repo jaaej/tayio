@@ -61,11 +61,15 @@ import { getProfileFacts } from "../_lib/profile-facts";
 import { classEditHref } from "@/app/admin/_lib/class-links";
 import { getStudentHistory } from "../_lib/student-history";
 import { getStudentReportIssues } from "@/app/admin/_lib/term-reports";
+import { StaffNotesTimeline } from "@/components/student-history/history-lists";
+import { HomeworkList } from "@/components/student-history/homework-list";
+import { KeyNumbers } from "@/components/student-history/key-numbers";
+import { LessonTimeline } from "@/components/student-history/lesson-timeline";
 import {
-  AttendanceHistoryList,
-  HomeworkHistoryList,
-  StaffNotesTimeline,
-} from "@/components/student-history/history-lists";
+  HomeworkFeedback,
+  HomeworkSubmission,
+  submissionNote,
+} from "@/components/homework/homework-detail";
 import { EditUserForm } from "./_components/edit-user-form";
 import { FamilyLinksManager } from "./_components/family-links-manager";
 import { CreditManagement } from "./_components/credit-management";
@@ -449,25 +453,52 @@ export default async function UserDetailPage({
     </ProfileSection>
   );
 
+  // The same record the student's tutor sees (key numbers, lessons with
+  // their notes, homework), across every class, then the admin-only notes.
+  // "#attendance" and "#homework" are the dashboard's Students to watch links.
+  const historyViewer = { kind: "admin", studentFirstName: user.firstName } as const;
   const historySections = isStudent && history && [
-    <ProfileSection
-      key="attendance"
-      id="attendance"
-      title="Attendance"
-      note={
-        history.summary.percent === null
-          ? undefined
-          : `${history.summary.percent}% · ${history.summary.attended} of ${history.summary.total} attended`
-      }
-      flush
-    >
-      <AttendanceHistoryList
-        rows={history.attendance}
-        lessonHref={(lessonId) => `/admin/attendance/${lessonId}`}
+    <KeyNumbers key="numbers" items={history.record.keyNumbers} />,
+    <ProfileSection key="lessons" id="attendance" title="Lessons" flush>
+      <LessonTimeline
+        entries={history.record.timeline}
+        viewer={{ kind: "admin" }}
+        action={(entry) => ({ href: `/admin/attendance/${entry.lessonId}`, label: "Open roll" })}
+        limit={10}
+        className="border-t border-line"
       />
     </ProfileSection>,
     <ProfileSection key="homework" id="homework" title="Homework" flush>
-      <HomeworkHistoryList rows={history.homework} />
+      <HomeworkList
+        rows={history.homework}
+        limit={10}
+        className="border-t border-line"
+        renderDetail={(row) => {
+          const note = submissionNote(row.status, user.firstName);
+          const nothing =
+            !row.feedback && row.score === null && !row.submittedAt && !row.submissionText && !row.submissionUrl && !note;
+          return nothing ? (
+            <p className="px-4 py-3 text-[13px] text-muted sm:px-5">No feedback or hand-in recorded.</p>
+          ) : (
+            <>
+              <HomeworkFeedback
+                hw={row}
+                viewer={historyViewer}
+                studentId={user.id}
+                testRank={null}
+                fileFeedback={false}
+              />
+              <HomeworkSubmission
+                hw={row}
+                viewer={historyViewer}
+                studentId={user.id}
+                submissionHref={row.submissionHref}
+                note={note}
+              />
+            </>
+          );
+        }}
+      />
     </ProfileSection>,
     <ProfileSection key="notes" id="staff-notes" title="Staff notes" flush>
       <StaffNotesTimeline accountNote={history.accountNote} notes={history.notes} />

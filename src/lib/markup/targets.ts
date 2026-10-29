@@ -33,7 +33,7 @@ import { markupFileKind, type MarkupFileKind } from "./doc";
  *   week plan, a library resource. Nobody else sees them.
  * - The homework's tutor writes feedback on a student's submitted file; the
  *   student and their linked parents see it once the work is marked or sent
- *   back for a resubmission.
+ *   back for a resubmission. Admins see it as the tutor does, read only.
  * Admins and parents never write; tutors never write notes. Only PDFs, PNGs
  * and JPEGs can be written on.
  */
@@ -155,6 +155,8 @@ export async function resolveMarkupTarget(
         if (!owns) return null;
         return { file, edit: feedback, show: [], canSubmit: false, defaultPen: "red" };
       }
+      // Admins read what the tutor reads: the marks so far, released or not.
+      if (role === "admin") return { file, edit: null, show: [feedback], canSubmit: false, defaultPen: "ink" };
       const released = isFeedbackReleased(row.status);
       if (role === "student") {
         if (viewer.id !== target.studentId) return null;

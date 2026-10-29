@@ -671,22 +671,41 @@ Small items: tutor destination named "Schedule & availability", "Open calendar" 
 
 Still open after the fixes:
 
-- [ ] Admin and tutor each have their own per-student history view: the admin History tab (`src/components/student-history`) and the tutor profile's Lessons timeline (`src/app/tutor/students/[id]`).
+- [x] Admin and tutor each have their own per-student history view: the admin History tab (`src/components/student-history`) and the tutor profile's Lessons timeline (`src/app/tutor/students/[id]`).
   They were built in parallel on 18 to 19 October 2026 and show the same lessons, homework and notes differently.
-  Fix: one shared history component, scoped by role (staff notes for admins, the tutor's classes for tutors).
+  Fixed on 29 October 2026: one shared record (`getStudentRecord`) and components, see "One student record for admins and tutors" under Recently implemented.
+- [ ] Attendance % colours use three thresholds: the class Students roster (green from 90%, amber from 70%), the student record's key numbers (green from 90%, amber from 75%), and the parent Overview and attendance panel (red under 75%, else neutral).
+  Pick one rule in `@/lib/attendance-rules` and use it everywhere (found 29 October 2026, not changed).
+- [ ] The admin roll's lesson notes (`/admin/attendance/[lessonId]`, notes button) list their own fields, including "Key concepts", which nothing writes, instead of `LESSON_NOTE_FIELDS` and the record's note card (found 29 October 2026, not changed).
 - [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
 
 ## Recently implemented
 
+- [x] One student record for admins and tutors (29 October 2026, owner: "all the information that tutors can see, admins should be able to aswell", and "what i dont want is to make the navigation of the portal difficult ... having 2 user profile information pages, is just not intuitive").
+  - Rule: each portal keeps one page per student; nothing new in the menu, no new tabs, no switch inside a tab, no new page.
+    Admin: Users, then the student, History tab. Tutor: Classes, Students, then the student.
+  - One record, two scopes: `getStudentRecord(studentId, scope)` in `src/lib/student-record.ts`.
+    Admin: everything. Tutor: the lessons, notes, homework and quizzes of the classes they teach, plus notes they wrote; another tutor's internal note is never sent.
+    Pure rules in `src/lib/student-history.ts` (tested): `lessonTimeline`, `homeworkHistory`, `keyNumbers`, `staffNotesTimeline`.
+  - Shared parts in `src/components/student-history/`: `KeyNumbers`, `LessonTimeline`, `HomeworkList`, `ShowAll`.
+    The tutor's profile looks as before (Overview, Lessons, Homework); a homework row still opens Marking.
+  - Admin History tab (`/admin/users/[id]?tab=history`): the four numbers, Lessons (each lesson with attendance, roll note, the full lesson note and its author, Open roll; the latest 10, then "Show all"), Homework (latest 10, then "Show all"; a row opens in place with the tutor's feedback and the hand-in, read only, through the student and parent pages' `HomeworkFeedback` and `HomeworkSubmission`), and Staff notes (account, leave and free-trial notes; lesson and roll notes now sit on their lesson).
+    The ids `#attendance` and `#homework` stay for the dashboard's Students to watch links.
+  - Admins open a submitted PDF or picture in the writing viewer with the tutor's marks, read only, released or not (`resolveMarkupTarget`, `src/lib/markup/targets.ts`); other files open from a signed link. A save is refused (403).
+  - Owner decisions (defaults accepted 29 October 2026): lessons that ran but nobody marked show as "Not marked" to tutors too (with "Mark attendance"), as they already did for admins; attendance % is over the last 8 marked lessons for both ("4 of 4 recent lessons"; the admin heading used all time).
+    Cancelled-by-Taiyo lessons now show on the tutor's timeline as well.
+  - The parent homework page's "hasn't handed this in yet" wording moved into `submissionNote` (`homework-detail.tsx`), shared with the admin rows.
+  - Verified on dev: typecheck, lint, the test suite, a production build; Sarah Student as her tutor (all three tabs) and as admin (History: numbers, Show all lessons 10 to 36, a homework row opened, her PNG submission opened with the tutor's red marks) at 1440px and 390px in Chrome and WebKit, no sideways scroll, no page errors; an admin save on her submission returned 403; the parent homework page still reads "Noah hasn't handed this in yet."
+  - Manual QA (owner, Safari): as admin open a student's History tab, Show all lessons, open a homework row and View file; as their tutor open the same student's three tabs.
+
 - [x] Tutor student profile: the four numbers inside the Overview, no latest lesson note (29 October 2026, owner: "get rid of the 4 blocks that has attendance, homework, average socre, and lesson notes. restrcuture the page so it doesnt look so congested. i dont need the "last lesson notes" on the overview", then "the information in the 4 blocks should be within the overview blcok instead of 4 different blocks").
   - `/tutor/students/[id]`: the Attendance, Homework, Average score and Lesson notes tiles above the tabs are gone.
-    The same numbers (same rules) now open the Overview tab as one flat row inside the white panel (`OverviewStats`, four columns, two by two on a phone), then Last lessons and the three latest homework.
+    The same numbers (same rules) now open the Overview tab as one flat row inside the white panel (now the shared `KeyNumbers`, four columns, two by two on a phone), then Last lessons and the three latest homework.
     The latest lesson note is off the Overview; notes stay on the Lessons tab.
   - Layout: the Overview's sections are the admin profile's `ProfileSection` (flat, 14px titles, hairline dividers), moved to `src/components/ui/profile-section.tsx` so both profiles share one implementation.
     Homework rows are edge-to-edge with dividers (Overview and Homework tab) instead of grey cards.
   - Verified on dev: typecheck, lint, the test suite; Sarah Student's profile from a class roster on all three tabs at 1440px and 390px in Chrome and WebKit (no sideways scroll, no page errors; 100%, 2 of 13, 65%, 4 as before); the admin student profile's Profile, History and Credits tabs still render their sections.
-  - Cross-role: the admin student profile shows no key numbers (its tiles were removed on 18 October 2026; attendance shows only in its History tab's Attendance heading). Owner to decide whether admin gets the same row.
-  - Still open: the admin History tab and the tutor Lessons timeline remain two per-student history views (see "Still open after the fixes" above).
+  - Cross-role: the admin History tab got the same row, see "One student record for admins and tutors" above.
   - Manual QA (owner, Safari): open a student from a class's Students tab and check the Overview, Lessons and Homework tabs.
 
 - [x] Families see "Feedback given", tutors see what the Marking dates mean, and the student profile's back button returns where it came from (29 October 2026, owner: "for students, after the tutor provides feedback, it should show as status "Feedback given" or something like that", "on the tutor marking page, what counts as "late"? ... the date that it shows (what does it even mean)", and "where is this page from?" about the tutor student profile).
