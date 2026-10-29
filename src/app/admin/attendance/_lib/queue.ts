@@ -9,14 +9,12 @@ import { classDisplayName } from "@/lib/class-display";
 import {
   LESSON_OFF_STATUSES,
   lessonRanSql,
-  notesMissingSql,
   unmarkedOnRollSql,
 } from "@/lib/lesson-progress-sql";
 import {
   QUEUE_VIEWS,
   classParam,
   dateParam,
-  groupByTutor,
   lessonQueueState,
   parseQueueView,
   type LessonQueueState,
@@ -45,8 +43,6 @@ export type QueueItem = {
   tutorName: string;
   state: LessonQueueState;
   unmarkedCount: number;
-  /** Students marked as attending with no lesson note yet. */
-  notesMissing: number;
 };
 
 export type AttendanceQueue = {
@@ -78,7 +74,6 @@ const DEFAULT_LOOKBACK_DAYS = 30;
 /** The most lessons one tab lists; the backlogs are bounded by what is outstanding. */
 const VIEW_LIMIT: Record<QueueView, number> = {
   to_mark: 1000,
-  notes: 1000,
   marked: 300,
   upcoming: 100,
 };
@@ -90,8 +85,6 @@ function viewWhere(view: QueueView, now: Date): SQL {
   switch (view) {
     case "to_mark":
       return sql`(${ran} and ${unmarkedOnRollSql} > 0)`;
-    case "notes":
-      return sql`(${ran} and ${notesMissingSql} > 0)`;
     case "marked":
       // Cancelled and rescheduled lessons need no roll: filed with the done ones.
       return sql`(${off} or (${ran} and ${unmarkedOnRollSql} = 0))`;
@@ -135,7 +128,6 @@ function selectLessons(view: QueueView, where: SQL | undefined) {
       tutorLast: profiles.lastName,
       // Shared with the admin dashboard's counts, so the two always agree.
       unmarkedCount: unmarkedOnRollSql,
-      notesMissing: notesMissingSql,
     })
     .from(lessons)
     .innerJoin(classes, eq(classes.id, lessons.classId))
@@ -175,7 +167,6 @@ export async function getAttendanceQueue(
     tutorId: row.tutorId,
     tutorName: `${row.tutorFirst} ${row.tutorLast}`.trim(),
     unmarkedCount: Number(row.unmarkedCount),
-    notesMissing: Number(row.notesMissing),
     state: lessonQueueState(
       {
         date: row.date,
@@ -194,8 +185,7 @@ export async function getAttendanceQueue(
   return {
     filters,
     classLabel,
-    // Notes missing reads tutor by tutor; "Save & next lesson" follows it.
-    items: view === "notes" ? groupByTutor(items).flatMap((g) => g.items) : items,
+    items,
     counts,
     today,
   };
@@ -222,32 +212,22 @@ async function getClassLabel(classId: string): Promise<string | null> {
 
 export type QueueBacklog = {
   toMark: { count: number; oldest: string | null };
-  notes: { count: number; oldest: string | null; tutors: number };
 };
 
 /**
- * The two backlog tabs counted with the same predicates as the queue, so the
+ * The To mark backlog counted with the same predicate as the queue, so the
  * admin dashboard's To do and the queue can never disagree.
  */
 export async function getQueueBacklog(now = new Date()): Promise<QueueBacklog> {
   const toMark = viewWhere("to_mark", now);
-  const notes = viewWhere("notes", now);
   const [row] = await db
     .select({
       toMark: sql<number>`count(*) filter (where ${toMark})::int`,
       toMarkOldest: sql<string | null>`(min(${lessons.date}) filter (where ${toMark}))::text`,
-      notes: sql<number>`count(*) filter (where ${notes})::int`,
-      notesOldest: sql<string | null>`(min(${lessons.date}) filter (where ${notes}))::text`,
-      notesTutors: sql<number>`count(distinct ${lessons.tutorId}) filter (where ${notes})::int`,
     })
     .from(lessons)
     .where(lessonRanSql(now));
   return {
     toMark: { count: Number(row?.toMark ?? 0), oldest: row?.toMarkOldest ?? null },
-    notes: {
-      count: Number(row?.notes ?? 0),
-      oldest: row?.notesOldest ?? null,
-      tutors: Number(row?.notesTutors ?? 0),
-    },
   };
 }

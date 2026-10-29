@@ -1,12 +1,9 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import {
-  classWeekPlanAttachments,
-  classWeekPlans,
-  enrollments,
   familyLinks,
   homework,
   homeworkAssignments,
@@ -29,8 +26,8 @@ import { markupFileKind, type MarkupFileKind } from "./doc";
  * open and every save comes through `resolveMarkupTarget`, so the access
  * rules live in one place:
  * - A student writes private notes on files they can open: a homework's
- *   worksheet or released solution, a week booklet, a file in their class's
- *   week plan, a library resource. Nobody else sees them.
+ *   worksheet or released solution, a week booklet, a library resource.
+ *   Nobody else sees them.
  * - The homework's tutor writes feedback on a student's submitted file; the
  *   student and their linked parents see it once the work is marked or sent
  *   back for a resubmission. Admins see it as the tutor does, read only.
@@ -44,7 +41,6 @@ export const markupTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("homework-sheet"), homeworkId: uuid, sheet: z.enum(["worksheet", "solution"]) }),
   z.object({ kind: z.literal("submission"), homeworkId: uuid, studentId: uuid }),
   z.object({ kind: z.literal("booklet"), subjectWeekId: uuid }),
-  z.object({ kind: z.literal("plan-file"), attachmentId: uuid }),
   z.object({ kind: z.literal("resource"), resourceId: uuid }),
 ]);
 
@@ -182,35 +178,6 @@ export async function resolveMarkupTarget(
         .where(eq(subjectWeeks.id, target.subjectWeekId))
         .limit(1);
       const file = week && fileFor(CURRICULUM_BUCKET, week.bookletUrl, null, `${week.title} booklet`);
-      return file ? notes(file, viewer.id) : null;
-    }
-
-    case "plan-file": {
-      if (role !== "student") return null;
-      const [row] = await db
-        .select({
-          fileName: classWeekPlanAttachments.fileName,
-          kind: classWeekPlanAttachments.kind,
-          storagePath: classWeekPlanAttachments.storagePath,
-          contentType: classWeekPlanAttachments.contentType,
-          subjectWeekId: classWeekPlans.subjectWeekId,
-        })
-        .from(classWeekPlanAttachments)
-        .innerJoin(classWeekPlans, eq(classWeekPlans.id, classWeekPlanAttachments.planId))
-        .innerJoin(
-          enrollments,
-          and(
-            eq(enrollments.classId, classWeekPlans.classId),
-            eq(enrollments.studentId, viewer.id),
-            isNull(enrollments.withdrawnAt),
-          ),
-        )
-        .where(eq(classWeekPlanAttachments.id, target.attachmentId))
-        .limit(1);
-      if (!row || row.kind !== "file") return null;
-      if (!(await canStudentAccessCurriculumWeek(viewer.id, row.subjectWeekId))) return null;
-      const title = row.fileName.replace(/\.[a-z0-9]{1,5}$/i, "");
-      const file = fileFor(CURRICULUM_BUCKET, row.storagePath, row.contentType, title);
       return file ? notes(file, viewer.id) : null;
     }
 

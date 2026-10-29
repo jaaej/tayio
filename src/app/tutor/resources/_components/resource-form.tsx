@@ -137,31 +137,30 @@ export function ResourceForm({
           </div>
 
           <div className="mt-3">
+            {/* Source already says file or link, so the input needs no label of its own. */}
             {kind === "file" ? (
-              <Field id="file" label="File">
-                {/* The types `RESOURCE_POLICY` (src/lib/upload-validation.ts) accepts. */}
-                <input
-                  key="file"
-                  id="file"
-                  name="file"
-                  type="file"
-                  required
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.pptx,.xlsx,.mp4,.mov,.webm"
-                  className="w-full cursor-pointer text-[13px] text-ink file:mr-2.5 file:h-9 file:cursor-pointer file:rounded-[10px] file:border file:border-line-strong file:bg-surface file:px-3 file:text-[12px] file:font-bold file:text-ink"
-                />
-              </Field>
+              // The types `RESOURCE_POLICY` (src/lib/upload-validation.ts) accepts.
+              <input
+                key="file"
+                id="file"
+                name="file"
+                type="file"
+                required
+                aria-label="File to upload"
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.pptx,.xlsx,.mp4,.mov,.webm"
+                className="w-full cursor-pointer text-[13px] text-ink file:mr-2.5 file:h-9 file:cursor-pointer file:rounded-[10px] file:border file:border-line-strong file:bg-surface file:px-3 file:text-[12px] file:font-bold file:text-ink"
+              />
             ) : (
-              <Field id="externalUrl" label="Link">
-                <Input
-                  key="link"
-                  id="externalUrl"
-                  name="externalUrl"
-                  type="url"
-                  required
-                  maxLength={2000}
-                  placeholder="https://…"
-                />
-              </Field>
+              <Input
+                key="link"
+                id="externalUrl"
+                name="externalUrl"
+                type="url"
+                required
+                aria-label="Link"
+                maxLength={2000}
+                placeholder="https://…"
+              />
             )}
           </div>
         </div>

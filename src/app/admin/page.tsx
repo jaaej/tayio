@@ -8,7 +8,6 @@ import {
   ListChecks,
   Lock,
   Megaphone,
-  NotebookPen,
   Plus,
   UserCheck,
   Wallet,
@@ -17,6 +16,7 @@ import { GlassPanel } from "@/components/admin/ui/glass-panel";
 import type { TimeGridEvent } from "@/components/data/week-time-grid";
 import { Empty, PageHeader, buttonVariants } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 import { isUnrestrictedAdmin } from "@/lib/roles";
 import type { UserRole } from "@/db/schema";
@@ -48,7 +48,6 @@ export const dynamic = "force-dynamic";
 const TODO_ICON: Record<TodoKind, { icon: React.ReactNode; tone: string }> = {
   cover: { icon: <UserCheck className="h-4 w-4" />, tone: "bg-bad-bg text-bad" },
   attendance: { icon: <ClipboardCheck className="h-4 w-4" />, tone: "bg-warn-bg text-warn" },
-  notes: { icon: <NotebookPen className="h-4 w-4" />, tone: "bg-surface-2 text-ink-soft" },
   leave: { icon: <CalendarOff className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
   class_moves: { icon: <ArrowRightLeft className="h-4 w-4" />, tone: "bg-brand-50 text-brand-700" },
   quizzes: { icon: <ListChecks className="h-4 w-4" />, tone: "bg-info-bg text-info" },
@@ -120,7 +119,7 @@ export default async function AdminDashboard({
     "en-AU",
     { weekday: "long", day: "numeric", month: "long" },
   );
-  const firstName = (user.user_metadata?.first_name as string | undefined) ?? "Admin";
+  const firstName = accountFirstName(user, "Admin");
   const thisMonth = revenue?.[revenue.length - 1];
   const monthName = new Date(`${todayIso}T12:00:00`).toLocaleDateString("en-AU", {
     month: "long",

@@ -19,27 +19,19 @@ import {
   lessons,
   notifications,
   profiles,
-  resources,
   subjects,
   subjectWeeks,
   tutorAvailability,
-  classWeekPlanAttachments,
-  classWeekPlans,
 } from "@/db/schema";
 import { createAdminClient } from "@/app/admin/_lib/supabase-admin";
 import { lessonRollIds } from "@/lib/lesson-roll";
 import { ROLL_STATUSES } from "@/lib/attendance-roll";
-import { BUCKET, removeCurriculumObject } from "@/lib/curriculum-storage";
 import {
   discardDirectUpload,
   createDirectUploadGrant,
   finalizeDirectUpload,
 } from "@/lib/direct-upload";
-import {
-  ATTACHMENT_POLICY,
-  validateUploadMetadata,
-  HOMEWORK_POLICY,
-} from "@/lib/upload-validation";
+import { validateUploadMetadata, HOMEWORK_POLICY } from "@/lib/upload-validation";
 import { optionalText, requiredText } from "@/lib/validation";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { withActor } from "@/lib/with-actor";
@@ -308,17 +300,14 @@ export async function saveLessonNote(formData: FormData) {
   if (!(await ownedLessonRoll(tutor.id, lessonId)).has(studentId)) throw new Error("Not authorised");
 
   const data = {
-    topicCovered: optionalText(formData.get("topicCovered"), 5000),
-    performance: optionalText(formData.get("performance"), 5000),
-    strengths: optionalText(formData.get("strengths"), 5000),
-    struggles: optionalText(formData.get("struggles"), 5000),
-    nextLessonFocus: optionalText(formData.get("nextLessonFocus"), 5000),
     parentVisibleComment: optionalText(formData.get("parentVisibleComment"), 5000),
     internalNote: optionalText(formData.get("internalNote"), 5000),
   };
 
   // Upsert by (lessonId, studentId, tutorId) - schema has no unique on those,
-  // so do a delete-then-insert in a transaction.
+  // so do a delete-then-insert in a transaction. The insert leaves the older
+  // note columns empty (lesson-note-fields), and a note saved with nothing in
+  // it is removed rather than kept as an empty row.
   await db.transaction(async (tx) => {
     await tx
       .delete(lessonNotes)
@@ -329,6 +318,7 @@ export async function saveLessonNote(formData: FormData) {
           eq(lessonNotes.tutorId, tutor.id),
         ),
       );
+    if (!data.parentVisibleComment && !data.internalNote) return;
     await tx.insert(lessonNotes).values({
       lessonId,
       studentId,
@@ -1082,246 +1072,4 @@ async function tutorTeachesSubjectWeek(tutorId: string, subjectWeekId: string): 
     .where(eq(subjectWeeks.id, subjectWeekId))
     .limit(1);
   return Boolean(row);
-}
-
-// --- "For students this week": per-class week plan + attachments ------------
-
-/** The class must be this tutor's and the week must belong to its subject. */
-async function assertOwnsClassWeek(
-  tutorId: string,
-  classId: string,
-  subjectWeekId: string,
-) {
-  const [row] = await db
-    .select({ id: classes.id })
-    .from(classes)
-    .innerJoin(subjectWeeks, eq(subjectWeeks.subjectId, classes.subjectId))
-    .where(
-      and(
-        eq(classes.id, classId),
-        eq(classes.tutorId, tutorId),
-        eq(subjectWeeks.id, subjectWeekId),
-      ),
-    )
-    .limit(1);
-  if (!row) throw new Error("Class week not found");
-}
-
-async function ensureWeekPlan(
-  classId: string,
-  subjectWeekId: string,
-  updatedBy: string,
-): Promise<string> {
-  const [row] = await db
-    .insert(classWeekPlans)
-    .values({ classId, subjectWeekId, updatedBy })
-    .onConflictDoUpdate({
-      target: [classWeekPlans.classId, classWeekPlans.subjectWeekId],
-      set: { updatedAt: new Date(), updatedBy },
-    })
-    .returning({ id: classWeekPlans.id });
-  return row.id;
-}
-
-/** The week plan shows on the class Week plan tab, every lesson page of the
- * class, and the student and parent week views. */
-function revalidateWeekPlan(classId: string) {
-  revalidatePath(`/tutor/classes/${classId}`, "layout");
-  revalidatePath("/tutor/lessons/[id]", "page");
-  revalidatePath("/student/subjects/[id]", "page");
-  revalidatePath("/parent/subjects/[id]", "page");
-}
-
-const weekPlanSchema = z.object({
-  classId: z.string().uuid(),
-  subjectWeekId: z.string().uuid(),
-  body: z.string().max(5000).optional(),
-});
-
-export async function saveWeekPlanBody(formData: FormData) {
-  const tutor = await requireTutor();
-  const parsed = weekPlanSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false as const, error: "Check the text and try again." };
-  const { classId, subjectWeekId } = parsed.data;
-  await assertOwnsClassWeek(tutor.id, classId, subjectWeekId);
-  const body = parsed.data.body?.trim() || null;
-  await db
-    .insert(classWeekPlans)
-    .values({ classId, subjectWeekId, body, updatedBy: tutor.id })
-    .onConflictDoUpdate({
-      target: [classWeekPlans.classId, classWeekPlans.subjectWeekId],
-      set: { body, updatedAt: new Date(), updatedBy: tutor.id },
-    });
-  revalidateWeekPlan(classId);
-  return { ok: true as const };
-}
-
-const weekPlanAttachmentSchema = z.object({
-  classId: z.string().uuid(),
-  subjectWeekId: z.string().uuid(),
-});
-
-const WEEK_PLAN_UPLOAD_PURPOSE = "class-week-plan-attachment";
-
-/**
- * Return a one-file Supabase upload token after checking that this tutor owns
- * the class and the week is in its subject. The file itself travels
- * browser -> Supabase, not through the Vercel Server Action request body.
- */
-export async function prepareWeekPlanAttachmentUpload(input: {
-  classId: string;
-  subjectWeekId: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-}) {
-  const tutor = await requireTutor();
-  const parsed = directFileSchema.safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
-  const { classId, subjectWeekId } = parsed.data;
-  await assertOwnsClassWeek(tutor.id, classId, subjectWeekId);
-
-  const validated = validateUploadMetadata(
-    { size: parsed.data.sizeBytes, type: parsed.data.contentType },
-    ATTACHMENT_POLICY,
-  );
-  if (!validated.ok) return validated;
-  const planId = await ensureWeekPlan(classId, subjectWeekId, tutor.id);
-  return createDirectUploadGrant({
-    purpose: WEEK_PLAN_UPLOAD_PURPOSE,
-    userId: tutor.id,
-    scope: `${classId}:${subjectWeekId}`,
-    bucket: BUCKET,
-    path: `week-plans/${planId}/${randomUUID()}.${validated.file.ext}`,
-    fileName: parsed.data.fileName,
-    sizeBytes: parsed.data.sizeBytes,
-    contentType: parsed.data.contentType,
-    policy: ATTACHMENT_POLICY,
-  });
-}
-
-export async function finalizeWeekPlanAttachmentUpload(input: {
-  classId: string;
-  subjectWeekId: string;
-  ticket: string;
-}) {
-  const tutor = await requireTutor();
-  const parsed = weekPlanAttachmentSchema
-    .extend({ ticket: z.string().min(1).max(4096) })
-    .safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: parsed.error.message };
-  const { classId, subjectWeekId } = parsed.data;
-  await assertOwnsClassWeek(tutor.id, classId, subjectWeekId);
-
-  const verified = await finalizeDirectUpload({
-    ticket: parsed.data.ticket,
-    expectedPurpose: WEEK_PLAN_UPLOAD_PURPOSE,
-    expectedUserId: tutor.id,
-    expectedScope: `${classId}:${subjectWeekId}`,
-    policy: ATTACHMENT_POLICY,
-  });
-  if (!verified.ok) return verified;
-
-  try {
-    const planId = await ensureWeekPlan(classId, subjectWeekId, tutor.id);
-    await db.insert(classWeekPlanAttachments).values({
-      planId,
-      fileName: verified.value.fileName,
-      storagePath: verified.value.path,
-      contentType: verified.value.contentType,
-      sizeBytes: verified.value.sizeBytes,
-    });
-  } catch (err) {
-    await discardDirectUpload(parsed.data.ticket);
-    console.error("[week-plan] attachment insert failed:", err);
-    return { ok: false as const, error: "The file uploaded but could not be attached. Try again." };
-  }
-  revalidateWeekPlan(classId);
-  return { ok: true as const };
-}
-
-export async function removeWeekPlanAttachment(attachmentId: string, classId: string) {
-  const tutor = await requireTutor();
-  const inputParsed = z
-    .object({ attachmentId: z.string().uuid(), classId: z.string().uuid() })
-    .safeParse({ attachmentId, classId });
-  if (!inputParsed.success) return { ok: false as const, error: "Attachment not found" };
-  const [row] = await db
-    .select({
-      path: classWeekPlanAttachments.storagePath,
-      classId: classWeekPlans.classId,
-      tutorId: classes.tutorId,
-    })
-    .from(classWeekPlanAttachments)
-    .innerJoin(classWeekPlans, eq(classWeekPlans.id, classWeekPlanAttachments.planId))
-    .innerJoin(classes, eq(classes.id, classWeekPlans.classId))
-    .where(eq(classWeekPlanAttachments.id, attachmentId))
-    .limit(1);
-  if (!row || row.tutorId !== tutor.id || row.classId !== classId) {
-    return { ok: false as const, error: "Attachment not found" };
-  }
-  const [promoted] = await db
-    .select({ id: resources.id })
-    .from(resources)
-    .where(and(eq(resources.sourceAttachmentId, attachmentId), isNull(resources.removedAt)))
-    .limit(1);
-  if (promoted) {
-    return {
-      ok: false as const,
-      error: "This file is published to the subject resource library. Remove it from the library first.",
-    };
-  }
-  await db.delete(classWeekPlanAttachments).where(eq(classWeekPlanAttachments.id, attachmentId));
-  // Migration 0060 copied shared notes to each class, so a storage object can
-  // back several rows. Links have no object at all.
-  if (row.path) {
-    const [stillUsed] = await db
-      .select({ id: classWeekPlanAttachments.id })
-      .from(classWeekPlanAttachments)
-      .where(eq(classWeekPlanAttachments.storagePath, row.path))
-      .limit(1);
-    if (!stillUsed) await removeCurriculumObject(row.path);
-  }
-  revalidateWeekPlan(classId);
-  return { ok: true as const };
-}
-
-const weekPlanLinkSchema = z.object({
-  classId: z.string().uuid(),
-  subjectWeekId: z.string().uuid(),
-  label: z.string().trim().min(1).max(200),
-  // Restrict to http(s): z.url() alone accepts javascript:/data: URLs, which
-  // become stored XSS when rendered into an <a href> students/parents click.
-  url: z
-    .string()
-    .trim()
-    .url()
-    .max(2000)
-    .refine((u) => {
-      try {
-        const p = new URL(u).protocol;
-        return p === "http:" || p === "https:";
-      } catch {
-        return false;
-      }
-    }, "Only http(s) links are allowed"),
-});
-
-export async function addWeekPlanLink(formData: FormData) {
-  const tutor = await requireTutor();
-  const parsed = weekPlanLinkSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Check the link and try again." };
-  }
-  const { classId, subjectWeekId } = parsed.data;
-  await assertOwnsClassWeek(tutor.id, classId, subjectWeekId);
-  const planId = await ensureWeekPlan(classId, subjectWeekId, tutor.id);
-  await db.insert(classWeekPlanAttachments).values({
-    planId,
-    kind: "link",
-    fileName: parsed.data.label,
-    url: parsed.data.url,
-  });
-  revalidateWeekPlan(classId);
-  return { ok: true as const };
 }

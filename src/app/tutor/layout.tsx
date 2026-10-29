@@ -1,4 +1,5 @@
 import { TutorShell } from "@/components/tutor/shell";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 
 export default async function TutorLayout({
@@ -7,9 +8,6 @@ export default async function TutorLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("tutor");
-  const name =
-    (user.user_metadata?.first_name as string) ??
-    user.email?.split("@")[0] ??
-    "Tutor";
+  const name = accountFirstName(user, "Tutor");
   return <TutorShell userName={name}>{children}</TutorShell>;
 }

@@ -16,23 +16,11 @@ import { hasFamilyNote, type FamilyNote } from "@/lib/lesson-recap-rules";
  */
 
 const FAMILY_NOTE_COLUMNS = {
-  topicCovered: lessonNotes.topicCovered,
-  performance: lessonNotes.performance,
-  strengths: lessonNotes.strengths,
-  struggles: lessonNotes.struggles,
-  nextLessonFocus: lessonNotes.nextLessonFocus,
   parentVisibleComment: lessonNotes.parentVisibleComment,
 };
 
-/** The note has a family field filled in (`hasFamilyNote` in SQL). */
-export const familyNoteWrittenSql = sql<boolean>`coalesce(
-  nullif(trim(${lessonNotes.topicCovered}), ''),
-  nullif(trim(${lessonNotes.performance}), ''),
-  nullif(trim(${lessonNotes.strengths}), ''),
-  nullif(trim(${lessonNotes.struggles}), ''),
-  nullif(trim(${lessonNotes.nextLessonFocus}), ''),
-  nullif(trim(${lessonNotes.parentVisibleComment}), '')
-) is not null`;
+/** The note has a comment for the family (`hasFamilyNote` in SQL). */
+export const familyNoteWrittenSql = sql<boolean>`nullif(trim(${lessonNotes.parentVisibleComment}), '') is not null`;
 
 export type FamilyRecap = {
   lessonId: string;
@@ -97,14 +85,7 @@ type RecapRow = Awaited<ReturnType<typeof recapQuery>>[number];
 function toRecap(r: RecapRow): FamilyRecap {
   const first = r.noteTutorFirst ?? r.lessonTutorFirst;
   const last = r.noteTutorFirst ? r.noteTutorLast : r.lessonTutorLast;
-  const note: FamilyNote = {
-    topicCovered: r.topicCovered,
-    performance: r.performance,
-    strengths: r.strengths,
-    struggles: r.struggles,
-    nextLessonFocus: r.nextLessonFocus,
-    parentVisibleComment: r.parentVisibleComment,
-  };
+  const note: FamilyNote = { parentVisibleComment: r.parentVisibleComment };
   const written = hasFamilyNote(note);
   return {
     lessonId: r.lessonId,

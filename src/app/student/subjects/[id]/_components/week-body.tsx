@@ -2,12 +2,12 @@ import type { ChecklistTask } from "../../_lib/week-checklist";
 import type { StudentCurriculumWeek } from "../_queries";
 import { subjectTone } from "@/lib/subject-tone";
 import { LessonMaterials } from "./lesson-materials";
-import { TutorNote, WeekHomework, WeeklyQuiz } from "./week-panels";
+import { WeekHomework, WeeklyQuiz } from "./week-panels";
 import { WeekOverview } from "@/components/subjects/week-overview";
 
 /**
  * One curriculum week as the student works through it: overview, lesson and
- * materials, homework and quiz, and the tutor's note. The parent's subject
+ * materials, homework and quiz. The parent's subject
  * page shows the same week for their child (`parent`): read only, with the
  * child's status, and homework opening the parent's copy.
  */
@@ -18,7 +18,6 @@ export function SubjectWeekBody({
   subjectColor,
   videoSrc,
   tutorFirstName,
-  now,
   parent,
 }: {
   week: StudentCurriculumWeek;
@@ -27,7 +26,6 @@ export function SubjectWeekBody({
   subjectColor: string | null;
   videoSrc: string | null;
   tutorFirstName: string | null;
-  now: Date;
   parent?: { childId: string; bookletSrc: string | null };
 }) {
   const video = tasks.find((t) => t.kind === "video");
@@ -69,14 +67,6 @@ export function SubjectWeekBody({
           readOnly={Boolean(parent)}
         />
       </div>
-      <TutorNote
-        week={week}
-        subjectName={subjectName}
-        subjectColor={subjectColor}
-        tutorFirstName={tutorFirstName}
-        now={now}
-        writable={!parent}
-      />
     </div>
   );
 }

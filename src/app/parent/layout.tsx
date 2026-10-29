@@ -1,4 +1,5 @@
 import { ParentShell } from "@/components/parent/shell";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 
 export default async function ParentLayout({
@@ -7,9 +8,6 @@ export default async function ParentLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("parent");
-  const name =
-    (user.user_metadata?.first_name as string) ??
-    user.email?.split("@")[0] ??
-    "Parent";
+  const name = accountFirstName(user, "Parent");
   return <ParentShell userName={name}>{children}</ParentShell>;
 }

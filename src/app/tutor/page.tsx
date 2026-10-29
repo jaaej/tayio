@@ -20,6 +20,7 @@ import { TodoPanel, type TodoItem } from "@/components/dashboard/todo-panel";
 import { PersonStatusTable } from "@/components/dashboard/person-status-table";
 import { WeekPanel } from "@/components/dashboard/week-panel";
 import type { TimeGridEvent } from "@/components/data/week-time-grid";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 import { classDisplayName } from "@/lib/class-display";
 import { termWeekLabel } from "@/lib/curriculum";
@@ -261,10 +262,7 @@ export default async function TutorToday({
     day: "numeric",
     month: "long",
   });
-  const firstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "there";
+  const firstName = accountFirstName(user, "there");
 
   return (
     <div className="space-y-5">
@@ -369,7 +367,7 @@ export default async function TutorToday({
           ) : (
             <ul className="divide-y divide-line">
               {recentNotes.map((n) => {
-                const shared = n.parentVisibleComment?.trim() || n.topicCovered?.trim() || null;
+                const shared = n.parentVisibleComment?.trim() || null;
                 const internal = n.internalNote?.trim() || null;
                 return (
                   <li key={n.id}>

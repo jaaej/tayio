@@ -615,3 +615,21 @@ body::before {
   animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+/* A menu opening under its button (MenuSelect). */
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.menu-pop {
+  animation: menu-pop 140ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop { animation: none; }
+}
+

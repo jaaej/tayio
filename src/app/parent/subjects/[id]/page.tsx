@@ -155,7 +155,6 @@ export default async function ParentSubjectPage({
               subjectColor={subjectColor}
               videoSrc={page.videoSrc}
               tutorFirstName={page.tutorFirstName}
-              now={now}
               parent={{
                 childId: selected.id,
                 bookletSrc: await signCurriculumUrl(page.week.bookletUrl),
@@ -187,7 +186,8 @@ async function Recaps({
   if (recaps.length === 0) {
     return (
       <SubjectNotice>
-        No tutor feedback yet. Notes appear here after each of {childFirstName}&apos;s lessons.
+        No tutor feedback yet. When a tutor leaves a comment after one of {childFirstName}&apos;s
+        lessons, it appears here.
       </SubjectNotice>
     );
   }

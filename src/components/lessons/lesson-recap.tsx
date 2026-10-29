@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Empty, PageHeader } from "@/components/admin/ui";
 import { VideoViewerButton } from "@/components/ui/video-viewer";
-import { classDisplayName, classNameDetail } from "@/lib/class-display";
+import { classNameDetail } from "@/lib/class-display";
 import { formatDayDate, formatTimeRange } from "@/lib/format";
 import type { FamilyRecap } from "@/lib/lesson-recap";
 import { recapBlocks, recapPreview } from "@/lib/lesson-recap-rules";
@@ -17,23 +17,24 @@ import { hostedEmbedUrl } from "@/lib/video-embed";
  * Feedback, a subject's feedback).
  */
 
-/** The filled family fields as blocks, or nothing when none is written. */
+/**
+ * The filled family fields as blocks, or nothing when none is written. The
+ * comment is the only family field, and the heading above already says whose
+ * recap it is, so a block carries no label.
+ */
 export function RecapBlocks({ recap }: { recap: FamilyRecap }) {
   const blocks = recapBlocks(recap.note);
   if (blocks.length === 0) return null;
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-1.5">
+    <div className="grid gap-1.5">
       {blocks.map((b) => (
-        <div
+        <p
           key={b.field}
-          className="panel flex flex-col gap-1.5 p-4"
+          className="panel whitespace-pre-wrap p-4 text-[14px] leading-[1.55] text-ink"
           style={{ borderTop: `3px solid ${b.accent}` }}
         >
-          <span className="text-[12px] font-extrabold uppercase tracking-[0.04em] text-muted">
-            {b.label}
-          </span>
-          <span className="whitespace-pre-wrap text-[14px] leading-[1.55] text-ink">{b.body}</span>
-        </div>
+          {b.body}
+        </p>
       ))}
     </div>
   );
@@ -51,7 +52,6 @@ export function LessonRecapView({
   emptyText: string;
 }) {
   const embedSrc = recap.recordingUrl ? hostedEmbedUrl(recap.recordingUrl) : null;
-  const topic = recap.note?.topicCovered?.trim();
   const statusNote =
     recap.status === "cancelled" || recap.status === "missed"
       ? LESSON_STATUS_LABEL[recap.status]
@@ -70,9 +70,8 @@ export function LessonRecapView({
             />
             <span>
               {[
-                // The title is the topic when there is one; then the subject
-                // has to be named here.
-                topic ? classDisplayName(recap.subjectName, recap.className) : classNameDetail(recap.subjectName, recap.className),
+                // The title names the subject, so only the class detail is left.
+                classNameDetail(recap.subjectName, recap.className),
                 formatDayDate(recap.date),
                 formatTimeRange(recap.startTime, recap.endTime),
                 recap.tutorName && `with ${recap.tutorName}`,
@@ -83,7 +82,7 @@ export function LessonRecapView({
             </span>
           </>
         }
-        title={topic || recap.subjectName}
+        title={recap.subjectName}
       />
 
       {recap.recordingUrl && (

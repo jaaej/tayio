@@ -93,7 +93,6 @@ export default async function StudentSubjectPage({
             subjectColor={data.subjectColor}
             videoSrc={page.videoSrc}
             tutorFirstName={tutorFirstName}
-            now={now}
           />
         ) : (
           <SubjectNotice>

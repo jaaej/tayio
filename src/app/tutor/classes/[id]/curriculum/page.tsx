@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Eye } from "lucide-react";
 import { Empty, GlassPanel, Pill, type PillTone } from "@/components/admin/ui";
 import { CurriculumLayout } from "@/components/subjects/curriculum-layout";
 import {
@@ -32,7 +31,6 @@ import {
   type TutorWeekLesson,
   type TutorWeekQuiz,
 } from "./_queries";
-import { WeekPlanEditor } from "./_components/week-plan-editor";
 import { quizNotes } from "@/lib/quiz-notes";
 
 type SearchParams = Promise<{ term?: string; week?: string }>;
@@ -58,21 +56,12 @@ export default async function TutorClassCurriculumPage({
     data.weeks.find((w) => w.subjectWeekId === data.currentWeekId) ??
     data.weeks[0];
 
-  const [videoSignedUrl, bookletSignedUrl, attachments] = selected
+  const [videoSignedUrl, bookletSignedUrl] = selected
     ? await Promise.all([
         signCurriculumUrl(selected.videoUrl),
         signCurriculumUrl(selected.bookletUrl),
-        Promise.all(
-          selected.attachments.map(async (att) => ({
-            ...att,
-            href:
-              att.kind === "link"
-                ? att.url
-                : await signCurriculumUrl(att.storagePath),
-          })),
-        ),
       ])
-    : [null, null, []];
+    : [null, null];
 
   const railWeeks: RailWeek[] = data.weeks.map((w) => ({
     id: w.subjectWeekId,
@@ -81,7 +70,6 @@ export default async function TutorClassCurriculumPage({
     topicId: w.topicId,
     topicName: w.topicName,
     pills: [
-      ...(w.hasSection ? [{ label: "Notes", tone: "neutral" as const }] : []),
       ...homeworkPill(w.homework),
       ...(w.quiz?.assignedToMe &&
       (w.quiz.status === "requested" || w.quiz.status === "changes_requested")
@@ -189,26 +177,6 @@ export default async function TutorClassCurriculumPage({
                 <ClassRecordingCard lesson={selected.lesson} accent={tone.flat} title={className} />
               </div>
             </section>
-
-            <GlassPanel
-              title="For students this week"
-              titleId="week-plan-heading"
-              action={
-                <span className="flex items-center gap-1.5 pr-1.5 text-[12px] font-bold text-ink-soft">
-                  <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Students and parents see this on the week and its lessons
-                </span>
-              }
-            >
-              <WeekPlanEditor
-                key={selected.subjectWeekId}
-                classId={classId}
-                subjectWeekId={selected.subjectWeekId}
-                initialBody={selected.note ?? ""}
-                attachments={attachments}
-                topics={data.topics}
-              />
-            </GlassPanel>
 
             <div
               className={

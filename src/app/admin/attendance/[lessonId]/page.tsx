@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Empty, Pill } from "@/components/admin/ui";
 import { LessonNoteCard } from "@/components/lessons/lesson-note-card";
@@ -75,18 +75,19 @@ export default async function AdminLessonAttendancePage({
         authorId: lessonNotes.tutorId,
         authorFirst: noteAuthor.firstName,
         authorLast: noteAuthor.lastName,
-        topicCovered: lessonNotes.topicCovered,
-        performance: lessonNotes.performance,
-        strengths: lessonNotes.strengths,
-        struggles: lessonNotes.struggles,
-        nextLessonFocus: lessonNotes.nextLessonFocus,
         parentVisibleComment: lessonNotes.parentVisibleComment,
         internalNote: lessonNotes.internalNote,
       })
       .from(lessonNotes)
       .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
       .innerJoin(noteAuthor, eq(noteAuthor.id, lessonNotes.tutorId))
-      .where(eq(lessonNotes.lessonId, lessonId))
+      .where(
+        and(
+          eq(lessonNotes.lessonId, lessonId),
+          // A note holding only the older fields (lesson-note-fields) shows nothing.
+          sql`coalesce(nullif(trim(${lessonNotes.parentVisibleComment}), ''), nullif(trim(${lessonNotes.internalNote}), '')) is not null`,
+        ),
+      )
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
     // Who can be added: every active student (those on the roll are left out below).
     editable

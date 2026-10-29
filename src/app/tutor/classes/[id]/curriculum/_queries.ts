@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   classes,
@@ -7,30 +7,16 @@ import {
   homeworkAssignments,
   lessons,
   quizzes,
-  resources,
   subjectTopics,
   subjectWeeks,
   subjects,
   terms,
 } from "@/db/schema";
-import { getClassWeekPlans } from "@/lib/week-plans";
 import { weekNumberOn } from "@/lib/week-plan-rules";
 import { resolveCurrentTerm, resolveMostRecentPastTerm } from "@/lib/curriculum";
 import { LIVE_QUIZ_STATUSES } from "@/lib/quiz-status";
 import { LESSON_OFF_STATUSES } from "@/lib/lesson-progress-sql";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
-
-export type TutorSectionAttachment = {
-  id: string;
-  kind: "file" | "link";
-  fileName: string;
-  storagePath: string | null;
-  url: string | null;
-  contentType: string | null;
-  sizeBytes: number | null;
-  /** true if a live (non-removed) `resources` row already sources from this attachment */
-  promoted: boolean;
-};
 
 export type TutorWeekHomework = {
   id: string;
@@ -75,9 +61,6 @@ export type TutorCurriculumWeek = {
   topicName: string | null;
   videoUrl: string | null;
   bookletUrl: string | null;
-  note: string | null;               // "For students this week" for this class
-  attachments: TutorSectionAttachment[];
-  hasSection: boolean;               // note or ≥1 attachment
   homework: TutorWeekHomework[];
   quiz: TutorWeekQuiz | null;
   /** The class's first lesson in the week, if it has one. */
@@ -94,8 +77,6 @@ export type TutorCurriculumData = {
   weeks: TutorCurriculumWeek[];
   /** The week today falls in, when the shown term is the running one. */
   currentWeekId: string | null;
-  /** subject topics, for the "Add to library" promote form's topic select */
-  topics: Array<{ id: string; name: string }>;
 };
 
 export async function getTutorCurriculum(
@@ -169,8 +150,7 @@ export async function getTutorCurriculum(
     .where(eq(subjectTopics.subjectId, cls.subjectId));
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  const [plans, quizRows, hwRows, lessonRows] = await Promise.all([
-    getClassWeekPlans(classId, weekIds),
+  const [quizRows, hwRows, lessonRows] = await Promise.all([
     weekIds.length
       ? db
           .select({
@@ -260,23 +240,6 @@ export async function getTutorCurriculum(
     });
   }
 
-  const atts = [...plans.values()].flatMap((p) => p.attachments);
-  const attIds = atts.map((a) => a.id);
-  const promotedRows = attIds.length
-    ? await db
-        .select({ sourceAttachmentId: resources.sourceAttachmentId })
-        .from(resources)
-        .where(
-          and(
-            inArray(resources.sourceAttachmentId, attIds),
-            isNull(resources.removedAt),
-          ),
-        )
-    : [];
-  const promotedAttachmentIds = new Set(
-    promotedRows.map((r) => r.sourceAttachmentId),
-  );
-
   const quizByWeek = new Map<string, TutorWeekQuiz>();
   for (const q of quizRows) {
     quizByWeek.set(q.subjectWeekId, {
@@ -307,19 +270,6 @@ export async function getTutorCurriculum(
   }
 
   const weeks: TutorCurriculumWeek[] = templates.map((tpl) => {
-    const plan = plans.get(tpl.id) ?? null;
-    const attachments: TutorSectionAttachment[] = (plan?.attachments ?? []).map(
-      (a) => ({
-        id: a.id,
-        kind: a.kind,
-        fileName: a.fileName,
-        storagePath: a.storagePath,
-        url: a.url,
-        contentType: a.contentType,
-        sizeBytes: a.sizeBytes,
-        promoted: promotedAttachmentIds.has(a.id),
-      }),
-    );
     return {
       subjectWeekId: tpl.id,
       weekNumber: tpl.weekNumber,
@@ -330,9 +280,6 @@ export async function getTutorCurriculum(
       topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
       videoUrl: tpl.videoUrl,
       bookletUrl: tpl.bookletUrl,
-      note: plan?.body ?? null,
-      attachments,
-      hasSection: Boolean(plan?.body) || attachments.length > 0,
       homework: hwByWeek.get(tpl.id) ?? [],
       quiz: quizByWeek.get(tpl.id) ?? null,
       lesson: lessonByWeek.get(tpl.weekNumber) ?? null,
@@ -362,6 +309,5 @@ export async function getTutorCurriculum(
     })),
     weeks,
     currentWeekId,
-    topics: topicRows,
   };
 }

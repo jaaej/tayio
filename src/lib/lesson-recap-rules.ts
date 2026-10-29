@@ -14,26 +14,16 @@ export type FamilyNote = Record<FamilyNoteField, string | null>;
 
 /** Accent per field, from the StudentRecapPage handoff. */
 const FIELD_ACCENT: Record<FamilyNoteField, string> = {
-  topicCovered: "#17152B",
-  performance: "#3B4FD8",
-  strengths: "#15803D",
-  struggles: "#D97706",
-  nextLessonFocus: "#7C62F0",
   parentVisibleComment: "#2E9C86",
 };
 
-export type RecapBlock = { field: FamilyNoteField; label: string; body: string; accent: string };
+export type RecapBlock = { field: FamilyNoteField; body: string; accent: string };
 
-/**
- * The filled family fields, in the editor's order and with its labels
- * (`lesson-note-fields`), so the family reads what the tutor wrote under the
- * same names.
- */
+/** The filled family fields, in the editor's order (`lesson-note-fields`), trimmed. */
 export function recapBlocks(note: Partial<FamilyNote> | null | undefined): RecapBlock[] {
   if (!note) return [];
   return sharedNoteFields(note).map((f) => ({
     field: f.key,
-    label: f.label,
     body: f.value,
     accent: FIELD_ACCENT[f.key],
   }));
@@ -44,11 +34,7 @@ export function hasFamilyNote(note: Partial<FamilyNote> | null | undefined): boo
   return recapBlocks(note).length > 0;
 }
 
-/**
- * One line to stand for a recap in a list: the comment, else the first
- * other filled field.
- */
+/** One line to stand for a recap in a list: the comment. */
 export function recapPreview(note: Partial<FamilyNote> | null | undefined): string | null {
-  const blocks = recapBlocks(note);
-  return (blocks.find((b) => b.field === "parentVisibleComment") ?? blocks[0])?.body ?? null;
+  return recapBlocks(note)[0]?.body ?? null;
 }

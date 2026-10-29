@@ -21,7 +21,7 @@ export default async function LessonRecapPage({
     <LessonRecapView
       recap={recap}
       back={{ href: "/student/resources", label: "All resources" }}
-      emptyText="Your tutor hasn't written a recap for this lesson yet. Check back later."
+      emptyText="Your tutor hasn't left a comment for this lesson."
     />
   );
 }

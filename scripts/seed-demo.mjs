@@ -413,25 +413,6 @@ for (const c of CLASSES) {
 }
 
 // ----------------------------------------------------------------------------
-// 3.5. Week plan - one demo "For students this week" note so the student
-//      weekly page renders populated content instead of an empty section.
-//      Uses Week 1 of "Year 9 Maths" (linear equations) for Tom Tutor's
-//      Saturday class. Both ids exist by this point: classIds populated in §3,
-//      subjectWeekIds populated in §2.5.
-// ----------------------------------------------------------------------------
-
-console.log("→ Seeding week plans");
-{
-  const classId = classIds["Year 9 Maths · Saturday AM"];
-  const subjectWeekId = subjectWeekIds["Year 9 Maths"][0]; // Week 1: linear equations
-  await sql`
-    insert into class_week_plans (class_id, subject_week_id, body)
-    values (${classId}, ${subjectWeekId}, ${"Bring your exercise book and last week's notes - we'll work through the trickier rearrangement problems first, then move on to word problems. If you found Q7 from the worksheet hard, jot down where you got stuck."})
-    on conflict (class_id, subject_week_id) do update set body = excluded.body
-  `;
-}
-
-// ----------------------------------------------------------------------------
 // 4. Enrollments - wire students into classes
 // ----------------------------------------------------------------------------
 
@@ -702,11 +683,11 @@ for (const l of allLessons) {
     await sql`
       insert into lesson_notes (
         id, lesson_id, student_id, tutor_id,
-        topic_covered, parent_visible_comment, internal_note
+        parent_visible_comment, internal_note
       )
       values (
         ${randomUUID()}, ${l.id}, ${sid}, ${l.tutorId},
-        ${topic}, ${parentVisible}, ${internal}
+        ${parentVisible}, ${internal}
       )
     `;
   }

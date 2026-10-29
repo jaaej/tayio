@@ -9,7 +9,6 @@ import { formatTimeRange } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { getLessonWeek } from "@/lib/week-plans";
-import { cn } from "@/lib/utils";
 import { getTutorClasses, requireTutor } from "../_data";
 import { getNextLessonDateByClass } from "./_lib/queries";
 
@@ -42,17 +41,7 @@ export default async function TutorClassesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Classes"
-        actions={
-          <Link
-            href="/tutor/timetable"
-            className={buttonVariants({ variant: "glass", size: "lg" })}
-          >
-            Schedule &amp; availability
-          </Link>
-        }
-      />
+      <PageHeader title="Classes" />
 
       {/* Same frame as GlassPanel, but each class card is its own white
           panel on the glass instead of one shared body. */}
@@ -72,10 +61,6 @@ export default async function TutorClassesPage() {
               const tone = subjectTone(c.subjectName, c.subjectColor);
               const name = classDisplayName(c.subjectName, c.name);
               const week = weekByClass.get(c.id);
-              const capacity = c.capacity ?? 0;
-              const enrolled = c.enrolledCount ?? 0;
-              const full = capacity > 0 && enrolled >= capacity;
-              const pct = capacity > 0 ? Math.min(100, Math.round((enrolled / capacity) * 100)) : 0;
               const when =
                 typeof c.weekday === "number" && c.startTime && c.endTime
                   ? `${WEEKDAY[c.weekday]} · ${formatTimeRange(c.startTime, c.endTime)}`
@@ -105,21 +90,6 @@ export default async function TutorClassesPage() {
                     <dd className="font-bold text-ink tabular-nums">{when}</dd>
                     <dt className="font-semibold text-muted">Where</dt>
                     <dd className="truncate font-bold text-ink">{where}</dd>
-                    <dt className="font-semibold text-muted">Enrolled</dt>
-                    <dd className="flex items-center gap-2">
-                      <span
-                        className="h-1.5 flex-1 overflow-hidden rounded-[3px] bg-[#F1F2F7]"
-                        role="presentation"
-                      >
-                        <span
-                          className={cn("block h-full rounded-[3px]", full ? "bg-warn" : "bg-ink")}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </span>
-                      <span className={cn("font-bold tabular-nums", full ? "text-warn" : "text-ink")}>
-                        {enrolled} / {capacity}
-                      </span>
-                    </dd>
                   </dl>
                   <div className="mt-auto grid grid-cols-2 gap-2">
                     <Link href={`/tutor/classes/${c.id}/curriculum`} className={LINE_BUTTON}>

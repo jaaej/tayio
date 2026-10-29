@@ -1,35 +1,30 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   Empty,
   ListPane,
   SegmentedLinks,
   SubjectDot,
-  buttonVariants,
 } from "@/components/admin/ui";
 import { classDisplayName } from "@/lib/class-display";
-import { formatDateLong, formatDateShort, formatTime, formatWeekday } from "@/lib/format";
+import { formatDateLong, formatTime, formatWeekday } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AttendanceQueue as QueueData, QueueItem } from "../_lib/queue";
 import {
   QUEUE_VIEWS,
   QUEUE_VIEW_LABEL,
-  groupByTutor,
   queueQueryString,
-  type QueueView,
 } from "../_lib/queue-logic";
 import { DayPicker } from "./day-picker";
 
 const EMPTY_TEXT = {
   to_mark: { day: "Nothing to mark on this day.", range: "Every lesson is marked." },
-  notes: { day: "No notes missing on this day.", range: "Every lesson has its notes." },
   marked: { day: "No marked lessons on this day.", range: "No marked lessons in this period." },
   upcoming: { day: "No upcoming lessons on this day.", range: "No upcoming lessons." },
 } as const;
 
-function stateLabel(item: QueueItem, view: QueueView, today: string) {
-  if (view === "notes") return { text: `${item.notesMissing} to write`, tone: "text-warn" };
+function stateLabel(item: QueueItem, today: string) {
   switch (item.state) {
     case "to_mark":
       return { text: `${item.unmarkedCount} to mark`, tone: "text-warn" };
@@ -106,49 +101,8 @@ export function AttendanceQueue({
     >
         {items.length === 0 ? (
           <Empty>{EMPTY_TEXT[filters.view][filters.date ? "day" : "range"]}</Empty>
-        ) : filters.view === "notes" ? (
-          // Grouped by tutor: notes are the tutor's to write, so the admin
-          // chases each tutor once, from the same place.
-          <div className="flex flex-col gap-3">
-            {groupByTutor(items).map((group) => (
-              <section key={group.tutorId} aria-label={group.tutorName} className="flex flex-col gap-0.5">
-                <div className="flex min-h-10 items-center gap-2 px-2.5">
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-ink">
-                    {group.tutorName}
-                    <span className="font-semibold text-muted">
-                      {" · "}
-                      {group.items.length} {group.items.length === 1 ? "lesson" : "lessons"}
-                    </span>
-                  </span>
-                  <Link
-                    href={`/admin/messages/with/${group.tutorId}`}
-                    className={cn(buttonVariants({ variant: "glass", size: "sm" }), "shrink-0")}
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-                    Message
-                    <span className="sr-only"> {group.tutorName}</span>
-                  </Link>
-                </div>
-                <QueueList
-                  items={group.items}
-                  view={filters.view}
-                  today={today}
-                  query={query}
-                  currentLessonId={currentLessonId}
-                  showTutor={false}
-                />
-              </section>
-            ))}
-          </div>
         ) : (
-          <QueueList
-            items={items}
-            view={filters.view}
-            today={today}
-            query={query}
-            currentLessonId={currentLessonId}
-            showTutor
-          />
+          <QueueList items={items} today={today} query={query} currentLessonId={currentLessonId} />
         )}
     </ListPane>
   );
@@ -156,27 +110,23 @@ export function AttendanceQueue({
 
 function QueueList({
   items,
-  view,
   today,
   query,
   currentLessonId,
-  showTutor,
 }: {
   items: QueueItem[];
-  view: QueueView;
   today: string;
   query: string;
   currentLessonId?: string;
-  showTutor: boolean;
 }) {
   // A list that runs over more than one month gets month headings, since
   // each row shows only the weekday and day.
-  const monthBreaks = showTutor && new Set(items.map((item) => item.date.slice(0, 7))).size > 1;
+  const monthBreaks = new Set(items.map((item) => item.date.slice(0, 7))).size > 1;
   return (
     <ul className="flex flex-col gap-0.5">
       {items.map((item, index) => {
         const current = item.id === currentLessonId;
-        const label = stateLabel(item, view, today);
+        const label = stateLabel(item, today);
         const newMonth =
           monthBreaks && (index === 0 || items[index - 1].date.slice(0, 7) !== item.date.slice(0, 7));
         return (
@@ -213,9 +163,7 @@ function QueueList({
                     </span>
                   </span>
                   <span className="truncate text-[12px] text-muted">
-                    {showTutor
-                      ? `${formatTime(item.startTime)} · ${item.tutorName}`
-                      : `${formatDateShort(item.date)} · ${formatTime(item.startTime)}`}
+                    {formatTime(item.startTime)} · {item.tutorName}
                   </span>
                 </span>
                 {label && (

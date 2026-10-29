@@ -14,10 +14,7 @@ import {
   subjectWeeks,
   subjects,
   terms,
-  classWeekPlanAttachments,
-  classWeekPlans,
 } from "@/db/schema";
-import { signCurriculumUrl } from "@/lib/curriculum-storage";
 import { listApprovedQuizSummariesForWeeks } from "@/lib/quiz-queries";
 import { LIVE_QUIZ_STATUSES } from "@/lib/quiz-status";
 import { accessibleCurriculumTermsForStudent } from "@/lib/curriculum-access";
@@ -37,15 +34,6 @@ export type StudentCurriculumWeek = {
   bookletUrl: string | null;
   topicId: string | null;
   topicName: string | null;
-  tutorNote: string | null;
-  /** When the tutor last saved the week's "For students this week" plan. */
-  tutorNoteUpdatedAt: Date | null;
-  tutorAttachments: Array<{
-    id: string;
-    kind: "file" | "link";
-    fileName: string;
-    url: string | null;
-  }>;
   videoWatchedAt: Date | null;
   bookletOpenedAt: Date | null;
   homework: Array<{
@@ -240,33 +228,6 @@ export async function getStudentCurriculum(
     .where(eq(subjectTopics.subjectId, subjectId));
   const topicName = new Map(topicRows.map((t) => [t.id, t.name]));
 
-  // Tutor sections + attachments for the enrolled class's tutor
-  const sections = weekIds.length
-    ? await db
-        .select()
-        .from(classWeekPlans)
-        .where(
-          and(
-            eq(classWeekPlans.classId, enrollment.classId),
-            inArray(classWeekPlans.subjectWeekId, weekIds),
-          ),
-        )
-    : [];
-  const sectionByWeek = new Map(sections.map((s) => [s.subjectWeekId, s]));
-  const sectionIds = sections.map((s) => s.id);
-  const attRows = sectionIds.length
-    ? await db
-        .select()
-        .from(classWeekPlanAttachments)
-        .where(inArray(classWeekPlanAttachments.planId, sectionIds))
-    : [];
-  // Group attachments by sectionId for fast lookup
-  const attsBySection = new Map<string, typeof attRows>();
-  for (const a of attRows) {
-    if (!attsBySection.has(a.planId)) attsBySection.set(a.planId, []);
-    attsBySection.get(a.planId)!.push(a);
-  }
-
   const progress = weekIds.length
     ? await db
         .select()
@@ -307,77 +268,57 @@ export async function getStudentCurriculum(
     hwByWeek.get(r.weekId)!.push(r);
   }
 
-  const weeks: StudentCurriculumWeek[] = await Promise.all(
-    templateWeeks.map(async (tpl) => {
-      const locked = tpl.weekNumber > releasedThroughWeek;
-      const unlocksOn = curriculumWeekUnlockDate(term.startDate, tpl.weekNumber);
-      if (locked) {
-        return {
-          subjectWeekId: tpl.id,
-          weekNumber: tpl.weekNumber,
-          title: tpl.title,
-          description: null,
-          objectives: null,
-          videoUrl: null,
-          bookletUrl: null,
-          topicId: tpl.topicId,
-          topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
-          tutorNote: null,
-          tutorNoteUpdatedAt: null,
-          tutorAttachments: [],
-          videoWatchedAt: null,
-          bookletOpenedAt: null,
-          homework: [],
-          quiz: null,
-          quizAttempt: null,
-          quizInProgress: false,
-          locked: true,
-          unlocksOn,
-        } satisfies StudentCurriculumWeek;
-      }
-      const p = progressByWeek.get(tpl.id);
-      const section = sectionByWeek.get(tpl.id);
-      const sectionAtts = section
-        ? (attsBySection.get(section.id) ?? [])
-        : [];
-      const tutorAttachments = await Promise.all(
-        sectionAtts.map(async (a) => ({
-          id: a.id,
-          kind: a.kind === "link" ? ("link" as const) : ("file" as const),
-          fileName: a.fileName,
-          url: a.kind === "link" ? a.url : await signCurriculumUrl(a.storagePath),
-        })),
-      );
+  const weeks: StudentCurriculumWeek[] = templateWeeks.map((tpl) => {
+    const locked = tpl.weekNumber > releasedThroughWeek;
+    const unlocksOn = curriculumWeekUnlockDate(term.startDate, tpl.weekNumber);
+    if (locked) {
       return {
         subjectWeekId: tpl.id,
         weekNumber: tpl.weekNumber,
         title: tpl.title,
-        description: tpl.description,
-        objectives: tpl.objectives,
-        videoUrl: tpl.videoUrl,
-        bookletUrl: tpl.bookletUrl,
+        description: null,
+        objectives: null,
+        videoUrl: null,
+        bookletUrl: null,
         topicId: tpl.topicId,
         topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
-        tutorNote: section?.body ?? null,
-        tutorNoteUpdatedAt: section?.updatedAt ?? null,
-        tutorAttachments,
-        videoWatchedAt: p?.videoWatchedAt ?? null,
-        bookletOpenedAt: p?.bookletOpenedAt ?? null,
-        homework: (hwByWeek.get(tpl.id) ?? []).map((h) => ({
-          homeworkId: h.homeworkId,
-          title: h.title,
-          dueDate: h.dueDate,
-          status: h.status,
-          score: h.score,
-        })),
-        quiz: quizByWeek.get(tpl.id) ?? null,
-        quizAttempt: attemptFor(quizByWeek.get(tpl.id)?.id),
-        quizInProgress: pendingQuizWeeks.has(tpl.id),
-        locked: false,
+        videoWatchedAt: null,
+        bookletOpenedAt: null,
+        homework: [],
+        quiz: null,
+        quizAttempt: null,
+        quizInProgress: false,
+        locked: true,
         unlocksOn,
-      };
-    }),
-  );
+      } satisfies StudentCurriculumWeek;
+    }
+    const p = progressByWeek.get(tpl.id);
+    return {
+      subjectWeekId: tpl.id,
+      weekNumber: tpl.weekNumber,
+      title: tpl.title,
+      description: tpl.description,
+      objectives: tpl.objectives,
+      videoUrl: tpl.videoUrl,
+      bookletUrl: tpl.bookletUrl,
+      topicId: tpl.topicId,
+      topicName: tpl.topicId ? (topicName.get(tpl.topicId) ?? null) : null,
+      videoWatchedAt: p?.videoWatchedAt ?? null,
+      bookletOpenedAt: p?.bookletOpenedAt ?? null,
+      homework: (hwByWeek.get(tpl.id) ?? []).map((h) => ({
+        homeworkId: h.homeworkId,
+        title: h.title,
+        dueDate: h.dueDate,
+        status: h.status,
+        score: h.score,
+      })),
+      quiz: quizByWeek.get(tpl.id) ?? null,
+      quizAttempt: attemptFor(quizByWeek.get(tpl.id)?.id),
+      quizInProgress: pendingQuizWeeks.has(tpl.id),
+      locked: false,
+      unlocksOn,
+    };
+  });
 
   return {
     subjectName: enrollment.subjectName,

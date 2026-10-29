@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronDown, LockKeyhole } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, LockKeyhole } from "lucide-react";
+import { MenuSelect } from "@/components/ui/menu-select";
+import { startNavigationLoading } from "@/lib/navigation-loading";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,6 +61,7 @@ export function CurriculumRail({
    *  carries white text at 4.5:1). */
   accent?: string;
 }) {
+  const router = useRouter();
   const active =
     selectedWeekId ??
     currentWeekIdHint ??
@@ -87,26 +91,15 @@ export function CurriculumRail({
     <div className="flex min-h-0 flex-1 flex-col gap-1.5">
       {showTermSelect && terms.length > 0 && (
         <div className="px-1.5 pt-1.5">
-          <label className="relative flex h-[38px] items-center gap-2 rounded-[11px] bg-surface pl-2.5 text-[13px] font-bold text-ink focus-within:ring-2 focus-within:ring-brand-400">
-            Term
-            <select
-              defaultValue={currentTermId}
-              onChange={(e) => {
-                window.location.href = `${basePath}?${qs({ term: e.target.value })}`;
-              }}
-              className="h-full min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-8 text-right text-[13px] font-extrabold text-ink focus:outline-none"
-            >
-              {terms.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              aria-hidden
-              className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-            />
-          </label>
+          <MenuSelect
+            label="Term"
+            value={currentTermId}
+            options={terms.map((t) => ({ value: t.id, label: t.label }))}
+            onChange={(termId) => {
+              startNavigationLoading();
+              router.push(`${basePath}?${qs({ term: termId })}`);
+            }}
+          />
         </div>
       )}
 

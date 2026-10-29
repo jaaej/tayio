@@ -9,7 +9,7 @@ const DEBOUNCE_MS = 250;
 /**
  * The library's search box in the page header. It writes `?q=` (the server
  * filters the library) and keeps local state so typing never waits on the
- * round-trip; the subject filter and everything else in the URL is kept.
+ * round-trip; anything else in the URL is kept.
  */
 export function ResourceSearch() {
   const router = useRouter();

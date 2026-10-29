@@ -11,8 +11,10 @@ import {
   discussionReplies,
   discussionThreads,
   notifications,
+  profiles,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
+import { coarseRole } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
 import { canSeeBoard } from "@/lib/discussions-queries";
 import { uploadDiscussionAttachment } from "@/lib/discussions-storage";
@@ -172,9 +174,11 @@ export async function postReply(formData: FormData) {
       id: discussionThreads.id,
       subjectId: discussionThreads.subjectId,
       authorId: discussionThreads.authorId,
+      authorRole: profiles.role,
       title: discussionThreads.title,
     })
     .from(discussionThreads)
+    .innerJoin(profiles, eq(profiles.id, discussionThreads.authorId))
     .where(eq(discussionThreads.id, parsed.threadId))
     .limit(1);
 
@@ -235,7 +239,8 @@ export async function postReply(formData: FormData) {
   });
 
   if (thread.authorId !== user.id) {
-    const href = `/${parsed.rolePrefix}/discussions/${boardSegment(board)}/${thread.id}`;
+    // The link opens the thread in the author's portal, not the replier's.
+    const href = `/${coarseRole(thread.authorRole)}/discussions/${boardSegment(board)}/${thread.id}`;
     const existing = await db
       .select({ id: notifications.id })
       .from(notifications)

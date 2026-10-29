@@ -2,18 +2,17 @@
  * The fields of a lesson note, in the editor's order and words, who sees
  * each one, and the two visibility labels the editor puts over them. Every
  * place that shows a note reads this list, so a field is never named two ways
- * or left out. `key_concepts` is not here: the editor no longer writes it and
- * no note has it.
+ * or left out.
+ *
+ * A note is one optional comment for the family plus an optional internal
+ * note (owner decision, 29 October 2026). The older topic, performance,
+ * strengths, struggles, next-focus and key-concepts columns are no longer
+ * written or shown; the editor clears them whenever it saves a note.
  */
 
 export type NoteAudience = "family" | "staff";
 
 export const LESSON_NOTE_FIELDS = [
-  { key: "topicCovered", label: "Topic covered", audience: "family" },
-  { key: "performance", label: "Performance", audience: "family" },
-  { key: "strengths", label: "Strengths", audience: "family" },
-  { key: "struggles", label: "Struggled with", audience: "family" },
-  { key: "nextLessonFocus", label: "Next lesson focus", audience: "family" },
   { key: "parentVisibleComment", label: "Comment", audience: "family" },
   { key: "internalNote", label: "Internal note", audience: "staff" },
 ] as const satisfies readonly { key: string; label: string; audience: NoteAudience }[];

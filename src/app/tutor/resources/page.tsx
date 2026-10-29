@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { asc, inArray } from "drizzle-orm";
 import { Empty, GlassPanel, PageHeader, SubjectDot } from "@/components/admin/ui";
 import { db } from "@/db/client";
@@ -7,10 +6,8 @@ import { requireRole } from "@/lib/auth";
 import { httpHref } from "@/lib/safe-url";
 import { listResourcesForSubjects, taughtSubjectIds } from "@/lib/resources";
 import { resourceMeta } from "@/lib/resource-meta";
-import { cn } from "@/lib/utils";
 import {
   AddResourceProvider,
-  AddResourceButton,
   AddToSubjectButton,
 } from "./_components/add-resource-panel";
 import { ResourceSearch } from "./_components/resource-search";
@@ -24,7 +21,7 @@ const SUB = "Share items with students when they are ready.";
 export default async function TutorResourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; subject?: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const sp = await searchParams;
   const query = (sp.q ?? "").trim();
@@ -88,33 +85,11 @@ export default async function TutorResourcesPage({
     bySubject.set(r.subjectId, list);
   }
 
-  // Only a subject the tutor actually teaches can be selected, so a stale or
-  // hand-edited ?subject= falls back to showing everything.
-  const activeSubject = subjectList.some((s) => s.id === sp.subject) ? sp.subject! : "";
-  const shown = activeSubject
-    ? subjectList.filter((s) => s.id === activeSubject)
-    : subjectList;
   // With a search running, a subject with no hits is noise; with no search it
-  // stays put so its "Add to <Subject>" control remains reachable.
-  const sections = (query ? shown.filter((s) => bySubject.has(s.id)) : shown).map(
+  // stays put so its + control remains reachable.
+  const sections = (query ? subjectList.filter((s) => bySubject.has(s.id)) : subjectList).map(
     (subject) => ({ subject, resources: bySubject.get(subject.id) ?? [] }),
   );
-
-  const chipHref = (subjectId: string) => {
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (subjectId) params.set("subject", subjectId);
-    const qs = params.toString();
-    return qs ? `/tutor/resources?${qs}` : "/tutor/resources";
-  };
-  const chips = [
-    { id: "", label: "All subjects", count: allResources.length },
-    ...subjectList.map((s) => ({
-      id: s.id,
-      label: s.label,
-      count: bySubject.get(s.id)?.length ?? 0,
-    })),
-  ];
 
   const panelSubjects = subjectList.map((s) => ({
     id: s.id,
@@ -125,48 +100,7 @@ export default async function TutorResourcesPage({
   return (
     <AddResourceProvider subjects={panelSubjects}>
       <div className="flex flex-col gap-5">
-        <PageHeader
-          title="Resources"
-          sub={SUB}
-          actions={
-            <>
-              <ResourceSearch />
-              <AddResourceButton />
-            </>
-          }
-        />
-
-        {subjectList.length > 1 && (
-          <nav aria-label="Filter by subject" className="flex flex-wrap gap-1.5">
-            {chips.map((chip) => {
-              const active = chip.id === activeSubject;
-              return (
-                <Link
-                  key={chip.id || "all"}
-                  href={chipHref(chip.id)}
-                  scroll={false}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                    active
-                      ? "border-ink bg-ink text-white"
-                      : "border-white/95 bg-white/70 text-ink hover:bg-white",
-                  )}
-                >
-                  {chip.label}
-                  <span
-                    className={cn(
-                      "text-[11px] tabular-nums",
-                      active ? "text-white/75" : "text-ink-soft",
-                    )}
-                  >
-                    {chip.count}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-        )}
+        <PageHeader title="Resources" sub={SUB} actions={<ResourceSearch />} />
 
         {sections.length === 0 ? (
           <GlassPanel>

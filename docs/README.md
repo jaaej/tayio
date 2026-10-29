@@ -37,6 +37,7 @@ alone.
 | [`SECURITY.md`](SECURITY.md) | Implemented database and authorization model |
 | [`security-checklist.md`](security-checklist.md) | Security verification status and release gates |
 | [`client-dns-setup.md`](client-dns-setup.md) | Current Vercel and Resend DNS reference |
+| [`demo/tutor-demo.md`](demo/tutor-demo.md) | Tutor portal demo runthrough, with its dev-only seed `scripts/tutor-demo/seed.mjs` |
 
 These files were reconciled with the repository and visible production
 infrastructure on 6 October 2026.

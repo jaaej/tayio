@@ -33,11 +33,10 @@ function isoDateLocal(d: Date) {
 }
 
 export async function getTutorClasses(tutorId: string) {
-  const rows = await db
+  return db
     .select({
       id: classes.id,
       name: classes.name,
-      capacity: classes.capacity,
       location: classes.location,
       weekday: classes.weekday,
       startTime: classes.startTime,
@@ -46,29 +45,11 @@ export async function getTutorClasses(tutorId: string) {
       subjectName: subjects.name,
       subjectColor: subjects.color,
       subjectYear: subjects.yearLevel,
-      enrolledCount: sql<number>`count(distinct ${enrollments.studentId})::int`,
     })
     .from(classes)
     .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .leftJoin(
-      enrollments,
-      and(eq(enrollments.classId, classes.id), isNull(enrollments.withdrawnAt)),
-    )
     .where(eq(classes.tutorId, tutorId))
-    .groupBy(
-      classes.id,
-      classes.name,
-      classes.capacity,
-      classes.location,
-      classes.weekday,
-      classes.startTime,
-      classes.endTime,
-      subjects.name,
-      subjects.color,
-      subjects.yearLevel,
-    )
     .orderBy(asc(classes.name));
-  return rows;
 }
 
 /**
@@ -448,7 +429,6 @@ export async function getRecentLessonNotes(tutorId: string, limit = 20) {
     .select({
       id: lessonNotes.id,
       createdAt: lessonNotes.createdAt,
-      topicCovered: lessonNotes.topicCovered,
       parentVisibleComment: lessonNotes.parentVisibleComment,
       internalNote: lessonNotes.internalNote,
       lessonDate: lessons.date,
@@ -463,7 +443,13 @@ export async function getRecentLessonNotes(tutorId: string, limit = 20) {
     .innerJoin(classes, eq(lessons.classId, classes.id))
     .innerJoin(subjects, eq(classes.subjectId, subjects.id))
     .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
-    .where(eq(lessonNotes.tutorId, tutorId))
+    .where(
+      and(
+        eq(lessonNotes.tutorId, tutorId),
+        // A note holding only the older fields (lesson-note-fields) shows nothing.
+        sql`coalesce(nullif(trim(${lessonNotes.parentVisibleComment}), ''), nullif(trim(${lessonNotes.internalNote}), '')) is not null`,
+      ),
+    )
     .orderBy(desc(lessonNotes.createdAt))
     .limit(limit);
 }

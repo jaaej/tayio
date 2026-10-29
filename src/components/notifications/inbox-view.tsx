@@ -246,7 +246,7 @@ export function NotificationsInboxView({ items }: { items: InboxItem[] }) {
   }
 
   return (
-    <div className="flex w-full max-w-[920px] flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <PageHeader
         title={
           <span className="inline-flex flex-wrap items-baseline gap-x-2.5">

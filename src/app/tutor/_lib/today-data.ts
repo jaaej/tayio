@@ -39,7 +39,7 @@ export type DayLesson = {
   place: string | null;
   recordingUrl: string | null;
   studentCount: number;
-  /** Roll and note counts, for `describeLesson`. */
+  /** Roll counts, for `describeLesson`. */
   counts: LessonCounts;
 };
 
@@ -93,7 +93,6 @@ function toDayLesson(r: LessonRow): DayLesson {
       roster: r.roster,
       marked: r.marked,
       absent: r.absent,
-      notesWritten: r.notesWritten,
     },
   };
 }

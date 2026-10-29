@@ -10,6 +10,7 @@ import {
   tutorWeeklyCheckins,
 } from "@/db/schema";
 import { requireUnrestrictedAdmin } from "@/lib/auth";
+import { weekRangeLabel } from "@/lib/format";
 import { withActor } from "@/lib/with-actor";
 
 const schema = z.object({
@@ -179,7 +180,7 @@ export async function setTutorBankDetails(input: z.infer<typeof schema>) {
               userId: data.tutorId,
               channel: "in_app" as const,
               title: "Review your corrected hourly rate",
-              body: `Admin added your hourly rate for the week starting ${week.weekStart}. Review the pay total and approve the week again.`,
+              body: `Admin added your hourly rate for ${weekRangeLabel(week.weekStart)}. Review the pay total and approve the week again.`,
               href: `/tutor/checkin?week=${week.weekStart}`,
               dedupeKey: `tutor-checkin-rate-reapproval:${week.id}:${rate}`,
             })),

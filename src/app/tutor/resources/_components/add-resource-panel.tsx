@@ -31,9 +31,8 @@ function useOpenAddResource() {
 
 /**
  * Owns the single add-resource slide-over for the page. Wraps the page body so
- * both the header action and each subject section's "Add to <Subject>" control
- * open the same panel - one form, one implementation, rather than an inline
- * form repeated under every subject.
+ * each subject section's + control opens the same panel with its subject
+ * chosen - one form, one implementation, rather than a form under every subject.
  */
 export function AddResourceProvider({
   subjects,
@@ -126,18 +125,7 @@ export function AddResourceProvider({
   );
 }
 
-/** Page-header action. */
-export function AddResourceButton() {
-  const open = useOpenAddResource();
-  return (
-    <Button type="button" variant="brand" size="lg" onClick={() => open()}>
-      <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} aria-hidden />
-      Add resource
-    </Button>
-  );
-}
-
-/** Subject-section action - opens the same panel with that subject chosen. */
+/** Subject-section action - opens the panel with that subject chosen. */
 export function AddToSubjectButton({
   subjectId,
   subjectName,
@@ -146,11 +134,18 @@ export function AddToSubjectButton({
   subjectName: string;
 }) {
   const open = useOpenAddResource();
+  const label = `Add a resource to ${subjectName}`;
   return (
     // Sits on the subject's glass title row, so it takes the glass variant.
-    <Button type="button" variant="glass" size="md" onClick={() => open(subjectId)}>
-      <Plus className="h-3.5 w-3.5" aria-hidden />
-      Add to {subjectName}
+    <Button
+      type="button"
+      variant="glass"
+      size="icon"
+      aria-label={label}
+      title={label}
+      onClick={() => open(subjectId)}
+    >
+      <Plus className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden />
     </Button>
   );
 }

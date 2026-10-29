@@ -44,11 +44,6 @@ export type RecordNote = {
   id: string;
   authorId: string;
   authorName: string;
-  topicCovered: string | null;
-  performance: string | null;
-  strengths: string | null;
-  struggles: string | null;
-  nextLessonFocus: string | null;
   parentVisibleComment: string | null;
   /** Null when empty, or when the viewer may not read it. */
   internalNote: string | null;
@@ -160,11 +155,6 @@ export async function getStudentRecord(
         authorId: lessonNotes.tutorId,
         authorFirst: noteAuthor.firstName,
         authorLast: noteAuthor.lastName,
-        topicCovered: lessonNotes.topicCovered,
-        performance: lessonNotes.performance,
-        strengths: lessonNotes.strengths,
-        struggles: lessonNotes.struggles,
-        nextLessonFocus: lessonNotes.nextLessonFocus,
         parentVisibleComment: lessonNotes.parentVisibleComment,
         internalNote: tutorId
           ? sql<string | null>`case when ${lessonNotes.tutorId} = ${tutorId} then ${lessonNotes.internalNote} end`
@@ -179,6 +169,8 @@ export async function getStudentRecord(
         and(
           eq(lessonNotes.studentId, studentId),
           tutorId ? or(eq(classes.tutorId, tutorId), eq(lessonNotes.tutorId, tutorId)) : undefined,
+          // A note holding only the older fields (lesson-note-fields) shows nothing.
+          sql`coalesce(nullif(trim(${lessonNotes.parentVisibleComment}), ''), nullif(trim(${lessonNotes.internalNote}), '')) is not null`,
         ),
       ),
     db
@@ -245,11 +237,6 @@ export async function getStudentRecord(
         id: n.id,
         authorId: n.authorId,
         authorName: `${n.authorFirst} ${n.authorLast}`.trim(),
-        topicCovered: n.topicCovered,
-        performance: n.performance,
-        strengths: n.strengths,
-        struggles: n.struggles,
-        nextLessonFocus: n.nextLessonFocus,
         parentVisibleComment: n.parentVisibleComment,
         internalNote: n.internalNote?.trim() || null,
       },

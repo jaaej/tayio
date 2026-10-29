@@ -1,30 +1,50 @@
-import type { ReactNode } from "react";
-import { MessagesSquare } from "lucide-react";
+"use client";
+
+import { useEffect, useRef, type ReactNode } from "react";
+import { useRouter, useSelectedLayoutSegment } from "next/navigation";
 import type { ThreadInboxRow } from "@/lib/dm-queries";
 import { cn } from "@/lib/utils";
 import { InboxCompose, type DmGroup } from "./inbox-compose";
 
 /**
- * Shared two-pane messaging workspace for every role: the inbox list on the
- * left, the open conversation on the right. On phones it collapses to one
- * screen at a time - the list at /messages, the conversation at
- * /messages/[threadId] (with a back button in its header).
+ * Shared two-pane messaging workspace for every role, rendered by each role's
+ * messages layout: the inbox list on the left, the open conversation on the
+ * right. Being a layout, it stays mounted while the conversation changes, so
+ * switching people swaps only the right pane's contents. On phones it
+ * collapses to one screen at a time - the list at /messages, the conversation
+ * at /messages/[threadId] (with a back button in its header).
  */
 export function MessagesLayout({
   threads,
   groups,
   hrefPrefix,
-  activeThreadId,
   children,
 }: {
   threads: ThreadInboxRow[];
   groups: DmGroup[];
   hrefPrefix: string;
-  activeThreadId?: string;
-  /** The open conversation; omitted on the inbox index. */
-  children?: ReactNode;
+  /** The open conversation, or the empty state on the inbox index. */
+  children: ReactNode;
 }) {
+  const router = useRouter();
+  const segment = useSelectedLayoutSegment();
+  // "with/[userId]" only redirects to a thread, so it never counts as open.
+  const activeThreadId = segment && segment !== "with" ? segment : undefined;
   const open = Boolean(activeThreadId);
+
+  // A layout is not re-rendered when only the conversation changes, so the
+  // list (and the sidebar's unread badge) would still count a thread that
+  // opening it just marked read, and would miss a thread just started. Ask
+  // the server for fresh data once in either case.
+  const refreshedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeThreadId || refreshedFor.current === activeThreadId) return;
+    const row = threads.find((t) => t.threadId === activeThreadId);
+    if (row && !row.unread) return;
+    refreshedFor.current = activeThreadId;
+    router.refresh();
+  }, [activeThreadId, threads, router]);
+
   return (
     // Desktop: fill the viewport below the portal's top offset so each pane
     // scrolls on its own; phones use normal page flow.
@@ -39,28 +59,13 @@ export function MessagesLayout({
           open ? "hidden" : "flex",
         )}
       />
-      <div className={cn("min-w-0 flex-1", open ? "flex" : "hidden lg:flex")}>
-        {children ?? <NoConversation />}
-      </div>
-    </div>
-  );
-}
-
-function NoConversation() {
-  return (
-    <div className="glass flex w-full flex-col rounded-[24px] p-1.5">
-      <div className="panel grid flex-1 place-items-center p-6 text-center">
-        <div>
-          <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-surface-2 text-muted">
-            <MessagesSquare className="h-6 w-6" aria-hidden />
-          </span>
-          <p className="mt-3 text-[15px] font-bold text-ink">
-            No conversation open
-          </p>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Pick someone from the list, or start a new message.
-          </p>
-        </div>
+      <div
+        className={cn(
+          "glass min-w-0 flex-1 flex-col rounded-[24px] p-1.5",
+          open ? "flex h-[calc(100dvh-160px)] min-h-[420px] lg:h-auto lg:min-h-0" : "hidden lg:flex",
+        )}
+      >
+        {children}
       </div>
     </div>
   );

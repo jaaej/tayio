@@ -19,7 +19,6 @@ import { getSchoolYearEnd } from "./school-year";
 export type TodoKind =
   | "cover"
   | "attendance"
-  | "notes"
   | "leave"
   | "class_moves"
   | "quizzes"
@@ -80,17 +79,6 @@ export async function getDashboardTodo(
       action: "Mark now",
       // From the oldest, so the queue lists exactly these lessons.
       href: `/admin/attendance?from=${marking.oldest}`,
-    });
-  }
-
-  const notes = q.backlog.notes;
-  if (notes.count > 0 && notes.oldest) {
-    items.push({
-      kind: "notes",
-      title: `${plural(notes.count, "lesson")} without notes`,
-      detail: `From ${plural(notes.tutors, "tutor")} · oldest ${shortDate(notes.oldest)}`,
-      action: "View",
-      href: "/admin/attendance?view=notes",
     });
   }
 

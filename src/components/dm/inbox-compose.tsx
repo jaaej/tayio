@@ -44,6 +44,17 @@ export function InboxCompose({
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
+  // The list stays mounted across conversations, so picking someone in the
+  // contact picker has to close it here once their conversation opens.
+  const [shownFor, setShownFor] = useState(activeThreadId);
+  if (shownFor !== activeThreadId) {
+    setShownFor(activeThreadId);
+    if (composing && activeThreadId) {
+      setComposing(false);
+      setQuery("");
+    }
+  }
+
   const visibleThreads = q
     ? threads.filter((t) => matches(t.otherName, q))
     : threads;

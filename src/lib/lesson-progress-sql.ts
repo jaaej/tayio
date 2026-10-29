@@ -3,14 +3,13 @@ import { sql, type SQL } from "drizzle-orm";
 import { lessons } from "@/db/schema";
 import { melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
 import { lessonGuestIdsSql, onRosterSql } from "@/lib/class-roster-sql";
-import { coveredOffPortalSql } from "@/lib/cover-away-sql";
 
 /**
  * Database versions of the lesson rules in `lesson-progress.ts`, so the admin
  * dashboard, the Attendance queue and the tutor pages count the same lessons.
  */
 
-/** A lesson that did not run: it needs no attendance or notes. */
+/** A lesson that did not run: it needs no attendance. */
 export const LESSON_OFF_STATUSES = ["cancelled", "rescheduled"] as const;
 
 /** The lesson ran: not cancelled or moved, and its start time has passed (Melbourne). */
@@ -48,26 +47,10 @@ export const unmarkedOnRollSql = sql<number>`(
 )`;
 
 /**
- * Students marked as attending (present, late, left early or make-up) with
- * no lesson note yet. Absent students need no note, and a lesson taught by
- * someone not on the portal needs none at all.
- */
-export const notesMissingSql = sql<number>`case when ${coveredOffPortalSql} then 0 else (
-  select count(*)::int from attendance a
-  where a.lesson_id = ${lessons.id}
-    and a.status in ('present', 'late', 'left_early', 'makeup_attended')
-    and not exists (
-      select 1 from lesson_notes n
-      where n.lesson_id = ${lessons.id} and n.student_id = a.student_id
-    )
-) end`;
-
-/**
  * The `LessonCounts` columns `describeLesson` reads, for a select over
  * `lessons` (single-table or joined). The roll is `lessonRollIds`' rule: the
  * class's students on the lesson (`onRosterSql`; nobody on a make-up, a
- * private booking) and anyone marked on the lesson. Notes count
- * only students who were not absent: absent students need none. Columns are
+ * private booking) and anyone marked on the lesson. Columns are
  * spelled `lessons.*`: Drizzle drops the table prefix from select-list
  * columns in a single-table select, which would bind these correlated
  * subqueries to the inner tables.
@@ -86,15 +69,5 @@ export const lessonCountFields = {
   absent: sql<number>`(
     select count(*)::int from attendance a
     where a.lesson_id = lessons.id and a.status = 'absent'
-  )`,
-  notesWritten: sql<number>`(
-    select count(distinct n.student_id)::int from lesson_notes n
-    where n.lesson_id = lessons.id
-      and not exists (
-        select 1 from attendance a
-        where a.lesson_id = lessons.id
-          and a.student_id = n.student_id
-          and a.status = 'absent'
-      )
   )`,
 };

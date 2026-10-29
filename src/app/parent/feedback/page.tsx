@@ -34,8 +34,8 @@ export default async function ParentFeedbackPage({
       {recaps.length === 0 ? (
         <div className="glass rounded-[24px] p-1.5">
           <p className="panel px-5 py-10 text-center text-[14px] text-muted">
-            No tutor feedback yet. Notes appear here after each of {selected.firstName}&apos;s
-            lessons.
+            No tutor feedback yet. When a tutor leaves a comment after one of{" "}
+            {selected.firstName}&apos;s lessons, it appears here.
           </p>
         </div>
       ) : (

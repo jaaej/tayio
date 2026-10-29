@@ -126,14 +126,11 @@ function LessonSection({
                 <th scope="col" className="w-[90px] px-4 py-2.5 font-extrabold">
                   Date
                 </th>
-                <th scope="col" className="w-[26%] px-3 py-2.5 font-extrabold">
+                <th scope="col" className="w-[34%] px-3 py-2.5 font-extrabold">
                   Week
                 </th>
-                <th scope="col" className="w-[26%] px-3 py-2.5 font-extrabold">
-                  Attendance
-                </th>
                 <th scope="col" className="px-3 py-2.5 font-extrabold">
-                  Lesson notes
+                  Attendance
                 </th>
                 <th scope="col" className="w-[170px] px-4 py-2.5">
                   <span className="sr-only">Action</span>
@@ -220,9 +217,6 @@ function LessonRow(props: RowProps) {
       <td className="px-3 py-3">
         <Pill tone={l.attendanceTone}>{l.attendanceLabel}</Pill>
       </td>
-      <td className="px-3 py-3">
-        <Pill tone={l.notesTone}>{l.notesLabel}</Pill>
-      </td>
       <td className="px-4 py-3 text-right">
         <ActionLink lesson={l} />
       </td>
@@ -249,7 +243,6 @@ function LessonCard(props: RowProps) {
       </div>
       <div className="flex flex-wrap gap-1.5 pl-[68px]">
         <Pill tone={l.attendanceTone}>{l.attendanceLabel}</Pill>
-        <Pill tone={l.notesTone}>Notes: {l.notesLabel.toLowerCase()}</Pill>
       </div>
       <div className="pl-[68px]">
         <ActionLink lesson={l} className="h-10 w-full" />

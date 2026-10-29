@@ -200,9 +200,6 @@ export default async function AdminResourcesPage({
                               href: r.kind === "link" ? httpHref(r.externalUrl) : null,
                             }}
                           />
-                          {r.source === "promoted" ? (
-                            <span className="text-[12px] text-muted">Promoted from homework</span>
-                          ) : null}
                         </div>
                       </div>
                     </td>

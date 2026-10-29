@@ -3,16 +3,15 @@ import type { LessonView } from "@/lib/lesson-progress";
 import { lessonDatesLabel } from "@/lib/tutor-today";
 
 /*
- * Pure wording for the tutor's lessons that still need attendance or notes,
- * shared by Today, the class Lessons tab and the lesson
- * links, so one lesson's next step reads the same everywhere.
+ * Pure wording for the tutor's lessons that still need attendance, shared by
+ * Today, the class Lessons tab and the lesson links, so one lesson's next
+ * step reads the same everywhere.
  */
 
 /** The button for a lesson, from `describeLesson`'s `action`. */
 export const LESSON_ACTION_LABEL: Record<LessonView["action"], string> = {
   open: "Open lesson",
   attendance: "Mark attendance",
-  notes: "Finish notes",
   view: "View",
 };
 

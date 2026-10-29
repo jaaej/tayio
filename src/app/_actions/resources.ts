@@ -2,15 +2,9 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import {
-  classes,
-  classWeekPlanAttachments,
-  classWeekPlans,
-  resources,
-  subjectWeeks,
-} from "@/db/schema";
+import { resources } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { coarseRole } from "@/lib/roles";
 import {
@@ -113,100 +107,6 @@ export async function addResource(formData: FormData) {
   );
   revalidatePath("/tutor/resources");
   revalidatePath("/admin/resources");
-  return { ok: true as const };
-}
-
-// ---------------------------------------------------------------------------
-// promoteAttachment
-// ---------------------------------------------------------------------------
-
-const promoteSchema = z.object({
-  attachmentId: z.string().uuid(),
-  type: z.enum(TYPES),
-  topicId: z.string().uuid().optional(),
-});
-
-export async function promoteAttachment(formData: FormData) {
-  const parsed = promoteSchema.parse({
-    attachmentId: formData.get("attachmentId"),
-    type: formData.get("type"),
-    topicId: formData.get("topicId") || undefined,
-  });
-
-  // Auth before DB read - rejects unauthenticated/wrong-role callers before any probe.
-  await requireRole(["tutor", "admin"]);
-
-  // Attachments have no subjectId column; derive it via the week plan's
-  // subject week. The class tutor is the only tutor who may publish it.
-  const [att] = await db
-    .select({
-      id: classWeekPlanAttachments.id,
-      fileName: classWeekPlanAttachments.fileName,
-      kind: classWeekPlanAttachments.kind,
-      storagePath: classWeekPlanAttachments.storagePath,
-      contentType: classWeekPlanAttachments.contentType,
-      url: classWeekPlanAttachments.url,
-      subjectId: subjectWeeks.subjectId,
-      classTutorId: classes.tutorId,
-    })
-    .from(classWeekPlanAttachments)
-    .innerJoin(classWeekPlans, eq(classWeekPlans.id, classWeekPlanAttachments.planId))
-    .innerJoin(classes, eq(classes.id, classWeekPlans.classId))
-    .innerJoin(subjectWeeks, eq(subjectWeeks.id, classWeekPlans.subjectWeekId))
-    .where(eq(classWeekPlanAttachments.id, parsed.attachmentId))
-    .limit(1);
-
-  if (!att) return { ok: false as const, error: "Attachment not found" };
-
-  const user = await assertCanAuthor(att.subjectId);
-  if (
-    coarseRole(user.app_metadata?.role as UserRole) !== "admin" &&
-    att.classTutorId !== user.id
-  ) {
-    return { ok: false as const, error: "Attachment not found" };
-  }
-  const actor = { id: user.id, role: user.app_metadata?.role as string };
-
-  // Idempotent: if a live promoted resources row already references this attachment, no-op.
-  const [existing] = await db
-    .select({ id: resources.id })
-    .from(resources)
-    .where(and(eq(resources.sourceAttachmentId, att.id), isNull(resources.removedAt)))
-    .limit(1);
-  if (existing) return { ok: true as const };
-
-  let kindCols:
-    | { kind: "file"; storageBucket: string; storagePath: string; contentType: string | null }
-    | { kind: "link"; externalUrl: string };
-  if (att.kind === "file") {
-    if (!att.storagePath) return { ok: false as const, error: "Attachment has no file to promote" };
-    kindCols = {
-      kind: "file" as const,
-      storageBucket: "curriculum",
-      storagePath: att.storagePath,
-      contentType: att.contentType ?? null,
-    };
-  } else {
-    // link (or any future non-file kind)
-    if (!att.url) return { ok: false as const, error: "Attachment has no link to promote" };
-    kindCols = {
-      kind: "link" as const,
-      externalUrl: att.url,
-    };
-  }
-
-  await withActor(actor, (tx) =>
-    tx.insert(resources).values({
-      subjectId: att.subjectId,
-      type: parsed.type,
-      topicId: parsed.topicId ?? null,
-      title: att.fileName,
-      uploadedBy: user.id,
-      sourceAttachmentId: att.id,
-      ...kindCols,
-    }),
-  );
-  revalidatePath("/tutor/resources");
   return { ok: true as const };
 }
 

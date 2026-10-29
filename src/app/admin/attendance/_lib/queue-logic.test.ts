@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   dateParam,
-  groupByTutor,
   lessonQueueState,
   nextLessonId,
   parseQueueView,
@@ -34,35 +33,6 @@ describe("lessonQueueState", () => {
   });
 });
 
-describe("groupByTutor", () => {
-  const item = (id: string, tutorId: string, tutorName: string, date: string, startTime = "16:00:00") => ({
-    id,
-    tutorId,
-    tutorName,
-    date,
-    startTime,
-  });
-
-  it("groups lessons by tutor, tutors by name, latest lesson first", () => {
-    const groups = groupByTutor([
-      item("a", "t2", "Wei Chen", "2026-10-09"),
-      item("b", "t1", "Hana Park", "2026-10-01"),
-      item("c", "t2", "Wei Chen", "2026-10-11", "09:00:00"),
-      item("d", "t2", "Wei Chen", "2026-10-11", "17:00:00"),
-    ]);
-    expect(groups.map((g) => g.tutorName)).toEqual(["Hana Park", "Wei Chen"]);
-    expect(groups[1].items.map((i) => i.id)).toEqual(["d", "c", "a"]);
-  });
-
-  it("keeps two tutors with the same name apart", () => {
-    const groups = groupByTutor([
-      item("a", "t1", "Sam Lee", "2026-10-09"),
-      item("b", "t2", "Sam Lee", "2026-10-09"),
-    ]);
-    expect(groups).toHaveLength(2);
-  });
-});
-
 describe("nextLessonId", () => {
   it("returns the lesson after the current one", () => {
     expect(nextLessonId(["a", "b", "c"], "a")).toBe("b");
@@ -83,7 +53,8 @@ describe("URL params", () => {
     expect(parseQueueView(undefined)).toBe("to_mark");
     expect(parseQueueView("bogus")).toBe("to_mark");
     expect(parseQueueView("upcoming")).toBe("upcoming");
-    expect(parseQueueView("notes")).toBe("notes");
+    // The Notes tab is gone (lesson notes are optional); old links land on To mark.
+    expect(parseQueueView("notes")).toBe("to_mark");
   });
 
   it("rejects impossible dates", () => {

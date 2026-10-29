@@ -33,7 +33,7 @@ export default async function ParentRecapPage({
       <LessonRecapView
         recap={recap}
         back={{ href: `/parent/feedback?child=${child.id}`, label: "All feedback" }}
-        emptyText={`The tutor hasn't written a recap for ${child.firstName} for this lesson yet.`}
+        emptyText={`The tutor hasn't left a comment for ${child.firstName} on this lesson.`}
       />
     );
   }

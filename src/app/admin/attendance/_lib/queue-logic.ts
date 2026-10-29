@@ -6,12 +6,11 @@ import { lessonStartInstant } from "@/lib/tutor-cover-rules";
  * No database or framework imports so they can be unit tested directly.
  */
 
-export const QUEUE_VIEWS = ["to_mark", "notes", "marked", "upcoming"] as const;
+export const QUEUE_VIEWS = ["to_mark", "marked", "upcoming"] as const;
 export type QueueView = (typeof QUEUE_VIEWS)[number];
 
 export const QUEUE_VIEW_LABEL: Record<QueueView, string> = {
   to_mark: "To mark",
-  notes: "Notes",
   marked: "Marked",
   upcoming: "Upcoming",
 };
@@ -58,28 +57,6 @@ export function lessonQueueState(
     return "upcoming";
   }
   return lesson.unmarkedCount > 0 ? "to_mark" : "marked";
-}
-
-export type TutorGroup<T> = { tutorId: string; tutorName: string; items: T[] };
-
-/**
- * The "Notes missing" view, one group per tutor (so the admin can chase each
- * tutor once), tutors by name, each tutor's lessons most recent first.
- */
-export function groupByTutor<
-  T extends { tutorId: string; tutorName: string; date: string; startTime: string },
->(items: readonly T[]): TutorGroup<T>[] {
-  const groups = new Map<string, TutorGroup<T>>();
-  for (const item of items) {
-    const group = groups.get(item.tutorId);
-    if (group) group.items.push(item);
-    else groups.set(item.tutorId, { tutorId: item.tutorId, tutorName: item.tutorName, items: [item] });
-  }
-  const latestFirst = (a: T, b: T) =>
-    a.date === b.date ? b.startTime.localeCompare(a.startTime) : b.date.localeCompare(a.date);
-  return [...groups.values()]
-    .map((group) => ({ ...group, items: [...group.items].sort(latestFirst) }))
-    .sort((a, b) => a.tutorName.localeCompare(b.tutorName) || a.tutorId.localeCompare(b.tutorId));
 }
 
 /**

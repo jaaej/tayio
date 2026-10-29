@@ -18,7 +18,6 @@ const base: LessonCounts = {
   roster: 6,
   marked: 0,
   absent: 0,
-  notesWritten: 0,
 };
 const L = (over: Partial<LessonCounts>): LessonCounts => ({ ...base, ...over });
 
@@ -41,26 +40,26 @@ describe("describeLesson", () => {
     expect(v.action).toBe("open");
   });
 
-  it("needs notes only for students who were not absent", () => {
+  it("is finished once attendance is marked, with or without notes", () => {
     const v = describeLesson(
-      L({ date: "2026-10-08", marked: 6, absent: 1, notesWritten: 5 }),
+      L({ date: "2026-10-08", marked: 6, absent: 1 }),
       "2026-10-12",
       "09:00",
     );
     expect(v.finished).toBe(true);
     expect(v.attendanceLabel).toBe("6 of 6 marked · 1 absent");
-    expect(v.notesLabel).toBe("All written");
+    expect(v.action).toBe("view");
   });
 
-  it("asks for attendance before notes", () => {
+  it("asks for the attendance still unmarked", () => {
     const v = describeLesson(
       L({ date: "2026-10-08", marked: 3 }),
       "2026-10-12",
       "09:00",
     );
+    expect(v.finished).toBe(false);
     expect(v.action).toBe("attendance");
     expect(v.attendanceTone).toBe("warn");
-    expect(v.notesLabel).toBe("0 of 6 written");
   });
 
   it("treats cancelled lessons as finished", () => {
@@ -77,9 +76,9 @@ describe("describeLesson", () => {
 describe("groupLessons", () => {
   it("splits lessons into the three sections in reading order", () => {
     const lessons = [
-      L({ id: "old-done", date: "2026-09-17", marked: 6, notesWritten: 6 }),
-      L({ id: "old-open", date: "2026-10-05", marked: 6, notesWritten: 5 }),
-      L({ id: "newer-open", date: "2026-10-08", marked: 6, notesWritten: 4 }),
+      L({ id: "old-done", date: "2026-09-17", marked: 6 }),
+      L({ id: "old-open", date: "2026-10-05", marked: 5 }),
+      L({ id: "newer-open", date: "2026-10-08", marked: 0 }),
       L({ id: "thu", date: "2026-10-15" }),
       L({ id: "today", date: "2026-10-12" }),
       L({ id: "next-week", date: "2026-10-19" }),
@@ -93,7 +92,7 @@ describe("groupLessons", () => {
 
   it("keeps a finished lesson from earlier this week in This week", () => {
     const g = groupLessons(
-      [L({ id: "tue", date: "2026-10-13", marked: 6, notesWritten: 6 })],
+      [L({ id: "tue", date: "2026-10-13", marked: 6 })],
       "2026-10-15",
       "12:00",
     );

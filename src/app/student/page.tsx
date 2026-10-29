@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 import { subjectTone } from "@/lib/subject-tone";
 import { getStudentDashboard } from "./_lib/dashboard";
@@ -71,10 +72,7 @@ export default async function StudentDashboard() {
   const now = new Date();
   const dashboard = await getStudentDashboard(user.id, { isUnrestricted, now });
 
-  const firstName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "there";
+  const firstName = accountFirstName(user, "there");
   const dateLabel = new Date(`${dashboard.todayIso}T12:00:00`).toLocaleDateString("en-AU", {
     weekday: "long",
     day: "numeric",

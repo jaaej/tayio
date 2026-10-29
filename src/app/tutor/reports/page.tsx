@@ -17,7 +17,7 @@ export default async function TutorReportsPage() {
   const term = await getReportWritingTerm();
   if (!term) {
     return (
-      <div className="flex max-w-[1040px] flex-col gap-5">
+      <div className="flex flex-col gap-5">
         <PageHeader title="Term reports" />
         <GlassPanel>
           <Empty>Term reports open three weeks before a term ends.</Empty>
@@ -27,7 +27,7 @@ export default async function TutorReportsPage() {
   }
   const classes = await getTutorReportClasses(tutor.id, term);
   return (
-    <div className="flex max-w-[1040px] flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Term reports" sub={`${term.year} Term ${term.termNumber}`} />
       {classes.length === 0 ? (
         <GlassPanel>

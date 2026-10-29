@@ -5,8 +5,9 @@ import { MessageComposer } from "./message-composer";
 import { MessageList } from "./message-list";
 
 /**
- * Right pane of the shared messaging workspace for every role: the title row
- * on glass, then one white panel holding the message history and composer.
+ * Right pane of the shared messaging workspace for every role, drawn inside
+ * the layout's glass frame: the title row, then one white panel holding the
+ * message history and composer.
  */
 export function ConversationPanel({
   threadId,
@@ -32,7 +33,7 @@ export function ConversationPanel({
   return (
     <section
       aria-labelledby="conversation-title"
-      className="glass flex h-[calc(100dvh-160px)] min-h-[420px] w-full min-w-0 flex-col rounded-[24px] p-1.5 lg:h-full lg:min-h-0"
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
       <ConversationHeader
         otherName={otherName}

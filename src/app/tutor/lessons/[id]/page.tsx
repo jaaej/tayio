@@ -13,7 +13,6 @@ import { getLessonForTutor, requireTutor } from "../../_data";
 import { LessonAttendance } from "./_components/lesson-attendance";
 import { LessonNotesEditor, type NoteStudent } from "./_components/lesson-notes-editor";
 import { RecordingCard } from "./_components/recording-card";
-import { WeekPlanCard } from "./_components/week-plan-card";
 
 export default async function LessonDetailPage({
   params,
@@ -49,22 +48,20 @@ export default async function LessonDetailPage({
 
   const notesByStudent = new Map(notes.map((n) => [n.studentId, n]));
   const noteStudents: NoteStudent[] = rollStudents.map((s) => {
+    // A note holding only the older fields (lesson-note-fields) has nothing
+    // left to show, so it counts as no note.
     const n = notesByStudent.get(s.id);
+    const written = n && (n.parentVisibleComment?.trim() || n.internalNote?.trim()) ? n : null;
     return {
       id: s.id,
       name: s.name,
       isMakeup: Boolean(s.makeupFrom),
       absent: s.status === "absent",
-      savedAt: n ? n.createdAt.toISOString() : null,
-      note: n
+      savedAt: written ? written.createdAt.toISOString() : null,
+      note: written
         ? {
-            topicCovered: n.topicCovered ?? "",
-            performance: n.performance ?? "",
-            strengths: n.strengths ?? "",
-            struggles: n.struggles ?? "",
-            nextLessonFocus: n.nextLessonFocus ?? "",
-            parentVisibleComment: n.parentVisibleComment ?? "",
-            internalNote: n.internalNote ?? "",
+            parentVisibleComment: written.parentVisibleComment ?? "",
+            internalNote: written.internalNote ?? "",
           }
         : null,
     };
@@ -104,12 +101,22 @@ export default async function LessonDetailPage({
         title={title}
         actions={
           ownsClass ? (
-            <Link
-              href={`/tutor/classes/${lesson.classId}/lessons`}
-              className={cn(buttonVariants({ variant: "glass", size: "lg" }), "font-semibold")}
-            >
-              All lessons for this class
-            </Link>
+            <>
+              {week && weekPlanHref && (
+                <Link
+                  href={weekPlanHref}
+                  className={cn(buttonVariants({ variant: "glass", size: "lg" }), "font-semibold")}
+                >
+                  Week {week.weekNumber} plan
+                </Link>
+              )}
+              <Link
+                href={`/tutor/classes/${lesson.classId}/lessons`}
+                className={cn(buttonVariants({ variant: "glass", size: "lg" }), "font-semibold")}
+              >
+                All lessons for this class
+              </Link>
+            </>
           ) : undefined
         }
       />
@@ -134,7 +141,6 @@ export default async function LessonDetailPage({
               </p>
             </GlassPanel>
           )}
-          <WeekPlanCard week={week} editHref={weekPlanHref} />
           <RecordingCard
             lessonId={lesson.id}
             recordingUrl={lesson.recordingUrl}

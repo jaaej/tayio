@@ -1,7 +1,9 @@
 // Pure rules for a lesson's progress, shared by the tutor class Lessons tab,
 // tutor Today, the lesson page and the admin dashboard: where each lesson goes (this week,
-// needs finishing, done) and how its attendance and notes read. Kept free of
-// I/O so the grouping and date math are unit tested.
+// needs finishing, done) and how its attendance reads. A lesson that ran is
+// finished once its attendance is marked; lesson notes are optional (owner
+// decision, 29 October 2026). Kept free of I/O so the grouping and date math
+// are unit tested.
 
 import { weekNumberOn } from "@/lib/week-plan-rules";
 
@@ -18,8 +20,6 @@ export type LessonCounts = {
   /** Students with any attendance row for the lesson. */
   marked: number;
   absent: number;
-  /** Distinct students who were not absent with a lesson note. */
-  notesWritten: number;
 };
 
 export type Tone = "good" | "warn" | "info" | "default";
@@ -30,9 +30,7 @@ export type LessonView = LessonCounts & {
   finished: boolean;
   attendanceLabel: string;
   attendanceTone: Tone;
-  notesLabel: string;
-  notesTone: Tone;
-  action: "open" | "attendance" | "notes" | "view";
+  action: "open" | "attendance" | "view";
 };
 
 export type LessonGroups = {
@@ -73,24 +71,17 @@ export function describeLesson(
   const off = OFF_STATUSES.has(lesson.status);
   const started =
     lesson.date < today || (isToday && hhmm(lesson.startTime) <= hhmm(nowTime));
-  // Absent students get no note; everyone else on the roll does.
-  const notesNeeded = Math.max(0, lesson.roster - lesson.absent);
   const attendanceDone = lesson.marked >= lesson.roster;
-  const notesDone = lesson.notesWritten >= notesNeeded;
-  const finished = off || (started && attendanceDone && notesDone);
+  const finished = off || (started && attendanceDone);
 
   let attendanceLabel: string;
   let attendanceTone: Tone = "default";
-  let notesLabel: string;
-  let notesTone: Tone = "default";
 
   if (off) {
     attendanceLabel = lesson.status === "cancelled" ? "Cancelled" : "Rescheduled";
-    notesLabel = "Not needed";
   } else if (!started) {
     attendanceLabel = isToday ? "Today" : "Upcoming";
     attendanceTone = isToday ? "info" : "default";
-    notesLabel = "Not started";
   } else {
     if (lesson.roster === 0) {
       attendanceLabel = "No students";
@@ -102,22 +93,12 @@ export function describeLesson(
       attendanceLabel = `${Math.min(lesson.marked, lesson.roster)} of ${lesson.roster} marked${absent}`;
       attendanceTone = attendanceDone ? "good" : "warn";
     }
-    if (notesNeeded === 0) {
-      notesLabel = "Not needed";
-    } else if (notesDone) {
-      notesLabel = "All written";
-      notesTone = "good";
-    } else {
-      notesLabel = `${lesson.notesWritten} of ${notesNeeded} written`;
-      notesTone = "warn";
-    }
   }
 
   let action: LessonView["action"] = "view";
   if (!off) {
     if (isToday && !finished) action = "open";
     else if (started && !attendanceDone) action = "attendance";
-    else if (started && !notesDone) action = "notes";
   }
 
   return {
@@ -127,15 +108,13 @@ export function describeLesson(
     finished,
     attendanceLabel,
     attendanceTone,
-    notesLabel,
-    notesTone,
     action,
   };
 }
 
 /**
  * Lessons up to the end of this week, split into the three sections. Past
- * lessons that still need attendance or notes go to "Needs finishing" (newest
+ * lessons that still need attendance go to "Needs finishing" (newest
  * first); the rest of this week reads in date order; anything older that is
  * complete is "Done" (newest first). Lessons after this week are left out.
  */
@@ -166,7 +145,7 @@ export function groupLessons(
   return groups;
 }
 
-/** Count of past lessons still needing attendance or notes (the tab badge). */
+/** Count of past lessons still needing attendance (the tab badge). */
 export function needsFinishingCount(
   lessons: LessonCounts[],
   today: string,

@@ -14,9 +14,3 @@ export const tutorAwayFromLessonSql = sql`exists (
     and cover_away.original_tutor_id = lessons.tutor_id
     and cover_away.status in ('open', 'expired', 'external')
 )`;
-
-/** The outer query's lesson was taught by someone not on the portal: no tutor's notes are expected. */
-export const coveredOffPortalSql = sql`exists (
-  select 1 from tutor_cover_requests cover_off
-  where cover_off.lesson_id = lessons.id and cover_off.status = 'external'
-)`;

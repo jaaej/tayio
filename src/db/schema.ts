@@ -341,6 +341,9 @@ export const lessonNotes = pgTable("lesson_notes", {
   tutorId: uuid("tutor_id")
     .notNull()
     .references(() => profiles.id),
+  // Retired 29 October 2026: a note is now an optional comment and a private
+  // internal note (`lesson-note-fields.ts`). Nothing reads or writes these six
+  // columns; kept until a migration drops them.
   topicCovered: text("topic_covered"),
   keyConcepts: text("key_concepts"),
   performance: text("performance"),
@@ -1308,10 +1311,10 @@ export const subjectWeeks = pgTable(
   ],
 );
 
-// "For students this week": one per class per curriculum week, written by the
-// class tutor (or an admin) and shown to the class's students and parents on
-// the week view and on each lesson. Replaced classes.lesson_plan and the
-// per-tutor week notes in migration 0060.
+// "For students this week": one per class per curriculum week (migration
+// 0060). Retired 29 October 2026: tutors add homework instead, and the app no
+// longer reads or writes this table or its attachments. Kept until a migration
+// drops both (Production held no rows when it was retired).
 export const classWeekPlans = pgTable(
   "class_week_plans",
   {

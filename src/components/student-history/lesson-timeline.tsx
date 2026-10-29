@@ -57,8 +57,6 @@ function TimelineEntry({
   viewer: NoteViewer;
   action: TimelineAction | null;
 }) {
-  // Only a lesson they sat expects a note.
-  const expectsNote = entry.status !== null && entry.status !== "absent" && !entry.cancelled;
   return (
     <article className="flex flex-col gap-2.5 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -86,9 +84,6 @@ function TimelineEntry({
       {entry.notes.map((note) => (
         <LessonNoteCard key={note.id} note={note} viewer={viewer} className="sm:pl-[96px]" />
       ))}
-      {entry.notes.length === 0 && expectsNote && (
-        <p className="text-[13px] text-muted sm:pl-[96px]">No note written.</p>
-      )}
     </article>
   );
 }

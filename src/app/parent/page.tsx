@@ -13,6 +13,7 @@ import { NextLessonCard } from "@/components/parent/next-lesson-card";
 import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { nextAttendingLesson } from "@/app/student/_components/timetable-helpers";
 import { relativeDay } from "@/app/student/_lib/dashboard-rules";
+import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 import { attendanceRateTone } from "@/lib/attendance-rules";
 import { formatMoney, melbourneDayKey, relativeTime } from "@/lib/format";
@@ -59,10 +60,7 @@ export default async function ParentOverview({
   const { child: requested } = await searchParams;
   const { selected } = await resolveSelectedChild(user.id, requested);
 
-  const parentName =
-    (user.user_metadata?.first_name as string | undefined) ??
-    user.email?.split("@")[0] ??
-    "there";
+  const parentName = accountFirstName(user, "there");
 
   if (!selected) {
     return (
@@ -226,8 +224,8 @@ export default async function ParentOverview({
           >
             {recaps.length === 0 ? (
               <Empty>
-                No tutor notes yet. After {selected.firstName}&apos;s next lesson the tutor&apos;s
-                note will appear here.
+                No tutor feedback yet. When a tutor leaves a comment after one of{" "}
+                {selected.firstName}&apos;s lessons, it appears here.
               </Empty>
             ) : (
               <RecapPreviewList

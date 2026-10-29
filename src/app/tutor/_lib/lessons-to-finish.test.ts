@@ -19,14 +19,14 @@ describe("finishingTodo", () => {
 
   it("opens the oldest lesson and asks for what it still needs", () => {
     const todo = finishingTodo([
-      lesson({ id: "old", date: "2026-10-05", action: "notes" }),
+      lesson({ id: "old", date: "2026-10-05", action: "attendance" }),
       lesson({ id: "new", date: "2026-10-12", action: "attendance" }),
     ]);
     expect(todo).toEqual({
       title: "2 lessons need finishing",
       detail: "Year 9 Maths · Monday PM · Mon 5 and Mon 12 Oct",
       href: "/tutor/lessons/old",
-      action: "Finish notes",
+      action: "Mark attendance",
     });
   });
 

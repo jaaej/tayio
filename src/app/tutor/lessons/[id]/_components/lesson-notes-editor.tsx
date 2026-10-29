@@ -7,18 +7,10 @@ import { Button, Empty } from "@/components/admin/ui";
 import { ActionSpinner } from "@/components/ui/loading-button";
 import { saveLessonNote } from "@/app/tutor/_actions";
 import { formatDateTime } from "@/lib/format";
-import { LESSON_NOTE_SHARED_FIELDS, NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
+import { LESSON_NOTE_FIELDS, LESSON_NOTE_SHARED_FIELDS, NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
 import { cn } from "@/lib/utils";
 
-export const NOTE_FIELDS = [
-  "topicCovered",
-  "performance",
-  "strengths",
-  "struggles",
-  "nextLessonFocus",
-  "parentVisibleComment",
-  "internalNote",
-] as const;
+export const NOTE_FIELDS = ["parentVisibleComment", "internalNote"] as const;
 
 export type NoteField = (typeof NOTE_FIELDS)[number];
 export type NoteValues = Record<NoteField, string>;
@@ -27,34 +19,26 @@ export type NoteStudent = {
   id: string;
   name: string;
   isMakeup: boolean;
-  /** Marked absent (or moved out of this lesson): no note is needed. */
+  /** Marked absent (or moved out of this lesson). */
   absent: boolean;
   /** The saved note, or null when none has been written yet. */
   note: NoteValues | null;
   savedAt: string | null;
 };
 
-const EMPTY: NoteValues = {
-  topicCovered: "",
-  performance: "",
-  strengths: "",
-  struggles: "",
-  nextLessonFocus: "",
-  parentVisibleComment: "",
-  internalNote: "",
-};
+const EMPTY: NoteValues = { parentVisibleComment: "", internalNote: "" };
 
-const LABEL = Object.fromEntries(
-  LESSON_NOTE_SHARED_FIELDS.map((field) => [field.key, field.label]),
-) as Record<(typeof LESSON_NOTE_SHARED_FIELDS)[number]["key"], string>;
+const COMMENT_LABEL = LESSON_NOTE_SHARED_FIELDS[0].label;
+const INTERNAL_LABEL = LESSON_NOTE_FIELDS.find((f) => f.key === "internalNote")!.label;
 
 const FIELD_CLS =
   "w-full rounded-[10px] border border-line-strong bg-surface px-2.5 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10";
 
 /**
- * Lesson notes: pick a student from the tabs and fill in one form. Drafts are
- * kept per student, so switching tabs never loses typing; "Save & next
- * student" saves and moves to the next tab.
+ * Lesson notes: pick a student from the tabs, then write an optional comment
+ * for the family and an optional internal note. Drafts are kept per student,
+ * so switching tabs never loses typing; "Save & next student" saves and moves
+ * to the next tab. Saving both boxes empty removes the note.
  */
 export function LessonNotesEditor({
   lessonId,
@@ -82,10 +66,6 @@ export function LessonNotesEditor({
     Object.fromEntries(students.map((s) => [s.id, s.note ?? EMPTY])),
   );
   const [result, setResult] = useState<"saved" | "error" | null>(null);
-
-  // Absent students need no note, so the count leaves them out.
-  const needed = students.filter((s) => !s.absent);
-  const writtenCount = needed.filter((s) => saved[s.id]?.note).length;
 
   if (students.length === 0 || !selectedId) {
     return (
@@ -126,6 +106,7 @@ export function LessonNotesEditor({
     for (const f of NOTE_FIELDS) formData.set(f, draft[f]);
     const savedFor = student.id;
     const values = { ...draft };
+    const blank = NOTE_FIELDS.every((f) => !values[f].trim());
     setResult(null);
     startTransition(async () => {
       try {
@@ -136,8 +117,10 @@ export function LessonNotesEditor({
       }
       setSaved((prev) => ({
         ...prev,
-        [savedFor]: { note: values, savedAt: new Date().toISOString() },
+        [savedFor]: blank ? { note: null, savedAt: null } : { note: values, savedAt: new Date().toISOString() },
       }));
+      // Spaces alone removed the note; clear them so the boxes match it.
+      if (blank) setDrafts((prev) => ({ ...prev, [savedFor]: EMPTY }));
       if (goNext && next) setSelectedId(next.id);
       setResult(goNext && next ? null : "saved");
       router.refresh();
@@ -150,24 +133,15 @@ export function LessonNotesEditor({
     <section aria-labelledby={headingId} className="glass rounded-[24px] p-1.5">
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 py-1.5 pl-3 pr-1.5">
         <h2 id={headingId} className="text-[16px] font-extrabold text-ink">
-          Lesson notes{" "}
-          {needed.length > 0 && (
-            <span className="text-[13px] font-semibold tabular-nums text-ink-soft">
-              · {writtenCount} of {needed.length} written
-            </span>
-          )}
+          Lesson notes
         </h2>
         <div role="tablist" aria-label="Student" className="flex flex-wrap gap-1">
           {students.map((s) => {
             const on = s.id === student.id;
             const written = Boolean(saved[s.id]?.note);
-            const state = s.absent
-              ? written
-                ? "absent, note written"
-                : "absent, no note needed"
-              : written
-                ? "note written"
-                : "no note yet";
+            const state = [s.absent && "absent", written ? "note written" : "no note"]
+              .filter(Boolean)
+              .join(", ");
             return (
               <button
                 key={s.id}
@@ -186,13 +160,7 @@ export function LessonNotesEditor({
                     : "border-white/95 bg-white/70 text-ink hover:bg-white",
                 )}
               >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "h-[7px] w-[7px] rounded-full",
-                    written ? "bg-[#16A34A]" : s.absent ? "bg-[#B4B2C2]" : "bg-[#E8890C]",
-                  )}
-                />
+                {written && <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-[#16A34A]" />}
                 {firstName(s.name)}
                 {s.absent && (
                   <span className={cn("font-semibold", on ? "text-white/75" : "text-muted")}>Absent</span>
@@ -229,35 +197,44 @@ export function LessonNotesEditor({
               {student.absent ? " · Absent" : ""}
             </span>
           </div>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            <Field label={LABEL.topicCovered} value={draft.topicCovered} onChange={(v) => update("topicCovered", v)} placeholder="e.g. Quadratic equations" />
-            <Field label={LABEL.performance} value={draft.performance} onChange={(v) => update("performance", v)} placeholder="e.g. Engaged, on track" />
-            <Field label={LABEL.strengths} value={draft.strengths} onChange={(v) => update("strengths", v)} />
-            <Field label={LABEL.struggles} value={draft.struggles} onChange={(v) => update("struggles", v)} />
+          <div className="flex flex-1 flex-col gap-[5px]">
+            <label htmlFor={`${formId}-comment`} className="text-[12px] font-bold text-ink">
+              {COMMENT_LABEL} <span className="font-semibold text-muted">Optional</span>
+            </label>
+            <textarea
+              id={`${formId}-comment`}
+              rows={5}
+              maxLength={5000}
+              value={draft.parentVisibleComment}
+              onChange={(e) => update("parentVisibleComment", e.target.value)}
+              placeholder="e.g. Great work today on factorisation."
+              className={cn(FIELD_CLS, "min-h-[120px] flex-1 resize-y py-2.5 leading-normal")}
+            />
           </div>
-          <Field label={LABEL.nextLessonFocus} value={draft.nextLessonFocus} onChange={(v) => update("nextLessonFocus", v)} />
-          <Field
-            label={LABEL.parentVisibleComment}
-            multiline
-            value={draft.parentVisibleComment}
-            onChange={(v) => update("parentVisibleComment", v)}
-            placeholder="e.g. Great work today on factorisation."
-          />
         </div>
 
-        <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2.5 rounded-[14px] bg-[#FFF8EC] p-3.5">
-          <label htmlFor={`${formId}-internal`} className="text-[13px] font-extrabold text-[#8A4A06]">
+        <div
+          role="group"
+          aria-labelledby={`${formId}-private`}
+          className="flex min-w-0 flex-[1_1_260px] flex-col gap-3 rounded-[14px] bg-[#FFF8EC] p-3.5"
+        >
+          <span id={`${formId}-private`} className="text-[13px] font-extrabold text-[#8A4A06]">
             {NOTE_VISIBILITY.internal}
-          </label>
-          <textarea
-            id={`${formId}-internal`}
-            rows={5}
-            maxLength={5000}
-            value={draft.internalNote}
-            onChange={(e) => update("internalNote", e.target.value)}
-            placeholder="e.g. Struggling with focus - check in with parent privately."
-            className={cn(FIELD_CLS, "min-h-[120px] flex-1 resize-y py-2.5 leading-normal")}
-          />
+          </span>
+          <div className="flex flex-1 flex-col gap-[5px]">
+            <label htmlFor={`${formId}-internal`} className="text-[12px] font-bold text-ink">
+              {INTERNAL_LABEL} <span className="font-semibold text-muted">Optional</span>
+            </label>
+            <textarea
+              id={`${formId}-internal`}
+              rows={5}
+              maxLength={5000}
+              value={draft.internalNote}
+              onChange={(e) => update("internalNote", e.target.value)}
+              placeholder="e.g. Struggling with focus - check in with parent privately."
+              className={cn(FIELD_CLS, "min-h-[120px] flex-1 resize-y py-2.5 leading-normal")}
+            />
+          </div>
         </div>
 
         <div className="flex flex-[1_1_100%] flex-wrap items-center justify-end gap-2">
@@ -301,48 +278,5 @@ export function LessonNotesEditor({
         </div>
       </form>
     </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  multiline = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  multiline?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div className="flex flex-col gap-[5px]">
-      <label htmlFor={id} className="text-[12px] font-bold text-ink">
-        {label}
-      </label>
-      {multiline ? (
-        <textarea
-          id={id}
-          rows={3}
-          maxLength={5000}
-          value={value}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(FIELD_CLS, "resize-y py-2 leading-normal")}
-        />
-      ) : (
-        <input
-          id={id}
-          value={value}
-          maxLength={5000}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(FIELD_CLS, "h-[38px]")}
-        />
-      )}
-    </div>
   );
 }
