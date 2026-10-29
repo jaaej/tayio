@@ -5,10 +5,8 @@
 /** Set on every demo auth user's app_metadata; the reset only touches these. */
 export const DEMO_TAG = "tutor-demo";
 
-export const TUTOR = { email: "tutor@taiyo.com", first: "Tom", last: "Tutor", password: "demo1234" };
-
-/** Where the old dev tutor@taiyo.com account (and all its QA data) moves to. */
-export const LEGACY_TUTOR_EMAIL = "qa.tutor@taiyo.com";
+/** Not tutor@taiyo.com: that address stays with the owner's long-lived QA tutor. */
+export const TUTOR = { email: "tom@taiyo.com", first: "Tom", last: "Tutor", password: "demo1234" };
 
 export const COLLEAGUE = {
   email: "maya.collins@example.com",

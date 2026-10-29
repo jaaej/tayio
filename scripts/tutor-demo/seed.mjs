@@ -1,4 +1,4 @@
-// Tutor demo seed: gives tutor@taiyo.com a complete, believable week on the
+// Tutor demo seed: gives tom@taiyo.com a complete, believable week on the
 // DEV database, laid out around the day it runs, so every tutor page has
 // something to show and every demo action has something to act on.
 //
@@ -9,8 +9,6 @@
 // attendance, notes, replies) is wiped and rebuilt. Only accounts tagged
 // with DEMO_TAG, the demo subjects and rows belonging to them are touched.
 // Every run also resets the demo passwords, which signs those accounts out.
-// The first run moves the old dev tutor@taiyo.com account, with all its QA
-// classes and history, to qa.tutor@taiyo.com.
 //
 // The runthrough that goes with this data: docs/demo/tutor-demo.md
 
@@ -23,7 +21,6 @@ import {
   COLLEAGUE,
   DEMO_TAG,
   FEEDBACK_BY_PERSONA,
-  LEGACY_TUTOR_EMAIL,
   NOTE_BY_PERSONA,
   OTHERS_PASSWORD,
   STUDENTS,
@@ -116,34 +113,6 @@ async function allAuthUsers() {
 const isDemo = (u) => u?.app_metadata?.demo === DEMO_TAG;
 
 /**
- * The first run finds the long-lived dev tutor@taiyo.com, which owns QA
- * classes and history, and moves it to LEGACY_TUTOR_EMAIL so the demo
- * account starts empty. Nothing of the old account is deleted.
- */
-async function moveLegacyTutor(byEmail) {
-  const current = byEmail.get(TUTOR.email);
-  if (!current || isDemo(current)) return;
-  if (byEmail.has(LEGACY_TUTOR_EMAIL)) {
-    throw new Error(
-      `${TUTOR.email} is not the demo account and ${LEGACY_TUTOR_EMAIL} already exists. Move one of them by hand first.`,
-    );
-  }
-  step(`Moving the old ${TUTOR.email} (and all its QA data) to ${LEGACY_TUTOR_EMAIL}`);
-  const { error } = await supabase.auth.admin.updateUserById(current.id, {
-    email: LEGACY_TUTOR_EMAIL,
-    email_confirm: true,
-    app_metadata: { ...current.app_metadata, first_name: "QA", last_name: "Tutor" },
-    user_metadata: { ...current.user_metadata, first_name: "QA", last_name: "Tutor" },
-  });
-  if (error) throw error;
-  await sql`
-    update profiles set email = ${LEGACY_TUTOR_EMAIL}, first_name = 'QA', last_name = 'Tutor', updated_at = now()
-    where id = ${current.id}
-  `;
-  byEmail.delete(TUTOR.email);
-}
-
-/**
  * Create or refresh a demo account the way the admin app creates accounts
  * (names in app_metadata only), and reset its password so a rehearsal that
  * changed it cannot lock the presenter out.
@@ -193,7 +162,6 @@ async function upsertProfile({ id, role, email, first, last, year = null, school
 
 step("Checking accounts");
 const byEmail = new Map((await allAuthUsers()).map((u) => [u.email?.toLowerCase(), u]));
-await moveLegacyTutor(byEmail);
 
 const adminUser = byEmail.get("admin@taiyo.com");
 if (!adminUser) throw new Error("admin@taiyo.com is missing from dev; the demo needs it as the office.");
@@ -1323,6 +1291,5 @@ Done. Sign in at http://localhost:3000/login as ${TUTOR.email} / ${TUTOR.passwor
   To finish:    ${cls.y9e.display} on ${unfinishedLesson.date} (attendance not marked)
   Cover board:  ${cls.maya.display} on ${mayaNext.date}, from Maya Collins
   Lessons:      ${counts.lessons}, lesson notes: ${counts.notes}
-  Other logins: any demo student or parent (see docs/demo/tutor-demo.md) / ${OTHERS_PASSWORD}
-  Old QA tutor: ${LEGACY_TUTOR_EMAIL} (unchanged password)`);
+  Other logins: any demo student or parent (see docs/demo/tutor-demo.md) / ${OTHERS_PASSWORD}`);
 await sql.end();

@@ -15,7 +15,7 @@ Last updated: 29 October 2026
 
 - [ ] Discussion threads and check-in redesign (29 October 2026), on Production in Safari at 1440px and on a phone: open a thread as a student, a tutor and an admin; switch All / Unanswered and fold Other questions; post a reply with a file; as a tutor, approve a week and report one through Something's wrong; check a week admin corrected shows the change in the footer.
 
-- [ ] Tutor fixes from the demo rehearsal (29 October 2026): on dev, then on Production after deploy, in Safari at 1440px and on a phone, as `tutor@taiyo.com`.
+- [ ] Tutor fixes from the demo rehearsal (29 October 2026): on dev as `tom@taiyo.com`, then on Production after deploy as a tutor, in Safari at 1440px and on a phone.
   Lesson page: notes are one optional Comment (green) and an optional Internal note (amber); save one, reload, then empty both and save to remove it; **Week N plan** opens that week.
   Today: a past lesson without attendance is the "needs finishing" row; saving attendance clears it with no note written. This week: the circled date is readable and lesson blocks are about 140px wide at 1440px.
   Classes: no Enrolled row and no Schedule & availability button; a class's Week plan has no "For students this week", and the Term menu opens one portal-styled list (also on the student, parent and admin course pages).
@@ -24,7 +24,7 @@ Last updated: 29 October 2026
   Notifications, Weekly check-in and Term reports fill the page width.
   As Ethan and as Grace: a recap shows the comment with no "Comment" label, and the subject week page has no "From your tutor" panel. As admin: Attendance has To mark, Marked and Upcoming (no Notes tab).
 
-- [ ] Tutor demo rehearsal (29 October 2026): run `node scripts/tutor-demo/seed.mjs`, then follow `docs/demo/tutor-demo.md` end to end as `tutor@taiyo.com` on a local production build in Chrome, and re-run the seed afterwards.
+- [ ] Tutor demo rehearsal (29 October 2026): run `node scripts/tutor-demo/seed.mjs`, then follow `docs/demo/tutor-demo.md` end to end as `tom@taiyo.com` on a local production build in Chrome, and re-run the seed afterwards.
   After the next deploy, on Production in Safari: each role's greeting and menu chip show the first name, not the email prefix; a tutor's reply to a student's discussion thread sends a notification that opens the thread in the student portal.
 
 - [ ] Writing on files (28 October 2026), in Safari on a Mac, on an iPhone and on an iPad with an Apple Pencil, on Production (migration 0085 applied and `64dd5ad` pushed on 29 October 2026).
@@ -731,9 +731,10 @@ Still open after the fixes:
   Reproduced on dev: Tom replied to Ethan's thread, and Ethan's notification landed on his dashboard. Now the link uses the author's role (`coarseRole(profiles.role)`), and Ethan's notification opens the thread.
   Notifications already sent keep their old link.
 
-- [x] Tutor demo data and runthrough on dev (29 October 2026): `node scripts/tutor-demo/seed.mjs` rebuilds a full week for `tutor@taiyo.com` (Tom Tutor) around the day it runs; re-running is the reset. Runthrough: `docs/demo/tutor-demo.md`.
+- [x] Tutor demo data and runthrough on dev (29 October 2026): `node scripts/tutor-demo/seed.mjs` rebuilds a full week for `tom@taiyo.com` (Tom Tutor) around the day it runs; re-running is the reset. Runthrough: `docs/demo/tutor-demo.md`.
   Dev only: the script refuses to run when `.env.local` points at the Production Supabase project. It touches only accounts tagged `app_metadata.demo = "tutor-demo"`, the three demo subjects and rows that belong to them.
-  The first run moved the old dev `tutor@taiyo.com`, with its QA classes and history, to `qa.tutor@taiyo.com` (password unchanged).
+  The demo first ran as `tutor@taiyo.com` and moved the owner's QA tutor to `qa.tutor@taiyo.com`, which broke the owner's usual `tutor@taiyo.com` / `tutor` sign-in.
+  Later on 29 October 2026 the two swapped back (same user ids, so data and passwords stayed with each account): the QA tutor is `tutor@taiyo.com` again, the demo is `tom@taiyo.com`, and the seed no longer touches `tutor@taiyo.com`.
 
 - [x] Admin Users list rows no longer carry how a student is doing (29 October 2026, owner: "why does the users list have homework count showing?").
   The rows showed the dashboard's Students to watch flags ("HW due" for 2 or more overdue tasks, "N absent" for 2 or more absences in the last four lessons), so on dev nearly every demo student read "HW due".

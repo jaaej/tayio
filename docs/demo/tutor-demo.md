@@ -21,7 +21,7 @@ No real family, no email and nothing in production is involved.
    Everything done in a rehearsal (marking, attendance, notes, replies, claims) is wiped and rebuilt.
 3. Every run resets the demo passwords, which signs all demo accounts out.
    Sign in again after a run.
-4. Start the app (see "Which browser" below) and sign in as `tutor@taiyo.com` / `demo1234`.
+4. Start the app (see "Which browser" below) and sign in as `tom@taiyo.com` / `demo1234`.
 
 `node scripts/tutor-demo/seed.mjs --wipe` removes the demo data without rebuilding it.
 
@@ -55,13 +55,12 @@ The seed stops with that instruction if no term covers today.
 
 | Who | Sign in as | Password |
 | --- | --- | --- |
-| Tom Tutor, the demo tutor | `tutor@taiyo.com` | `demo1234` |
+| Tom Tutor, the demo tutor | `tom@taiyo.com` | `demo1234` |
 | Maya Collins, a colleague (her class is on the cover board) | `maya.collins@example.com` | `demo1234` |
 | Any demo student or parent | `first.last@example.com`, e.g. `ethan.lim@example.com`, `grace.lim@example.com` | `demo1234` |
 | Admin | your usual dev admin account | unchanged |
 
-The old dev `tutor@taiyo.com` account, with all its QA classes and history, was moved to `qa.tutor@taiyo.com` on 29 October 2026.
-Its password did not change.
+`tutor@taiyo.com` is your long-lived QA tutor, not the demo, and the seed never touches it.
 
 Sign-in allows 5 attempts per email in 15 minutes.
 Re-running the seed clears the limit for the demo accounts.
