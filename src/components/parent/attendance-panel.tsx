@@ -1,5 +1,5 @@
 import { GlassPanel, MetricTile, Pill, type PillTone } from "@/components/admin/ui";
-import { attendanceLabel, attendanceSummary, isMovedAbsence } from "@/lib/attendance-rules";
+import { attendanceLabel, attendanceRateTone, attendanceSummary, isMovedAbsence } from "@/lib/attendance-rules";
 import { formatDateLong, formatTime } from "@/lib/format";
 
 export type AttendanceListRow = {
@@ -59,7 +59,7 @@ export function AttendancePanel({
             <MetricTile
               label="Attendance"
               value={summary.percent === null ? "-" : `${summary.percent}%`}
-              tone={summary.percent !== null && summary.percent < 75 ? "bad" : "default"}
+              tone={summary.percent === null ? "default" : attendanceRateTone(summary.percent)}
             />
             <MetricTile
               label="Absences"

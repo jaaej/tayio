@@ -1,5 +1,6 @@
 import {
   attendanceLabel,
+  attendanceRateTone,
   attendanceSummary,
   isAttended,
   isMovedAbsence,
@@ -184,7 +185,7 @@ export function keyNumbers(input: {
       label: "Attendance",
       value: att.percent === null ? "-" : `${att.percent}%`,
       sub: att.total === 0 ? "no lessons marked yet" : `${att.attended} of ${att.total} recent lessons`,
-      tone: att.percent === null ? undefined : att.percent < 75 ? "bad" : att.percent < 90 ? "warn" : "good",
+      tone: att.percent === null ? undefined : attendanceRateTone(att.percent),
     },
     {
       label: "Homework",

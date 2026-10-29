@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceLabel, attendanceSummary, isMovedAbsence } from "./attendance-rules";
+import { attendanceLabel, attendanceRateTone, attendanceSummary, isMovedAbsence } from "./attendance-rules";
 
 describe("attendanceSummary", () => {
   it("counts late, left early and make-ups as attended", () => {
@@ -33,5 +33,11 @@ describe("attendanceLabel", () => {
 
   it("never treats a moved flag on an attended mark as a move", () => {
     expect(isMovedAbsence({ status: "present", moved: true })).toBe(false);
+  });
+});
+
+describe("attendanceRateTone", () => {
+  it("is green from 90%, amber from 75%, red below", () => {
+    expect([100, 90, 89, 75, 74, 0].map(attendanceRateTone)).toEqual(["good", "good", "warn", "warn", "bad", "bad"]);
   });
 });

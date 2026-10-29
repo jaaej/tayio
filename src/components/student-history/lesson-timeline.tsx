@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { Empty, Pill, buttonVariants } from "@/components/admin/ui";
+import { LessonNoteCard, type NoteViewer } from "@/components/lessons/lesson-note-card";
 import { formatDateShort, formatWeekday } from "@/lib/format";
-import { NOTE_VISIBILITY, sharedNoteFields } from "@/lib/lesson-note-fields";
 import type { LessonTimelineEntry } from "@/lib/student-history";
 import type { RecordNote } from "@/lib/student-record";
 import { cn } from "@/lib/utils";
 import { ShowAll } from "./show-all";
-
-export type TimelineViewer = { kind: "tutor"; id: string } | { kind: "admin" };
 
 export type TimelineAction = { href: string; label: string };
 
@@ -27,7 +25,7 @@ export function LessonTimeline({
   className,
 }: {
   entries: LessonTimelineEntry<RecordNote>[];
-  viewer: TimelineViewer;
+  viewer: NoteViewer;
   action: (entry: LessonTimelineEntry<RecordNote>) => TimelineAction | null;
   limit?: number;
   className?: string;
@@ -56,7 +54,7 @@ function TimelineEntry({
   action,
 }: {
   entry: LessonTimelineEntry<RecordNote>;
-  viewer: TimelineViewer;
+  viewer: NoteViewer;
   action: TimelineAction | null;
 }) {
   // Only a lesson they sat expects a note.
@@ -86,51 +84,11 @@ function TimelineEntry({
         </p>
       )}
       {entry.notes.map((note) => (
-        <NoteCard key={note.id} note={note} viewer={viewer} />
+        <LessonNoteCard key={note.id} note={note} viewer={viewer} className="sm:pl-[96px]" />
       ))}
       {entry.notes.length === 0 && expectsNote && (
         <p className="text-[13px] text-muted sm:pl-[96px]">No note written.</p>
       )}
     </article>
-  );
-}
-
-/** A note's fields under the same two labels the editor uses, then its author. */
-function NoteCard({ note, viewer }: { note: RecordNote; viewer: TimelineViewer }) {
-  const shared = sharedNoteFields(note);
-  const internal = note.internalNote ?? "";
-  const mine = viewer.kind === "tutor" && note.authorId === viewer.id;
-  return (
-    <div className="flex flex-col gap-2 sm:pl-[96px]">
-      <div className="flex flex-wrap gap-2">
-        {shared.length > 0 && (
-          <div className="min-w-0 flex-[999_1_300px] rounded-[12px] bg-good-bg/60 p-3 text-[13px] leading-normal text-ink">
-            <strong className="mb-1.5 block text-[12px] font-extrabold text-good">
-              {NOTE_VISIBILITY.shared}
-            </strong>
-            <dl className="flex flex-col gap-1.5">
-              {shared.map((field) => (
-                <div key={field.key}>
-                  <dt className="text-[12px] font-bold text-ink-soft">{field.label}</dt>
-                  <dd className="whitespace-pre-wrap [overflow-wrap:anywhere]">{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
-        {internal && (
-          <div className="min-w-0 flex-[1_1_200px] rounded-[12px] bg-warn-bg/60 p-3 text-[13px] leading-normal text-ink">
-            <strong className="mb-1.5 block text-[12px] font-extrabold text-warn">
-              {viewer.kind === "admin" ? NOTE_VISIBILITY.internalForAdmin : NOTE_VISIBILITY.internal}
-            </strong>
-            <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{internal}</p>
-          </div>
-        )}
-        {shared.length === 0 && !internal && (
-          <p className="text-[13px] text-muted">The note is empty.</p>
-        )}
-      </div>
-      <p className="text-[12px] text-muted">Written by {mine ? "you" : note.authorName}</p>
-    </div>
   );
 }

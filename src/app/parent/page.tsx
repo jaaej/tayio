@@ -14,6 +14,7 @@ import { buildTimetableChips } from "@/app/_lib/timetable-chips";
 import { nextAttendingLesson } from "@/app/student/_components/timetable-helpers";
 import { relativeDay } from "@/app/student/_lib/dashboard-rules";
 import { requireRole } from "@/lib/auth";
+import { attendanceRateTone } from "@/lib/attendance-rules";
 import { formatMoney, melbourneDayKey, relativeTime } from "@/lib/format";
 import { formatInvoiceDay } from "@/lib/invoice-dates";
 import { invoiceDisplayStatus } from "@/lib/invoice-rules";
@@ -121,7 +122,7 @@ export default async function ParentOverview({
           label="Attendance"
           value={data.attendanceRate === null ? "-" : `${data.attendanceRate}%`}
           sub={data.absenceCount === 1 ? "1 absence" : `${data.absenceCount} absences`}
-          tone={data.attendanceRate !== null && data.attendanceRate < 75 ? "bad" : "default"}
+          tone={data.attendanceRate === null ? "default" : attendanceRateTone(data.attendanceRate)}
           href={`/parent/timetable${childQs}#attendance`}
         />
         <MetricTile

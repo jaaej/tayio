@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Empty, Pill } from "@/components/admin/ui";
+import { LessonNoteCard } from "@/components/lessons/lesson-note-card";
 import { db } from "@/db/client";
 import { classes, lessonNotes, lessonRollExclusions, lessons, profiles, subjects } from "@/db/schema";
 import { STUDENT_TIERS } from "@/lib/roles";
@@ -60,6 +62,7 @@ export default async function AdminLessonAttendancePage({
   const lessonTitle = classDisplayName(lesson.subjectName, lesson.className);
 
   const editable = !["makeup", "cancelled", "rescheduled"].includes(lesson.status);
+  const noteAuthor = alias(profiles, "note_author");
   const [queue, roll, noteRows, studentRows, excludedRows] = await Promise.all([
     getAttendanceQueue(filters),
     getLessonRoll(lesson),
@@ -69,8 +72,10 @@ export default async function AdminLessonAttendancePage({
         studentId: lessonNotes.studentId,
         firstName: profiles.firstName,
         lastName: profiles.lastName,
+        authorId: lessonNotes.tutorId,
+        authorFirst: noteAuthor.firstName,
+        authorLast: noteAuthor.lastName,
         topicCovered: lessonNotes.topicCovered,
-        keyConcepts: lessonNotes.keyConcepts,
         performance: lessonNotes.performance,
         strengths: lessonNotes.strengths,
         struggles: lessonNotes.struggles,
@@ -80,6 +85,7 @@ export default async function AdminLessonAttendancePage({
       })
       .from(lessonNotes)
       .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
+      .innerJoin(noteAuthor, eq(noteAuthor.id, lessonNotes.tutorId))
       .where(eq(lessonNotes.lessonId, lessonId))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName)),
     // Who can be added: every active student (those on the roll are left out below).
@@ -206,47 +212,22 @@ export default async function AdminLessonAttendancePage({
               <Empty>No tutor notes have been saved for this lesson.</Empty>
             ) : (
               <div className="divide-y divide-line">
-                {noteRows.map((note) => {
-                  const details = [
-                    ["Topic covered", note.topicCovered],
-                    ["Key concepts", note.keyConcepts],
-                    ["Performance", note.performance],
-                    ["Strengths", note.strengths],
-                    ["Struggled with", note.struggles],
-                    ["Next lesson focus", note.nextLessonFocus],
-                    ["Parent-visible comment", note.parentVisibleComment],
-                    ["Internal note", note.internalNote],
-                  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
-
-                  return (
-                    <section key={note.id} className="py-4 first:pt-0 last:pb-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-[14px] font-bold text-ink">
-                          {note.firstName} {note.lastName}
-                        </h3>
-                        {makeupIds.has(note.studentId) && (
-                          <Pill tone="mint">Make-up attendee</Pill>
-                        )}
-                      </div>
-                      {details.length === 0 ? (
-                        <p className="mt-2 text-[12px] text-muted">Empty note.</p>
-                      ) : (
-                        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-                          {details.map(([label, value]) => (
-                            <div key={label} className="rounded-[10px] bg-surface-2 p-3">
-                              <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
-                                {label}
-                              </dt>
-                              <dd className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-ink-soft">
-                                {value}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
+                {noteRows.map((note) => (
+                  <section key={note.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[14px] font-bold text-ink">
+                        {note.firstName} {note.lastName}
+                      </h3>
+                      {makeupIds.has(note.studentId) && (
+                        <Pill tone="mint">Make-up attendee</Pill>
                       )}
-                    </section>
-                  );
-                })}
+                    </div>
+                    <LessonNoteCard
+                      note={{ ...note, authorName: `${note.authorFirst} ${note.authorLast}`.trim() }}
+                      viewer={{ kind: "admin" }}
+                    />
+                  </section>
+                ))}
               </div>
             )}
           </LessonNotesButton>

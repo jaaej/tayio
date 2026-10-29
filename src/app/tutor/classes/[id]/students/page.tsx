@@ -8,6 +8,7 @@ import { attendance, enrollments, lessons, profiles } from "@/db/schema";
 import { requireTutor } from "@/app/tutor/_data";
 import { attendanceMovedSql } from "@/lib/attendance-moved";
 import {
+  attendanceRateTone,
   attendanceSummary,
   isMovedAbsence,
   type AttendanceMark,
@@ -79,14 +80,7 @@ export default async function TutorClassStudentsPage({
               const sum = attendanceSummary(marks);
               const moved = marks.filter(isMovedAbsence).length;
               const rate = sum.percent;
-              const tone =
-                rate === null
-                  ? "default"
-                  : rate >= 90
-                    ? "good"
-                    : rate >= 70
-                      ? "warn"
-                      : "bad";
+              const tone = rate === null ? "default" : attendanceRateTone(rate);
               return (
                 <li key={s.id}>
                   <Link

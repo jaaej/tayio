@@ -42,6 +42,13 @@ export function attendanceSummary(marks: readonly AttendanceMark[]): AttendanceS
   };
 }
 
+/** The colour of an attendance rate on every page: green from 90%, amber from 75%, red below. */
+export function attendanceRateTone(percent: number): "good" | "warn" | "bad" {
+  if (percent >= 90) return "good";
+  if (percent >= 75) return "warn";
+  return "bad";
+}
+
 /** The label for one marked lesson: a moved absence reads "Moved". */
 export function attendanceLabel(mark: AttendanceMark): string {
   if (isMovedAbsence(mark)) return "Moved";

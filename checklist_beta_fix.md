@@ -674,9 +674,12 @@ Still open after the fixes:
 - [x] Admin and tutor each have their own per-student history view: the admin History tab (`src/components/student-history`) and the tutor profile's Lessons timeline (`src/app/tutor/students/[id]`).
   They were built in parallel on 18 to 19 October 2026 and show the same lessons, homework and notes differently.
   Fixed on 29 October 2026: one shared record (`getStudentRecord`) and components, see "One student record for admins and tutors" under Recently implemented.
-- [ ] Attendance % colours use three thresholds: the class Students roster (green from 90%, amber from 70%), the student record's key numbers (green from 90%, amber from 75%), and the parent Overview and attendance panel (red under 75%, else neutral).
-  Pick one rule in `@/lib/attendance-rules` and use it everywhere (found 29 October 2026, not changed).
-- [ ] The admin roll's lesson notes (`/admin/attendance/[lessonId]`, notes button) list their own fields, including "Key concepts", which nothing writes, instead of `LESSON_NOTE_FIELDS` and the record's note card (found 29 October 2026, not changed).
+- [x] Attendance % colours used three thresholds: the class Students roster (green from 90%, amber from 70%), the student record's key numbers (green from 90%, amber from 75%), and the parent home and attendance panel (red under 75%, else neutral).
+  Fixed on 29 October 2026: one rule, `attendanceRateTone` in `@/lib/attendance-rules` (green from 90%, amber from 75%, red below), on all four; parents now see green and amber too, and the roster's red line moved from 70% to 75%.
+- [x] The admin roll's lesson notes (`/admin/attendance/[lessonId]`, View lesson notes) listed their own fields, including "Key concepts", which nothing writes (0 notes on Production, 0 of 88 on dev), with no author.
+  Fixed on 29 October 2026: each note is the record's card (`LessonNoteCard`, `src/components/lessons/lesson-note-card.tsx`): the editor's two visibility labels, `LESSON_NOTE_FIELDS` names ("Comment", not "Parent-visible comment") and "Written by".
+  Verified on dev in Chrome and WebKit at 1440px and 390px: Sarah's 100% is green on the tutor roster, both records, the parent home and the parent attendance panel (before: plain on the parent pages); the Year 9 English roll of 30 June shows Noah's and Sarah's notes in the shared card, "Written by Daniel Lee"; no sideways scroll.
+  Amber and red were not seen in a browser (no dev student is under 90% once moved lessons are left out); the rule is unit tested and uses the tones the roster and record already drew.
 - [ ] The tutor Week plan's check-in table needs sideways scrolling on phones (existing, noted by the tutor agent).
 
 ## Recently implemented

@@ -237,9 +237,9 @@ Conventions referenced throughout:
 3. **Rationale:** `Rationale: not documented.`
 
 ### Student profile
-1. **What it is** - Per-student history for students the tutor teaches: one Lessons timeline, homework and quizzes.
+1. **What it is** - Per-student history for students the tutor teaches: four key numbers, one Lessons timeline and homework.
 2. **How it works** - `/tutor/students/[id]`. The Lessons tab (`?tab=attendance` and `?tab=notes` still work) lists each lesson with its mark ("Moved" for moves), the roll note, every note field under the editor's two labels from `src/lib/lesson-note-fields.ts`, "Written by", and Edit or Add note. Notes are scoped to the tutor's current classes plus their own; another tutor's internal note is never sent. Guard: `requireRole("tutor")` + shared-class scope.
-3. **Rationale:** The profile used to show only the comment and internal note (consistency audit item 15). The admin student profile has its own History tab (`src/components/student-history`); unifying the two is recorded as an open parity item.
+3. **Rationale:** The profile used to show only the comment and internal note (consistency audit item 15). Since 29 October 2026 it and the admin profile's History tab read one record, `getStudentRecord` (`src/lib/student-record.ts`), scoped by role, and draw it with the same parts (`src/components/student-history`): the admin sees every lesson, homework and quiz, plus account, leave and trial notes; each portal keeps one page per student.
 
 ### Curriculum sections (per-tutor additive)
 1. **What it is** - A tutor can add a note + file attachments to any week of a subject they teach, layered on top of the locked admin base, visible only to their own students.
@@ -329,7 +329,7 @@ Conventions referenced throughout:
 
 ### Attendance (admin)
 1. **What it is** - Admin view to mark/inspect per-lesson attendance.
-2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`. The roll is built by `getLessonRoll` (`src/lib/lesson-roll.ts`) and drawn by `src/components/attendance/attendance-row.tsx`, both shared with the tutor lesson page. Who is on a roll, and who either save action accepts, is `lessonRollIds`: the class's current students (never on a make-up lesson, which is a private booking), anyone rescheduled into the lesson, and anyone with attendance on it (a credit make-up, or a student who has since left).
+2. **How it works** - `/admin/attendance`, `/admin/attendance/[lessonId]`. Table: `attendance`. Guard: `requireAdmin()`. The roll is built by `getLessonRoll` (`src/lib/lesson-roll.ts`) and drawn by `src/components/attendance/attendance-row.tsx`, both shared with the tutor lesson page; its lesson notes panel draws each note with the staff note card the student record uses. Who is on a roll, and who either save action accepts, is `lessonRollIds`: the class's current students (never on a make-up lesson, which is a private booking), anyone rescheduled into the lesson, and anyone with attendance on it (a credit make-up, or a student who has since left).
 3. **Rationale:** `Rationale: not documented.` The attendance note is staff-only (owner decision, 18 October 2026): parents see each lesson's status, not the note.
 
 ### Payment management
@@ -467,11 +467,12 @@ Conventions referenced throughout:
 ### Shared rules (one definition per number)
 1. **What it is** - Every role computes these the same way, from one module each (consistency audit, 18 to 20 October 2026).
 2. **How it works** -
-   - Attendance: `src/lib/attendance-rules.ts` (`attendanceSummary`, `attendanceLabel`) with `attendanceMovedSql` (`src/lib/attendance-moved.ts`). Present, late, left early and make-up attended count as attending; an absence written by an approved reschedule or a credit cancellation is a move, left out of every rate and labelled "Moved".
+   - Attendance: `src/lib/attendance-rules.ts` (`attendanceSummary`, `attendanceLabel`, `attendanceRateTone`) with `attendanceMovedSql` (`src/lib/attendance-moved.ts`). Present, late, left early and make-up attended count as attending; an absence written by an approved reschedule or a credit cancellation is a move, left out of every rate and labelled "Moved".
+     A rate is green from 90%, amber from 75% and red below on every page that shows one (tutor class roster, student record, parent home and attendance panel).
    - Invoices: `src/lib/invoice-rules.ts`. Overdue means money owed and the due date passed; nothing has to set the status.
    - Homework: `src/lib/homework-rules.ts`. Handed in means submitted (on time or late), marked or returned; overdue means not handed in after the due day.
    - Lessons: `src/lib/lesson-progress.ts` (`describeLesson`) and `src/lib/lesson-progress-sql.ts` (`lessonRanSql`, `unmarkedOnRollSql`, `notesMissingSql`, `lessonCountFields`) for "ran", "to mark", "notes missing" and "needs finishing". `src/lib/lesson-roll.ts` decides who is on a lesson's roll for both rolls and both save actions, and shows a move's reason from its record.
-   - Lesson notes: `src/lib/lesson-note-fields.ts` holds each field, its label and who sees it; the editor, the tutor timeline and the family recap read it.
+   - Lesson notes: `src/lib/lesson-note-fields.ts` holds each field, its label and who sees it; the editor, the staff note card (`src/components/lessons/lesson-note-card.tsx`, on the student record and the admin roll) and the family recap read it.
    - Mastery: `src/lib/topic-mastery.ts` from quiz and homework marks.
    - Time: lesson starts are Melbourne wall times (`lessonStartInstant`), never `new Date(\`${date}T${time}\`)`, which reads the server's time zone (production runs in UTC); `formatDueDate` and `formatDateLong` of a moment format the Melbourne day; `?month=` uses `src/lib/month-param.ts`. Class times are picked with `TimeSelect` (`src/components/ui/time-select.tsx`), not typed time boxes, which lose their value in Safari.
 3. **Rationale:** Each of these used to be computed two to four ways, so the same lesson, invoice or task read differently depending on who looked.
