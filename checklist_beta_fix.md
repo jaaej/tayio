@@ -684,6 +684,11 @@ Still open after the fixes:
 
 ## Recently implemented
 
+- [x] Admin Users list: the homework flag read "HW due", which looks like "has homework due"; it means 2 or more tasks not handed in after their due date (the dashboard's Students to watch rule, `getWatchSignals`).
+  It now reads like the absence flag, with the count: "19 HW overdue" (`rowFlag`, `src/app/admin/users/_lib/directory-data.ts`) (29 October 2026, owner: "why does it say homework due in admin/users?").
+  On dev nearly every demo student carries it because their seeded homework (due 22 May to 12 September) was never handed in: 8 to 29 tasks each. On Production no student has an overdue task, so no flag shows.
+  Verified on dev in Chrome and WebKit at 1440px and 390px: ten students flagged "8 HW overdue" to "29 HW overdue", matching a direct count; no sideways scroll.
+
 - [x] One student record for admins and tutors (29 October 2026, owner: "all the information that tutors can see, admins should be able to aswell", and "what i dont want is to make the navigation of the portal difficult ... having 2 user profile information pages, is just not intuitive").
   - Rule: each portal keeps one page per student; nothing new in the menu, no new tabs, no switch inside a tab, no new page.
     Admin: Users, then the student, History tab. Tutor: Classes, Students, then the student.

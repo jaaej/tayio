@@ -25,7 +25,8 @@ function rowFlag(
   // The same signals as the dashboard's "Students to watch".
   const absent = signals.absences.get(u.id);
   if (absent) return { label: `${absent.absent} absent`, tone: "bad" };
-  if (signals.overdueHomework.has(u.id)) return { label: "HW due", tone: "warn" };
+  const overdue = signals.overdueHomework.get(u.id);
+  if (overdue) return { label: `${overdue} HW overdue`, tone: "warn" };
   if (u.schedulePeriod) {
     const label = accountScheduleStatusLabel(u.schedulePeriod, today);
     // Only states that are true today; future breaks live on the profile.
