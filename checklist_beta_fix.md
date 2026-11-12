@@ -2245,6 +2245,9 @@ Still open after the fixes:
   0086 must land before the deploy (the new code writes `email_deliveries` and `pending_reminders_sent`), and 0087 after it (the old code still writes the dropped table and column).
   Run `npm run db:check-rls` against Production afterwards.
   12 November 2026: `0086` applied to Production (78 of 80 were applied before it; table and column checked, row-level security on) and the owner added `EMAIL_FROM` to Vercel Production.
+  Same day: `ac7dcf9` deployed (Vercel status success), then `0087` applied; Production has all 80 migrations, the old table and column are gone, `email_deliveries` matches dev, and `npm run db:check-rls` passes on all 61 tables.
+  Left for the owner: delete `ANNOUNCEMENT_EMAIL_FROM` in Vercel (nothing reads it now), then tick this item.
+  First scheduled alert: Production's earliest open cover is 17 November 2026 at 4:30 pm, so its 48 hour email is due from 15 November at 4:30 pm (by the 7 am daily check on 16 November at the latest).
 - [ ] Run the cover sweep every 15 minutes in Production.
   The Vercel team that owns the `tayio` project (TAIYO) was on the Hobby plan on 7 November 2026, which only allows a daily cron, so `/api/cron/tutor-cover-reminders` still runs once a day at 20:00 UTC; between runs alerts go out only while an admin has the portal open (5 minute poll) or after a cover action.
   The owner confirmed it is still Hobby on 12 November 2026, so the daily schedule stays for this deploy.
