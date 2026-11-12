@@ -144,6 +144,20 @@ Remove the skill/experience barrier to traversing the portal.
 
 When a change touches navigation or IA, briefly state how it reduces steps or ambiguity for a first-time user. If it adds steps or a new place to look, justify why or find a simpler path.
 
+## One destination per thing (non-negotiable)
+
+Every thing a user can click (a lesson, a homework, a subject, a recap, an invoice, a person, an announcement) has exactly one page or view in each role, and every link to it lands there.
+Clicking a lesson in the calendar, on the dashboard, on a class or subject page, or in a notification must open the same place, never a separate page built for that entry point.
+
+- **No second home for the same data.** If two pages or tabs show the same thing (a filtered copy of a list, a detail view that repeats another page), keep one home and remove the other.
+  A summary surface (a dashboard tile or preview list) may show a slice, but it links to the one home instead of becoming a second working page.
+- **Deep-link to the exact item.** A link about one item opens that item: the lesson selected in its month (`timetableLessonHref` in `src/lib/month-param.ts`), the homework's own page, the announcement opened.
+  A notification about a lesson never lands on a bare calendar or an unrelated tab.
+- **Carry the context the link is about.** A parent link carries the child it concerns (`?child=`), so it never opens a sibling's page.
+- **Retire old routes as redirects, not copies.** When a page is merged away, keep its URL as a redirect to the surviving home so links in sent notifications and emails keep working, and stop generating new links to it.
+- **Audit by thing, not by page.** When adding or changing a link, list every place that links to the same thing (pages, shared components, notification builders, search) and confirm they all land in the same place.
+  The same thing's home must also match across roles (see Cross-role UI & feature consistency).
+
 ## Microcopy: no redundant subtitles or state-narration (non-negotiable)
 
 Do not add explanatory microcopy that restates what a UI element already makes obvious, or that narrates the UI's own state back to the user. This clutters the interface and reads as filler. Let labels and content speak.

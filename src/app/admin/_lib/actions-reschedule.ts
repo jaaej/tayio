@@ -24,6 +24,7 @@ import {
 import { requireAdmin } from "./guard";
 import { getLessonContextForStudent } from "./queries";
 import { ADMIN_TIERS } from "@/lib/roles";
+import { timetableLessonHref } from "@/lib/month-param";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 import { othersOnLesson } from "@/lib/lesson-guests";
 
@@ -246,12 +247,16 @@ export async function rescheduleStudentLesson(
       decidedAt: new Date(),
     });
 
+    // Each family link opens the new lesson, as the tutors' do.
+    const moved = { id: newLesson.id, date: slot.date };
     const recipients = new Map<string, string>([
-      [studentId, "/student/timetable"],
+      [studentId, timetableLessonHref("/student/timetable", moved)],
       [original.tutorId, `/tutor/lessons/${original.id}`],
       [slot.tutorId, `/tutor/lessons/${newLesson.id}`],
     ]);
-    for (const parent of parents) recipients.set(parent.id, `/parent/timetable?child=${studentId}`);
+    for (const parent of parents) {
+      recipients.set(parent.id, timetableLessonHref("/parent/timetable", moved, { child: studentId }));
+    }
     for (const owner of admins) recipients.set(owner.id, `/admin/users/${studentId}`);
     await tx.insert(notifications).values(Array.from(recipients, ([userId, href]) => ({
       userId,

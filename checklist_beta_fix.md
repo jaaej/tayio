@@ -13,6 +13,10 @@ Last updated: 29 October 2026
 
 ## Manual QA required
 
+- [ ] Tutor demo follow-ups (29 October 2026 evening), on dev as `tom@taiyo.com` and on Production after deploy, in Safari at 1440px and on a phone.
+  Today has no Recent notes. Resources: **Upload file** opens the file picker straight away, the chosen file shows with a remove button, and there is no Choose file control.
+  Messages, as each role: type the name of someone you have never messaged and start the conversation from the result; press ⌘K, type a name and use **Message someone**. Cover board on the demo: Needs cover and You're covering are different classes.
+
 - [ ] Discussion threads and check-in redesign (29 October 2026), on Production in Safari at 1440px and on a phone: open a thread as a student, a tutor and an admin; switch All / Unanswered and fold Other questions; post a reply with a file; as a tutor, approve a week and report one through Something's wrong; check a week admin corrected shows the change in the footer.
 
 - [ ] Tutor fixes from the demo rehearsal (29 October 2026): on dev as `tom@taiyo.com`, then on Production after deploy as a tutor, in Safari at 1440px and on a phone.
@@ -706,6 +710,33 @@ Still open after the fixes:
   Verified on dev in Chrome and WebKit at 1440px and 390px: tutor, student and admin threads, the filter and collapse, posting and removing a reply, and the check-in with a correction (made on dev and undone), an approved week and the current week, with no errors or sideways scroll. Typecheck, lint, 778 unit tests.
 
 - [x] Tutor fixes from the demo rehearsal (29 October 2026, owner's list while preparing the tutor demo).
+- [x] Parent portal: one destination per thing (3 November 2026, owner: a lesson clicked from the calendar, the dashboard or a class page should open the same place; rule added to `CLAUDE.md` as "One destination per thing").
+  Audited every link into the parent portal by what it points at (pages, shared components, notification builders). Homework, recaps, messages and announcements already open one page from every entry point.
+  Owner decision: attendance and tutor feedback each keep their menu home. The subject page's Attendance and Tutor feedback tabs are gone, so `/parent/subjects/[id]` is the student's subject page (weekly work); `?tab=attendance` forwards to `/parent/timetable#attendance` and `?tab=feedback` to `/parent/feedback`.
+  `/parent/classes/[classId]` (old links) now opens the child's Timetable instead of the removed Attendance tab, and the class-time-change notice (`class-writes.ts`) links parents straight to `/parent/timetable?child=`, as the student's copy already did.
+  Lesson notices open the lesson itself, as the tutor's do: lesson cancelled (`lesson-cancel.ts`), a family's reschedule (`reschedule.ts`) and an office reschedule (`actions-reschedule.ts`) link students and parents to the Timetable with that lesson selected in its month (`timetableLessonHref`, tested). The parent's cancel notice had no `?child=`, so in a two-child family it could open the other child's timetable. `/student/timetable` now takes `?lesson=` like the parent's.
+  Left as is: the tutor's lesson-cancelled notice still opens `/tutor/timetable` while the tutor's reschedule notice opens the lesson; `getFamilyRecaps` keeps an unused `classId` option from before.
+  Verified on dev in Chrome and WebKit at 1440px: the subject page without tabs, both `?tab=` forwards, the old class link, the Overview's "Can't make it?" and a student `?lesson=` link selecting a non-default lesson. A cancel or reschedule was not performed on dev, so the new notice links were checked through the same URL format, not by receiving one. Typecheck, lint, 780 unit tests.
+
+- [x] Parent portal style parity pass (1 November 2026, owner: "is the parent role the same style as the other roles?").
+  Every parent page was compared with the same feature in the student, tutor and admin portals; most already share one implementation (glass shell, homework board, subject page, Progress, Timetable, Resources, Messages, Notifications, recaps).
+  Overview header: the shared home greeting (`melbourneGreeting`, the date and `termWeekLabel`), as on the admin, tutor and student homes, instead of "Hello, Pat".
+  Overview buttons: "Can't make it?" and the contact "Message" buttons use the shared outline button (`buttonVariants({ variant: "outline", size: "md" })`), as in `TodoPanel` and the homework board, instead of hand-written classes.
+  Homework detail (`/parent/homework/[id]`) is full width, like the student's copy of the same page; it was capped at 1040px.
+  Payments tiles: `FamilyInvoices` (parent Payments and the billing student's Payments) shows Outstanding, Overdue and Paid invoices as the shared `MetricTile` strip, as on the parent Overview and admin Payments, instead of its own dot-and-panel tiles.
+  Same day, student dashboard (owner request): the hero is blue `#2450D6` (was violet) and the Taiyo Blitz card a deeper blue `#1C3DB0` (was indigo).
+  Found but not changed: parents have no Profile page (students and tutors open one from their name; admin has none either); the parent Feedback list stacks full recap cards while the student's list of the same recaps (Resources, Class recordings) is compact rows; the Resources menu icon is `Library` for student and parent but `FolderOpen` for tutor and admin.
+  Verified on dev in Chrome at 1440px and 375px and WebKit at 1440px: parent Overview, Payments and homework detail, the billing student's Payments, and the student dashboard. Typecheck, lint, 778 unit tests.
+
+- [x] Tutor demo follow-ups (29 October 2026 evening, owner's list).
+  Today: the **Recent notes** panel is gone (notes stay on the lesson and student pages); Students to bump takes the full width, and the Today lesson card's details wrap between parts only, so "6 students" no longer splits. `getRecentLessonNotes` is removed.
+  Classes: owner asked whether When and Where follow a moved lesson or approved leave. They are the class's weekly slot: an admin's schedule change rewrites the class and its future lessons, so they follow that; leave, a cover or a cancelled lesson do not change them. A **Next** row was added without being asked and removed on 30 October 2026 (owner: When already covers it). Owner decision: the class cards keep When and Where only.
+  Resources: **Upload file** opens the file picker itself; the native Choose file control is gone, the chosen file shows with its size and a remove button, and adding with no source says "Upload a file or paste a link." The owner had asked for this before and it had not been done.
+  Messages, all four roles (shared `InboxCompose`): typing a name in the list's search also lists people with no conversation yet, under their group, so one tap starts it; "admin" and "office" find the office. The portal search (⌘K) offers **Message someone** in every role, opening Messages with the name filled (`?q=`), and a tutor's student results have a Message button. Tutor-to-tutor messages stay blocked by `canDM` (same-role pairs).
+  Bug found on the way, reproduced in WebKit: opening a conversation with someone never messaged could crash the page, because the page rendered twice at once and both renders inserted the read marker (`dm_reads` primary key). `markThreadRead` is now one insert-or-update.
+  Demo seed: Maya Collins has a second class, Y9 English · Monday PM in Room 4 with three new students, and Tom's claimed cover is on it, so the cover board's Needs cover (her Y8 Mathematics) and You're covering cards are different lessons.
+  Verified on dev in Chrome and WebKit at 1440px: Today, the cover board, adding a resource by file and by link, the messages search as tutor, admin, student and parent, the portal search, and opening a never-messaged student's conversation. Typecheck, lint, 778 unit tests.
+
   Lesson notes are an optional **Comment** for the family plus an optional **Internal note** (`LESSON_NOTE_FIELDS`, `src/lib/lesson-note-fields.ts`); topic covered, performance, strengths, struggled with and next lesson focus are gone from the editor, the recaps, the admin roll card and the student record. Saving both boxes empty deletes the note (`saveLessonNote`).
   A notes row written only in the old fields counts as no note anywhere. Family recaps (`RecapBlocks`) drop the "Comment" label: it was the only field.
   Owner decision: a lesson is finished once its attendance is saved, so `describeLesson` ignores notes; "Finish notes", the admin Attendance **Notes** tab, the dashboard's "lessons without notes" and the class Lessons tab's notes column are removed.
@@ -1234,13 +1265,13 @@ Still open after the fixes:
 - [x] Student portal redesign from the design handoff (13-15 October 2026), pushed to production on 15 October 2026 (`2aab063`, after a passing `next build`; no migrations).
   Built from `taiyo-student-design.zip` as designed, using its colourful options, on the existing data and actions.
   The student portal uses the shared `GlassPortalShell`, like admin and tutor (`src/components/student/shell.tsx`), with the dark Taiyo Blitz tile in a new optional `feature` slot.
-  Dashboard `/student`: violet hero, solid subject cards with a this-week ring, the Taiyo Blitz card, To do and This week (`src/app/student/page.tsx`).
+  Dashboard `/student`: blue hero (`#2450D6`, changed from violet `#5B2BD8` on 1 November 2026 at the owner's request; the today row in This week shares it) and a deeper blue Taiyo Blitz card (`#1C3DB0`, was indigo `#3B2BD1`; the game page itself keeps `BLITZ_INDIGO`), solid subject cards with a this-week ring, the Taiyo Blitz card, To do and This week (`src/app/student/page.tsx`).
   The to-do order and week rules are in `src/app/student/_lib/dashboard-rules.ts` (tested) and `dashboard.ts`, using the student's own curriculum access and Melbourne time.
   Every other student page follows the handoff too: My subjects, Homework, Timetable, Progress, Resources and recap, Taiyo Blitz, Payments, Profile, the practice quiz, discussions, messages and notifications.
   Later owner changes are the separate "Student (branch `student-handoff`)" entries above.
   Shared changes: `subjectTone` gains a `solid` fill; `TodoPanel` takes an optional `count`; `melbourneGreeting` in `src/lib/format.ts` replaces the admin and tutor copies; the cross-subject discussion board is "General help" in every role.
   An alternative "Impeccable" build of the same pages was compared on `main` and dropped on 15 October 2026 at the owner's request; it is kept only as the local git tag `impeccable-backup`.
-  Known follow-ups: the parent portal is still on `CollapsiblePortalShell`, so its resources and timetable look different; recording length is not stored.
+  Known follow-ups: recording length is not stored. (The parent portal has since moved to the shared `GlassPortalShell` and the student's Resources and Timetable, in `fix/audit-family`.)
 
 - [x] Tutor quizzes live in the week plan (13 October 2026).
   The Quizzes sidebar item and the `/tutor/quizzes` list are gone; an old `/tutor/quizzes` link redirects to `/tutor/classes`.

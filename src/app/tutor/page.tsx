@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import {
   ArrowLeftRight,
@@ -33,7 +34,6 @@ import {
 } from "@/lib/format";
 import { addIsoDays } from "@/lib/tutor-checkin-rules";
 import { getTutorCheckinWeek } from "@/lib/tutor-checkins";
-import { NOTE_VISIBILITY } from "@/lib/lesson-note-fields";
 import { describeLesson } from "@/lib/lesson-progress";
 import { lessonStartInstant, melbourneDate, melbourneTime } from "@/lib/tutor-cover-rules";
 import {
@@ -45,7 +45,7 @@ import {
 } from "@/lib/tutor-today";
 import { weekStartFromParam } from "@/lib/week-nav";
 import { cn } from "@/lib/utils";
-import { getRecentLessonNotes, getTutorWeekLessons } from "./_data";
+import { getTutorWeekLessons } from "./_data";
 import {
   getLessonWeekSummary,
   getMarkingSummary,
@@ -118,7 +118,6 @@ export default async function TutorToday({
     checkin,
     covers,
     overdue,
-    recentNotes,
     reports,
   ] = await Promise.all([
     termWeekLabel(todayIso),
@@ -134,7 +133,6 @@ export default async function TutorToday({
     getCheckinTodo(tutorId),
     getClaimableCovers(tutorId, now),
     getOverdueHomework(tutorId, now),
-    getRecentLessonNotes(tutorId, 4),
     countReportsToWrite(tutorId),
   ]);
 
@@ -340,69 +338,24 @@ export default async function TutorToday({
         calendarLabel="Schedule & availability"
       />
 
-      <div className="rise grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <GlassPanel
-          title="Students to bump"
-        >
-          <PersonStatusTable
-            empty="No overdue homework. Your students are caught up."
-            rows={bumps.map((b) => ({
-              id: b.studentId,
-              firstName: b.firstName,
-              lastName: b.lastName,
-              context: b.className,
-              reason: b.reason,
-              tone: b.tone,
-              href: `/tutor/students/${b.studentId}?from=today`,
-              action: <BumpMessageButton studentId={b.studentId} />,
-            }))}
-          />
-        </GlassPanel>
-
-        <GlassPanel
-          title="Recent notes"
-        >
-          {recentNotes.length === 0 ? (
-            <Empty>No lesson notes yet.</Empty>
-          ) : (
-            <ul className="divide-y divide-line">
-              {recentNotes.map((n) => {
-                const shared = n.parentVisibleComment?.trim() || null;
-                const internal = n.internalNote?.trim() || null;
-                return (
-                  <li key={n.id}>
-                    <Link
-                      href={`/tutor/students/${n.studentId}?from=today`}
-                      className="block px-4 py-3 transition-colors hover:bg-[#F8F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
-                    >
-                      <span className="flex items-baseline gap-2">
-                        <span className="truncate text-[14px] font-bold text-ink">
-                          {n.studentFirstName} {n.studentLastName}
-                        </span>
-                        <span className="truncate text-[12px] text-muted">{classDisplayName(n.subjectName, n.className)}</span>
-                        <span className="ml-auto shrink-0 text-[12px] text-muted">
-                          {nearDayLabel(n.lessonDate, todayIso)}
-                        </span>
-                      </span>
-                      {shared && (
-                        <span className="mt-0.5 line-clamp-2 block text-[13px] leading-[1.45] text-ink-soft">
-                          {shared}
-                        </span>
-                      )}
-                      {internal && (
-                        <span className="mt-0.5 line-clamp-2 block text-[13px] leading-[1.45] text-ink-soft">
-                          <span className="font-bold text-warn">{NOTE_VISIBILITY.internal}:</span>{" "}
-                          {internal}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </GlassPanel>
-      </div>
+      <GlassPanel
+        className="rise"
+        title="Students to bump"
+      >
+        <PersonStatusTable
+          empty="No overdue homework. Your students are caught up."
+          rows={bumps.map((b) => ({
+            id: b.studentId,
+            firstName: b.firstName,
+            lastName: b.lastName,
+            context: b.className,
+            reason: b.reason,
+            tone: b.tone,
+            href: `/tutor/students/${b.studentId}?from=today`,
+            action: <BumpMessageButton studentId={b.studentId} />,
+          }))}
+        />
+      </GlassPanel>
     </div>
   );
 }
@@ -428,9 +381,7 @@ function TodayLesson({
     formatTimeRange(l.startTime, l.endTime),
     l.place,
     plural(l.studentCount, "student"),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter(Boolean);
   return (
     <li className="flex flex-col gap-3.5 p-4">
       <div className="flex items-center gap-3">
@@ -447,7 +398,15 @@ function TodayLesson({
             <SubjectDot subject={l.subjectName} color={l.subjectColor} className="mt-[6px]" />
             <span className="min-w-0">{classDisplayName(l.subjectName, l.className)}</span>
           </span>
-          <span className="text-[13px] text-muted">{meta}</span>
+          {/* Wraps between parts only, so "6 students" never splits. */}
+          <span className="text-[13px] text-muted">
+            {meta.map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 && " · "}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
+          </span>
         </span>
         <Pill tone={timing.tone === "neutral" ? "default" : timing.tone} className="shrink-0">
           {timing.label}

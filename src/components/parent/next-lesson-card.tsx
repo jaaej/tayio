@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { GlassPanel } from "@/components/admin/ui";
+import { GlassPanel, buttonVariants } from "@/components/admin/ui";
 import type { TimetableChip } from "@/app/student/_components/interactive-timetable";
 import { formatTimeRange } from "@/lib/format";
 import { subjectTone } from "@/lib/subject-tone";
+import { cn } from "@/lib/utils";
 
 const weekdayFmt = new Intl.DateTimeFormat("en-AU", { weekday: "short", timeZone: "UTC" });
 const dayMonthFmt = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", timeZone: "UTC" });
@@ -73,7 +74,7 @@ export function NextLessonCard({
           {cantMakeItHref && (
             <Link
               href={cantMakeItHref}
-              className="inline-flex h-9 shrink-0 items-center rounded-[10px] border border-[#DFE1EC] bg-white px-3.5 text-[13px] font-bold text-ink transition-colors hover:bg-[#F5F6FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              className={cn(buttonVariants({ variant: "outline", size: "md" }), "shrink-0")}
             >
               Can&apos;t make it?
             </Link>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Link2 as LinkIcon, Upload } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { FileText, Link2 as LinkIcon, Upload, X } from "lucide-react";
 import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,7 +39,16 @@ export function ResourceForm({
   error: string | null;
   onSubmit: (formData: FormData) => void;
 }) {
-  const [kind, setKind] = useState<"file" | "link">("file");
+  // No source until a file is picked or Paste link is chosen.
+  const [kind, setKind] = useState<"file" | "link" | null>(null);
+  const [file, setFile] = useState<{ name: string; size: number } | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function clearFile() {
+    if (fileRef.current) fileRef.current.value = "";
+    setFile(null);
+  }
 
   const topics = subjects.find((s) => s.id === subjectId)?.topics ?? [];
 
@@ -49,6 +58,10 @@ export function ResourceForm({
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!kind) {
+          setSourceError("Upload a file or paste a link.");
+          return;
+        }
         onSubmit(new FormData(e.currentTarget));
       }}
     >
@@ -114,43 +127,69 @@ export function ResourceForm({
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
             Source
           </span>
-          <input type="hidden" name="kind" value={kind} />
-          <div
-            role="radiogroup"
-            aria-label="Source"
-            className="mt-2 flex flex-wrap gap-2"
-          >
+          <input type="hidden" name="kind" value={kind ?? ""} />
+          {/* Upload file opens the picker itself; the input stays hidden. The
+              types `RESOURCE_POLICY` (src/lib/upload-validation.ts) accepts. */}
+          <input
+            ref={fileRef}
+            name="file"
+            type="file"
+            tabIndex={-1}
+            aria-hidden
+            accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.pptx,.xlsx,.mp4,.mov,.webm"
+            className="sr-only"
+            onChange={(e) => {
+              const picked = e.target.files?.[0];
+              if (!picked) return;
+              setFile({ name: picked.name, size: picked.size });
+              setKind("file");
+              setSourceError(null);
+            }}
+          />
+          <div role="group" aria-label="Source" className="mt-2 flex flex-wrap gap-2">
             <KindOption
               active={kind === "file"}
-              onSelect={() => setKind("file")}
+              onSelect={() => fileRef.current?.click()}
               icon={<Upload className="h-4 w-4" aria-hidden />}
             >
               Upload file
             </KindOption>
             <KindOption
               active={kind === "link"}
-              onSelect={() => setKind("link")}
+              onSelect={() => {
+                clearFile();
+                setKind("link");
+                setSourceError(null);
+              }}
               icon={<LinkIcon className="h-4 w-4" aria-hidden />}
             >
               Paste link
             </KindOption>
           </div>
 
-          <div className="mt-3">
-            {/* Source already says file or link, so the input needs no label of its own. */}
-            {kind === "file" ? (
-              // The types `RESOURCE_POLICY` (src/lib/upload-validation.ts) accepts.
-              <input
-                key="file"
-                id="file"
-                name="file"
-                type="file"
-                required
-                aria-label="File to upload"
-                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.pptx,.xlsx,.mp4,.mov,.webm"
-                className="w-full cursor-pointer text-[13px] text-ink file:mr-2.5 file:h-9 file:cursor-pointer file:rounded-[10px] file:border file:border-line-strong file:bg-surface file:px-3 file:text-[12px] file:font-bold file:text-ink"
-              />
-            ) : (
+          {kind === "file" && file && (
+            <div className="mt-3 flex min-h-11 items-center gap-2.5 rounded-[12px] border border-line bg-surface-2 pl-3 pr-1 text-[13px]">
+              <FileText className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+              <span className="min-w-0 flex-1 truncate font-bold text-ink" title={file.name}>
+                {file.name}
+              </span>
+              <span className="shrink-0 tabular-nums text-muted">{fileSize(file.size)}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${file.name}`}
+                onClick={() => {
+                  clearFile();
+                  setKind(null);
+                }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-ink-soft transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          )}
+          {kind === "link" && (
+            <div className="mt-3">
+              {/* Source already says link, so the input needs no label of its own. */}
               <Input
                 key="link"
                 id="externalUrl"
@@ -161,8 +200,13 @@ export function ResourceForm({
                 maxLength={2000}
                 placeholder="https://…"
               />
-            )}
-          </div>
+            </div>
+          )}
+          {sourceError && (
+            <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
+              {sourceError}
+            </p>
+          )}
         </div>
       </fieldset>
 
@@ -194,11 +238,12 @@ function Field({
   );
 }
 
-/**
- * File-vs-link switch. Real radios behind the pills, so arrow-key navigation
- * and screen-reader announcement come from the browser - the same pattern the
- * admin create-user role picker uses.
- */
+function fileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** One of the two source pills; the chosen one is filled. */
 function KindOption({
   active,
   onSelect,
@@ -211,24 +256,20 @@ function KindOption({
   children: ReactNode;
 }) {
   return (
-    <label
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onSelect}
       className={cn(
         "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-[12px] font-bold transition-colors",
-        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 has-[:focus-visible]:ring-offset-1",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1",
         active
           ? "border-brand-500 bg-brand-500 text-white"
           : "border-line-strong bg-surface text-ink hover:border-brand-500 hover:text-brand-700",
       )}
     >
-      <input
-        type="radio"
-        name="kindChoice"
-        checked={active}
-        onChange={onSelect}
-        className="sr-only"
-      />
       {icon}
       {children}
-    </label>
+    </button>
   );
 }

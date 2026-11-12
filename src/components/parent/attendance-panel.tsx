@@ -23,29 +23,22 @@ const TONE: Record<string, PillTone> = {
 /**
  * A child's marked lessons with the rate on top, from the one attendance
  * rule (`attendanceSummary`): a lesson moved or credited reads "Moved" and
- * is left out of the rate. Used for every class on the Timetable and for
- * one subject on its page.
+ * is left out of the rate. Its one home is the parent Timetable.
  */
 export function AttendancePanel({
   id,
   rows,
   childFirstName,
-  showSubject = true,
-  titled = true,
 }: {
   id?: string;
-  /** Off where a tab already names the section. */
-  titled?: boolean;
   rows: AttendanceListRow[];
   childFirstName: string;
-  /** Hide the subject on a subject's own page. */
-  showSubject?: boolean;
 }) {
   const summary = attendanceSummary(rows);
   return (
     <GlassPanel
       id={id}
-      title={titled ? "Attendance" : undefined}
+      title="Attendance"
       titleId={id ? `${id}-h` : "attendance-h"}
       bodyClassName="bg-transparent shadow-none"
     >
@@ -77,7 +70,7 @@ export function AttendancePanel({
                     <span className="font-semibold text-muted"> · {formatTime(r.startTime)}</span>
                   </span>
                   <span className="truncate text-[12px] text-muted">
-                    {[showSubject ? r.subjectName : null, r.tutorName].filter(Boolean).join(" · ")}
+                    {[r.subjectName, r.tutorName].filter(Boolean).join(" · ")}
                   </span>
                 </span>
                 <Pill tone={isMovedAbsence(r) ? "default" : (TONE[r.status] ?? "default")}>

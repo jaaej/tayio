@@ -20,8 +20,8 @@ describe("studentSearchEntries", () => {
       { className: "Friday", subjectName: "Year 9 Maths", students: [] },
     ]);
     expect(entries).toEqual([
-      { label: "Sarah Student", href: "/tutor/students/s1", section: "Year 9 Maths · Tuesday, Year 9 English · Thursday" },
-      { label: "Uma Pro", href: "/tutor/students/s2", section: "Year 9 Maths · Tuesday" },
+      { label: "Sarah Student", href: "/tutor/students/s1", section: "Year 9 Maths · Tuesday, Year 9 English · Thursday", messageHref: "/tutor/messages/with/s1" },
+      { label: "Uma Pro", href: "/tutor/students/s2", section: "Year 9 Maths · Tuesday", messageHref: "/tutor/messages/with/s2" },
     ]);
   });
 });

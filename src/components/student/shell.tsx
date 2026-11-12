@@ -206,7 +206,7 @@ export async function StudentShell({
   return (
     <GlassPortalShell
       brand={<GlassBrandMark href="/student" />}
-      search={<PortalSearch destinations={searchDestinations} variant="sidebar" />}
+      search={<PortalSearch destinations={searchDestinations} messagesHref="/student/messages" variant="sidebar" />}
       feature={<BlitzFeature rank={blitzRank} />}
       nav={<GlassNavLinks sections={sections} />}
       account={
@@ -229,6 +229,7 @@ export async function StudentShell({
           search={
             <PortalSearch
               destinations={searchDestinations}
+              messagesHref="/student/messages"
               compact
               shortcutEnabled={false}
             />

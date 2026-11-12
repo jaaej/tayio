@@ -31,6 +31,7 @@ export function studentSearchEntries(roster: Roster): PortalSearchDestination[] 
       label: e.name,
       href: `/tutor/students/${id}`,
       section: e.classes.join(", "),
+      messageHref: `/tutor/messages/with/${id}`,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

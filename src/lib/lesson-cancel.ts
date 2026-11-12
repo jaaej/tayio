@@ -19,6 +19,7 @@ import {
 import { classDisplayName } from "@/lib/class-display";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { lessonRollIds } from "@/lib/lesson-roll";
+import { timetableLessonHref } from "@/lib/month-param";
 import { cancelCreditExpiry, cancelRefusal, creditTermFor } from "@/lib/lesson-cancel-rules";
 import { forParent } from "@/lib/parent-child";
 import { withActor } from "@/lib/with-actor";
@@ -206,8 +207,11 @@ async function notifyCancelled(lesson: LessonRow, studentIds: string[], coverTut
     : [[], []];
   const firstName = new Map(students.map((s) => [s.id, s.firstName]));
   const childrenOf = new Map<string, string[]>();
+  // The child whose timetable the parent's link opens (the first, when siblings share the lesson).
+  const childOf = new Map<string, string>();
   for (const p of parents) {
     childrenOf.set(p.parentId, [...(childrenOf.get(p.parentId) ?? []), firstName.get(p.studentId) ?? ""]);
+    if (!childOf.has(p.parentId)) childOf.set(p.parentId, p.studentId);
   }
   const rows: (typeof notifications.$inferInsert)[] = [
     ...studentIds.map((userId) => ({
@@ -215,14 +219,14 @@ async function notifyCancelled(lesson: LessonRow, studentIds: string[], coverTut
       channel: "in_app" as const,
       title: "Lesson cancelled",
       body: `${what}. A class credit was added so you can book a make-up.`,
-      href: "/student/timetable",
+      href: timetableLessonHref("/student/timetable", lesson),
     })),
     ...[...childrenOf].map(([userId, names]) => ({
       userId,
       channel: "in_app" as const,
       title: "Lesson cancelled",
       body: forParent(names, `${what}, with a class credit to book a make-up.`),
-      href: "/parent/timetable",
+      href: timetableLessonHref("/parent/timetable", lesson, { child: childOf.get(userId) ?? "" }),
     })),
     ...[...new Set([lesson.tutorId, ...coverTutorIds])].map((userId) => ({
       userId,

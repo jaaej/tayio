@@ -16,7 +16,7 @@ import { EmptyChildrenNotice } from "../_components/empty-children";
 type SearchParams = Promise<{
   child?: string;
   month?: string;
-  /** Opens with this lesson selected (the Overview's "Can't make it?"). */
+  /** Opens with this lesson selected (`timetableLessonHref`: the Overview, notifications). */
   lesson?: string;
 }>;
 

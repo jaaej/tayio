@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Search, Users, X } from "lucide-react";
+import { ArrowRight, MessageCircle, Search, Users, X } from "lucide-react";
 
 export type PortalSearchDestination = {
   label: string;
   href: string;
   section: string;
+  /** People only: opens (or starts) a conversation with them. */
+  messageHref?: string;
 };
 
 export function PortalSearch({
   destinations,
   people,
   directory,
+  messagesHref,
   compact = false,
   variant = "toolbar",
   shortcutEnabled = true,
@@ -26,6 +29,9 @@ export function PortalSearch({
   /** Free-text search over the role's people directory, offered under the
    * page matches. Omit when the role has no directory page. */
   directory?: { href: string; label: string; placeholder: string };
+  /** The role's Messages page. A typed name is offered there, where every
+   * person the role can message is found by name. */
+  messagesHref?: string;
   compact?: boolean;
   /** "sidebar" is the full-width glass field at the top of the side menu. */
   variant?: "toolbar" | "sidebar";
@@ -101,6 +107,11 @@ export function PortalSearch({
     go(`${directory.href}?q=${encodeURIComponent(query.trim())}`);
   }
 
+  function searchMessages() {
+    if (!normalized || !messagesHref) return;
+    go(`${messagesHref}?q=${encodeURIComponent(query.trim())}`);
+  }
+
   return (
     <>
       {variant === "sidebar" ? (
@@ -166,7 +177,8 @@ export function PortalSearch({
                       event.preventDefault();
                       const first = matchingPeople[0] ?? visible[0];
                       if (first) go(first.href);
-                      else searchDirectory();
+                      else if (directory) searchDirectory();
+                      else searchMessages();
                     }}
                     placeholder={
                       directory?.placeholder ?? (people ? "Search students or pages…" : "Search pages…")
@@ -190,12 +202,24 @@ export function PortalSearch({
                         Students
                       </div>
                       {matchingPeople.map((item) => (
-                        <ResultButton
-                          key={item.href}
-                          item={item}
-                          icon={<Users className="h-3.5 w-3.5" />}
-                          onSelect={() => go(item.href)}
-                        />
+                        <div key={item.href} className="flex items-center gap-1">
+                          <ResultButton
+                            item={item}
+                            icon={<Users className="h-3.5 w-3.5" />}
+                            onSelect={() => go(item.href)}
+                          />
+                          {item.messageHref && (
+                            <button
+                              type="button"
+                              onClick={() => go(item.messageHref!)}
+                              aria-label={`Message ${item.label}`}
+                              title={`Message ${item.label}`}
+                              className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            >
+                              <MessageCircle className="h-[18px] w-[18px]" aria-hidden />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </>
                   )}
@@ -221,27 +245,27 @@ export function PortalSearch({
                         </p>
                       )}
 
-                  {normalized && directory ? (
+                  {normalized && (directory || messagesHref) ? (
                     <>
                       <div className="mx-3 my-2 border-t border-line" />
-                      <button
-                        type="button"
-                        onClick={searchDirectory}
-                        className="flex min-h-14 w-full items-center gap-3 rounded-[12px] bg-brand-50 px-3 text-left transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                      >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-surface text-brand-700">
-                          <Users className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[13px] font-extrabold text-ink">
-                            {directory.label}
-                          </span>
-                          <span className="block truncate text-[11px] text-muted">
-                            Find “{query.trim()}”
-                          </span>
-                        </span>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-brand-700" />
-                      </button>
+                      <div className="flex flex-col gap-1">
+                        {directory && (
+                          <OfferButton
+                            icon={<Users className="h-4 w-4" />}
+                            title={directory.label}
+                            detail={`Find “${query.trim()}”`}
+                            onSelect={searchDirectory}
+                          />
+                        )}
+                        {messagesHref && (
+                          <OfferButton
+                            icon={<MessageCircle className="h-4 w-4" />}
+                            title="Message someone"
+                            detail={`Find “${query.trim()}” in Messages`}
+                            onSelect={searchMessages}
+                          />
+                        )}
+                      </div>
                     </>
                   ) : null}
                 </div>
@@ -255,6 +279,35 @@ export function PortalSearch({
           )
         : null}
     </>
+  );
+}
+
+function OfferButton({
+  icon,
+  title,
+  detail,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  detail: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex min-h-14 w-full items-center gap-3 rounded-[12px] bg-brand-50 px-3 text-left transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-surface text-brand-700">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-extrabold text-ink">{title}</span>
+        <span className="block truncate text-[11px] text-muted">{detail}</span>
+      </span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-brand-700" />
+    </button>
   );
 }
 

@@ -162,11 +162,15 @@ export const STUDENTS = [
   { key: "leo", first: "Leo", last: "Martin", year: "Year 9", school: "Box Hill High School", cls: "y9e", persona: "steady", parent: { first: "Paul", last: "Martin" } },
   // Tom's one-on-one VCE Methods 1/2 student
   { key: "chloe", first: "Chloe", last: "Tan", year: "Year 11", school: "MacRobertson Girls' High School", cls: "vce", persona: "strong", parent: { first: "Ken", last: "Tan" } },
-  // Maya's Y8 Mathematics class (the lesson on the cover board)
+  // Maya's Y8 Mathematics class (its next lesson needs cover)
   { key: "isaac", first: "Isaac", last: "Kumar", year: "Year 8", school: "Vermont Secondary College", cls: "maya", persona: "steady" },
   { key: "ruby", first: "Ruby", last: "Walsh", year: "Year 8", school: "Blackburn High School", cls: "maya", persona: "strong" },
   { key: "henry", first: "Henry", last: "Diaz", year: "Year 8", school: "Vermont Secondary College", cls: "maya", persona: "steady" },
   { key: "amelia", first: "Amelia", last: "Ford", year: "Year 8", school: "Blackburn High School", cls: "maya", persona: "steady" },
+  // Maya's Y9 English class (Tom is already covering its next lesson)
+  { key: "priya", first: "Priya", last: "Shah", year: "Year 9", school: "Vermont Secondary College", cls: "mayaEn", persona: "strong" },
+  { key: "oscar", first: "Oscar", last: "Bennett", year: "Year 9", school: "Blackburn High School", cls: "mayaEn", persona: "steady" },
+  { key: "ella", first: "Ella", last: "Murphy", year: "Year 9", school: "Forest Hill College", cls: "mayaEn", persona: "steady" },
 ];
 
 export function demoEmail(first, last) {

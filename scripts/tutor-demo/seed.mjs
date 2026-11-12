@@ -452,8 +452,10 @@ const CLASS_SPECS = [
     type: "one_on_one",
     capacity: 1,
   },
-  // Maya's class, on a weekday Tom never teaches, so her lesson fits his week.
+  // Maya's classes, on days Tom never teaches, so her lessons fit his week:
+  // the Y8 one needs cover, and Tom is already covering the Y9 English one.
   { key: "maya", subject: "y8", tutor: "maya", offset: 3, times: GROUP_TIMES, location: "Room 3", type: "group", capacity: 10 },
+  { key: "mayaEn", subject: "y9e", tutor: "maya", offset: 4, times: GROUP_TIMES, location: "Room 4", type: "group", capacity: 10 },
 ];
 
 const cls = {}; // key -> { id, ...spec, slot, display }
@@ -959,7 +961,7 @@ for (const weekday of [0, 6]) {
 }
 
 const mayaNext = lessonOn("maya", cls.maya.slot.day);
-const mayaLater = lessonOn("maya", addDays(cls.maya.slot.day, 7));
+const mayaCovered = lessonOn("mayaEn", cls.mayaEn.slot.day);
 const HANDOVER = `We're on ${subject.y8.title(0).toLowerCase()} this week: booklet pages 4 to 6, then the exit quiz. Isaac needs a nudge to show his working.`;
 await sql`
   insert into tutor_cover_requests (lesson_id, original_tutor_id, reason, handover_note, status, created_at, updated_at)
@@ -969,12 +971,12 @@ await sql`
 await sql`
   insert into tutor_cover_requests (lesson_id, original_tutor_id, replacement_tutor_id, reason, handover_note, status,
     claimed_at, created_at, updated_at)
-  values (${mayaLater.id}, ${mayaId}, ${tomId}, 'School camp supervision',
-    'Revision week: run the practice test from the resource library, then go through Q5 to Q8 together.', 'claimed',
+  values (${mayaCovered.id}, ${mayaId}, ${tomId}, 'School camp supervision',
+    'Persuasive writing: finish the ad analysis from the booklet, then peer-mark in pairs. Priya will want to read hers out.', 'claimed',
     ${new Date(now.getTime() - 50 * 3_600_000)}, ${new Date(now.getTime() - 3 * 86_400_000)}, ${new Date(now.getTime() - 50 * 3_600_000)})
 `;
 // A claim moves the lesson onto the covering tutor's schedule and pay.
-await sql`update lessons set tutor_id = ${tomId} where id = ${mayaLater.id}`;
+await sql`update lessons set tutor_id = ${tomId} where id = ${mayaCovered.id}`;
 const tomAway = lessonOn("vce", addDays(cls.vce.slot.day, 14));
 await sql`
   insert into tutor_cover_requests (lesson_id, original_tutor_id, reason, handover_note, status, created_at, updated_at)
@@ -1234,11 +1236,11 @@ if (changesQuiz) {
 // Same wording as tutor-cover.ts, via tutorCoverLessonDescription: the
 // weekday is dropped from the date when the class name already says it.
 const coverDate = new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
-  .format(new Date(`${mayaLater.date}T00:00:00Z`));
+  .format(new Date(`${mayaCovered.date}T00:00:00Z`));
 const coverWeekday = coverDate.split(" ")[0].toLowerCase();
-const coverDetail = `${cls.maya.display}, ${
-  cls.maya.slot.name.toLowerCase().split(/[^a-z]+/).includes(coverWeekday) ? coverDate.split(" ").slice(1).join(" ") : coverDate
-} ${formatTimeRange(mayaLater.start, mayaLater.end)}`;
+const coverDetail = `${cls.mayaEn.display}, ${
+  cls.mayaEn.slot.name.toLowerCase().split(/[^a-z]+/).includes(coverWeekday) ? coverDate.split(" ").slice(1).join(" ") : coverDate
+} ${formatTimeRange(mayaCovered.start, mayaCovered.end)}`;
 await notify(tomId, {
   title: "Cover confirmed",
   body: `You are now teaching ${coverDetail}. It has been added to your schedule.`,
@@ -1289,7 +1291,7 @@ Done. Sign in at http://localhost:3000/login as ${TUTOR.email} / ${TUTOR.passwor
   Classes:      ${cls.y8.display} (today), ${cls.y9e.display}, ${cls.vce.display} (one-on-one)
   To mark:      ${counts.to_mark} submissions (Ethan's PDF is the one to annotate)
   To finish:    ${cls.y9e.display} on ${unfinishedLesson.date} (attendance not marked)
-  Cover board:  ${cls.maya.display} on ${mayaNext.date}, from Maya Collins
+  Cover board:  ${cls.maya.display} on ${mayaNext.date} needs cover; Tom covers ${cls.mayaEn.display} on ${mayaCovered.date}
   Lessons:      ${counts.lessons}, lesson notes: ${counts.notes}
   Other logins: any demo student or parent (see docs/demo/tutor-demo.md) / ${OTHERS_PASSWORD}`);
 await sql.end();

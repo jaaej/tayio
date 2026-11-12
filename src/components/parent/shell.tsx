@@ -121,7 +121,7 @@ export async function ParentShell({
   return (
     <GlassPortalShell
       brand={<GlassBrandMark href="/parent" />}
-      search={<PortalSearch destinations={searchDestinations} variant="sidebar" />}
+      search={<PortalSearch destinations={searchDestinations} messagesHref="/parent/messages" variant="sidebar" />}
       feature={picker(false)}
       nav={<GlassNavLinks sections={sections} />}
       account={
@@ -134,7 +134,7 @@ export async function ParentShell({
       mobileHeader={
         <GlassMobileHeader
           brandHref="/parent"
-          search={<PortalSearch destinations={searchDestinations} compact shortcutEnabled={false} />}
+          search={<PortalSearch destinations={searchDestinations} messagesHref="/parent/messages" compact shortcutEnabled={false} />}
           extra={picker(true)}
           nav={<GlassNavLinksMobile sections={sections} />}
         />

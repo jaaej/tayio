@@ -10,7 +10,11 @@ import { buildTimetableChips, buildTimetableHomework } from "@/app/_lib/timetabl
 import { getClassMoveData } from "@/lib/class-moves";
 import { ClassMoveRequestPanel } from "@/components/class-moves/request-panel";
 
-type SearchParams = Promise<{ month?: string }>;
+type SearchParams = Promise<{
+  month?: string;
+  /** Opens with this lesson selected (cancel and reschedule notifications). */
+  lesson?: string;
+}>;
 
 function isoLocal(d: Date | string) {
   const date = typeof d === "string" ? new Date(d) : d;
@@ -87,6 +91,7 @@ export default async function TimetablePage({
         credits={credits}
         adminId={adminContact?.id ?? null}
         canSelfServe={isUnrestricted}
+        initialLessonId={params.lesson}
         glass
         aside={
           <RailCard key="class-move" glass title="Permanent class time" titleId="timetable-class-move">

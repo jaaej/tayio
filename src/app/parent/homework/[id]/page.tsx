@@ -41,37 +41,35 @@ export default async function ParentHomeworkDetailPage({
     hw.subjectName || hw.className ? classDisplayName(hw.subjectName, hw.className) : "Independent task";
 
   return (
-    <div className="flex max-w-[1040px] flex-col gap-5">
-      <HomeworkDetailFrame
+    <HomeworkDetailFrame
+      hw={hw}
+      status={hw.status}
+      classLabel={classLabel}
+      backHref={`/parent/homework?child=${child.id}`}
+      backLabel="Back to homework"
+      now={new Date()}
+    >
+      <HomeworkInstructions
         hw={hw}
-        status={hw.status}
-        classLabel={classLabel}
-        backHref={`/parent/homework?child=${child.id}`}
-        backLabel="Back to homework"
-        now={new Date()}
-      >
-        <HomeworkInstructions
-          hw={hw}
-          viewer={viewer}
-          attachmentHref={attachmentHref}
-          solutionHref={solutionHref}
-          solutionLocked={solutionLocked}
-        />
-        <HomeworkFeedback
-          hw={hw}
-          viewer={viewer}
-          studentId={child.id}
-          testRank={testRank}
-          fileFeedback={fileFeedback}
-        />
-        <HomeworkSubmission
-          hw={hw}
-          viewer={viewer}
-          studentId={child.id}
-          submissionHref={submissionHref}
-          note={submissionNote(hw.status, child.firstName)}
-        />
-      </HomeworkDetailFrame>
-    </div>
+        viewer={viewer}
+        attachmentHref={attachmentHref}
+        solutionHref={solutionHref}
+        solutionLocked={solutionLocked}
+      />
+      <HomeworkFeedback
+        hw={hw}
+        viewer={viewer}
+        studentId={child.id}
+        testRank={testRank}
+        fileFeedback={fileFeedback}
+      />
+      <HomeworkSubmission
+        hw={hw}
+        viewer={viewer}
+        studentId={child.id}
+        submissionHref={submissionHref}
+        note={submissionNote(hw.status, child.firstName)}
+      />
+    </HomeworkDetailFrame>
   );
 }

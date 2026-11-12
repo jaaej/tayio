@@ -6,6 +6,7 @@ import {
   MetricTile,
   PageHeader,
   Pill,
+  buttonVariants,
   initialsOf,
 } from "@/components/admin/ui";
 import { RecapPreviewList } from "@/components/lessons/lesson-recap";
@@ -16,12 +17,15 @@ import { relativeDay } from "@/app/student/_lib/dashboard-rules";
 import { accountFirstName } from "@/lib/account-name";
 import { requireRole } from "@/lib/auth";
 import { attendanceRateTone } from "@/lib/attendance-rules";
-import { formatMoney, melbourneDayKey, relativeTime } from "@/lib/format";
+import { termWeekLabel } from "@/lib/curriculum";
+import { formatMoney, melbourneDayKey, melbourneGreeting, relativeTime } from "@/lib/format";
 import { formatInvoiceDay } from "@/lib/invoice-dates";
+import { timetableLessonHref } from "@/lib/month-param";
 import { invoiceDisplayStatus } from "@/lib/invoice-rules";
 import { getFamilyRecaps } from "@/lib/lesson-recap";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/lib/status";
 import { subjectTone } from "@/lib/subject-tone";
+import { cn } from "@/lib/utils";
 import {
   getAdminContact,
   getChildMastery,
@@ -60,19 +64,31 @@ export default async function ParentOverview({
   const { child: requested } = await searchParams;
   const { selected } = await resolveSelectedChild(user.id, requested);
 
+  const now = new Date();
+  const today = melbourneDayKey(now);
   const parentName = accountFirstName(user, "there");
+  const dateLabel = new Date(`${today}T12:00:00`).toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  // The same greeting and date line as the admin, tutor and student homes.
+  const header = (termLabel: string | null) => (
+    <PageHeader
+      title={`${melbourneGreeting(now)}, ${parentName}`}
+      sub={`${dateLabel}${termLabel ? ` · ${termLabel}` : ""}`}
+    />
+  );
 
   if (!selected) {
     return (
       <div className="flex flex-col gap-5">
-        <PageHeader title={`Hello, ${parentName}`} />
+        {header(await termWeekLabel(today))}
         <EmptyChildrenNotice />
       </div>
     );
   }
 
-  const now = new Date();
-  const today = melbourneDayKey(now);
   const [
     data,
     recaps,
@@ -84,6 +100,7 @@ export default async function ParentOverview({
     tutors,
     office,
     lessonChips,
+    termLabel,
   ] = await Promise.all([
     getDashboardData(selected.id),
     getFamilyRecaps(selected.id, { limit: 4 }),
@@ -100,6 +117,7 @@ export default async function ParentOverview({
       new Date(now.getFullYear(), now.getMonth(), now.getDate()),
       new Date(now.getFullYear(), now.getMonth(), now.getDate() + NEXT_LESSON_LOOKAHEAD_DAYS),
     ),
+    termWeekLabel(today),
   ]);
 
   const childQs = `?child=${selected.id}`;
@@ -110,7 +128,7 @@ export default async function ParentOverview({
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title={`Hello, ${parentName}`} />
+      {header(termLabel)}
 
       <section
         aria-label={`${selected.firstName} at a glance`}
@@ -154,7 +172,7 @@ export default async function ParentOverview({
             timetableHref={`/parent/timetable${childQs}`}
             cantMakeItHref={
               nextLesson
-                ? `/parent/timetable${childQs}&month=${nextLesson.date.slice(0, 7)}&lesson=${nextLesson.id}`
+                ? timetableLessonHref("/parent/timetable", nextLesson, { child: selected.id })
                 : null
             }
           />
@@ -360,7 +378,7 @@ function ContactRow({ name, meta, userId }: { name: string; meta?: string; userI
       </span>
       <Link
         href={`/parent/messages/with/${userId}`}
-        className="inline-flex h-9 shrink-0 items-center rounded-[10px] border border-[#DFE1EC] bg-white px-3 text-[12px] font-bold text-ink transition-colors hover:bg-[#F5F6FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        className={cn(buttonVariants({ variant: "outline", size: "md" }), "shrink-0")}
       >
         Message
       </Link>

@@ -56,7 +56,7 @@ The seed stops with that instruction if no term covers today.
 | Who | Sign in as | Password |
 | --- | --- | --- |
 | Tom Tutor, the demo tutor | `tom@taiyo.com` | `demo1234` |
-| Maya Collins, a colleague (her class is on the cover board) | `maya.collins@example.com` | `demo1234` |
+| Maya Collins, a colleague (her classes are on the cover board) | `maya.collins@example.com` | `demo1234` |
 | Any demo student or parent | `first.last@example.com`, e.g. `ethan.lim@example.com`, `grace.lim@example.com` | `demo1234` |
 | Admin | your usual dev admin account | unchanged |
 
@@ -195,7 +195,7 @@ Reports open three weeks before the term ends.
 Maya's Y8 class on Sunday needs cover, with her handover note.
 Claim it to show it moving onto Tom's timetable on Today and Schedule.
 The board lists every tutor's open covers in every subject; one that clashes with Tom's own lessons has no claim button.
-Tom has already covered one of her lessons the week after (it shows as confirmed in Notifications).
+Tom is already covering her Y9 English class the day after, in Room 4 (it shows as confirmed in Notifications).
 
 ### 12. Weekly check-in
 

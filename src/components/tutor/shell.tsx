@@ -193,6 +193,7 @@ export async function TutorShell({
         <PortalSearch
           destinations={searchDestinations}
           people={people}
+          messagesHref="/tutor/messages"
           variant="sidebar"
         />
       }
@@ -212,6 +213,7 @@ export async function TutorShell({
             <PortalSearch
               destinations={searchDestinations}
               people={people}
+              messagesHref="/tutor/messages"
               compact
               shortcutEnabled={false}
             />

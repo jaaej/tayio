@@ -120,11 +120,8 @@ export type AttendanceRow = {
   moved: boolean;
 };
 
-/** The child's marked lessons, newest first; `subjectId` narrows to one subject. */
-export async function getAttendance(
-  studentId: string,
-  opts: { subjectId?: string } = {},
-): Promise<AttendanceRow[]> {
+/** The child's marked lessons, newest first. */
+export async function getAttendance(studentId: string): Promise<AttendanceRow[]> {
   const tutorProfile = profiles;
   const rows = await db
     .select({
@@ -142,12 +139,7 @@ export async function getAttendance(
     .leftJoin(classes, eq(classes.id, lessons.classId))
     .leftJoin(subjects, eq(subjects.id, classes.subjectId))
     .innerJoin(tutorProfile, eq(tutorProfile.id, lessons.tutorId))
-    .where(
-      and(
-        eq(attendance.studentId, studentId),
-        opts.subjectId ? eq(classes.subjectId, opts.subjectId) : undefined,
-      ),
-    )
+    .where(eq(attendance.studentId, studentId))
     .orderBy(desc(lessons.date), desc(lessons.startTime));
 
   return rows.map((r) => ({

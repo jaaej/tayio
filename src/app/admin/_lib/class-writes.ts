@@ -273,7 +273,7 @@ export async function applyClassEdit(
         channel: "in_app",
         title,
         body: families.parentBody(parentId, sentence),
-        href: `/parent/classes/${id}?child=${studentId}`,
+        href: `/parent/timetable?child=${studentId}`,
       });
     }
   }

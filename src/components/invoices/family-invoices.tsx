@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import { Pill } from "@/components/admin/ui";
+import { MetricTile, Pill } from "@/components/admin/ui";
 import { formatMoney, melbourneDayKey } from "@/lib/format";
 import { formatInvoiceDay, formatInvoiceInstant } from "@/lib/invoice-dates";
 import { invoiceDisplayStatus, isInvoiceOverdue, summarizeInvoices } from "@/lib/invoice-rules";
@@ -22,7 +22,8 @@ export type FamilyInvoice = {
 
 /**
  * The family's invoices, the same for a student with billing access and a
- * parent: Outstanding, Overdue and Paid tiles, then every invoice with its
+ * parent: Outstanding, Overdue and Paid tiles (the shared `MetricTile`, as
+ * on the parent Overview and admin Payments), then every invoice with its
  * status. Overdue comes from the due date (`invoice-rules`), and every date
  * is a Melbourne calendar day. Read only: families pay by transfer or in
  * person, so the page header carries the way to the office.
@@ -34,54 +35,30 @@ export function FamilyInvoices({ invoices, now }: { invoices: FamilyInvoice[]; n
   const names = new Set(invoices.map((r) => r.studentName).filter(Boolean));
   const showStudent = names.size > 1;
 
-  const tiles = [
-    {
-      label: "Outstanding",
-      value: formatMoney(summary.outstanding, currency),
-      sub: summary.outstanding > 0 ? "amount due" : "all settled",
-      dot: "#D92D20",
-      valueClass: summary.outstanding > 0 ? "text-[#B42318]" : "text-ink",
-    },
-    {
-      label: "Overdue",
-      value: String(summary.overdueCount),
-      sub: summary.oldestOverdueDue
-        ? `since ${formatInvoiceDay(summary.oldestOverdueDue, now)}`
-        : "none",
-      dot: "#E8890C",
-      valueClass: "text-ink",
-    },
-    {
-      label: "Paid invoices",
-      value: String(summary.paidThisYear),
-      sub: "this year",
-      dot: "#16A34A",
-      valueClass: "text-ink",
-    },
-  ];
-
   return (
     <>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
-        {tiles.map((t) => (
-          <div key={t.label} className="glass flex flex-col rounded-[22px] p-1.5">
-            <span className="flex items-center gap-2 px-2.5 py-2 text-[13px] font-bold text-ink-soft">
-              <span
-                aria-hidden
-                className="h-2 w-2 rounded-[4px]"
-                style={{ backgroundColor: t.dot }}
-              />
-              {t.label}
-            </span>
-            <span className="panel flex items-baseline justify-between gap-2 px-3.5 py-3">
-              <span className={cn("text-[26px] font-extrabold tabular-nums", t.valueClass)}>
-                {t.value}
-              </span>
-              <span className="text-[12px] font-bold text-muted">{t.sub}</span>
-            </span>
-          </div>
-        ))}
-      </div>
+      <section
+        aria-label="Invoice summary"
+        className="glass grid grid-cols-1 gap-1.5 rounded-[24px] p-1.5 sm:grid-cols-3"
+      >
+        <MetricTile
+          label="Outstanding"
+          value={formatMoney(summary.outstanding, currency)}
+          sub={summary.outstanding > 0 ? "Payment due" : "All paid up"}
+          tone={summary.outstanding > 0 ? "bad" : "good"}
+        />
+        <MetricTile
+          label="Overdue"
+          value={summary.overdueCount}
+          sub={
+            summary.oldestOverdueDue
+              ? `Since ${formatInvoiceDay(summary.oldestOverdueDue, now)}`
+              : "None"
+          }
+          tone={summary.overdueCount > 0 ? "bad" : "default"}
+        />
+        <MetricTile label="Paid invoices" value={summary.paidThisYear} sub="This year" />
+      </section>
 
       {summary.outstanding > 0 && (
         <p className="glass flex items-start gap-2.5 rounded-[18px] px-4 py-3 text-[13px] font-semibold leading-[1.5] text-ink-soft">

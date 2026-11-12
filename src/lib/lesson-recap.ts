@@ -112,7 +112,7 @@ function toRecap(r: RecapRow): FamilyRecap {
  */
 export async function getFamilyRecaps(
   studentId: string,
-  opts: { classId?: string; subjectId?: string; limit?: number } = {},
+  opts: { classId?: string; limit?: number } = {},
 ): Promise<FamilyRecap[]> {
   const query = recapQuery(studentId)
     .where(
@@ -120,7 +120,6 @@ export async function getFamilyRecaps(
         eq(lessonNotes.studentId, studentId),
         familyNoteWrittenSql,
         opts.classId ? eq(lessons.classId, opts.classId) : undefined,
-        opts.subjectId ? eq(classes.subjectId, opts.subjectId) : undefined,
       ),
     )
     .orderBy(desc(lessons.date), desc(lessons.startTime));

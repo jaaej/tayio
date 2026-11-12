@@ -423,33 +423,3 @@ export async function getTutorWeekLessons(
     )
     .orderBy(asc(lessons.date), asc(lessons.startTime));
 }
-
-export async function getRecentLessonNotes(tutorId: string, limit = 20) {
-  return db
-    .select({
-      id: lessonNotes.id,
-      createdAt: lessonNotes.createdAt,
-      parentVisibleComment: lessonNotes.parentVisibleComment,
-      internalNote: lessonNotes.internalNote,
-      lessonDate: lessons.date,
-      className: classes.name,
-      subjectName: subjects.name,
-      studentFirstName: profiles.firstName,
-      studentLastName: profiles.lastName,
-      studentId: lessonNotes.studentId,
-    })
-    .from(lessonNotes)
-    .innerJoin(lessons, eq(lessonNotes.lessonId, lessons.id))
-    .innerJoin(classes, eq(lessons.classId, classes.id))
-    .innerJoin(subjects, eq(classes.subjectId, subjects.id))
-    .innerJoin(profiles, eq(profiles.id, lessonNotes.studentId))
-    .where(
-      and(
-        eq(lessonNotes.tutorId, tutorId),
-        // A note holding only the older fields (lesson-note-fields) shows nothing.
-        sql`coalesce(nullif(trim(${lessonNotes.parentVisibleComment}), ''), nullif(trim(${lessonNotes.internalNote}), '')) is not null`,
-      ),
-    )
-    .orderBy(desc(lessonNotes.createdAt))
-    .limit(limit);
-}

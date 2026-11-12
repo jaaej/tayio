@@ -145,23 +145,17 @@ export async function markThreadRead(formData: FormData) {
     throw new Error("Forbidden");
   }
 
-  const existing = await db
-    .select({ userId: dmReads.userId })
-    .from(dmReads)
-    .where(and(eq(dmReads.userId, user.id), eq(dmReads.threadId, t.id)))
-    .limit(1);
-  if (existing.length === 0) {
-    await db.insert(dmReads).values({
-      userId: user.id,
-      threadId: t.id,
-      lastReadAt: new Date(),
+  // One statement: opening a conversation can render its page twice at once
+  // (the inbox refreshes while it loads), and a read-then-insert let both
+  // renders insert, failing the second on the primary key.
+  const readAt = new Date();
+  await db
+    .insert(dmReads)
+    .values({ userId: user.id, threadId: t.id, lastReadAt: readAt })
+    .onConflictDoUpdate({
+      target: [dmReads.userId, dmReads.threadId],
+      set: { lastReadAt: readAt },
     });
-  } else {
-    await db
-      .update(dmReads)
-      .set({ lastReadAt: new Date() })
-      .where(and(eq(dmReads.userId, user.id), eq(dmReads.threadId, t.id)));
-  }
 
   await db
     .update(notifications)

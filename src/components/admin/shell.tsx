@@ -186,6 +186,7 @@ export async function AdminShell({
           <PortalSearch
             destinations={searchDestinations}
             directory={directory}
+            messagesHref="/admin/messages"
             variant="sidebar"
           />
         }
@@ -204,6 +205,7 @@ export async function AdminShell({
               <PortalSearch
                 destinations={searchDestinations}
                 directory={directory}
+                messagesHref="/admin/messages"
                 compact
                 shortcutEnabled={false}
               />

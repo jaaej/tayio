@@ -23,6 +23,7 @@ import {
 } from "@/lib/availability";
 import { formatDateLong, formatTime, formatTimeRange, isoDate } from "@/lib/format";
 import { isCompatibleRescheduleTarget } from "@/lib/reschedule-rules";
+import { timetableLessonHref } from "@/lib/month-param";
 import { lessonStartInstant } from "@/lib/tutor-cover-rules";
 
 const HOUR = 3600 * 1000;
@@ -407,11 +408,15 @@ export async function executeMakeupReschedule(p: {
       .from(familyLinks).where(eq(familyLinks.studentId, p.studentId));
     const adminIds = await tx.select({ id: profiles.id }).from(profiles)
       .where(and(inArray(profiles.role, ADMIN_TIERS), eq(profiles.isActive, true)));
+    // Each family link opens the new lesson, as the tutor's does.
+    const moved = { id: newLesson.id, date: p.date };
     const recipients = new Map<string, string>([
-      [p.studentId, "/student/timetable"],
+      [p.studentId, timetableLessonHref("/student/timetable", moved)],
       [original.tutorId, `/tutor/lessons/${newLesson.id}`],
     ]);
-    for (const parent of parentIds) recipients.set(parent.id, `/parent/timetable?child=${p.studentId}`);
+    for (const parent of parentIds) {
+      recipients.set(parent.id, timetableLessonHref("/parent/timetable", moved, { child: p.studentId }));
+    }
     for (const admin of adminIds) recipients.set(admin.id, `/admin/users/${p.studentId}`);
     const studentName = student
       ? `${student.firstName} ${student.lastName}`.trim()

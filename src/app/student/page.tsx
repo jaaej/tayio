@@ -9,12 +9,12 @@ export const dynamic = "force-dynamic";
 
 /*
  * Student dashboard, colourful option of the student design handoff
- * (StudentDashboardColourPage): violet hero, solid subject cards with a
+ * (StudentDashboardColourPage): blue hero, solid subject cards with a
  * this-week ring, the Taiyo Blitz card, To do and This week.
  */
 
-const HERO = "#5B2BD8";
-const BLITZ = "#3B2BD1";
+const HERO = "#2450D6";
+const BLITZ = "#1C3DB0";
 
 /** Scattered maths symbols behind the Blitz card (the handoff's blitzSvg). */
 function blitzBackground(base: string) {
@@ -102,7 +102,7 @@ export default async function StudentDashboard() {
         {dashboard.nextHomework && (
           <Link
             href={dashboard.nextHomework.href}
-            className="flex h-12 items-center rounded-[14px] bg-white px-5 text-[15px] font-extrabold text-[#3A1AA8] transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-[3px] hover:text-[#3A1AA8] hover:shadow-[0_16px_30px_rgba(23,21,43,0.16)]"
+            className="flex h-12 items-center rounded-[14px] bg-white px-5 text-[15px] font-extrabold text-[#2450D6] transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-[3px] hover:text-[#2450D6] hover:shadow-[0_16px_30px_rgba(23,21,43,0.16)]"
           >
             {dashboard.nextHomework.label}
           </Link>

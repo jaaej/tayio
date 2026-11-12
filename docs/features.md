@@ -87,6 +87,7 @@ Conventions referenced throughout:
 2. **How it works** - `/student/messages`, `/student/messages/[threadId]`, `/student/messages/with/[userId]`.
    Tables: `dmThreads`, `dmMessages`, `dmReads`.
    Inbox queries require at least one message, so opening a composer and leaving without sending does not create a visible conversation.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
    Actions live in `src/app/_actions/dm.ts`; permission uses `canDM` in `src/lib/dm-permissions.ts`.
    Guard: `requireRole("student")` + `canDM`.
 3. **Rationale:** `student_restricted ↔ admin` is blocked symmetrically - a young student's admin contact is their parent - while `student_unrestricted ↔ admin` is allowed; this is the one tier-sensitive rule in `canDM` (per code comment in `src/lib/dm-permissions.ts` and role-tiers spec §5.2). Threads persist one-per-pair with canonical `userAId < userBId` ordering so pair lookup is a single equality (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
@@ -136,7 +137,7 @@ Conventions referenced throughout:
 
 ### Classes (calendar + attendance + reschedule)
 1. **What it is** - The child's Timetable: the shared calendar with the reschedule and cancel entry points.
-2. **How it works** - `/parent/timetable` renders the student's `InteractiveTimetable` for the selected child (`?lesson=` opens on a lesson; past lessons link to their recap). `/parent/classes` redirects here with its query; `/parent/classes/[classId]` redirects to the subject page. Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
+2. **How it works** - `/parent/timetable` renders the student's `InteractiveTimetable` for the selected child (`?month=` and `?lesson=` open on a lesson, built by `timetableLessonHref`, which the Overview and cancel and reschedule notifications use; past lessons link to their recap). The child's attendance list sits under the calendar, its one home. `/parent/classes` redirects here with its query, and so does `/parent/classes/[classId]` (1 November 2026). Tables: `lessons`, `attendance`, `rescheduleRequests`. Guard: `requireRole("parent")` + child ownership.
 3. **Rationale:** One shared timetable for student, parent and admin (consistency audit items 13 and 27); "Timetable" is the students' word for it.
 
 ### Reschedule a class
@@ -161,7 +162,7 @@ Conventions referenced throughout:
 
 ### Subject deep-dive (curriculum, read-only)
 1. **What it is** - One page per subject: the student's subject page (read-only) plus the child's attendance and tutor recaps for that class.
-2. **How it works** - `/parent/subjects/[id]` (`/parent/subjects` opens the first subject; Subjects is in the parent menu). The parent can open materials without ticking them off for the child. Guard: `requireRole("parent")` + child-enrolment scope; `notFound()` on failure.
+2. **How it works** - `/parent/subjects/[id]` (`/parent/subjects` opens the first subject; Subjects is in the parent menu) is the student's subject page, read only. The parent can open materials without ticking them off for the child. Its Attendance and Tutor feedback tabs were removed on 1 November 2026 (one home each: Timetable and Feedback); `?tab=attendance` and `?tab=feedback` forward there. Guard: `requireRole("parent")` + child-enrolment scope; `notFound()` on failure.
 3. **Rationale:** One home per subject instead of three pages (consistency audit item 27). `notFound()` (not 403) avoids leaking subject existence (per `docs/superpowers/specs/2026-05-30-subject-curriculum-design.md`).
 
 ### Payments
@@ -175,6 +176,7 @@ Conventions referenced throughout:
    Tables `dmThreads`/`dmMessages`/`dmReads`; inbox queries exclude threads with no messages.
    Parent↔Tutor is allowed only when the tutor teaches a class the child is enrolled in (`family_links → enrollments → classes.tutorId`).
    Guard: `requireRole("parent")` + `canDM`.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
 3. **Rationale:** DM replaces scattered SMS/email/WhatsApp with a centralized channel; parent↔tutor requires a live shared-class relationship, but an existing thread stays readable if the relationship later lapses (humane, no surprise data loss) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Notifications inbox
@@ -200,6 +202,7 @@ Conventions referenced throughout:
 2. **How it works** - `/tutor` dashboard, `/tutor/classes` (weekly snapshot), `/tutor/timetable` (schedule, availability, and absence hub). Tables: `classes`, `lessons`, `tutorAvailability`. Guard: `requireRole("tutor")`.
 3. **Rationale:** Consolidated 2026-06-03 - previously split across `/tutor/schedule` + `/tutor/availability` (per `docs/checklist.md` Tutor "Class timetable").
 
+   A class card's **When** and **Where** are the class's weekly slot; an admin's schedule change rewrites it and the future lessons, while leave, covers and cancellations leave it as is.
 ### Tutor availability
 1. **What it is** - One scheduling hub for recurring weekly hours, class absences, and extended leave.
 2. **How it works** - `/tutor/timetable` uses a wide slide-over with full day/time fields rather than hour pills. Weekly windows are stored as hourly `tutorAvailability` rows (`weekday`). The same page posts an assigned-class absence or submits extended leave through a second wide slide-over. Admin reads and may edit the same rows at `/admin/tutors/availability` or on the tutor's user profile; the Classes page links to this board for cross-checking before class creation. `getAvailableSlots` (`src/lib/availability.ts`) consumes the saved availability for make-up/reschedule slots. Guard: `requireRole("tutor")` + `tutor_id = me`.
@@ -266,6 +269,8 @@ Conventions referenced throughout:
 ### Notifications inbox
 1. **What it is** - In-app inbox.
 2. **How it works** - `/tutor/notifications` (`NotificationsInbox`). Table `notifications`.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
+   In the portal search, each student result also has a Message button.
 3. **Rationale:** The inbox is authoritative; only urgent targeted announcements use the optional email transport.
 
 ### Profile photo and icon
@@ -389,6 +394,7 @@ Conventions referenced throughout:
 ### Discontinued students
 1. **What it is** - A directory status for deactivated accounts and students whose enrolments have all been withdrawn.
 2. **How it works** - `/admin/users?status=discontinued` uses the Status filter on the single user directory. `directoryStatus` in `src/app/admin/_lib/queries.ts` derives the value from `profiles.isActive` and `enrollments.withdrawnAt`. Guard: `requireAdmin()`.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
 3. **Rationale:** The former standalone leaving page and separate directory tab were consolidated so admins search and manage every account in one place.
 
 ### Notifications inbox (admin)

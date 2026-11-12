@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMonthParam } from "./month-param";
+import { parseMonthParam, timetableLessonHref } from "./month-param";
 
 describe("parseMonthParam", () => {
   it("reads YYYY-MM as a zero-based month", () => {
@@ -15,5 +15,21 @@ describe("parseMonthParam", () => {
     const now = new Date("2026-03-10T00:00:00Z");
     expect(parseMonthParam("2026-13", now)).toEqual({ year: 2026, month: 2 });
     expect(parseMonthParam("oct", now)).toEqual({ year: 2026, month: 2 });
+  });
+});
+
+describe("timetableLessonHref", () => {
+  const lesson = { id: "a1b2", date: "2026-11-03" };
+
+  it("opens the lesson's month with the lesson selected", () => {
+    expect(timetableLessonHref("/student/timetable", lesson)).toBe(
+      "/student/timetable?month=2026-11&lesson=a1b2",
+    );
+  });
+
+  it("keeps the parent's child first", () => {
+    expect(timetableLessonHref("/parent/timetable", lesson, { child: "kid" })).toBe(
+      "/parent/timetable?child=kid&month=2026-11&lesson=a1b2",
+    );
   });
 });
