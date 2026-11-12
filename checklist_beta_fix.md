@@ -2240,13 +2240,14 @@ Still open after the fixes:
   Also fixed a Production bug: every 24 hour cover alert threw (`coalesce(..., <Date>)` in raw SQL raised `ERR_INVALID_ARG_TYPE`), so none had been sent and Cover & leave errored while a cover was inside 24 hours.
   Verified on dev in Chrome and WebKit through the real tutor and admin screens and the admin page sweep, with Resend unset in dev (dev admins use `@taiyo.com`, a domain the owner does not control): each alert is created once with its email job, the returned cover gives one urgent alert and no repeat 48 hour alert, leave reminders catch up with one email, and all four role inboxes render without the prefix. A bad API key records the Resend error on the job and sends nothing.
   Real delivery from Production is still unverified; see the manual QA item at the top.
-- [ ] Production rollout for the admin email alerts, in this order (needs the owner's go-ahead):
+- [x] Production rollout for the admin email alerts, in this order (needs the owner's go-ahead):
   apply `supabase/migrations/0086_notification_emails.sql` to Production; add `EMAIL_FROM` = `Taiyo Tuition Portal <notifications@send.taiyotuition.com>` to Vercel Production; deploy; then apply `0087_retire_old_email_and_leave_alerts.sql` and remove the old `ANNOUNCEMENT_EMAIL_FROM` variable.
   0086 must land before the deploy (the new code writes `email_deliveries` and `pending_reminders_sent`), and 0087 after it (the old code still writes the dropped table and column).
   Run `npm run db:check-rls` against Production afterwards.
   12 November 2026: `0086` applied to Production (78 of 80 were applied before it; table and column checked, row-level security on) and the owner added `EMAIL_FROM` to Vercel Production.
   Same day: `ac7dcf9` deployed (Vercel status success), then `0087` applied; Production has all 80 migrations, the old table and column are gone, `email_deliveries` matches dev, and `npm run db:check-rls` passes on all 61 tables.
-  Left for the owner: delete `ANNOUNCEMENT_EMAIL_FROM` in Vercel (nothing reads it now), then tick this item.
+  Same day, with the owner's go-ahead: removed the unused `ANNOUNCEMENT_EMAIL_FROM` and `RESEND_EMAIL_DOMAIN` from Vercel Production, rewrote `RESEND_API_KEY` in place as a Secret (it was a readable Config value; the key itself is unchanged and was checked valid against Resend first), and redeployed Production so the live build uses it.
+  Production variables for email are now `RESEND_API_KEY` (Secret) and `EMAIL_FROM` (Config).
   First scheduled alert: Production's earliest open cover is 17 November 2026 at 4:30 pm, so its 48 hour email is due from 15 November at 4:30 pm (by the 7 am daily check on 16 November at the latest).
 - [ ] Run the cover sweep every 15 minutes in Production.
   The Vercel team that owns the `tayio` project (TAIYO) was on the Hobby plan on 7 November 2026, which only allows a daily cron, so `/api/cron/tutor-cover-reminders` still runs once a day at 20:00 UTC; between runs alerts go out only while an admin has the portal open (5 minute poll) or after a cover action.
