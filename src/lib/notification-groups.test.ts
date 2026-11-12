@@ -66,6 +66,29 @@ describe("notificationGroupFor", () => {
     ).toBe("action");
   });
 
+  it("routes every cover and leave alert that needs an admin to action needed", () => {
+    for (const [title, href] of [
+      ["URGENT: Cover returned to the board", "/admin/reschedules#tutor-cover"],
+      // A return days ahead is not urgent, but someone still has to cover it.
+      ["Cover returned to the board", "/admin/reschedules#tutor-cover"],
+      ["URGENT: Class passed without cover", "/admin/reschedules#tutor-cover"],
+      ["URGENT: Leave request still waiting for a decision", "/admin/reschedules?tab=leave"],
+      ["URGENT: Extended tutor leave requires approval", "/admin/reschedules?tab=leave"],
+      ["Tutor cover request posted", "/admin/reschedules#tutor-cover"],
+    ]) {
+      expect(notificationGroupFor({ title, href }), title).toBe("action");
+    }
+  });
+
+  it("keeps an approved leave note as an update: its classes alert on their own", () => {
+    expect(
+      notificationGroupFor({
+        title: "Extended leave approved",
+        href: "/admin/reschedules#tutor-cover",
+      }),
+    ).toBe("updates");
+  });
+
   it("keeps a withdrawn tutor leave request as an update, not an action", () => {
     expect(
       notificationGroupFor({

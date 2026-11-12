@@ -26,16 +26,22 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateLong } from "@/lib/format";
 import {
+  insertNotificationsWithEmail,
+  sendQueuedEmailsNow,
+} from "@/lib/notification-email";
+import {
+  ADMIN_LEAVE_HREF,
   adminNotificationValues,
   getAdminRecipientIds,
   reopenCancelledCover,
   runTutorCoverReminders,
 } from "@/lib/tutor-cover";
 import {
+  coverReturnedAlertFlags,
+  coverReturnedNotice,
   hoursUntilLesson,
   inclusiveDayCount,
   MAX_LEAVE_DAYS,
-  melbourneDate,
   MIN_COVER_NOTICE_HOURS,
   tutorCoverLessonDescription,
 } from "@/lib/tutor-cover-rules";
@@ -136,21 +142,21 @@ export async function submitSingleCoverRequest(
       })
       .onConflictDoUpdate(reopenCancelledCover)
       .returning({ id: tutorCoverRequests.id });
-    if (rows.length === 0) return false;
-    const adminNotifications = adminNotificationValues(adminIds, {
-      title: "Tutor cover request posted",
-      body:
-        `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} cannot teach ` +
-        `${tutorCoverLessonDescription(lesson)}. Reason: ${parsed.data.reason}`,
-    });
-    if (adminNotifications.length) {
-      await tx.insert(notifications).values(adminNotifications);
-    }
-    return true;
+    if (rows.length === 0) return null;
+    return insertNotificationsWithEmail(
+      tx,
+      adminNotificationValues(adminIds, {
+        title: "Tutor cover request posted",
+        body:
+          `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} cannot teach ` +
+          `${tutorCoverLessonDescription(lesson)}. Reason: ${parsed.data.reason}`,
+      }),
+    );
   });
   if (!created) {
     return { ok: false, error: "A cover request already exists for this class." };
   }
+  await sendQueuedEmailsNow(created);
 
   // A request submitted right on the 48-hour boundary should raise its
   // escalation immediately instead of waiting for the next admin poll.
@@ -261,7 +267,7 @@ export async function submitTutorLeaveRequest(
         ),
       )
       .limit(1);
-    if (overlapping.length) return false;
+    if (overlapping.length) return null;
 
     await tx.insert(tutorLeaveRequests).values({
       tutorId: user.id,
@@ -270,21 +276,22 @@ export async function submitTutorLeaveRequest(
       reason,
       handoverNote,
     });
-    const adminNotifications = adminNotificationValues(adminIds, {
-      title: "URGENT: Extended tutor leave requires approval",
-      body:
-        `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} requested ` +
-        `${days} days away (${formatDateLong(startDate)} - ${formatDateLong(endDate)}). ` +
-        `${affectedLessons.length} ${affectedLessons.length === 1 ? "class needs" : "classes need"} review. Reason: ${reason}`,
-    });
-    if (adminNotifications.length) {
-      await tx.insert(notifications).values(adminNotifications);
-    }
-    return true;
+    return insertNotificationsWithEmail(
+      tx,
+      adminNotificationValues(adminIds, {
+        title: "URGENT: Extended tutor leave requires approval",
+        body:
+          `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} requested ` +
+          `${days} days away (${formatDateLong(startDate)} - ${formatDateLong(endDate)}). ` +
+          `${affectedLessons.length} ${affectedLessons.length === 1 ? "class needs" : "classes need"} review. Reason: ${reason}`,
+        href: ADMIN_LEAVE_HREF,
+      }),
+    );
   });
   if (!created) {
     return { ok: false, error: "You already have leave covering these dates." };
   }
+  await sendQueuedEmailsNow(created);
 
   revalidatePath("/tutor/cover");
   revalidatePath("/tutor/timetable");
@@ -334,7 +341,7 @@ export async function withdrawTutorLeaveRequest(
       body:
         `${tutor?.firstName ?? "A tutor"} ${tutor?.lastName ?? ""} withdrew their leave ` +
         `request for ${formatDateLong(changed.startDate)} - ${formatDateLong(changed.endDate)}.`,
-      href: "/admin/reschedules?tab=leave",
+      href: ADMIN_LEAVE_HREF,
     });
     if (adminNotifications.length) {
       await tx.insert(notifications).values(adminNotifications);
@@ -546,7 +553,6 @@ export async function decideTutorLeave(input: {
         status: "approved",
         decidedById: admin.id,
         decidedAt: now,
-        lastUncoveredReminderOn: melbourneDate(now),
         updatedAt: now,
       })
       .where(
@@ -582,11 +588,13 @@ export async function decideTutorLeave(input: {
         `${futureLessons.length} ${futureLessons.length === 1 ? "class is" : "classes are"} now on the cover board.`,
       href: TIME_AWAY_HREF,
     });
+    // Its classes now raise the same 48-hour and 24-hour alerts as any posted
+    // class, so the approval itself is a plain note to the other admins.
     const adminNotifications = adminNotificationValues(adminIds, {
-      title: "URGENT: Extended leave approved - coverage needed",
+      title: "Extended leave approved",
       body:
         `${leave.tutorFirst} ${leave.tutorLast} is away ${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)}. ` +
-        `${futureLessons.length} ${futureLessons.length === 1 ? "class needs" : "classes need"} replacement cover.`,
+        `${futureLessons.length} ${futureLessons.length === 1 ? "class is" : "classes are"} now on the cover board.`,
     });
     if (adminNotifications.length) {
       await tx.insert(notifications).values(adminNotifications);
@@ -946,12 +954,6 @@ export async function adminReopenTutorCover(
   if (hours <= 0) {
     return { ok: false, error: "This class has already started." };
   }
-  const deadlineFlags =
-    hours <= 24
-      ? { alert48SentAt: now, alert24SentAt: now }
-      : hours <= 48
-        ? { alert48SentAt: now }
-        : { alert48SentAt: null, alert24SentAt: null };
   const adminIds = await getAdminRecipientIds();
   const detail = tutorCoverLessonDescription(cover);
 
@@ -964,7 +966,7 @@ export async function adminReopenTutorCover(
         externalTutorName: null,
         claimedAt: null,
         updatedAt: now,
-        ...deadlineFlags,
+        ...coverReturnedAlertFlags(hours, now),
       })
       .where(
         and(
@@ -978,7 +980,7 @@ export async function adminReopenTutorCover(
         ),
       )
       .returning({ id: tutorCoverRequests.id });
-    if (changed.length === 0) return false;
+    if (changed.length === 0) return null;
 
     // A portal tutor's claim moved the lesson to them; an outside cover did not.
     if (!outside) {
@@ -988,11 +990,11 @@ export async function adminReopenTutorCover(
         .where(eq(lessons.id, cover.lessonId));
     }
 
+    const emailed = await insertNotificationsWithEmail(
+      tx,
+      adminNotificationValues(adminIds, coverReturnedNotice(detail, hours)),
+    );
     await tx.insert(notifications).values([
-      ...adminNotificationValues(adminIds, {
-        title: "URGENT: Cover returned to notice board",
-        body: `${detail} needs a replacement again.`,
-      }),
       {
         userId: cover.originalTutorId,
         channel: "in_app" as const,
@@ -1012,11 +1014,12 @@ export async function adminReopenTutorCover(
           ]
         : []),
     ]);
-    return true;
+    return emailed;
   });
   if (!reopened) {
     return { ok: false, error: "This cover assignment has already changed." };
   }
+  await sendQueuedEmailsNow(reopened);
 
   revalidatePath("/tutor/cover");
   revalidatePath("/tutor/timetable");
@@ -1063,12 +1066,6 @@ export async function releaseTutorCover(
   if (hours <= 0) {
     return { ok: false, error: "This class has already started." };
   }
-  const deadlineFlags =
-    hours <= 24
-      ? { alert48SentAt: now, alert24SentAt: now }
-      : hours <= 48
-        ? { alert48SentAt: now }
-        : { alert48SentAt: null, alert24SentAt: null };
   const adminIds = await getAdminRecipientIds();
   const reopened = await db.transaction(async (tx) => {
     const changed = await tx
@@ -1078,7 +1075,7 @@ export async function releaseTutorCover(
         replacementTutorId: null,
         claimedAt: null,
         updatedAt: now,
-        ...deadlineFlags,
+        ...coverReturnedAlertFlags(hours, now),
       })
       .where(
         and(
@@ -1088,23 +1085,24 @@ export async function releaseTutorCover(
         ),
       )
       .returning({ id: tutorCoverRequests.id });
-    if (changed.length === 0) return false;
+    if (changed.length === 0) return null;
     await tx
       .update(lessons)
       .set({ tutorId: cover.originalTutorId })
       .where(eq(lessons.id, cover.lessonId));
-    const adminNotifications = adminNotificationValues(adminIds, {
-      title: "URGENT: Claimed cover was released",
-      body: `${tutorCoverLessonDescription(cover)} needs a replacement again.`,
-    });
-    if (adminNotifications.length) {
-      await tx.insert(notifications).values(adminNotifications);
-    }
-    return true;
+    // The same notice as when an admin returns a cover to the board.
+    return insertNotificationsWithEmail(
+      tx,
+      adminNotificationValues(
+        adminIds,
+        coverReturnedNotice(tutorCoverLessonDescription(cover), hours),
+      ),
+    );
   });
   if (!reopened) {
     return { ok: false, error: "This cover assignment has already changed." };
   }
+  await sendQueuedEmailsNow(reopened);
 
   revalidatePath("/tutor/cover");
   revalidatePath("/tutor/timetable");

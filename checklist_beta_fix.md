@@ -1,6 +1,6 @@
 # Beta Fix Checklist
 
-Last updated: 29 October 2026
+Last updated: 7 November 2026
 
 ## Status key
 
@@ -12,6 +12,14 @@ Last updated: 29 October 2026
   owner before deployment. Automated checks do not close manual QA items.
 
 ## Manual QA required
+
+- [ ] Admin email alerts for cover and leave (7 November 2026), on Production after the deploy steps in "Announcements and email delivery", with an admin account whose email is a real inbox the owner reads.
+  As a tutor, post one class to the cover board: the admin gets "Tutor cover request posted" in the inbox and by email.
+  As a tutor, request extended leave: the admin gets "Extended tutor leave requires approval" (Urgent) in the inbox and by email, and its link opens Cover & leave on the Leave tab.
+  Leave it undecided for a day: one "Leave request still waiting for a decision" email arrives after the next sweep, and one more each further day.
+  Approve it: the admin inbox shows "Extended leave approved" (not urgent, no email), and those classes later get the 48 and 24 hour alerts like any other cover.
+  Claim a cover as another tutor, then release it, and separately have an admin return a claimed cover: each sends one "Cover returned to the board" email with the time left, and no second 48 or 24 hour email follows for the same window.
+  Check the email in Gmail on a phone and on a desktop (light and dark mode): title, Urgent badge, body, and Open in the portal landing on the right page after sign-in.
 
 - [ ] Tutor demo follow-ups (29 October 2026 evening), on dev as `tom@taiyo.com` and on Production after deploy, in Safari at 1440px and on a phone.
   Today has no Recent notes. Resources: **Upload file** opens the file picker straight away, the chosen file shows with a remove button, and there is no Choose file control.
@@ -287,6 +295,7 @@ Last updated: 29 October 2026
 - [x] Another tutor can claim and release an eligible cover shift.
 - [x] Admin receives the expected leave, cover, 48-hour, 24-hour, and daily
   uncovered notifications.
+  The daily uncovered-leave reminder was retired on 7 November 2026: approved leave classes now get the ordinary 48 and 24 hour alerts (see the admin email alerts item above).
 - [x] Urgent admin notifications are visible in the inbox, filter, and header
   badge.
 - [x] Tutor schedule and availability pages are clear on desktop and mobile.
@@ -701,15 +710,6 @@ Still open after the fixes:
 
 ## Recently implemented
 
-- [x] Discussion threads and the tutor weekly check-in redesigned (29 October 2026, owner mockups "Thread · version A, questions on the right" and a check-in screenshot; owner: "share across all roles", "make the other questions collapsable").
-  Threads, the same in student, tutor and admin (`DiscussionThreadDetail`): one frame with the question (back, board, Answered or Unanswered pill, title, author line, body), Replies with staff answers tinted green and tagged, and a one-line reply box (paperclip, "Write your answer" / "Post answer" for tutors, "reply" for others).
-  Beside it, **Other questions**: the board's questions with the open one highlighted, All / Unanswered with the count, a collapse toggle, and "All N questions" past 8. Each role's own card sits under it (student next steps, tutor Asked by without its tagline, admin controls).
-  Older dates in thread times now use the fixed month list (`relativeShort`), since Safari's "Sep" against the server's "Sept" could break hydration in the client reply list.
-  Check-in (`/tutor/checkin`): the week range between arrows in the header, a banner for the next week still to confirm, then one card with the pay, hours, lessons and hourly rate, the status pill, the week on the shared grid (each day's hours under its name, "Corrected" lessons outlined), and a footer naming each admin change ("Admin changed Friday's end time to 6:30 pm") beside **Something's wrong** (opens the report to admin) and **Approve these hours**.
-  The running "Week 200" label and the "This week" button are gone from the tutor header, as in the mockup; admin's check-in page still shows the week number.
-  Verified on dev in Chrome and WebKit at 1440px and 390px: tutor, student and admin threads, the filter and collapse, posting and removing a reply, and the check-in with a correction (made on dev and undone), an approved week and the current week, with no errors or sideways scroll. Typecheck, lint, 778 unit tests.
-
-- [x] Tutor fixes from the demo rehearsal (29 October 2026, owner's list while preparing the tutor demo).
 - [x] Parent portal: one destination per thing (3 November 2026, owner: a lesson clicked from the calendar, the dashboard or a class page should open the same place; rule added to `CLAUDE.md` as "One destination per thing").
   Audited every link into the parent portal by what it points at (pages, shared components, notification builders). Homework, recaps, messages and announcements already open one page from every entry point.
   Owner decision: attendance and tutor feedback each keep their menu home. The subject page's Attendance and Tutor feedback tabs are gone, so `/parent/subjects/[id]` is the student's subject page (weekly work); `?tab=attendance` forwards to `/parent/timetable#attendance` and `?tab=feedback` to `/parent/feedback`.
@@ -737,6 +737,15 @@ Still open after the fixes:
   Demo seed: Maya Collins has a second class, Y9 English · Monday PM in Room 4 with three new students, and Tom's claimed cover is on it, so the cover board's Needs cover (her Y8 Mathematics) and You're covering cards are different lessons.
   Verified on dev in Chrome and WebKit at 1440px: Today, the cover board, adding a resource by file and by link, the messages search as tutor, admin, student and parent, the portal search, and opening a never-messaged student's conversation. Typecheck, lint, 778 unit tests.
 
+- [x] Discussion threads and the tutor weekly check-in redesigned (29 October 2026, owner mockups "Thread · version A, questions on the right" and a check-in screenshot; owner: "share across all roles", "make the other questions collapsable").
+  Threads, the same in student, tutor and admin (`DiscussionThreadDetail`): one frame with the question (back, board, Answered or Unanswered pill, title, author line, body), Replies with staff answers tinted green and tagged, and a one-line reply box (paperclip, "Write your answer" / "Post answer" for tutors, "reply" for others).
+  Beside it, **Other questions**: the board's questions with the open one highlighted, All / Unanswered with the count, a collapse toggle, and "All N questions" past 8. Each role's own card sits under it (student next steps, tutor Asked by without its tagline, admin controls).
+  Older dates in thread times now use the fixed month list (`relativeShort`), since Safari's "Sep" against the server's "Sept" could break hydration in the client reply list.
+  Check-in (`/tutor/checkin`): the week range between arrows in the header, a banner for the next week still to confirm, then one card with the pay, hours, lessons and hourly rate, the status pill, the week on the shared grid (each day's hours under its name, "Corrected" lessons outlined), and a footer naming each admin change ("Admin changed Friday's end time to 6:30 pm") beside **Something's wrong** (opens the report to admin) and **Approve these hours**.
+  The running "Week 200" label and the "This week" button are gone from the tutor header, as in the mockup; admin's check-in page still shows the week number.
+  Verified on dev in Chrome and WebKit at 1440px and 390px: tutor, student and admin threads, the filter and collapse, posting and removing a reply, and the check-in with a correction (made on dev and undone), an approved week and the current week, with no errors or sideways scroll. Typecheck, lint, 778 unit tests.
+
+- [x] Tutor fixes from the demo rehearsal (29 October 2026, owner's list while preparing the tutor demo).
   Lesson notes are an optional **Comment** for the family plus an optional **Internal note** (`LESSON_NOTE_FIELDS`, `src/lib/lesson-note-fields.ts`); topic covered, performance, strengths, struggled with and next lesson focus are gone from the editor, the recaps, the admin roll card and the student record. Saving both boxes empty deletes the note (`saveLessonNote`).
   A notes row written only in the old fields counts as no note anywhere. Family recaps (`RecapBlocks`) drop the "Comment" label: it was the only field.
   Owner decision: a lesson is finished once its attendance is saved, so `describeLesson` ignores notes; "Finish notes", the admin Attendance **Notes** tab, the dashboard's "lessons without notes" and the class Lessons tab's notes column are removed.
@@ -1806,8 +1815,8 @@ Still open after the fixes:
   - Timetable conflicts and simultaneous claims are blocked.
   - Admin is notified when cover is posted, leave is requested/approved, cover
     is claimed, or claimed cover is released.
-  - Admin receives deduplicated urgent alerts at 48 hours and 24 hours, plus a
-    daily reminder while extended leave remains partly uncovered.
+  - Admin receives deduplicated urgent alerts at 48 hours and 24 hours.
+    The daily reminder while extended leave stayed partly uncovered was retired on 7 November 2026; approved leave classes get the same 48 and 24 hour alerts as any other cover.
   - Urgent notifications are highlighted, filterable, and reflected by the
     admin notification bell.
 
@@ -1998,6 +2007,7 @@ Still open after the fixes:
   cover notice board.
 - [x] Admin cover notifications, urgent deadline alerts, and daily uncovered
   reminders are implemented.
+  Daily uncovered reminders retired on 7 November 2026 (see "Announcements and email delivery").
 - [x] Replace the ambiguous undated break/pause profile toggle with the dated
   student-break and tutor-leave workflows already used by attendance and cover.
 - [x] Derive Admin Users/profile schedule badges from those date ranges while
@@ -2202,12 +2212,44 @@ Still open after the fixes:
   6 October 2026.
 - [x] Add the required Resend email variable names to Vercel Production. Their
   presence was rechecked on 6 October 2026; secret values are not documented.
-- [ ] Configure/confirm Supabase custom SMTP with the verified Resend sender,
-  then test new-account setup and password reset to a normal non-team inbox.
+- [x] Verify the `send.taiyotuition.com` sending domain in Resend.
+  On 6 November 2026 Resend still showed it as `failed` although all three records were live and exact, because Resend stops checking about 72 hours after a domain is added (15 September) and the records arrived later.
+  Re-running verification (`POST /domains/{id}/verify`) turned DKIM, SPF TXT, and SPF MX `verified`.
+  Until then Resend could not send anything: its email log was empty and no urgent announcement had been published in Production.
+- [x] Configure Supabase custom SMTP with the verified Resend sender, then test
+  password reset to a normal inbox.
+  Done 6 November 2026: until then Production used Supabase's built-in mailer, which only reaches project team members.
+  SMTP is `smtp.resend.com:465`, user `resend`, sender `"Taiyo Tuition Portal" <notifications@send.taiyotuition.com>`, password a dedicated Resend key `supabase-auth-smtp` (sending only, `send.taiyotuition.com` only) so the portal's `taiyo-email` key can be rotated independently.
+  The Reset password template keeps the scanner-safe `https://portal.taiyotuition.com/auth/recovery?token_hash={{ .TokenHash }}` link (hard-coded origin, not `{{ .SiteURL }}`) and now reads as "Set your Taiyo Tuition password", because new-account setup emails use the same template.
+  A reset to the owner's admin inbox showed `delivered` in Resend, and the link opened `/auth/recovery` and then the set-password form.
+- [ ] Create a real account from Admin and confirm its setup email arrives and the link works.
+  It uses the same Supabase recovery email and template as the tested reset, but has not been exercised separately.
+  The owner set the template subject to "Set your Taiyo Tuition password" and the Supabase email rate limit to 200 per hour on 6 November 2026 (custom SMTP otherwise defaults to 30 per hour, which a start-of-term batch of new accounts would exceed).
 - [ ] Publish a DMARC record after the current sending flow is verified. No TXT
   policy resolved at `_dmarc.taiyotuition.com` on 6 October 2026.
 - [ ] Send a narrowly targeted urgent announcement and confirm Resend delivery,
   idempotent retry behavior, and that no unrelated inbox receives it.
+  Since 7 November 2026 it goes through the shared notification email outbox below.
+- [x] Email admins about tutor cover and leave, with every email a copy of one in-portal notification (7 November 2026, owner request).
+  Emailed to every active admin: a class posted to the cover board ("Tutor cover request posted"), an extended leave request (Urgent), a leave request still undecided after each 24 hours (Urgent, `tutor_leave_requests.pending_reminders_sent` counts them so a late sweep sends one catch-up, not a burst), a cover still open within 48 hours and within 24 hours (Urgent), a class that passed without cover (Urgent, owner chose to email it), and "Cover returned to the board" when an admin returns a claimed cover or the claiming tutor releases it.
+  The returned-cover alert is urgent inside 48 hours and states the time left; it sets the cover's 48 and 24 hour alert flags for the window it already covers (`coverReturnedAlertFlags` in `src/lib/tutor-cover-rules.ts`), so the sweep never sends a second urgent email for the same window.
+  Approved leave classes now get the ordinary 48 and 24 hour alerts; the separate daily "extended leave not fully covered" alert and `tutor_leave_requests.last_uncovered_reminder_on` are gone, and the approval note is a non-urgent, in-portal-only "Extended leave approved".
+  One outbox for all portal email: `insertNotificationsWithEmail` adds an `email_deliveries` row per notification (migration 0086), `deliverPendingEmails` in `src/lib/notification-email.ts` sends through Resend's batch endpoint from `EMAIL_FROM`, waits 15 minutes before retrying a failure, stops after 5 attempts, and cancels rows for inactive accounts.
+  Urgent announcements moved onto it; `src/lib/announcement-email.ts` and `announcement_email_deliveries` are retired (migration 0087), and deleting an announcement cancels its unsent emails.
+  The inbox now hides the `URGENT:` title prefix because the Urgent pill already says it.
+  Also fixed a Production bug: every 24 hour cover alert threw (`coalesce(..., <Date>)` in raw SQL raised `ERR_INVALID_ARG_TYPE`), so none had been sent and Cover & leave errored while a cover was inside 24 hours.
+  Verified on dev in Chrome and WebKit through the real tutor and admin screens and the admin page sweep, with Resend unset in dev (dev admins use `@taiyo.com`, a domain the owner does not control): each alert is created once with its email job, the returned cover gives one urgent alert and no repeat 48 hour alert, leave reminders catch up with one email, and all four role inboxes render without the prefix. A bad API key records the Resend error on the job and sends nothing.
+  Real delivery from Production is still unverified; see the manual QA item at the top.
+- [ ] Production rollout for the admin email alerts, in this order (needs the owner's go-ahead):
+  apply `supabase/migrations/0086_notification_emails.sql` to Production; add `EMAIL_FROM` = `Taiyo Tuition Portal <notifications@send.taiyotuition.com>` to Vercel Production; deploy; then apply `0087_retire_old_email_and_leave_alerts.sql` and remove the old `ANNOUNCEMENT_EMAIL_FROM` variable.
+  0086 must land before the deploy (the new code writes `email_deliveries` and `pending_reminders_sent`), and 0087 after it (the old code still writes the dropped table and column).
+  Run `npm run db:check-rls` against Production afterwards.
+  12 November 2026: `0086` applied to Production (78 of 80 were applied before it; table and column checked, row-level security on) and the owner added `EMAIL_FROM` to Vercel Production.
+- [ ] Run the cover sweep every 15 minutes in Production.
+  The Vercel team that owns the `tayio` project (TAIYO) was on the Hobby plan on 7 November 2026, which only allows a daily cron, so `/api/cron/tutor-cover-reminders` still runs once a day at 20:00 UTC; between runs alerts go out only while an admin has the portal open (5 minute poll) or after a cover action.
+  The owner confirmed it is still Hobby on 12 November 2026, so the daily schedule stays for this deploy.
+  After moving that team to Pro, change its `vercel.json` schedule to `*/15 * * * *`.
+  Hobby is also for non-commercial use only.
 
 - [x] Replace the single audience dropdown with combinable audience filters:
   role, subject, year level, class, and tutor.
@@ -2225,6 +2267,7 @@ Still open after the fixes:
   in-app, without leaking messages to unrelated roles, classes, subjects, or
   tutors. Email jobs are implemented and safely queued; actual external delivery
   still requires configured sender credentials and end-to-end QA.
+  The Resend key and verified domain are in place; `EMAIL_FROM` and real delivery are tracked in the items above (7 November 2026).
 
 ## Notifications
 

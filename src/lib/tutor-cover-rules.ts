@@ -125,6 +125,55 @@ export function tutorCoverLessonDescription(row: {
   );
 }
 
+/** Time left before a class, in the unit a person would say it. */
+export function formatTimeUntil(hours: number): string {
+  const plural = (count: number, unit: string) =>
+    `${count} ${unit}${count === 1 ? "" : "s"}`;
+  if (hours < 1) return plural(Math.max(1, Math.floor(hours * 60)), "minute");
+  if (hours < MIN_COVER_NOTICE_HOURS) return plural(Math.floor(hours), "hour");
+  return plural(Math.floor(hours / 24), "day");
+}
+
+/**
+ * A cover handed back to the board (by an admin, or by the tutor who had
+ * claimed it) is announced once. That announcement stands in for the deadline
+ * alert of the window the class is already in, so the sweep never sends a
+ * second urgent message for the same moment; later windows still alert.
+ */
+export function coverReturnedAlertFlags(hoursRemaining: number, now: Date) {
+  if (hoursRemaining <= COVER_URGENT_24_HOURS) {
+    return { alert48SentAt: now, alert24SentAt: now };
+  }
+  if (hoursRemaining <= MIN_COVER_NOTICE_HOURS) {
+    return { alert48SentAt: now, alert24SentAt: null };
+  }
+  return { alert48SentAt: null, alert24SentAt: null };
+}
+
+/** The admin notice (and email) for a cover returned to the board. */
+export function coverReturnedNotice(
+  lessonDescription: string,
+  hoursRemaining: number,
+): { title: string; body: string } {
+  return {
+    title:
+      hoursRemaining <= MIN_COVER_NOTICE_HOURS
+        ? "URGENT: Cover returned to the board"
+        : "Cover returned to the board",
+    body:
+      `${lessonDescription} needs a replacement again. ` +
+      `The class starts in ${formatTimeUntil(hoursRemaining)}.`,
+  };
+}
+
+/**
+ * How many "still waiting for a decision" reminders a pending leave request
+ * should have had by now: the n-th falls due 24 * n hours after it was made.
+ */
+export function pendingLeaveRemindersDue(createdAt: Date, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - createdAt.getTime()) / 86_400_000));
+}
+
 /** Decide the next one-off escalation; 24h supersedes a missed 48h alert. */
 export function nextCoverUrgency(input: {
   hoursRemaining: number;

@@ -38,7 +38,8 @@ const ALLOW_NO_RLS = new Set([
   "class_move_requests", // permanent class relocation workflow, migration 0045
   "subject_search_aliases", // owner-managed directory quick keys, migration 0047
   "announcement_recipients", // server-resolved audience snapshots, migration 0048
-  "announcement_email_deliveries", // auditable urgent-email queue, migration 0048
+  "announcement_email_deliveries", // old urgent-email queue (0048), dropped by 0087
+  "email_deliveries", // notification email jobs, server-only, migration 0086
   "school_year_ends", // owner-run end-of-year archive and move up, migration 0079
   "lesson_roll_exclusions", // admin roll edits for one lesson, migration 0080
   "lesson_roll_additions", // one-off visits to one lesson, migration 0084

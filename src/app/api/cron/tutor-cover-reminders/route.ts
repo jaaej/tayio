@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { runTutorCoverReminders } from "@/lib/tutor-cover";
 import { runFreeTrialSweep } from "@/lib/free-trial-notifications";
-import { deliverPendingAnnouncementEmails } from "@/lib/announcement-email";
 import { runTutorCheckinReminders } from "@/lib/tutor-checkins";
 import { ensureRecurringLessons } from "@/lib/recurring-lessons";
 import { runEnrolmentEndSweep } from "@/lib/enrolment-ends";
@@ -15,11 +14,12 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const [cover, freeTrials, checkins, announcementEmails, recurringLessons, enrolmentEnds] = await Promise.all([
+  // The cover sweep also sends every notification email still queued
+  // (announcements included), so it doubles as the email retry.
+  const [cover, freeTrials, checkins, recurringLessons, enrolmentEnds] = await Promise.all([
     runTutorCoverReminders(),
     runFreeTrialSweep(),
     runTutorCheckinReminders(),
-    deliverPendingAnnouncementEmails({ limit: 100 }),
     ensureRecurringLessons(),
     runEnrolmentEndSweep(),
   ]);
@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     cover,
     freeTrials,
     checkins,
-    announcementEmails,
     recurringLessons,
     enrolmentEnds,
   });

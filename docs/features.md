@@ -110,7 +110,8 @@ Conventions referenced throughout:
 ### Notifications inbox
 1. **What it is** - In-app inbox of notifications (DMs, discussion replies, reschedule updates).
 2. **How it works** - `/student/notifications` (`NotificationsInbox` component). Table: `notifications`. Guard: `requireRole("student")` + `userId = me`.
-3. **Rationale:** The inbox is the authoritative notification channel. Email is reserved for urgent targeted announcements when the Resend transport is configured; ordinary workflow events stay in-app to avoid notification noise.
+3. **Rationale:** The inbox is the authoritative notification channel.
+   A student gets an email only for an urgent announcement that targets them; ordinary workflow events stay in-app to avoid notification noise.
 
 ### Profile and security
 1. **What it is** - A profile-icon picker and authenticated password-change form reached from the top-right profile avatar.
@@ -175,14 +176,15 @@ Conventions referenced throughout:
 2. **How it works** - `/parent/messages` (+ `[threadId]`, `with/[userId]`).
    Tables `dmThreads`/`dmMessages`/`dmReads`; inbox queries exclude threads with no messages.
    Parent↔Tutor is allowed only when the tutor teaches a class the child is enrolled in (`family_links → enrollments → classes.tutorId`).
-   Guard: `requireRole("parent")` + `canDM`.
    Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
+   Guard: `requireRole("parent")` + `canDM`.
 3. **Rationale:** DM replaces scattered SMS/email/WhatsApp with a centralized channel; parent↔tutor requires a live shared-class relationship, but an existing thread stays readable if the relationship later lapses (humane, no surprise data loss) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Notifications inbox
 1. **What it is** - In-app notification inbox.
 2. **How it works** - `/parent/notifications` (`NotificationsInbox`). Table `notifications`. Guard: `requireRole("parent")`.
-3. **Rationale:** The inbox is the authoritative channel. A parent receives email only when included in an urgent targeted announcement and the Resend transport is configured.
+3. **Rationale:** The inbox is the authoritative channel.
+   A parent gets an email only for an urgent announcement that targets them.
 
 ### Resource Library (read-only mirror)
 1. **What it is** - Read-only mirror of the student resource library, scoped to the selected child's enrolled subjects.
@@ -200,9 +202,9 @@ Conventions referenced throughout:
 ### Class timetable
 1. **What it is** - Dashboard plus a monthly grid of the tutor's classes, recurring availability, and absence/leave requests.
 2. **How it works** - `/tutor` dashboard, `/tutor/classes` (weekly snapshot), `/tutor/timetable` (schedule, availability, and absence hub). Tables: `classes`, `lessons`, `tutorAvailability`. Guard: `requireRole("tutor")`.
+   A class card's **When** and **Where** are the class's weekly slot; an admin's schedule change rewrites it and the future lessons, while leave, covers and cancellations leave it as is.
 3. **Rationale:** Consolidated 2026-06-03 - previously split across `/tutor/schedule` + `/tutor/availability` (per `docs/checklist.md` Tutor "Class timetable").
 
-   A class card's **When** and **Where** are the class's weekly slot; an admin's schedule change rewrites it and the future lessons, while leave, covers and cancellations leave it as is.
 ### Tutor availability
 1. **What it is** - One scheduling hub for recurring weekly hours, class absences, and extended leave.
 2. **How it works** - `/tutor/timetable` uses a wide slide-over with full day/time fields rather than hour pills. Weekly windows are stored as hourly `tutorAvailability` rows (`weekday`). The same page posts an assigned-class absence or submits extended leave through a second wide slide-over. Admin reads and may edit the same rows at `/admin/tutors/availability` or on the tutor's user profile; the Classes page links to this board for cross-checking before class creation. `getAvailableSlots` (`src/lib/availability.ts`) consumes the saved availability for make-up/reschedule slots. Guard: `requireRole("tutor")` + `tutor_id = me`.
@@ -211,6 +213,10 @@ Conventions referenced throughout:
 ### Tutor leave & cover board
 1. **What it is** - Tutors post one class they cannot teach or request multi-day leave, with a private reason and an optional handover note. Extended leave needs admin approval; approval publishes each affected class to a board where any active, non-conflicting tutor can claim it.
 2. **How it works** - "Request time away" on `/tutor/timetable` (`?panel=leave` opens it); the page's Time away list (`#time-away`) is the one home for the tutor's own leave and posted classes, with Cancel request on pending leave and unclaimed single classes (`cancelTutorCoverRequest`, which tells admins; a cancelled lesson can be posted again, reusing its row). `/tutor/cover` lists other tutors' requests and the ones you are covering, showing only "From <name>: <handover note>" (migration 0071). The tutor badge and Today count only covers this tutor can take (`fitsFor`). Admins work it on Cover & leave.
+   Admins get an in-portal notification and an email when a class is posted or extended leave is requested, a reminder each 24 hours while leave waits for a decision, and urgent alerts when a cover is still open within 48 hours and within 24 hours, and when a class passed without cover (`runTutorCoverReminders` in `src/lib/tutor-cover.ts`).
+   Classes posted by approved leave get the same 48 and 24 hour alerts as any other cover.
+   A cover returned to the board, by an admin or by the tutor who claimed it, sends one "Cover returned to the board" alert with the time left, and records the 48 and 24 hour alerts it already covers so they do not repeat.
+   The sweep runs from the daily cron, every 5 minutes while an admin has the portal open, and after each cover action.
 3. **Rationale:** The leave reason ("surgery") used to be copied onto every cover request and shown to all tutors (consistency audit item 7). Multi-day leave is an approval envelope while each lesson is independently claimable and auditable.
 
 ### Weekly check-in and payroll
@@ -263,15 +269,16 @@ Conventions referenced throughout:
 2. **How it works** - `/tutor/messages` (+ `[threadId]`, `with/[userId]`).
    `canDM` allows tutor↔student and tutor↔parent only on a shared class.
    Inbox queries exclude threads with no messages, so an unopened draft never appears as a conversation.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
+   In the portal search, each student result also has a Message button.
    Guard: `requireRole("tutor")` + `canDM`.
 3. **Rationale:** Relationship clauses reuse existing joins (`classes.tutorId → enrollments`, `→ family_links`); same-role pairs are always denied (no tutor↔tutor) (per `docs/superpowers/specs/2026-05-27-direct-messaging-design.md`).
 
 ### Notifications inbox
 1. **What it is** - In-app inbox.
 2. **How it works** - `/tutor/notifications` (`NotificationsInbox`). Table `notifications`.
-   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
-   In the portal search, each student result also has a Message button.
-3. **Rationale:** The inbox is authoritative; only urgent targeted announcements use the optional email transport.
+3. **Rationale:** The inbox is authoritative.
+   A tutor gets an email only for an urgent announcement that targets them.
 
 ### Profile photo and icon
 1. **What it is** - Tutors can upload a profile photo or choose a controlled icon from the profile page reached through the top-right profile chip.
@@ -354,7 +361,7 @@ Conventions referenced throughout:
 
 ### Announcements
 1. **What it is** - Announcements with combinable role, subject, year, class, and tutor audiences, plus approval of tutor-authored class announcements.
-2. **How it works** - `/admin/announcements` resolves exact recipients through `src/lib/announcement-targeting.ts`. Tutor submissions originate from the class curriculum, remain `pending`, and notify all active admins; approval publishes only to the class students and optionally their linked parents, while rejection records a reason for the tutor. Urgent published announcements queue one email delivery row per resolved recipient and use `src/lib/announcement-email.ts` with retry/idempotency safeguards when Resend is configured. Guard: `requireAdmin()`; tutor creation is ownership-scoped.
+2. **How it works** - `/admin/announcements` resolves exact recipients through `src/lib/announcement-targeting.ts`. Tutor submissions originate from the class curriculum, remain `pending`, and notify all active admins; approval publishes only to the class students and optionally their linked parents, while rejection records a reason for the tutor. Urgent published announcements also email each resolved recipient through the shared notification email outbox (`src/lib/notification-email.ts`), and deleting an announcement cancels its unsent emails. Guard: `requireAdmin()`; tutor creation is ownership-scoped.
 3. **Rationale:** Combinable filters avoid maintaining a long ambiguous audience dropdown. Recipient rows are resolved once and deduped so in-app and urgent-email delivery target the same audience without broad role leakage.
 
 ### Reschedules & tutor cover (admin)
@@ -387,6 +394,7 @@ Conventions referenced throughout:
 2. **How it works** - `/admin/messages` (+ `[threadId]`, `with/[userId]`).
    The directory categorizes parents, tutors, and students; `/admin/users/[id]` provides the Message action.
    Inbox queries exclude empty threads until the first message is sent.
+   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
    `canDM` returns true for any admin↔non-admin pair.
    Guard: `requireAdmin()`.
 3. **Rationale:** `getThreadForMe` scopes the admin messages UI to threads the admin *participates* in; RLS (migration 0012) permits admin read of all DMs, but no UI surfaces non-participant conversations - a safeguarding-oversight view would need an audit READ row + reason gate before exposing them (per security-checklist G3).
@@ -394,7 +402,6 @@ Conventions referenced throughout:
 ### Discontinued students
 1. **What it is** - A directory status for deactivated accounts and students whose enrolments have all been withdrawn.
 2. **How it works** - `/admin/users?status=discontinued` uses the Status filter on the single user directory. `directoryStatus` in `src/app/admin/_lib/queries.ts` derives the value from `profiles.isActive` and `enrollments.withdrawnAt`. Guard: `requireAdmin()`.
-   Typing a name in the list's search also lists the people this role can message who have no conversation yet, so one tap starts it; the portal search's **Message someone** opens Messages with the name filled in (`?q=`, `src/components/dm/inbox-compose.tsx`, 29 October 2026).
 3. **Rationale:** The former standalone leaving page and separate directory tab were consolidated so admins search and manage every account in one place.
 
 ### Notifications inbox (admin)
@@ -444,9 +451,20 @@ Conventions referenced throughout:
 3. **Rationale:** The app layer is the real boundary - the Drizzle `db` connects as `postgres` and bypasses RLS, so `requireRole` + ownership checks are the primary control (verified present on every server action in the K3 review); RLS is defense-in-depth (per security-checklist C6/K3). Role is read from `app_metadata.role` **only** - never `user_metadata` - because `user_metadata` is user-mutable via `supabase.auth.updateUser()` and trusting it (even as a fallback) was a privilege-escalation path (per security-checklist B1/B2, migration 0002, commit `c16ddde`).
 
 ### Notifications
-1. **What it is** - In-app notification inbox and unread badge for all four roles, with urgent presentation and optional urgent-announcement email.
-2. **How it works** - `notifications` table; shared `NotificationsInbox`; `/{role}/notifications`; red unread counts in desktop/mobile shells. Opening a notification records it read. Workflow writers use recipient-specific dedupe keys where retry is possible. Published urgent announcements queue `announcementEmailDeliveries`; the Resend worker claims, retries, and records delivery attempts.
-3. **Rationale:** The in-app inbox is authoritative and available even when external mail is unavailable. Email is limited to urgent targeted announcements; Supabase separately owns account/password Auth emails. DNS and Vercel variables are present, but custom-SMTP/real-inbox delivery remains unverified as of 6 October 2026.
+1. **What it is** - In-app notification inbox and unread badge for all four roles, with urgent presentation.
+   Some notifications are also sent as an email.
+2. **How it works** - `notifications` table; shared `NotificationsInbox`; `/{role}/notifications`; red unread counts in desktop/mobile shells.
+   Opening a notification records it read.
+   Workflow writers use recipient-specific dedupe keys where retry is possible.
+   Titles starting `URGENT:` show as urgent; the inbox drops the prefix because the Urgent pill already says it.
+   A notification that is also emailed is written with `insertNotificationsWithEmail` (`src/lib/notification-email.ts`), which adds an `email_deliveries` row for it (migration 0086).
+   `deliverPendingEmails` sends pending rows through Resend's batch endpoint (up to 100 per request) from `EMAIL_FROM`, retries a failure after 15 minutes up to 5 attempts, and cancels rows whose recipient account is inactive.
+   The email (`src/lib/notification-email-template.ts`) carries the notification's title, body and an "Open in the portal" link to the same page.
+   Emailed today: urgent announcements to their recipients, and to admins the cover and leave alerts listed under Tutor leave & cover board.
+3. **Rationale:** The in-app inbox is authoritative and still works when email fails.
+   Each email is a copy of one notification row, so both carry the same words and link, and deleting the notification cancels an email that has not gone out.
+   Email is kept to admin cover and leave deadlines and urgent announcements so that it stays worth reading.
+   Supabase separately sends account setup and password emails through the same Resend domain (custom SMTP since 6 November 2026).
 
 ### Row-Level Security (RLS)
 1. **What it is** - RLS enabled on every public table as defense-in-depth.

@@ -35,6 +35,7 @@ import { validateUploadMetadata, HOMEWORK_POLICY } from "@/lib/upload-validation
 import { optionalText, requiredText } from "@/lib/validation";
 import { melbourneDate } from "@/lib/tutor-cover-rules";
 import { withActor } from "@/lib/with-actor";
+import { cancelAnnouncementEmails } from "@/lib/notification-email";
 import { canDM } from "@/lib/dm-permissions";
 import { getOrCreateThread } from "@/lib/dm-queries";
 import { coarseRole } from "@/lib/roles";
@@ -470,9 +471,10 @@ export async function deleteClassAnnouncement(formData: FormData) {
     .limit(1);
   if (!row) throw new Error("Announcement not found");
 
-  await withActor({ id: tutor.id, role: "tutor" }, (tx) =>
-    tx.delete(announcements).where(eq(announcements.id, announcementId)),
-  );
+  await withActor({ id: tutor.id, role: "tutor" }, async (tx) => {
+    await cancelAnnouncementEmails(tx, announcementId);
+    await tx.delete(announcements).where(eq(announcements.id, announcementId));
+  });
 
   revalidatePath(`/tutor/classes/${classId}`, "layout");
 }

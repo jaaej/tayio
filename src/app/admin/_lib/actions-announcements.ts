@@ -4,20 +4,19 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import {
-  announcementEmailDeliveries,
-  announcementRecipients,
-  announcements,
-  notifications,
-} from "@/db/schema";
+import { announcementRecipients, announcements, notifications } from "@/db/schema";
 import {
   ANNOUNCEMENT_ROLES,
   announcementHrefForRole,
   type AnnouncementTargetRules,
   uniqueValues,
 } from "@/lib/announcement-rules";
-import { deliverPendingAnnouncementEmails } from "@/lib/announcement-email";
 import { resolveAnnouncementRecipients } from "@/lib/announcement-targeting";
+import {
+  cancelAnnouncementEmails,
+  insertNotificationsWithEmail,
+  sendQueuedEmailsNow,
+} from "@/lib/notification-email";
 import { withActor } from "@/lib/with-actor";
 import { requireAdmin } from "./guard";
 
@@ -76,32 +75,27 @@ export async function createAnnouncement(input: CreateAnnouncementInput) {
         userId: recipient.id,
       })),
     );
-    await tx.insert(notifications).values(
-      recipients.map((recipient) => ({
-        userId: recipient.id,
-        channel: "in_app" as const,
-        title: data.isUrgent
-          ? `Urgent announcement: ${data.title}`
-          : `New announcement: ${data.title}`,
-        body: data.body,
-        href: announcementHrefForRole(recipient.role, created.id),
-        dedupeKey: `announcement:${created.id}`,
-      })),
-    );
+    const recipientNotifications = recipients.map((recipient) => ({
+      userId: recipient.id,
+      channel: "in_app" as const,
+      title: data.isUrgent
+        ? `Urgent announcement: ${data.title}`
+        : `New announcement: ${data.title}`,
+      body: data.body,
+      href: announcementHrefForRole(recipient.role, created.id),
+      dedupeKey: `announcement:${created.id}`,
+    }));
+    // Urgent announcements are also emailed to every recipient.
+    let emailed: string[] = [];
     if (data.isUrgent) {
-      await tx.insert(announcementEmailDeliveries).values(
-        recipients.map((recipient) => ({
-          announcementId: created.id,
-          userId: recipient.id,
-        })),
-      );
+      emailed = await insertNotificationsWithEmail(tx, recipientNotifications);
+    } else {
+      await tx.insert(notifications).values(recipientNotifications);
     }
-    return created;
+    return { id: created.id, emailed };
   });
 
-  const email = data.isUrgent
-    ? await deliverPendingAnnouncementEmails({ announcementId: row.id })
-    : null;
+  const email = data.isUrgent ? await sendQueuedEmailsNow(row.emailed) : null;
   revalidateAnnouncementPaths();
   return {
     ok: true as const,
@@ -172,7 +166,7 @@ export async function approveAnnouncement(id: string) {
           ),
         )
         .returning({ id: announcements.id });
-      if (!updated) return false;
+      if (!updated) return null;
 
       await tx.insert(announcementRecipients).values(
         recipients.map((recipient) => ({
@@ -180,44 +174,39 @@ export async function approveAnnouncement(id: string) {
           userId: recipient.id,
         })),
       );
-      await tx.insert(notifications).values([
-        ...recipients.map((recipient) => ({
-          userId: recipient.id,
-          channel: "in_app" as const,
-          title: pending.isUrgent
-            ? `Urgent announcement: ${pending.title}`
-            : `New announcement: ${pending.title}`,
-          body: pending.body,
-          href: announcementHrefForRole(recipient.role, announcementId),
-          dedupeKey: `announcement:${announcementId}`,
-        })),
-        {
-          userId: pending.authorId,
-          channel: "in_app" as const,
-          title: "Announcement approved",
-          body: `“${pending.title}” is now visible to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}.`,
-          href: `/tutor/classes/${pending.targetClassIds[0] ?? ""}/announcements`,
-          dedupeKey: `announcement-approved:${announcementId}`,
-        },
-      ]);
+      const recipientNotifications = recipients.map((recipient) => ({
+        userId: recipient.id,
+        channel: "in_app" as const,
+        title: pending.isUrgent
+          ? `Urgent announcement: ${pending.title}`
+          : `New announcement: ${pending.title}`,
+        body: pending.body,
+        href: announcementHrefForRole(recipient.role, announcementId),
+        dedupeKey: `announcement:${announcementId}`,
+      }));
+      // Urgent announcements are also emailed to every recipient.
+      let emailed: string[] = [];
       if (pending.isUrgent) {
-        await tx.insert(announcementEmailDeliveries).values(
-          recipients.map((recipient) => ({
-            announcementId,
-            userId: recipient.id,
-          })),
-        );
+        emailed = await insertNotificationsWithEmail(tx, recipientNotifications);
+      } else {
+        await tx.insert(notifications).values(recipientNotifications);
       }
-      return true;
+      await tx.insert(notifications).values({
+        userId: pending.authorId,
+        channel: "in_app" as const,
+        title: "Announcement approved",
+        body: `“${pending.title}” is now visible to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}.`,
+        href: `/tutor/classes/${pending.targetClassIds[0] ?? ""}/announcements`,
+        dedupeKey: `announcement-approved:${announcementId}`,
+      });
+      return { emailed };
     },
   );
 
   if (!published) {
     return { ok: false as const, error: "Another admin already reviewed this announcement." };
   }
-  const email = pending.isUrgent
-    ? await deliverPendingAnnouncementEmails({ announcementId })
-    : null;
+  const email = pending.isUrgent ? await sendQueuedEmailsNow(published.emailed) : null;
   revalidateAnnouncementPaths(pending.targetClassIds[0]);
   return { ok: true as const, recipientCount: recipients.length, email };
 }
@@ -278,9 +267,10 @@ export async function rejectAnnouncement(input: {
 export async function deleteAnnouncement(id: string) {
   const user = await requireAdmin();
   const announcementId = z.string().uuid().parse(id);
-  await withActor({ id: user.id, role: "admin" }, (tx) =>
-    tx.delete(announcements).where(eq(announcements.id, announcementId)),
-  );
+  await withActor({ id: user.id, role: "admin" }, async (tx) => {
+    await cancelAnnouncementEmails(tx, announcementId);
+    await tx.delete(announcements).where(eq(announcements.id, announcementId));
+  });
   revalidateAnnouncementPaths();
   return { ok: true as const };
 }

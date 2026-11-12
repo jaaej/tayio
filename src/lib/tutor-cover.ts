@@ -11,7 +11,6 @@ import {
   lt,
   ne,
   notInArray,
-  or,
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -19,7 +18,6 @@ import { db } from "@/db/client";
 import {
   classes,
   lessons,
-  notifications,
   profiles,
   subjects,
   tutorCoverRequests,
@@ -27,11 +25,16 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { formatDateLong } from "@/lib/format";
+import {
+  deliverPendingEmails,
+  insertNotificationsWithEmail,
+} from "@/lib/notification-email";
 import { ADMIN_TIERS } from "@/lib/roles";
 import {
   hoursUntilLesson,
   melbourneDate,
   nextCoverUrgency,
+  pendingLeaveRemindersDue,
   tutorCoverLessonDescription,
 } from "@/lib/tutor-cover-rules";
 
@@ -392,13 +395,21 @@ function coverBody(row: {
   );
 }
 
+/** Where admins approve or decline leave. */
+export const ADMIN_LEAVE_HREF = "/admin/reschedules?tab=leave";
+
 /**
- * Idempotent escalation sweep. It is called by the secured daily cron and on
- * admin portal activity, which compensates for Hobby cron's once-daily cadence.
+ * Idempotent escalation sweep. It is called by the secured cron and on admin
+ * portal activity, which compensates for the cron's once-daily cadence on
+ * Vercel Hobby. Every alert it raises goes to all admins in the portal and by
+ * email; it then sends any queued notification email still waiting, so it is
+ * also the retry path for emails that failed when their action ran.
  */
 export async function runTutorCoverReminders(now = new Date()) {
   const adminIds = await getAdminRecipientIds();
-  if (adminIds.length === 0) return { sent: 0, expired: 0, materialized: 0 };
+  if (adminIds.length === 0) {
+    return { sent: 0, expired: 0, materialized: 0, emails: await sendQueuedEmails() };
+  }
 
   const materialized = await materializeApprovedLeaveCovers(now);
 
@@ -427,7 +438,7 @@ export async function runTutorCoverReminders(now = new Date()) {
     if (!urgency) continue;
 
     if (urgency === "expired") {
-      const recorded = await db.transaction(async (tx) => {
+      const notified = await db.transaction(async (tx) => {
         const changed = await tx
           .update(tutorCoverRequests)
           .set({ status: "expired", updatedAt: now })
@@ -438,32 +449,34 @@ export async function runTutorCoverReminders(now = new Date()) {
             ),
           )
           .returning({ id: tutorCoverRequests.id });
-        if (changed.length === 0) return false;
-        await tx.insert(notifications).values(
-          adminIds.map((userId) => ({
-            userId,
-            channel: "in_app" as const,
+        if (changed.length === 0) return [];
+        return insertNotificationsWithEmail(
+          tx,
+          adminNotificationValues(adminIds, {
             title: "URGENT: Class passed without cover",
             body: coverBody(row),
-            href: "/admin/reschedules#tutor-cover",
-          })),
+          }),
         );
-        return true;
       });
-      if (!recorded) continue;
+      if (notified.length === 0) continue;
       expired += 1;
-      sent += adminIds.length;
+      sent += notified.length;
       continue;
     }
 
-    const recorded = await db.transaction(async (tx) => {
+    // Classes from approved leave are ordinary cover requests here: they get
+    // the same 48-hour and 24-hour alerts as a single posted class.
+    const notified = await db.transaction(async (tx) => {
       const changed = await tx
         .update(tutorCoverRequests)
         .set(
           urgency === "24h"
             ? {
                 alert24SentAt: now,
-                alert48SentAt: sql`coalesce(${tutorCoverRequests.alert48SentAt}, ${now})`,
+                // A missed 48-hour alert is superseded, not sent late. (A Date
+                // inside a raw sql`` fragment is not serialised by the driver,
+                // which made every 24-hour alert throw before 7 November 2026.)
+                alert48SentAt: row.alert48SentAt ?? now,
                 updatedAt: now,
               }
             : { alert48SentAt: now, updatedAt: now },
@@ -478,91 +491,84 @@ export async function runTutorCoverReminders(now = new Date()) {
           ),
         )
         .returning({ id: tutorCoverRequests.id });
-      if (changed.length === 0) return false;
-      await tx.insert(notifications).values(
-        adminIds.map((userId) => ({
-          userId,
-          channel: "in_app" as const,
+      if (changed.length === 0) return [];
+      return insertNotificationsWithEmail(
+        tx,
+        adminNotificationValues(adminIds, {
           title: `URGENT: Cover still needed within ${urgency}`,
           body: coverBody(row),
-          href: "/admin/reschedules#tutor-cover",
-        })),
+        }),
       );
-      return true;
     });
-    if (!recorded) continue;
-    sent += adminIds.length;
+    sent += notified.length;
   }
 
-  const today = melbourneDate(now);
-  const uncoveredLeaves = await db
+  // A leave request still waiting for a decision: a reminder every 24 hours
+  // after it was made, until it is decided, withdrawn, or its last day passes.
+  const pendingLeaves = await db
     .select({
       id: tutorLeaveRequests.id,
       tutorFirst: leaveTutor.firstName,
       tutorLast: leaveTutor.lastName,
       startDate: tutorLeaveRequests.startDate,
       endDate: tutorLeaveRequests.endDate,
-      openCount: sql<number>`count(${tutorCoverRequests.id})::int`,
+      createdAt: tutorLeaveRequests.createdAt,
+      remindersSent: tutorLeaveRequests.pendingRemindersSent,
     })
     .from(tutorLeaveRequests)
     .innerJoin(leaveTutor, eq(leaveTutor.id, tutorLeaveRequests.tutorId))
-    .innerJoin(
-      tutorCoverRequests,
-      and(
-        eq(tutorCoverRequests.leaveRequestId, tutorLeaveRequests.id),
-        eq(tutorCoverRequests.status, "open"),
-      ),
-    )
     .where(
       and(
-        eq(tutorLeaveRequests.status, "approved"),
-        gte(tutorLeaveRequests.endDate, today),
+        eq(tutorLeaveRequests.status, "pending"),
+        gte(tutorLeaveRequests.endDate, melbourneDate(now)),
       ),
-    )
-    .groupBy(
-      tutorLeaveRequests.id,
-      leaveTutor.firstName,
-      leaveTutor.lastName,
-      tutorLeaveRequests.startDate,
-      tutorLeaveRequests.endDate,
     );
 
-  for (const leave of uncoveredLeaves) {
-    const recorded = await db.transaction(async (tx) => {
+  for (const leave of pendingLeaves) {
+    const due = pendingLeaveRemindersDue(leave.createdAt, now);
+    if (due <= leave.remindersSent) continue;
+    const notified = await db.transaction(async (tx) => {
+      // Catching up after a missed run sends one reminder, not one per day.
       const changed = await tx
         .update(tutorLeaveRequests)
-        .set({ lastUncoveredReminderOn: today, updatedAt: now })
+        .set({ pendingRemindersSent: due })
         .where(
           and(
             eq(tutorLeaveRequests.id, leave.id),
-            eq(tutorLeaveRequests.status, "approved"),
-            or(
-              isNull(tutorLeaveRequests.lastUncoveredReminderOn),
-              lt(tutorLeaveRequests.lastUncoveredReminderOn, today),
-            ),
+            eq(tutorLeaveRequests.status, "pending"),
+            lt(tutorLeaveRequests.pendingRemindersSent, due),
           ),
         )
         .returning({ id: tutorLeaveRequests.id });
-      if (changed.length === 0) return false;
-      await tx.insert(notifications).values(
-        adminIds.map((userId) => ({
-          userId,
-          channel: "in_app" as const,
-          title: "URGENT: Extended leave is still not fully covered",
+      if (changed.length === 0) return [];
+      return insertNotificationsWithEmail(
+        tx,
+        adminNotificationValues(adminIds, {
+          title: "URGENT: Leave request still waiting for a decision",
           body:
-            `${leave.tutorFirst} ${leave.tutorLast} is away ` +
-            `${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)}. ` +
-            `${leave.openCount} ${leave.openCount === 1 ? "class still needs" : "classes still need"} a replacement.`,
-          href: "/admin/reschedules#tutor-cover",
-        })),
+            `${leave.tutorFirst} ${leave.tutorLast} asked ${due} ${due === 1 ? "day" : "days"} ago ` +
+            `for leave ${formatDateLong(leave.startDate)} - ${formatDateLong(leave.endDate)}. ` +
+            "It has not been approved or declined yet.",
+          href: ADMIN_LEAVE_HREF,
+        }),
       );
-      return true;
     });
-    if (!recorded) continue;
-    sent += adminIds.length;
+    sent += notified.length;
   }
 
-  return { sent, expired, materialized };
+  return { sent, expired, materialized, emails: await sendQueuedEmails() };
+}
+
+/** Every queued notification email, not only the alerts raised above. */
+async function sendQueuedEmails() {
+  try {
+    return await deliverPendingEmails();
+  } catch (error) {
+    // The alerts are committed in the portal; their emails stay queued for
+    // the next run rather than failing the sweep.
+    console.error("[tutor-cover] notification email delivery failed:", error);
+    return null;
+  }
 }
 
 /**

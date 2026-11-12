@@ -478,7 +478,8 @@ export const tutorLeaveRequests = pgTable(
     status: tutorLeaveStatusEnum("status").notNull().default("pending"),
     decidedById: uuid("decided_by_id").references(() => profiles.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
-    lastUncoveredReminderOn: date("last_uncovered_reminder_on"),
+    /** Daily "still waiting for a decision" reminders sent while pending (0086). */
+    pendingRemindersSent: integer("pending_reminders_sent").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -826,33 +827,6 @@ export const announcementRecipients = pgTable(
   ],
 );
 
-export const announcementEmailDeliveries = pgTable(
-  "announcement_email_deliveries",
-  {
-    announcementId: uuid("announcement_id")
-      .notNull()
-      .references(() => announcements.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    status: text("status").notNull().default("pending"),
-    attempts: integer("attempts").notNull().default(0),
-    lastError: text("last_error"),
-    sentAt: timestamp("sent_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.announcementId, table.userId] }),
-    index("announcement_email_pending_idx").on(
-      table.status,
-      table.attempts,
-      table.updatedAt,
-    ),
-  ],
-);
-
 // Per-student free-trial period (1:1), migration 0037. Admin-set; tutors see a
 // "Free trial" pill on lessons in range. Server-written only (deny-all RLS).
 export const studentTrials = pgTable("student_trials", {
@@ -993,6 +967,30 @@ export const notifications = pgTable(
     index("notifications_user_idx").on(t.userId),
     uniqueIndex("notifications_user_dedupe_idx").on(t.userId, t.dedupeKey),
   ],
+);
+
+/**
+ * The email copy of one notification (migration 0086): the job row that the
+ * sender in src/lib/notification-email.ts claims, sends and records.
+ */
+export const emailDeliveries = pgTable(
+  "email_deliveries",
+  {
+    notificationId: uuid("notification_id")
+      .primaryKey()
+      .references(() => notifications.id, { onDelete: "cascade" }),
+    status: text("status", {
+      enum: ["pending", "processing", "sent", "failed", "cancelled"],
+    })
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("email_deliveries_pending_idx").on(t.status, t.attempts, t.updatedAt)],
 );
 
 export const tutorAvailability = pgTable(

@@ -58,6 +58,8 @@ export function notificationGroupFor(
     title.includes("incorrect hours") ||
     title.includes("cover needed") ||
     title.includes("cover request") ||
+    // A cover handed back still needs someone, even days before the class.
+    title.includes("returned to the board") ||
     title.includes("relocate class time") ||
     title.includes("requested") ||
     title.includes("request") ||
